@@ -6,7 +6,7 @@ import tempfile
 
 import requests
 
-CURRENT_VERSION = "1.3.0"
+CURRENT_VERSION = "1.3.1"
 
 VERSION_URL = (
     "https://raw.githubusercontent.com/"

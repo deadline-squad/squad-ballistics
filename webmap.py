@@ -45,7 +45,7 @@ from PyQt6.QtWidgets import (
 import theme
 from config import data_dir
 from i18n import tr
-from maplink import BRIDGE_SCRIPT, parse_bridge
+from maplink import BRIDGE_SCRIPT, parse_bridge, select_weapon_script
 
 SQUADCALC_URL = "https://squadcalc.app/"
 DEADLINE_SQUADCALC_URL = "https://calc.tk104.duckdns.org/"
@@ -530,6 +530,17 @@ class MapPage(QWidget):
             return
 
         self.page.runJavaScript(BRIDGE_SCRIPT, 0, self.on_bridge_result)
+
+    def select_weapon(self, name):
+        """Select weapon `name` on the loaded SquadCalc page, if it has it.
+
+        The page then reports it back through the bridge; the calculator
+        already has it, so nothing changes there.
+        """
+        if self.page is None or self.loading:
+            return
+
+        self.page.runJavaScript(select_weapon_script(name), 0)
 
     def on_bridge_result(self, value):
         """Result of BRIDGE_SCRIPT: {targets, weapon}, None without bridge.

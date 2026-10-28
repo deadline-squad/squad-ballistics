@@ -12,6 +12,7 @@ from maplink import (
     parse_target_lines,
     parse_weapon_name,
     relay_url,
+    select_weapon_script,
 )
 
 
@@ -90,6 +91,16 @@ def test_bridge_with_weapon():
 ])
 def test_weapon_names(value, name):
     assert parse_weapon_name(value) == name
+
+
+def test_select_weapon_script_quotes_the_name():
+    name = "RPG-7 · PG-7V HEAT / OG-7V'\"); alert(1); //"
+    script = select_weapon_script(name)
+
+    # The name is a single JSON string literal: it cannot end the call.
+    argument = script.split("bridge.selectWeapon(", 1)[1].rsplit(");", 1)[0]
+    assert json.loads(argument) == name
+    assert script.startswith("(function (bridge)")
 
 
 def test_relay_text_with_weapon_line():

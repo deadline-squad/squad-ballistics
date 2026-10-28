@@ -1,3 +1,11 @@
+## Squad Ballistics 1.3.1
+
+### Что нового
+- **Оружие синхронизируется с картой в обе стороны:** оружие, выбранное в программе, выбирается и на встроенной карте SquadCalc Deadline — зона поражения и подсказки на карте рисуются для него (раньше карта знала только своё оружие).
+
+### What's new
+- **Two-way weapon sync with the map:** the weapon picked in the app is selected on the embedded Deadline SquadCalc map, so its fire coverage and popups are for that weapon.
+
 ## Squad Ballistics 1.3.0
 
 **Скачайте только `SquadBallistics.exe`** — это вся программа, ничего распаковывать не нужно. На Linux — запуск из исходников (см. README). Настройки и кэш карты сохраняются.

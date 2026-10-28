@@ -9,7 +9,9 @@ then switches to it. Two channels deliver the targets:
 * Embedded map. The Deadline SquadCalc build exposes
   `window.squadBallistics.targets()` and `.weapon()`, which
   `webmap.MapPage` polls (see `BRIDGE_SCRIPT`); `parse_bridge` reads the
-  result.
+  result. The other way, `.selectWeapon(name)` (bridge version 3) selects
+  the weapon picked here on the map (see `select_weapon_script`), so its
+  fire coverage and popups are for the same weapon.
 * Relay. A SquadCalc page open anywhere (another PC, a phone) with
   "Link the overlay" enabled sends its targets to the relay of that build
   (`ags17_relay.py` on the SquadCalc host) under a session code. `RelayLink`
@@ -165,6 +167,20 @@ def parse_bridge_targets(value):
             targets.append(target)
 
     return targets
+
+
+def select_weapon_script(name):
+    """Script selecting weapon `name` on the embedded SquadCalc page.
+
+    Evaluates to whether the page knows the weapon; null on builds without
+    `selectWeapon`.
+    """
+    return (
+        "(function (bridge) {"
+        " if (!bridge || typeof bridge.selectWeapon !== 'function') return null;"
+        f" return bridge.selectWeapon({json.dumps(name)});"
+        "})(window.squadBallistics)"
+    )
 
 
 def parse_weapon_name(value):

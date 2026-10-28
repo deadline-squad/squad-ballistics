@@ -671,6 +671,10 @@ class MainWindow(QMainWindow):
             return
 
         if user:
+            # Picked here: the embedded map follows (its coverage and popups).
+            if self.map_page is not None:
+                self.map_page.select_weapon(name)
+
             self.config["last_weapon"] = name
 
             recent = [n for n in self.config["recent_weapons"] if n != name]

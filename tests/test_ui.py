@@ -828,6 +828,59 @@ def test_embedded_bridge_reads_a_real_page(window, monkeypatch):
     )
 
 
+def test_weapon_picked_here_is_selected_on_the_embedded_map(window, monkeypatch):
+    """Two-way weapon sync: the map draws its coverage for the app's weapon."""
+    pytest.importorskip("PyQt6.QtWebEngineWidgets")
+    import webmap
+    from PyQt6.QtCore import QCoreApplication, QElapsedTimer
+
+    # A page like SquadCalc: selectWeapon() only accepts the weapons it has.
+    html = (
+        "data:text/html;charset=utf-8,<script>"
+        "var known=['QLZ87','AT-4'];var current='AT-4';var calls=[];"
+        "window.squadBallistics={version:3,"
+        "targets:()=>[{distance:500,heightDiff:0,bearing:0}],"
+        "weapon:()=>current,"
+        "selectWeapon:(n)=>{calls.push(n);if(known.indexOf(n)<0)return false;current=n;return true;}};"
+        "</script>"
+    )
+    monkeypatch.setitem(webmap.MAP_SOURCES, "deadline", html)
+
+    window.set_page(3)
+    page = window.map_page
+
+    def wait_for(condition):
+        clock = QElapsedTimer()
+        clock.start()
+        while not condition() and clock.elapsed() < 15000:
+            QCoreApplication.processEvents()
+        return condition()
+
+    def page_value(expression):
+        result = []
+        page.page.runJavaScript(expression, 0, result.append)
+        assert wait_for(lambda: result)
+        return result[0]
+
+    # The page's weapon comes first (the bridge is polled).
+    assert wait_for(lambda: window.picker.current == "AT-4" and page.last_weapon == "AT-4")
+
+    window.select_weapon("QLZ87")
+    assert wait_for(lambda: page_value("current") == "QLZ87")
+    assert wait_for(lambda: page.last_weapon == "QLZ87")
+    assert window.picker.current == "QLZ87"
+
+    # A weapon the page does not have: the page keeps its own and does not
+    # switch the app back (no ping-pong).
+    window.select_weapon("NSV")
+    assert wait_for(lambda: "NSV" in page_value("calls.join(',')"))
+    for _ in range(20):
+        QCoreApplication.processEvents()
+    page.poll_targets()
+    assert wait_for(lambda: page_value("current") == "QLZ87")
+    assert window.picker.current == "NSV"
+
+
 def test_embedded_bridge_reads_a_page_without_the_weapon(window, monkeypatch):
     """A SquadCalc build before the weapon export (bridge version 1)."""
     pytest.importorskip("PyQt6.QtWebEngineWidgets")
