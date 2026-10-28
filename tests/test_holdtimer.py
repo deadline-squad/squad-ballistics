@@ -220,3 +220,91 @@ def test_linux_beep_uses_the_first_player_found(monkeypatch, tmp_path):
 
     monkeypatch.setattr(holdtimer.shutil, "which", lambda name: None)
     assert holdtimer.linux_beep_command() is None
+
+
+class FakeAutoHold:
+    def __init__(self):
+        self.started = []
+        self.stopped = 0
+        self.active = False
+
+    def start(self, seconds):
+        self.started.append(seconds)
+        self.active = True
+        return True
+
+    def stop(self):
+        self.stopped += 1
+        self.active = False
+
+
+def test_auto_hold_holds_the_time_left_and_counts_it():
+    timer, keys, clock, reached = make_polled_timer()
+    timer.auto_hold = FakeAutoHold()
+
+    timer.set_target(1.0)
+    keys.add(VK_S)
+    for _ in range(30):
+        clock.now += 0.01
+        timer.poll()
+    keys.discard(VK_S)
+
+    assert timer.toggle_auto_hold()
+    assert timer.auto_hold.started == [pytest.approx(0.7)]
+
+    # Our own S is counted even when the reader does not see it.
+    for _ in range(71):
+        clock.now += 0.01
+        timer.poll()
+    assert len(reached) == 1
+
+    # Pressing the hotkey again releases.
+    timer.auto_hold.active = True
+    assert not timer.toggle_auto_hold()
+    assert not timer.auto_hold.active
+
+
+@pytest.mark.parametrize("cancel", ["w", "new_target", "no_target", "inactive"])
+def test_auto_hold_is_cancelled(cancel):
+    timer, keys, clock, _reached = make_polled_timer()
+    timer.auto_hold = FakeAutoHold()
+    timer.set_target(2.0)
+    timer.toggle_auto_hold()
+
+    if cancel == "w":
+        timer.advance(0.01, False, True)
+    elif cancel == "new_target":
+        timer.set_target(1.0)
+    elif cancel == "no_target":
+        timer.set_target(None)
+    else:
+        timer.set_active(False)
+
+    assert not timer.auto_hold.active
+
+
+def test_auto_hold_needs_a_target_and_the_setting():
+    timer, _keys, _clock, _reached = make_polled_timer()
+
+    assert not timer.toggle_auto_hold()  # disabled: no AutoHold
+
+    timer.auto_hold = FakeAutoHold()
+    assert not timer.toggle_auto_hold()  # no target
+    assert timer.auto_hold.started == []
+
+
+def test_key_state_is_reported():
+    timer, keys, clock, _reached = make_polled_timer()
+    changes = []
+    timer.changed.connect(lambda: changes.append((timer.s_down, timer.w_down)))
+
+    keys.add(VK_W)
+    clock.now += 0.01
+    timer.poll()
+    assert (timer.s_down, timer.w_down) == (False, True)
+
+    keys.clear()
+    clock.now += 0.01
+    timer.poll()
+    assert (timer.s_down, timer.w_down) == (False, False)
+    assert changes

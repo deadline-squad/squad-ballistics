@@ -41,7 +41,12 @@ ACTIONS = [
     "reset_offset",
     "distance_up",
     "distance_down",
+    "auto_hold",
 ]
+
+# Actions bound only while their setting is on: their key stays free for
+# the game otherwise.
+OPTIONAL_ACTIONS = {"auto_hold": "auto_hold"}
 
 WM_HOTKEY = 0x0312
 MOD_NOREPEAT = 0x4000
@@ -85,6 +90,11 @@ def bindings(window):
 
     for action in ACTIONS:
         key = configured.get(action, "")
+
+        setting = OPTIONAL_ACTIONS.get(action)
+
+        if setting and not window.config.get(setting):
+            continue
 
         if key in KEYS and key not in used:
             used.add(key)

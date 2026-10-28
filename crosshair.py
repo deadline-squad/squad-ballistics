@@ -54,6 +54,7 @@ from config import (
 )
 
 from holdtimer import (
+    VK_S,
     HoldTimer,
     beep
 )
@@ -72,6 +73,8 @@ from i18n import (
     weapon_note
 )
 
+from keyinject import AutoHold, system_key_injector
+
 from keystate import system_key_reader
 
 from maplink import (
@@ -79,7 +82,7 @@ from maplink import (
     normalize_code
 )
 
-from overlay import Overlay
+from overlay import HoldPanel, Overlay
 
 from updater import CURRENT_VERSION
 
@@ -253,6 +256,8 @@ class MainWindow(QMainWindow):
             self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
 
         self.build_ui()
+
+        self.apply_auto_hold()
 
         # Only after the UI exists: a hotkey may fire right away.
         setup_hotkeys(self)
@@ -1124,6 +1129,8 @@ class MainWindow(QMainWindow):
         """Show how long S has been held against the target hold time."""
         timer = self.hold_timer
 
+        self.update_hold_panel()
+
         if timer.target is None or not timer.available:
             self.hold_label.hide()
             return
@@ -1143,6 +1150,44 @@ class MainWindow(QMainWindow):
 
         self.overlay.set_info(f"{self.info_base}  ·  {progress}")
 
+    def update_hold_panel(self):
+        """The timer panel on the overlay, while S/W are being watched."""
+        timer = self.hold_timer
+        weapon = self.current_weapon()
+
+        if not (
+            timer.active
+            and self.config["hold_panel"]
+            and weapon is not None
+            and weapon.has_hold
+        ):
+            self.overlay.set_hold_panel(None)
+            return
+
+        m = tr("unit_m")
+        s = tr("unit_s")
+
+        solution = self.last_solution
+
+        if timer.target is None or solution is None:
+            target_text = tr("panel_no_target")
+        else:
+            target_text = tr(
+                "panel_target",
+                t=f"{solution.distance:.0f} {m} · S {timer.target:.2f} {s}"
+            )
+
+        self.overlay.set_hold_panel(HoldPanel(
+            target_text=target_text,
+            barrel_text=f"~{weapon.hold_distance(timer.held):.0f} {m}",
+            held=timer.held,
+            target=timer.target,
+            reached=timer.is_reached,
+            s_down=timer.s_down,
+            w_down=timer.w_down,
+            auto_text=tr("panel_auto") if timer.auto_holding else ""
+        ))
+
     def update_hold_watch(self):
         """Watch S/W only while a hold weapon is selected and enabled."""
         weapon = self.current_weapon()
@@ -1152,6 +1197,64 @@ class MainWindow(QMainWindow):
             and weapon.has_hold
             and self.config["hold_timer"]
         )
+
+        self.update_hold_panel()
+
+    def auto_hold(self):
+        """Hotkey: hold S for the time left to the target (again: release)."""
+        self.hold_timer.toggle_auto_hold()
+
+    def apply_auto_hold(self):
+        """Create or drop the key injector according to the setting.
+
+        Returns False when auto-hold is enabled but keys cannot be sent;
+        the setting is then turned off.
+        """
+        self.drop_auto_hold()
+
+        if not self.config["auto_hold"]:
+            return True
+
+        try:
+            injector = system_key_injector(VK_S)
+        except OSError:
+            injector = None
+
+        if injector is None:
+            self.config["auto_hold"] = False
+            return False
+
+        self.hold_timer.auto_hold = AutoHold(injector)
+
+        return True
+
+    def drop_auto_hold(self):
+        """Release S if it is being held and close the injector."""
+        timer = self.hold_timer
+
+        timer.stop_auto_hold()
+
+        if timer.auto_hold is not None:
+            timer.auto_hold.injector.close()
+            timer.auto_hold = None
+
+    def set_auto_hold(self, checked):
+        teardown_hotkeys(self)
+
+        ok = self.apply_auto_hold()
+
+        setup_hotkeys(self)
+
+        self.schedule_save()
+
+        if not ok:
+            toggle = self.controls["auto_hold"]
+            toggle.blockSignals(True)
+            toggle.setChecked(False)
+            toggle.update()
+            toggle.blockSignals(False)
+
+        self.auto_hold_status.setText("" if ok else tr("auto_hold_unavailable"))
 
     def on_hold_reached(self):
         beep()
@@ -1580,6 +1683,28 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(hold_hint)
 
+        self.add_toggle(
+            layout,
+            tr(
+                "s_auto_hold",
+                key=self.config["hotkeys"].get("auto_hold") or tr("hk_none")
+            ),
+            "auto_hold",
+            self.set_auto_hold
+        )
+
+        auto_hint = label(tr("s_auto_hold_hint"), "small")
+
+        auto_hint.setWordWrap(True)
+
+        layout.addWidget(auto_hint)
+
+        self.auto_hold_status = label("", "small")
+
+        self.auto_hold_status.setProperty("state", "error")
+
+        layout.addWidget(self.auto_hold_status)
+
         return frame
 
     def build_overlay_card(self):
@@ -1617,7 +1742,36 @@ class MainWindow(QMainWindow):
             on_change=self.recalculate_if_ready, suffix="%"
         )
 
+        self.add_toggle(
+            layout,
+            tr("s_hold_panel"),
+            "hold_panel",
+            lambda _checked: self.update_hold_panel()
+        )
+
+        corner = Segmented(
+            [
+                (key, tr(f"corner_{key}"))
+                for key in ("top_left", "top_right", "bottom_left", "bottom_right")
+            ],
+            self.config["hold_panel_corner"]
+        )
+
+        corner.changed.connect(self.set_hold_panel_corner)
+
+        self.setting_row(layout, tr("s_hold_panel_corner"), corner)
+
         return frame
+
+    def set_hold_panel_corner(self, corner):
+        # Repaint the old and the new place of the panel.
+        self.overlay.set_hold_panel(None)
+
+        self.config["hold_panel_corner"] = corner
+
+        self.schedule_save()
+
+        self.update_hold_panel()
 
     def build_hotkeys_card(self):
         frame, layout = card()
@@ -1772,6 +1926,8 @@ class MainWindow(QMainWindow):
         self.set_on_top(False)
 
         self.relay.set_code(normalize_code(self.config["relay_code"]))
+
+        self.apply_auto_hold()
 
         if self.map_page is not None and map_url(self.config) != old_map_url:
             self.map_page.load_source()
@@ -1966,6 +2122,9 @@ class MainWindow(QMainWindow):
         self.hold_timer.set_target(None)
 
         self.hold_timer.set_active(False)
+
+        # Release a held S and remove the virtual keyboard.
+        self.drop_auto_hold()
 
         self.relay.set_code(None)
 

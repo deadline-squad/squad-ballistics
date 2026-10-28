@@ -223,6 +223,7 @@ STRINGS = {
     "hk_reset_offset": ("Сбросить метку", "Reset mark"),
     "hk_distance_up": ("Дистанция +", "Distance +"),
     "hk_distance_down": ("Дистанция −", "Distance −"),
+    "hk_auto_hold": ("Автозажатие S (АГС-17)", "Auto-hold S (AGS-17)"),
     "hk_none": ("Нет", "None"),
     "s_about": ("О программе", "About"),
     "s_version": ("Версия {v}", "Version {v}"),
@@ -339,6 +340,35 @@ STRINGS = {
         "way. Linux: the input group (sudo usermod -aG input $USER) or the "
         "game on X11/XWayland (Proton)."
     ),
+    "s_hold_panel": ("Таймер на оверлее", "Timer on the overlay"),
+    "s_hold_panel_corner": ("Угол экрана", "Screen corner"),
+    "corner_top_left": ("↖", "↖"),
+    "corner_top_right": ("↗", "↗"),
+    "corner_bottom_left": ("↙", "↙"),
+    "corner_bottom_right": ("↘", "↘"),
+    "s_auto_hold": (
+        "Автозажатие S (клавиша {key})",
+        "Auto-hold S (key {key})"
+    ),
+    "s_auto_hold_hint": (
+        "По клавише программа сама держит S оставшееся до цели время и "
+        "отпускает; повторное нажатие или W отменяет. Нажатия от программы "
+        "античит (EAC) и правила сервера могут счесть макросом — включайте "
+        "на свой риск. Linux: нужен доступ к /dev/uinput (правила Steam) "
+        "или игра в X11/XWayland.",
+        "On the key the app holds S for the time left to the target and "
+        "releases it; the key again or W cancels. Synthetic key presses may "
+        "be treated as a macro by the anti-cheat (EAC) or server rules — "
+        "enable at your own risk. Linux: needs access to /dev/uinput "
+        "(Steam rules) or the game on X11/XWayland."
+    ),
+    "auto_hold_unavailable": (
+        "Не получилось: программа не может нажимать клавиши в этой системе.",
+        "Not possible: the app cannot send key presses on this system."
+    ),
+    "panel_target": ("ЦЕЛЬ {t}", "TARGET {t}"),
+    "panel_no_target": ("ЦЕЛЬ —", "TARGET —"),
+    "panel_auto": ("АВТО", "AUTO"),
     "restart_title": ("Перезапуск", "Restart"),
     "restart_text": (
         "Перезапустить программу сейчас, чтобы применить изменения?",

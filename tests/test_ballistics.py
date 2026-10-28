@@ -404,3 +404,17 @@ def test_hold_fields_are_validated():
     assert weapon.has_hold
     assert weapon.hold_elevation == (50.0, 80.0)
     assert not Weapon.from_dict("y", {"velocity": 230}).has_hold
+
+
+def test_ags17_hold_distance_matches_in_game_measurements():
+    errors = [
+        AGS17.hold_distance(held) - distance
+        for held, distance in AGS17_HOLD_TABLE
+    ]
+
+    # Same model as the hold time: ~6.4 m RMS over the 67 measurements.
+    assert math.sqrt(sum(e * e for e in errors) / len(errors)) < 8
+    assert AGS17.hold_distance(0) == pytest.approx(279.5, abs=1)
+    assert AGS17.hold_distance(99) == AGS17.hold_distance(AGS17.max_hold_time())
+    assert AGS17.hold_distance(-1) == AGS17.hold_distance(0)
+    assert math.isnan(WEAPONS["RPG-29"].hold_distance(1))

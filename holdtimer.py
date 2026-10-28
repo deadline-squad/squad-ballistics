@@ -9,6 +9,9 @@ reached, so the player can release S on the beep.
 Keys are read system-wide by `keystate` (Windows, Linux evdev or X11);
 where they cannot be read `available` is False. Because the keys are
 global, S pressed anywhere counts until the next W.
+
+Auto-hold (opt-in): `toggle_auto_hold` makes the app hold S itself for the
+time left to the target through a `keyinject.AutoHold`.
 """
 
 import os
@@ -50,7 +53,7 @@ class HoldTimer(QObject):
     is driven by the poll timer; tests call it directly.
     """
 
-    # Held time or target changed (redraw the readouts).
+    # Held time, target or key state changed (redraw the readouts).
     changed = pyqtSignal()
 
     # The held time has just reached the target (beep now).
@@ -60,6 +63,9 @@ class HoldTimer(QObject):
         super().__init__(parent)
 
         self.key_reader = key_reader
+
+        # keyinject.AutoHold while auto-hold is enabled, else None.
+        self.auto_hold = None
 
         # perf_counter: time.monotonic ticks every ~15.6 ms on Windows
         # before Python 3.13, which is ~8 m of AGS-17 range.
@@ -71,6 +77,10 @@ class HoldTimer(QObject):
         self._reached = False
         self._w_was_down = False
         self._last_poll = None
+
+        # Key state at the last poll, for the on-screen indicators.
+        self.s_down = False
+        self.w_down = False
 
         self.poll_timer = QTimer(self)
         self.poll_timer.setInterval(POLL_INTERVAL_MS)
@@ -88,11 +98,44 @@ class HoldTimer(QObject):
     def is_reached(self):
         return self.target is not None and self._reached
 
+    @property
+    def auto_holding(self):
+        return self.auto_hold is not None and self.auto_hold.active
+
+    def toggle_auto_hold(self):
+        """Hold S for the time left to the target; again: release it.
+
+        Returns True when a hold was started.
+        """
+        if self.auto_hold is None:
+            return False
+
+        if self.auto_hold.active:
+            self.stop_auto_hold()
+            return False
+
+        if self.target is None or not self.active:
+            return False
+
+        started = self.auto_hold.start(self.target - self.held)
+
+        self.changed.emit()
+
+        return started
+
+    def stop_auto_hold(self):
+        if self.auto_hold is not None:
+            self.auto_hold.stop()
+
     def set_active(self, active):
         """Start or stop watching the keys (no effect without a reader)."""
+        if not active:
+            self.stop_auto_hold()
+
         if not active or not self.available:
             self.poll_timer.stop()
             self._last_poll = None
+            self.s_down = self.w_down = False
             return
 
         if not self.poll_timer.isActive():
@@ -107,6 +150,9 @@ class HoldTimer(QObject):
         """
         if seconds == self.target:
             return
+
+        # The time left changed: a running auto-hold would miss the target.
+        self.stop_auto_hold()
 
         self.target = seconds
 
@@ -124,8 +170,15 @@ class HoldTimer(QObject):
 
     def advance(self, elapsed, s_down, w_down):
         """Account for `elapsed` seconds with the given key states."""
+        keys_changed = (s_down, w_down) != (self.s_down, self.w_down)
+
+        self.s_down, self.w_down = s_down, w_down
+
         if w_down and not self._w_was_down:
+            self.stop_auto_hold()
             self.reset()
+        elif keys_changed:
+            self.changed.emit()
 
         self._w_was_down = w_down
 
@@ -150,7 +203,8 @@ class HoldTimer(QObject):
 
         self.advance(
             min(elapsed, MAX_POLL_GAP),
-            self.key_reader(VK_S),
+            # The reader may not see our own synthetic S (evdev, Windows).
+            self.key_reader(VK_S) or self.auto_holding,
             self.key_reader(VK_W)
         )
 

@@ -736,3 +736,107 @@ def test_hotkeys_are_polled_when_keys_can_be_read(app, tmp_path, monkeypatch):
         win.close()
 
     assert win._hotkey_poller is None
+
+
+def test_timer_panel_on_the_overlay(window):
+    window.hold_timer.key_reader = lambda vk: False
+    window.select_weapon(AGS17)
+    window.config["arc"] = "high"
+
+    panel = window.overlay.hold_panel
+    assert panel is not None
+    assert panel.target is None
+    assert panel.target_text == tr("panel_no_target")
+    assert panel.barrel_text.startswith("~280 ") or panel.barrel_text.startswith("~279 ")
+
+    window.distance_entry.setText("1000")
+    window.calculate()
+    panel = window.overlay.hold_panel
+    assert panel.target == pytest.approx(window.last_solution.hold_time)
+    assert "1000" in panel.target_text
+
+    window.hold_timer.advance(0.8, True, False)
+    panel = window.overlay.hold_panel
+    assert panel.held == pytest.approx(0.8)
+    assert panel.s_down
+    assert not panel.reached
+    assert panel.barrel_text != "~280 м"
+
+    window.hold_timer.advance(0.5, True, False)
+    assert window.overlay.hold_panel.reached
+
+    # Panel off, other weapon: hidden.
+    window.controls["hold_panel"].toggled.emit(False)
+    assert window.overlay.hold_panel is None
+    window.controls["hold_panel"].toggled.emit(True)
+    assert window.overlay.hold_panel is not None
+    window.select_weapon("RPG-29")
+    assert window.overlay.hold_panel is None
+
+
+@pytest.mark.parametrize("corner", ["top_left", "top_right", "bottom_left", "bottom_right"])
+def test_timer_panel_corner(window, corner):
+    window.set_hold_panel_corner(corner)
+
+    rect = window.overlay.hold_panel_rect()
+    overlay = window.overlay
+
+    assert (rect.left() < overlay.width() / 2) == corner.endswith("left")
+    assert (rect.top() < overlay.height() / 2) == corner.startswith("top")
+    assert window.config["hold_panel_corner"] == corner
+
+
+def test_auto_hold_setting(window, monkeypatch):
+    import crosshair
+
+    pressed = []
+
+    class Injector:
+        closed = False
+
+        def press(self):
+            pressed.append("press")
+
+        def release(self):
+            pressed.append("release")
+
+        def close(self):
+            Injector.closed = True
+
+    # Not possible on this system: the setting turns itself off.
+    monkeypatch.setattr(crosshair, "system_key_injector", lambda vk: None)
+    window.controls["auto_hold"].setChecked(True)
+    window.controls["auto_hold"].toggled.emit(True)
+    assert window.config["auto_hold"] is False
+    assert window.hold_timer.auto_hold is None
+    assert window.auto_hold_status.text() == tr("auto_hold_unavailable")
+
+    monkeypatch.setattr(crosshair, "system_key_injector", lambda vk: Injector())
+    window.controls["auto_hold"].toggled.emit(True)
+    assert window.config["auto_hold"] is True
+    assert window.hold_timer.auto_hold is not None
+    assert window.auto_hold_status.text() == ""
+
+    from hotkeys import bindings
+    assert ("F7", "auto_hold") in bindings(window)
+
+    window.hold_timer.key_reader = lambda vk: False
+    window.select_weapon(AGS17)
+    window.config["arc"] = "high"
+    window.distance_entry.setText("1000")
+    window.calculate()
+
+    window.auto_hold()
+    assert window.hold_timer.auto_holding
+    assert window.overlay.hold_panel is not None
+
+    window.close()
+    assert pressed == ["press", "release"]
+    assert Injector.closed
+
+
+def test_auto_hold_key_is_free_while_disabled(window):
+    from hotkeys import bindings
+
+    assert window.config["auto_hold"] is False
+    assert all(action != "auto_hold" for _key, action in bindings(window))

@@ -113,6 +113,8 @@ Pick **AGS-17 · emplacement**. / Выберите **AGS-17 · emplacement**.
 
 * **High arc / навесная:** the result is how long to hold **S**: press **W** (barrel back to the top), hold **S**, release on the beep. While AGS-17 is selected the app counts every S press since the last W, in any window, so always press W right before laying (Windows: run it as administrator if the game is; Linux: see below). / Результат — сколько держать **S**: нажмите **W** (ствол вверх), зажмите **S**, отпустите по сигналу. Пока выбран АГС-17, программа считает каждое нажатие S с последнего W в любом окне, поэтому всегда жмите W прямо перед наводкой (Windows: если игра запущена от администратора — запустите программу так же; Linux — см. ниже).
 * **Low arc / настильная:** direct fire with the overlay mark, like other grenade launchers. / Прямая наводка меткой оверлея, как у других гранатомётов.
+* **Timer on the overlay / таймер на оверлее:** a panel in a corner of the screen (Settings → Overlay) shows the target and its hold time, where the barrel shoots right now (`~820 m`), the seconds S has been held with a progress bar that turns green when it is time to release, and whether the app sees S and W. / Панель в углу экрана (Настройки → Оверлей): цель и её время, куда бьёт ствол сейчас (`~820 м`), сколько секунд зажата S с полоской, которая зеленеет, когда пора отпускать, и видит ли программа S и W.
+* **Auto-hold / автозажатие** (off by default, Settings → Calculator): press **F7** and the app holds S itself for the time left to the target, then releases; F7 again or W cancels. Synthetic key presses may be treated as a macro by EasyAntiCheat or server rules — your risk. Linux needs write access to `/dev/uinput` (Steam's udev rules) or the game on X11/XWayland. / Выключено по умолчанию (Настройки → Калькулятор): **F7** — программа сама держит S оставшееся время и отпускает; повторное F7 или W отменяет. Нажатия от программы античит и правила сервера могут счесть макросом — на свой риск. В Linux нужен доступ к `/dev/uinput` (правила Steam) или игра в X11/XWayland.
 * Hold range 280–1925 m on flat ground; the model is fitted on 67 in-game measurements (hold time → distance, 0.02 s RMS) and is the same as in the Deadline SquadCalc. / Зажатием S — от 280 до 1925 м по ровной земле; модель подобрана по 67 замерам в игре (ошибка 0.02 с) и совпадает с SquadCalc Deadline.
 
 Tips / Советы:
@@ -125,6 +127,7 @@ Tips / Советы:
 | F8 | Show / hide overlay — показать / скрыть оверлей |
 | F9 | Reset aim mark — сбросить метку |
 | — | Distance + / − (bind in Settings) — дистанция + / − (назначается в настройках) |
+| F7 | AGS-17 auto-hold, when enabled — автозажатие S АГС-17, если включено |
 
 Hotkeys can be changed in **Settings**. They are global, so they work while the game is focused: on Windows always, on Linux when the keys can be read (see *Linux* below). / Клавиши меняются в **Настройках**. Они глобальные и работают поверх игры: в Windows всегда, в Linux — когда программа видит клавиатуру (см. *Linux* ниже).
 

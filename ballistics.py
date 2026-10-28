@@ -202,6 +202,28 @@ class Weapon:
 
         return (top - lowest) / self.hold_rate
 
+    def hold_distance(self, held):
+        """Flat-ground range of the barrel after holding the key `held` s.
+
+        The barrel stops at the lowest hold elevation. The shell leaves the
+        muzzle `launch_height` above the ground. NaN without hold.
+        """
+        if not self.has_hold:
+            return math.nan
+
+        lowest, top = self.hold_elevation
+
+        rad = math.radians(max(lowest, top - self.hold_rate * max(0.0, held)))
+
+        v = self.velocity
+        vertical = v * math.sin(rad)
+        flight = (
+            vertical
+            + math.sqrt(vertical ** 2 + 2 * self.g * self.launch_height)
+        ) / self.g
+
+        return v * math.cos(rad) * flight
+
     @property
     def cruise_velocity(self):
         return self.velocity + self.acceleration * self.acceleration_time

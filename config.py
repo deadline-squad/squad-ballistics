@@ -90,14 +90,21 @@ DEFAULT_CONFIG = {
     "map_follow": True,
     "relay_code": "",
 
-    # Beep when S has been held for the AGS-17 hold time (Windows).
+    # Beep when S has been held for the AGS-17 hold time; hold_panel shows
+    # the timer on the overlay in a corner of the screen. auto_hold lets the
+    # app hold S itself (hotkey "auto_hold"); synthetic input may be treated
+    # as a macro by the anti-cheat or server rules, so it is off by default.
     "hold_timer": True,
+    "hold_panel": True,
+    "hold_panel_corner": "top_right",
+    "auto_hold": False,
 
     "hotkeys": {
         "toggle_overlay": "F8",
         "reset_offset": "F9",
         "distance_up": "",
-        "distance_down": ""
+        "distance_down": "",
+        "auto_hold": "F7"
     }
 }
 
@@ -109,6 +116,7 @@ CHOICES = {
     "outline_color": ("white", "black"),
     "map_render": ("auto", "software"),
     "map_source": ("deadline", "squadcalc"),
+    "hold_panel_corner": ("top_left", "top_right", "bottom_left", "bottom_right"),
 }
 
 RANGES = {
