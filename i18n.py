@@ -76,6 +76,28 @@ STRINGS = {
         "Выставьте угол возвышения {angle}.",
         "Set the elevation to {angle}."
     ),
+    "how_bearing": (
+        "Развернитесь на азимут {b}° (с карты SquadCalc).",
+        "Turn to bearing {b}° (from the SquadCalc map)."
+    ),
+    "hold_big": ("S {t} с", "S {t} s"),
+    "hold_progress": ("S зажата {held} из {t} с", "S held {held} of {t} s"),
+    "how_hold_1": (
+        "Нажмите W — ствол встанет в верхнее положение.",
+        "Press W — the barrel goes back to the top."
+    ),
+    "how_hold_2": (
+        "Зажмите S на {t} с и отпустите.",
+        "Hold S for {t} s, then release."
+    ),
+    "how_hold_2_beep": (
+        "Зажмите S и отпустите по сигналу — через {t} с. W сбрасывает отсчёт.",
+        "Hold S and release on the beep — after {t} s. W restarts the count."
+    ),
+    "how_hold_no_keys": (
+        "Сигнал по зажатию S работает только в Windows: отсчитайте время сами.",
+        "The S hold beep only works on Windows: count the time yourself."
+    ),
     "how_tof_moving": (
         "Снаряд летит {tof} с: по цели, идущей 10 м/с, упреждение ≈ {lead} м.",
         "Flight time {tof} s: lead a target moving at 10 m/s by ≈ {lead} m."
@@ -93,6 +115,12 @@ STRINGS = {
     "how_unreachable_close": (
         "Слишком близко: минимальная дистанция {min} м.",
         "Too close: minimum distance is {min} m."
+    ),
+    "how_unreachable_hold": (
+        "Навесом нужен угол {angle}°, а зажатием S ствол ходит только от "
+        "{low}° до {high}°. Попробуйте настильную траекторию.",
+        "The high arc needs {angle}°, but holding S only moves the barrel "
+        "from {low}° to {high}°. Try the low arc."
     ),
     "how_unreachable_limit": (
         "Нужен угол {angle}°, а орудие наводится только от {low}° до {high}°. "
@@ -239,6 +267,45 @@ STRINGS = {
         "browser."
     ),
     "s_map": ("Карта", "Map"),
+    "s_map_source": ("SquadCalc", "SquadCalc"),
+    "s_map_source_deadline": ("Deadline (АГС-17)", "Deadline (AGS-17)"),
+    "s_map_follow": (
+        "Брать цель с карты в калькулятор",
+        "Put the map target into the calculator"
+    ),
+    "s_relay_code": ("Код сессии SquadCalc", "SquadCalc session code"),
+    "s_relay_hint": (
+        "Для SquadCalc на другом устройстве: в SquadCalc Deadline включите "
+        "«Связать оверлей-таймер» в настройках и введите сюда показанный код. "
+        "Пустое поле — без связи.",
+        "For SquadCalc on another device: in the Deadline SquadCalc enable "
+        "the overlay link in its settings and enter the code shown there. "
+        "Empty — no link."
+    ),
+    "relay_off": ("Связь по коду выключена", "Code link is off"),
+    "relay_connecting": ("Подключение к SquadCalc…", "Connecting to SquadCalc…"),
+    "relay_waiting": (
+        "Подключено, ждём страницу SquadCalc с этим кодом",
+        "Connected, waiting for a SquadCalc page with this code"
+    ),
+    "relay_connected": ("SquadCalc на связи", "SquadCalc connected"),
+    "relay_bad_code": (
+        "Код — 6–16 латинских букв и цифр, например ABCD-2345",
+        "The code is 6–16 letters and digits, e.g. ABCD-2345"
+    ),
+    "map_target": ("С карты: {t}", "From the map: {t}"),
+    "map_follow_hint": (
+        "Поставьте оружие и цель на карте SquadCalc — дистанция и перепад "
+        "высот подставятся сами.",
+        "Place the weapon and a target on the SquadCalc map — distance and "
+        "height fill in by themselves."
+    ),
+    "bearing_short": ("азимут {b}°", "bearing {b}°"),
+    "map_bridge_on": ("цели передаются в калькулятор", "targets go to the calculator"),
+    "map_bridge_off": (
+        "эта карта не передаёт цели (нужен SquadCalc Deadline)",
+        "this map does not share targets (use the Deadline SquadCalc)"
+    ),
     "s_map_render": ("Отрисовка карты", "Map rendering"),
     "s_map_render_auto": ("Обычная", "Normal"),
     "s_map_render_software": ("Совместимая", "Compatible"),
@@ -251,6 +318,18 @@ STRINGS = {
     "s_map_external": ("Открывать карту в обычном браузере", "Open the map in the regular browser"),
     "s_map_clear": ("Очистить кэш карты", "Clear map cache"),
     "s_map_cleared": ("Кэш очищен", "Cache cleared"),
+    "s_hold_timer": (
+        "Сигнал при зажатии S (АГС-17)",
+        "Beep while holding S (AGS-17)"
+    ),
+    "s_hold_timer_hint": (
+        "Считает, сколько зажата S после W, и пищит, когда пора отпускать. "
+        "Только Windows; если игра запущена от администратора — запустите "
+        "программу так же.",
+        "Counts how long S is held since W and beeps when to release. "
+        "Windows only; if the game runs as administrator, run this app the "
+        "same way."
+    ),
     "restart_title": ("Перезапуск", "Restart"),
     "restart_text": (
         "Перезапустить программу сейчас, чтобы применить изменения?",

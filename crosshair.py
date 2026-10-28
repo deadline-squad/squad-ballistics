@@ -26,6 +26,7 @@ from PyQt6.QtWidgets import (
     QFrame,
     QGridLayout,
     QHBoxLayout,
+    QLineEdit,
     QMainWindow,
     QMessageBox,
     QPushButton,
@@ -52,6 +53,12 @@ from config import (
     save_config
 )
 
+from holdtimer import (
+    HoldTimer,
+    beep,
+    windows_key_reader
+)
+
 from hotkeys import (
     ACTIONS,
     KEYS,
@@ -66,13 +73,18 @@ from i18n import (
     weapon_note
 )
 
+from maplink import (
+    RelayLink,
+    normalize_code
+)
+
 from overlay import Overlay
 
 from updater import CURRENT_VERSION
 
 from utils import resource_path
 
-from webmap import MapPage, open_external
+from webmap import MapPage, map_url, open_external
 
 from widgets import (
     CrosshairPreview,
@@ -185,6 +197,24 @@ class MainWindow(QMainWindow):
             self.config
         )
 
+        # The SquadCalc target currently in the inputs; None once the
+        # distance or height is edited by hand.
+        self.map_target = None
+
+        # Text of the overlay label for the current solution; hold weapons
+        # append the live hold progress to it.
+        self.info_base = ""
+
+        self.hold_timer = HoldTimer(windows_key_reader(), self)
+        self.hold_timer.changed.connect(self.update_hold_readout)
+        self.hold_timer.reached.connect(self.on_hold_reached)
+
+        self.relay = RelayLink(parent=self)
+        self.relay.targets_received.connect(self.on_map_targets)
+        self.relay.status_changed.connect(
+            lambda _status: self.update_map_status()
+        )
+
         self.save_timer = QTimer(self)
         self.save_timer.setSingleShot(True)
         self.save_timer.setInterval(400)
@@ -217,6 +247,8 @@ class MainWindow(QMainWindow):
 
         # Only after the UI exists: a hotkey may fire right away.
         setup_hotkeys(self)
+
+        self.relay.set_code(normalize_code(self.config["relay_code"]))
 
     # =========================
     # LAYOUT
@@ -254,6 +286,8 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(root)
 
         self.on_weapon_changed(self.picker.current, user=False)
+
+        self.update_map_status()
 
     def rebuild(self):
         """Recreate the UI (language / accent change), keeping the inputs."""
@@ -354,7 +388,7 @@ class MainWindow(QMainWindow):
 
     def set_page(self, index):
         if index == 3 and self.config["map_external"]:
-            open_external()
+            open_external(map_url(self.config))
             index = self.pages.currentIndex()
 
         self.pages.setCurrentIndex(index)
@@ -484,7 +518,16 @@ class MainWindow(QMainWindow):
 
             entry.stepped.connect(self.calc_timer.start)
 
+            if entry is not self.fov_entry:
+                entry.stepped.connect(self.forget_map_target)
+
             entry.returnPressed.connect(lambda: self.calculate())
+
+        self.map_label = label("", "small")
+
+        self.map_label.setWordWrap(True)
+
+        layout.addWidget(self.map_label)
 
         buttons = QHBoxLayout()
 
@@ -545,8 +588,14 @@ class MainWindow(QMainWindow):
 
         self.sub_label.setWordWrap(True)
 
+        # Live hold progress of hold weapons (AGS-17 high arc).
+        self.hold_label = label("", "sub")
+
+        self.hold_label.hide()
+
         layout.addWidget(self.big_label)
         layout.addWidget(self.sub_label)
+        layout.addWidget(self.hold_label)
 
         grid = QGridLayout()
 
@@ -658,8 +707,74 @@ class MainWindow(QMainWindow):
         self.recalculate_if_ready()
 
     def on_input_edited(self, *_):
+        if self.sender() in (self.distance_entry, self.height_entry):
+            self.forget_map_target()
+
         if self.config["auto_calc"]:
             self.calc_timer.start()
+
+    # =========================
+    # TARGETS FROM THE MAP
+    # =========================
+
+    def on_map_targets(self, targets):
+        """Put the newest SquadCalc target into the inputs and solve it.
+
+        `targets` comes from the embedded map or the relay (see maplink);
+        the last one is the most recently placed marker. An unchanged or
+        empty list keeps the current inputs.
+        """
+        if not self.config["map_follow"] or not targets:
+            return
+
+        target = targets[-1]
+
+        if target == self.map_target:
+            return
+
+        self.distance_entry.set_value(round(target.distance))
+
+        if target.height is None:
+            self.height_entry.setText("")
+        else:
+            self.height_entry.set_value(round(target.height))
+
+        self.map_target = target
+
+        self.update_map_status()
+
+        self.calculate(show_errors=False)
+
+    def forget_map_target(self):
+        if self.map_target is None:
+            return
+
+        self.map_target = None
+
+        self.update_map_status()
+
+    def update_map_status(self):
+        target = self.map_target
+
+        if target is None:
+            text = tr("map_follow_hint") if self.config["map_follow"] else ""
+        else:
+            parts = [f"{target.distance:.0f} {tr('unit_m')}"]
+
+            if target.height is not None:
+                parts.append(f"{target.height:+.0f} {tr('unit_m')}")
+
+            if target.bearing is not None:
+                parts.append(tr("bearing_short", b=f"{target.bearing:.1f}"))
+
+            text = tr("map_target", t="  ·  ".join(parts))
+
+        self.map_label.setText(text)
+
+        relay_status = getattr(self, "relay_status_label", None)
+
+        if relay_status is not None:
+            relay_status.setText(tr(f"relay_{self.relay.status}"))
 
     def recalculate_if_ready(self):
         if self.distance_entry.text().strip():
@@ -770,7 +885,9 @@ class MainWindow(QMainWindow):
 
             self.overlay.reset_offset()
 
-            self.overlay.set_info("")
+            self.set_overlay_info("")
+
+            self.hold_timer.set_target(None)
 
             if show_errors:
                 self.clear_result(str(e), error=True)
@@ -794,7 +911,9 @@ class MainWindow(QMainWindow):
     def show_unreachable(self, weapon, solution):
         self.overlay.reset_offset()
 
-        self.overlay.set_info("")
+        self.set_overlay_info("")
+
+        self.hold_timer.set_target(None)
 
         self.clear_result(tr("unreachable"), error=True)
 
@@ -802,6 +921,14 @@ class MainWindow(QMainWindow):
             text = tr("how_unreachable_range", max=f"{weapon.max_range():.0f}")
         elif solution.reason_code == "too_close":
             text = tr("how_unreachable_close", min=f"{weapon.min_distance:g}")
+        elif solution.reason_code == "hold_limit":
+            lowest, top = weapon.hold_elevation
+            text = tr(
+                "how_unreachable_hold",
+                angle=f"{solution.angle:.1f}",
+                low=f"{lowest:g}",
+                high=f"{top:g}"
+            )
         else:
             low, high = weapon.elevation_limits
             text = tr(
@@ -817,23 +944,50 @@ class MainWindow(QMainWindow):
         unit = self.primary_unit(weapon)
         other = "deg" if unit == "mil" else "mil"
 
+        s = tr("unit_s")
+        m = tr("unit_m")
+
+        # Hold weapons on the high arc are laid by holding S, not by aiming.
+        hold = solution.hold_time
+        holding = math.isfinite(hold)
+
         offset = self.current_offset()
 
         offscreen = self.overlay.is_offscreen(offset)
 
         self.overlay.set_offset(offset)
 
-        self.overlay.set_info(
-            f"{solution.distance:.0f} {tr('unit_m')}  ·  "
-            f"{format_angle(solution.angle, unit)}"
+        if holding:
+            readout = f"S {hold:.2f} {s}"
+        else:
+            readout = format_angle(solution.angle, unit)
+
+        info = f"{solution.distance:.0f} {m}  ·  {readout}"
+
+        bearing = self.map_bearing()
+
+        if bearing is not None:
+            info += f"  ·  {bearing:.1f}°"
+
+        self.set_overlay_info(info)
+
+        if holding:
+            self.set_big(tr("hold_big", t=f"{hold:.2f}"))
+
+            self.sub_label.setText(
+                f"{format_angle(solution.angle, 'deg')}  ·  "
+                f"{format_angle(solution.angle, 'mil')}"
+            )
+        else:
+            self.set_big(format_angle(solution.angle, unit))
+
+            self.sub_label.setText(format_angle(solution.angle, other))
+
+        self.hold_timer.set_target(
+            hold if holding and self.config["hold_timer"] else None
         )
 
-        self.set_big(format_angle(solution.angle, unit))
-
-        self.sub_label.setText(format_angle(solution.angle, other))
-
-        s = tr("unit_s")
-        m = tr("unit_m")
+        self.update_hold_readout()
 
         self.stats["stat_tof"].set(f"{solution.time_of_flight:.1f} {s}")
         self.stats["stat_apex"].set(f"{solution.apex:.0f} {m}")
@@ -842,18 +996,21 @@ class MainWindow(QMainWindow):
             f"{solution.velocity:.0f} {tr('unit_mps')}"
         )
 
-        if offscreen:
+        if holding:
+            self.stats["stat_offset"].set("—")
+        elif offscreen:
             self.stats["stat_offset"].set(tr("off_screen"))
         else:
             self.stats["stat_offset"].set(f"{offset:.0f} {tr('unit_px')}")
 
         other_arc = "high" if solution.arc == "low" else "low"
 
-        # The other arc only matters for weapons aimed by elevation; for
-        # direct fire it is a useless near-vertical lob.
+        # The other arc only matters for weapons aimed by elevation and for
+        # hold weapons (direct fire or lob); for other direct-fire weapons
+        # it is a useless near-vertical lob.
         alt = None
 
-        if weapon.aim == "elevation":
+        if weapon.aim == "elevation" or weapon.has_hold:
             alt = solution.alternatives.get(other_arc)
 
             if alt is not None and abs(alt - solution.angle) < 0.01:
@@ -881,7 +1038,21 @@ class MainWindow(QMainWindow):
 
         tof = f"{solution.time_of_flight:.1f}"
 
-        if weapon.aim == "overlay":
+        if holding:
+            steps = [
+                tr("how_hold_1"),
+                tr(
+                    "how_hold_2_beep"
+                    if self.hold_timer.target is not None
+                    else "how_hold_2",
+                    t=f"{hold:.2f}"
+                ),
+                tr("how_tof_adjust", tof=tof)
+            ]
+
+            if not self.hold_timer.available and self.config["hold_timer"]:
+                steps.append(tr("how_hold_no_keys"))
+        elif weapon.aim == "overlay":
             if offscreen:
                 steps = [tr("how_overlay_offscreen", angle=angle_text)]
             else:
@@ -912,14 +1083,61 @@ class MainWindow(QMainWindow):
                 tr("how_tof_adjust", tof=tof)
             ]
 
+        if bearing is not None:
+            steps.insert(0, tr("how_bearing", b=f"{bearing:.1f}"))
+
         self.set_steps(steps)
 
         self.note_label.setText(weapon_note(weapon))
+
+    def map_bearing(self):
+        """Bearing of the SquadCalc target in the inputs, None if typed."""
+        if self.map_target is None:
+            return None
+
+        return self.map_target.bearing
+
+    def set_overlay_info(self, text):
+        self.info_base = text
+
+        self.overlay.set_info(text)
+
+    def update_hold_readout(self):
+        """Show how long S has been held against the target hold time."""
+        timer = self.hold_timer
+
+        if timer.target is None or not timer.available:
+            self.hold_label.hide()
+            return
+
+        progress = tr(
+            "hold_progress",
+            held=f"{min(timer.held, 99.99):.2f}",
+            t=f"{timer.target:.2f}"
+        )
+
+        if timer.is_reached:
+            progress += "  ✓"
+
+        self.hold_label.setText(progress)
+
+        self.hold_label.show()
+
+        self.overlay.set_info(f"{self.info_base}  ·  {progress}")
+
+    def on_hold_reached(self):
+        beep()
+
+        self.update_hold_readout()
 
     def current_offset(self):
         solution = self.last_solution
 
         if solution is None or not solution.reachable:
+            return 0.0
+
+        # The mark is not used when the barrel is laid by holding S.
+        if math.isfinite(solution.hold_time):
             return 0.0
 
         return screen_offset(
@@ -934,7 +1152,9 @@ class MainWindow(QMainWindow):
 
         self.overlay.reset_offset()
 
-        self.overlay.set_info("")
+        self.set_overlay_info("")
+
+        self.hold_timer.set_target(None)
 
         self.clear_result()
 
@@ -945,10 +1165,12 @@ class MainWindow(QMainWindow):
             self.overlay.show()
 
     def distance_up(self):
+        self.forget_map_target()
         self.distance_entry.add(self.config["distance_step"])
         self.calculate(show_errors=False)
 
     def distance_down(self):
+        self.forget_map_target()
         self.distance_entry.add(-self.config["distance_step"])
         self.calculate(show_errors=False)
 
@@ -1313,6 +1535,19 @@ class MainWindow(QMainWindow):
             lambda _checked: self.refresh_weapon_list()
         )
 
+        self.add_toggle(
+            layout,
+            tr("s_hold_timer"),
+            "hold_timer",
+            lambda _checked: self.recalculate_if_ready()
+        )
+
+        hold_hint = label(tr("s_hold_timer_hint"), "small")
+
+        hold_hint.setWordWrap(True)
+
+        layout.addWidget(hold_hint)
+
         return frame
 
     def build_overlay_card(self):
@@ -1502,6 +1737,8 @@ class MainWindow(QMainWindow):
 
         self.set_on_top(False)
 
+        self.relay.set_code(normalize_code(self.config["relay_code"]))
+
         save_config(self.config)
 
         self.rebuild()
@@ -1520,6 +1757,8 @@ class MainWindow(QMainWindow):
             self.map_page.compat_requested.connect(
                 lambda: self.set_map_render("software")
             )
+
+            self.map_page.targets_received.connect(self.on_map_targets)
         else:
             self.map_page.retranslate()
 
@@ -1529,6 +1768,47 @@ class MainWindow(QMainWindow):
         frame, layout = card()
 
         layout.addWidget(label(tr("s_map"), "title"))
+
+        source = Segmented(
+            [
+                ("deadline", tr("s_map_source_deadline")),
+                ("squadcalc", "squadcalc.app")
+            ],
+            self.config["map_source"]
+        )
+
+        source.changed.connect(self.set_map_source)
+
+        self.setting_row(layout, tr("s_map_source"), source)
+
+        self.add_toggle(
+            layout,
+            tr("s_map_follow"),
+            "map_follow",
+            lambda _checked: self.update_map_status()
+        )
+
+        relay_entry = QLineEdit(self.config["relay_code"])
+
+        relay_entry.setPlaceholderText("ABCD-2345")
+
+        relay_entry.setMaximumWidth(180)
+
+        relay_entry.editingFinished.connect(
+            lambda: self.set_relay_code(relay_entry.text())
+        )
+
+        self.setting_row(layout, tr("s_relay_code"), relay_entry)
+
+        self.relay_status_label = label("", "small")
+
+        layout.addWidget(self.relay_status_label)
+
+        relay_hint = label(tr("s_relay_hint"), "small")
+
+        relay_hint.setWordWrap(True)
+
+        layout.addWidget(relay_hint)
 
         render = Segmented(
             [
@@ -1574,6 +1854,35 @@ class MainWindow(QMainWindow):
 
         return frame
 
+    def set_map_source(self, source):
+        if source == self.config["map_source"]:
+            return
+
+        self.config["map_source"] = source
+
+        self.schedule_save()
+
+        self.map_page.load_source()
+
+    def set_relay_code(self, text):
+        """Join the relay session typed in Settings; empty text leaves it."""
+        code = normalize_code(text) if text.strip() else ""
+
+        if code is None:
+            self.relay_status_label.setText(tr("relay_bad_code"))
+            return
+
+        if code == self.config["relay_code"]:
+            return
+
+        self.config["relay_code"] = code
+
+        self.schedule_save()
+
+        self.relay.set_code(code or None)
+
+        self.update_map_status()
+
     def set_map_render(self, mode):
         if mode == self.config["map_render"]:
             return
@@ -1614,6 +1923,10 @@ class MainWindow(QMainWindow):
         save_config(self.config)
 
         teardown_hotkeys(self)
+
+        self.hold_timer.set_target(None)
+
+        self.relay.set_code(None)
 
         if self.map_page is not None:
             self.map_page.shutdown()

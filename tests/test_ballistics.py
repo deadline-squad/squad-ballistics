@@ -266,7 +266,8 @@ def test_trajectory_ends_on_target(name):
 
     path = trajectory(weapon, solution)
 
-    assert path[0] == (0.0, 0.0)
+    # The path starts at the muzzle, launch_height above the ground.
+    assert path[0] == (0.0, weapon.launch_height)
     assert path[-1][0] == pytest.approx(distance)
     assert path[-1][1] == pytest.approx(5, abs=0.01)
     assert solution.apex >= 5 - 1e-6
@@ -290,3 +291,110 @@ def test_reason_codes():
     assert solve(mortar, 10).reason_code == "too_close"
     assert solve(mortar, 5000).reason_code == "out_of_range"
     assert solve(mortar, 800, arc="low").reason_code == "elevation_limit"
+
+
+# In-game AGS-17 measurements: seconds S was held after W -> impact
+# distance on flat ground in metres (the table of the original AGS-17
+# timer the hold model was fitted on).
+AGS17_HOLD_TABLE = [
+    (0.000, 280), (0.055, 325), (0.100, 350), (0.150, 375),
+    (0.200, 400), (0.250, 425), (0.300, 450), (0.320, 475),
+    (0.350, 500), (0.390, 525), (0.420, 550), (0.480, 575),
+    (0.520, 600), (0.560, 625), (0.610, 650), (0.650, 675),
+    (0.690, 700), (0.730, 725), (0.770, 750), (0.830, 775),
+    (0.880, 800), (0.920, 825), (0.950, 850), (1.000, 875),
+    (1.050, 900), (1.090, 925), (1.160, 950), (1.195, 975),
+    (1.240, 1000), (1.290, 1025), (1.330, 1050), (1.385, 1075),
+    (1.430, 1100), (1.470, 1125), (1.540, 1150), (1.575, 1175),
+    (1.650, 1200), (1.696, 1225), (1.760, 1250), (1.804, 1275),
+    (1.860, 1300), (1.905, 1325), (1.980, 1350), (2.032, 1375),
+    (2.070, 1400), (2.160, 1425), (2.210, 1450), (2.272, 1475),
+    (2.340, 1500), (2.410, 1525), (2.450, 1550), (2.540, 1575),
+    (2.600, 1600), (2.670, 1625), (2.730, 1650), (2.826, 1675),
+    (2.920, 1700), (3.010, 1725), (3.120, 1750), (3.193, 1775),
+    (3.300, 1800), (3.430, 1825), (3.550, 1850), (3.700, 1875),
+    (3.840, 1900), (3.950, 1915), (4.100, 1930),
+]
+
+AGS17 = WEAPONS["AGS-17 · emplacement"]
+
+
+def test_ags17_hold_time_matches_in_game_measurements():
+    errors = []
+
+    for held, distance in AGS17_HOLD_TABLE:
+        solution = solve(AGS17, distance, 0, "high")
+
+        if distance > 1925:
+            # Past the lowest elevation of the mount in the model.
+            assert not solution.reachable
+            continue
+
+        assert solution.reachable, distance
+        errors.append(solution.hold_time - held)
+
+    assert len(errors) == len(AGS17_HOLD_TABLE) - 1
+    assert max(abs(e) for e in errors) < 0.1
+    assert math.sqrt(sum(e * e for e in errors) / len(errors)) < 0.03
+
+
+def test_ags17_hold_time_follows_height():
+    flat = solve(AGS17, 1000, 0, "high")
+    higher = solve(AGS17, 1000, 30, "high")
+    lower = solve(AGS17, 1000, -30, "high")
+
+    # A higher target is reached by a flatter high arc: a longer hold.
+    assert higher.hold_time > flat.hold_time > lower.hold_time
+    assert height_at(AGS17, higher.angle, 1000) == pytest.approx(30, abs=0.01)
+
+
+def test_ags17_arcs_and_limits():
+    lob = solve(AGS17, 1000, 0, "high")
+    direct = solve(AGS17, 1000, 0, "low")
+
+    assert lob.hold_time == pytest.approx(
+        (85.84 - lob.angle) / 9.17
+    )
+    assert direct.reachable
+    assert math.isnan(direct.hold_time)
+    assert direct.angle < 45
+
+    # Closer than the top of the mount lobs: only direct fire.
+    close = solve(AGS17, 200, 0, "high")
+    assert not close.reachable
+    assert solve(AGS17, 200, 0, "low").reachable
+
+    # Between 45° and the lowest hold elevation: the key cannot get there.
+    edge = solve(AGS17, 1930, 0, "high")
+    assert edge.reason_code == "hold_limit"
+    assert "limited" in edge.reason
+
+    assert AGS17.max_hold_time() == pytest.approx((85.84 - 47.4) / 9.17)
+    assert math.isnan(AGS17.hold_time(90))
+    assert math.isnan(
+        WEAPONS["Mortar (M252 / 2B14 / L16 / Type 63)"].hold_time(60)
+    )
+
+
+def test_hold_fields_are_validated():
+    base = {"velocity": 230, "hold_rate": 9}
+
+    with pytest.raises(WeaponDataError, match="hold_elevation"):
+        Weapon.from_dict("x", base)
+
+    with pytest.raises(WeaponDataError, match="hold_elevation"):
+        Weapon.from_dict("x", {**base, "hold_elevation": [80, 50]})
+
+    with pytest.raises(WeaponDataError, match="hold_elevation"):
+        Weapon.from_dict(
+            "x",
+            {**base, "hold_elevation": [40, 89], "elevation_limits": [0, 85]}
+        )
+
+    with pytest.raises(WeaponDataError, match="hold_rate"):
+        Weapon.from_dict("x", {"velocity": 230, "hold_rate": -1})
+
+    weapon = Weapon.from_dict("x", {**base, "hold_elevation": [50, 80]})
+    assert weapon.has_hold
+    assert weapon.hold_elevation == (50.0, 80.0)
+    assert not Weapon.from_dict("y", {"velocity": 230}).has_hold

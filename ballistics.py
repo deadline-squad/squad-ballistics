@@ -44,6 +44,9 @@ class Weapon:
     acceleration_time: float = 0.0
     min_distance: float = 0.0
     elevation_limits: tuple = (-90.0, 90.0)
+    launch_height: float = 0.0
+    hold_rate: float = 0.0
+    hold_elevation: tuple = ()
     category: str = "other"
     note: str = ""
     note_ru: str = ""
@@ -114,6 +117,25 @@ class Weapon:
         if low >= high:
             raise WeaponDataError(f"{name}: invalid 'elevation_limits'")
 
+        hold_rate = number("hold_rate", 0.0)
+        if hold_rate < 0:
+            raise WeaponDataError(f"{name}: 'hold_rate' must be >= 0")
+
+        hold_elevation = ()
+        if hold_rate:
+            try:
+                lowest, top = (float(v) for v in data["hold_elevation"])
+            except (KeyError, TypeError, ValueError):
+                raise WeaponDataError(
+                    f"{name}: 'hold_rate' needs 'hold_elevation': [lowest, top]"
+                )
+            if not low <= lowest < top <= high:
+                raise WeaponDataError(
+                    f"{name}: 'hold_elevation' must lie within "
+                    "'elevation_limits' and go from lowest to top"
+                )
+            hold_elevation = (lowest, top)
+
         return cls(
             name=name,
             velocity=velocity,
@@ -126,6 +148,9 @@ class Weapon:
             acceleration_time=acceleration_time,
             min_distance=number("min_distance", 0.0),
             elevation_limits=(low, high),
+            launch_height=number("launch_height", 0.0),
+            hold_rate=hold_rate,
+            hold_elevation=hold_elevation,
             category=str(data.get("category", "other")),
             note=str(data.get("note", "")),
             note_ru=str(data.get("note_ru", "")),
@@ -144,6 +169,38 @@ class Weapon:
     def boost_distance(self):
         t = self.acceleration_time
         return self.velocity * t + 0.5 * self.acceleration * t * t
+
+    @property
+    def has_hold(self):
+        """Aimed by holding a key that lowers the barrel (AGS-17)."""
+        return self.hold_rate > 0
+
+    def hold_time(self, angle):
+        """Seconds to hold the elevation key to reach `angle` degrees.
+
+        Hold weapons start at the top of `hold_elevation` (after a reset the
+        barrel points almost straight up) and the key lowers the barrel at
+        `hold_rate` degrees per second down to the lowest elevation.
+        Returns NaN for other weapons and for angles the key cannot reach.
+        """
+        if not self.has_hold or not math.isfinite(angle):
+            return math.nan
+
+        lowest, top = self.hold_elevation
+
+        if not lowest <= angle <= top:
+            return math.nan
+
+        return (top - angle) / self.hold_rate
+
+    def max_hold_time(self):
+        """Hold time that lowers the barrel all the way, NaN without hold."""
+        if not self.has_hold:
+            return math.nan
+
+        lowest, top = self.hold_elevation
+
+        return (top - lowest) / self.hold_rate
 
     @property
     def cruise_velocity(self):
@@ -215,6 +272,7 @@ class Solution:
     velocity: float = math.nan
     apex: float = math.nan           # highest point above the weapon, metres
     impact_angle: float = math.nan   # descent angle at the target, degrees
+    hold_time: float = math.nan      # seconds to hold the key, hold weapons
     reason: str = ""
     reason_code: str = ""
     alternatives: dict = field(default_factory=dict)
@@ -239,8 +297,12 @@ def solve(weapon, distance, height_diff=0.0, arc=None):
     """Elevation needed to hit a target.
 
     distance     -- horizontal distance to the target in metres
-    height_diff  -- target height relative to the weapon (positive = higher)
+    height_diff  -- target ground height relative to the weapon ground
+                    (positive = higher); the muzzle is `launch_height` above
     arc          -- "low", "high" or None/"auto" for the weapon default
+
+    For hold weapons (AGS-17) the high arc is fired by holding a key, so it
+    is only reachable inside `hold_elevation`; `hold_time` is then set.
     """
     arc = resolve_arc(weapon, arc)
 
@@ -265,16 +327,19 @@ def solve(weapon, distance, height_diff=0.0, arc=None):
 
     g = weapon.g
 
+    # Heights below are measured from the muzzle.
+    rise = height_diff - weapon.launch_height
+
     if g == 0:
         # No gravity: the projectile flies straight along the line of sight.
-        v = weapon.velocity_at(math.hypot(distance, height_diff))
-        rad = math.atan2(height_diff, distance)
+        v = weapon.velocity_at(math.hypot(distance, rise))
+        rad = math.atan2(rise, distance)
         raw = {"low": rad, "high": rad}
     else:
         v = weapon.velocity_at(distance)
 
         discriminant = (
-            v ** 4 - g * (g * distance ** 2 + 2 * height_diff * v ** 2)
+            v ** 4 - g * (g * distance ** 2 + 2 * rise * v ** 2)
         )
 
         if discriminant < 0:
@@ -315,17 +380,31 @@ def solve(weapon, distance, height_diff=0.0, arc=None):
         )
         return result
 
+    if weapon.has_hold and arc == "high":
+        result.hold_time = weapon.hold_time(angle)
+
+        if not math.isfinite(result.hold_time):
+            lowest, top = weapon.hold_elevation
+            result.reason_code = "hold_limit"
+            result.reason = (
+                f"High arc needs {angle:.1f}°, holding the key is limited "
+                f"to {lowest:g}°..{top:g}°"
+            )
+            return result
+
     result.reachable = True
     result.mils = angle * MILS_PER_DEGREE
     result.time_of_flight = distance / (v * math.cos(rad))
 
     if g == 0:
-        result.apex = max(0.0, height_diff)
+        result.apex = max(0.0, rise) + weapon.launch_height
         result.impact_angle = -math.degrees(rad)
     else:
         top_x = v * v * math.sin(rad) * math.cos(rad) / g
         top_x = min(max(top_x, 0.0), distance)
-        result.apex = max(0.0, _path(v, g, rad, top_x), height_diff)
+        result.apex = (
+            max(0.0, _path(v, g, rad, top_x), rise) + weapon.launch_height
+        )
 
         slope = math.tan(rad) - g * distance / (v * v * math.cos(rad) ** 2)
         result.impact_angle = -math.degrees(math.atan(slope))
@@ -334,7 +413,10 @@ def solve(weapon, distance, height_diff=0.0, arc=None):
 
 
 def trajectory(weapon, solution, points=64):
-    """Sample the flight path of a solved shot as (x, y) tuples."""
+    """Sample the flight path of a solved shot as (x, y) tuples.
+
+    y is relative to the weapon's ground, like `solution.height_diff`.
+    """
     if not math.isfinite(solution.raw_angle):
         return []
 
@@ -344,7 +426,7 @@ def trajectory(weapon, solution, points=64):
     d = solution.distance
 
     return [
-        (d * i / points, _path(v, g, rad, d * i / points))
+        (d * i / points, _path(v, g, rad, d * i / points) + weapon.launch_height)
         for i in range(points + 1)
     ]
 
@@ -352,11 +434,15 @@ def trajectory(weapon, solution, points=64):
 def height_at(weapon, angle, distance):
     """Height of the projectile after travelling `distance` metres.
 
-    `angle` is the elevation as returned by `solve` (angle_offset applied).
+    `angle` is the elevation as returned by `solve` (angle_offset applied);
+    the height is relative to the weapon's ground, like `height_diff`.
     Used for verification and tests.
     """
     rad = math.radians(angle + weapon.angle_offset)
-    return _path(weapon.velocity_at(distance), weapon.g, rad, distance)
+    return (
+        _path(weapon.velocity_at(distance), weapon.g, rad, distance)
+        + weapon.launch_height
+    )
 
 
 def screen_offset(angle, fov, screen_width, scale=1.0):

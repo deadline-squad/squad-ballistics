@@ -14,6 +14,9 @@ Three things make the embedded map behave like a normal browser:
 * Speed. A persistent profile keeps map tiles in a disk cache and the
   page is created once and kept alive, so it is not reloaded on every
   visit or UI rebuild.
+
+The page is either the Deadline SquadCalc build (AGS-17 support and the
+target bridge polled here, see `maplink`) or the public squadcalc.app.
 """
 
 import os
@@ -42,8 +45,19 @@ from PyQt6.QtWidgets import (
 import theme
 from config import data_dir
 from i18n import tr
+from maplink import BRIDGE_SCRIPT, parse_bridge_targets
 
 SQUADCALC_URL = "https://squadcalc.app/"
+DEADLINE_SQUADCALC_URL = "https://calc.tk104.duckdns.org/"
+
+# config["map_source"] -> page URL
+MAP_SOURCES = {
+    "deadline": DEADLINE_SQUADCALC_URL,
+    "squadcalc": SQUADCALC_URL,
+}
+
+# How often the embedded page is asked for its targets.
+BRIDGE_POLL_MS = 500
 
 # Plain HTTPS over the system DNS (see the module docstring).
 NETWORK_FLAGS = ("--disable-quic",)
@@ -141,6 +155,11 @@ def looks_black(image, threshold=0.97):
     return dark >= threshold * columns * rows
 
 
+def map_url(config):
+    """SquadCalc URL of the configured map source."""
+    return MAP_SOURCES.get(config.get("map_source"), DEADLINE_SQUADCALC_URL)
+
+
 def open_external(url=SQUADCALC_URL):
     QDesktopServices.openUrl(QUrl(url))
 
@@ -205,9 +224,15 @@ def shared_profile():
 
 
 class MapPage(QWidget):
-    """Map tab: a small toolbar, the web view and a help panel."""
+    """Map tab: a small toolbar, the web view and a help panel.
+
+    While the page is loaded it is polled for its targets; every change is
+    emitted as `targets_received` (a list of `maplink.MapTarget`).
+    """
 
     compat_requested = pyqtSignal()
+
+    targets_received = pyqtSignal(list)
 
     def __init__(self, config):
         super().__init__()
@@ -219,6 +244,11 @@ class MapPage(QWidget):
         self.profile = None
 
         self.loading = False
+
+        # None until the page answers, then whether it has the bridge.
+        self.bridge_found = None
+
+        self.last_targets = None
 
         layout = QVBoxLayout(self)
 
@@ -238,7 +268,9 @@ class MapPage(QWidget):
 
         self.external_button = QPushButton()
         self.external_button.setProperty("flat_style", True)
-        self.external_button.clicked.connect(lambda: open_external())
+        self.external_button.clicked.connect(
+            lambda: open_external(map_url(self.config))
+        )
 
         toolbar.addWidget(self.status, 1)
         toolbar.addWidget(self.reload_button)
@@ -286,7 +318,9 @@ class MapPage(QWidget):
 
         self.panel_external_button = QPushButton()
         self.panel_external_button.setProperty("flat_style", True)
-        self.panel_external_button.clicked.connect(lambda: open_external())
+        self.panel_external_button.clicked.connect(
+            lambda: open_external(map_url(self.config))
+        )
 
         self.compat_button = QPushButton()
         self.compat_button.setProperty("flat_style", True)
@@ -331,6 +365,10 @@ class MapPage(QWidget):
         self.black_timer.setInterval(BLACK_CHECK_DELAY_MS)
         self.black_timer.timeout.connect(self.check_black)
 
+        self.bridge_timer = QTimer(self)
+        self.bridge_timer.setInterval(BRIDGE_POLL_MS)
+        self.bridge_timer.timeout.connect(self.poll_targets)
+
         self.panel_kind = None
 
         self.retranslate()
@@ -360,7 +398,12 @@ class MapPage(QWidget):
         elif self.view is None:
             text = ""
         else:
-            text = "squadcalc.app"
+            text = QUrl(map_url(self.config)).host()
+
+            if self.bridge_found:
+                text += "  ·  " + tr("map_bridge_on")
+            elif self.bridge_found is False:
+                text += "  ·  " + tr("map_bridge_off")
 
         if self.config.get("map_render") == "software":
             text += ("  ·  " if text else "") + tr("map_compat_on")
@@ -400,7 +443,7 @@ class MapPage(QWidget):
 
         self.view_holder.addWidget(self.view)
 
-        self.page.load(QUrl(SQUADCALC_URL))
+        self.page.load(QUrl(map_url(self.config)))
 
     def reload(self):
         self.hide_panel()
@@ -410,12 +453,26 @@ class MapPage(QWidget):
             return
 
         if self.page.url().isEmpty():
-            self.page.load(QUrl(SQUADCALC_URL))
+            self.page.load(QUrl(map_url(self.config)))
         else:
             self.page.triggerAction(self.page.WebAction.ReloadAndBypassCache)
 
+    def load_source(self):
+        """Open the configured map source (after it was changed)."""
+        self.set_bridge_found(None)
+
+        if self.view is None:
+            self.update_status()
+            return
+
+        self.hide_panel()
+
+        self.page.load(QUrl(map_url(self.config)))
+
     def on_load_started(self):
         self.loading = True
+
+        self.bridge_timer.stop()
 
         self.black_timer.stop()
 
@@ -446,6 +503,8 @@ class MapPage(QWidget):
                 self.hide_panel()
 
             self.black_timer.start()
+
+            self.bridge_timer.start()
         else:
             self.show_panel("failed")
 
@@ -459,6 +518,45 @@ class MapPage(QWidget):
         self.progress.hide()
 
         self.show_panel("crashed")
+
+    # ---------- targets ----------
+
+    def poll_targets(self):
+        if self.page is None or self.loading:
+            return
+
+        self.page.runJavaScript(BRIDGE_SCRIPT, 0, self.on_bridge_result)
+
+    def on_bridge_result(self, value):
+        """Result of BRIDGE_SCRIPT: a list of targets, None without bridge.
+
+        Answers can arrive after `shutdown` (the window is closing); they
+        are dropped.
+        """
+        if self.page is None:
+            return
+
+        self.set_bridge_found(isinstance(value, list))
+
+        targets = parse_bridge_targets(value)
+
+        if targets == self.last_targets:
+            return
+
+        self.last_targets = targets
+
+        self.targets_received.emit(targets)
+
+    def set_bridge_found(self, found):
+        if found == self.bridge_found:
+            return
+
+        self.bridge_found = found
+
+        if found is None:
+            self.last_targets = None
+
+        self.update_status()
 
     def check_black(self):
         if self.view is None or not self.view.isVisible() or self.loading:
@@ -475,6 +573,7 @@ class MapPage(QWidget):
         """
         self.timeout_timer.stop()
         self.black_timer.stop()
+        self.bridge_timer.stop()
 
         if self.view is None:
             return

@@ -1,3 +1,4 @@
+import math
 import os
 
 import pytest
@@ -9,6 +10,7 @@ from PyQt6.QtWidgets import QApplication
 
 import config
 from ballistics import load_weapons, solve
+from i18n import tr
 from conftest import ROOT
 
 
@@ -53,7 +55,15 @@ def test_every_weapon_through_ui(window):
 
         assert window.last_solution is not None, name
         assert window.last_solution.reachable, (name, window.status_text())
-        assert any(c in window.status_text() for c in ("°", "mil", "мил"))
+
+        if math.isfinite(window.last_solution.hold_time):
+            # Laid by holding S (AGS-17 high arc): the readout is a time.
+            assert window.status_text().startswith("S "), name
+        else:
+            assert any(
+                c in window.status_text() for c in ("°", "mil", "мил")
+            )
+
         assert len(window.current_steps) >= 2, name
 
         expected = window.current_offset()
@@ -307,7 +317,8 @@ def test_map_page_survives_rebuild(window, monkeypatch):
     view = page.view
 
     assert view is not None
-    assert view.page().requestedUrl().host() == "squadcalc.app"
+    # The Deadline build is the default: it has AGS-17 and the target bridge.
+    assert view.page().requestedUrl().host() == "calc.tk104.duckdns.org"
     assert window.pages.currentIndex() == 3
 
     window.set_language("en")
@@ -320,13 +331,18 @@ def test_map_page_survives_rebuild(window, monkeypatch):
 
 def test_map_help_panel_and_external_mode(window, monkeypatch):
     opened = []
-    monkeypatch.setattr("crosshair.open_external", lambda: opened.append(1))
+    monkeypatch.setattr("crosshair.open_external", opened.append)
 
     window.set_page(1)
     window.config["map_external"] = True
     window.set_page(3)
 
-    assert opened == [1]
+    assert opened == ["https://calc.tk104.duckdns.org/"]
+
+    window.config["map_source"] = "squadcalc"
+    window.set_page(3)
+
+    assert opened[-1] == "https://squadcalc.app/"
     assert window.pages.currentIndex() == 1
 
     page = window.map_page
@@ -352,3 +368,157 @@ def test_switching_map_render_asks_for_restart(window, monkeypatch):
 
     assert window.config["map_render"] == "software"
     assert config.load_config()["map_render"] == "software"
+
+
+AGS17 = "AGS-17 · emplacement"
+
+
+def test_ags17_lob_is_laid_by_holding_s(window):
+    window.hold_timer.key_reader = lambda vk: False
+    window.select_weapon(AGS17)
+    window.config["arc"] = "high"
+
+    window.distance_entry.setText("1000")
+    window.height_entry.setText("")
+    window.calculate()
+
+    solution = window.last_solution
+    assert solution.reachable
+    assert window.status_text() == tr("hold_big", t=f"{solution.hold_time:.2f}")
+    assert window.overlay.offset == 0.0
+    assert window.hold_timer.target == pytest.approx(solution.hold_time)
+    assert any("S" in step for step in window.current_steps)
+    assert "S " in window.overlay.info_text
+
+    # Holding S reaches the target and the readout says so.
+    window.hold_timer.advance(solution.hold_time + 0.01, True, False)
+    assert window.hold_timer.is_reached
+    assert "✓" in window.hold_label.text()
+    assert "✓" in window.overlay.info_text
+
+    # The low arc of the same weapon is direct fire with the overlay mark.
+    window.config["arc"] = "low"
+    window.calculate()
+    assert window.hold_timer.target is None
+    assert "°" in window.status_text()
+    assert window.current_offset() > 0
+
+
+def test_hold_timer_setting_and_missing_keys(window):
+    window.select_weapon(AGS17)
+    window.config["arc"] = "high"
+    window.distance_entry.setText("800")
+
+    window.hold_timer.key_reader = None
+    window.calculate()
+    assert window.hold_timer.target == pytest.approx(
+        window.last_solution.hold_time
+    )
+    assert not window.hold_timer.poll_timer.isActive()
+    assert window.hold_label.isHidden()
+
+    window.config["hold_timer"] = False
+    window.calculate()
+    assert window.hold_timer.target is None
+
+
+def test_map_target_fills_the_inputs(window):
+    from maplink import MapTarget
+
+    window.select_weapon(AGS17)
+    window.config["arc"] = "high"
+
+    window.on_map_targets([
+        MapTarget(500, 0, 10.0),
+        MapTarget(1234.4, -12.6, 271.25),
+    ])
+
+    assert window.distance_entry.text() == "1234"
+    assert window.height_entry.text() == "-13"
+    assert window.last_solution.reachable
+    assert window.last_solution.height_diff == -13
+    bearing = f"{271.25:.1f}"
+    assert bearing in window.map_label.text()
+    assert window.current_steps[0] == tr("how_bearing", b=bearing)
+    assert window.overlay.info_text.startswith("1234 ")
+    assert f"{bearing}°" in window.overlay.info_text
+
+    # The same list again changes nothing; an empty list keeps the inputs.
+    window.distance_entry.setText("900")
+    window.on_map_targets([MapTarget(1234.4, -12.6, 271.25)])
+    assert window.distance_entry.text() == "900"
+    window.on_map_targets([])
+    assert window.distance_entry.text() == "900"
+
+    # Unknown height (older SquadCalc page) clears the field.
+    window.on_map_targets([MapTarget(700, None, None)])
+    assert window.height_entry.text() == ""
+    assert window.distance_entry.text() == "700"
+
+
+def test_typing_forgets_the_map_target(window):
+    from maplink import MapTarget
+
+    window.on_map_targets([MapTarget(600, 5, 90.0)])
+    assert window.map_target is not None
+
+    window.distance_entry.textEdited.emit("650")
+    assert window.map_target is None
+    assert window.map_label.text() == tr("map_follow_hint")
+
+    window.config["map_follow"] = False
+    window.on_map_targets([MapTarget(800, 0, 10.0)])
+    assert window.map_target is None
+
+
+def test_embedded_map_bridge_feeds_the_calculator(window):
+    pytest.importorskip("PyQt6.QtWebEngineWidgets")
+
+    window.set_page(3)
+    page = window.map_page
+
+    page.on_bridge_result(None)
+    assert page.bridge_found is False
+
+    page.on_bridge_result([{"distance": 950.2, "heightDiff": 3.9, "bearing": 5}])
+    assert page.bridge_found is True
+    assert window.distance_entry.text() == "950"
+    assert window.height_entry.text() == "4"
+
+    page.load_source()
+    assert page.bridge_found is None
+
+    # A late answer after the map was shut down is ignored.
+    page.shutdown()
+    page.on_bridge_result([{"distance": 300}])
+    assert page.bridge_found is None
+    assert window.distance_entry.text() == "950"
+
+
+def test_relay_code_setting(window, monkeypatch):
+    connected = []
+    monkeypatch.setattr(window.relay, "connect_relay", lambda: connected.append(window.relay.code))
+
+    window.set_relay_code("bad!")
+    assert window.relay_status_label.text() == tr("relay_bad_code")
+    assert window.config["relay_code"] == ""
+
+    window.set_relay_code("abcd-2345")
+    assert window.config["relay_code"] == "ABCD2345"
+    assert connected == ["ABCD2345"]
+
+    window.set_relay_code("")
+    assert window.config["relay_code"] == ""
+    assert window.relay.code is None
+    assert window.relay_status_label.text() == tr("relay_off")
+
+
+def test_switching_map_source_reloads(window):
+    pytest.importorskip("PyQt6.QtWebEngineWidgets")
+
+    window.set_page(3)
+    window.set_map_source("squadcalc")
+
+    assert window.config["map_source"] == "squadcalc"
+    assert window.map_page.page.requestedUrl().host() == "squadcalc.app"
+

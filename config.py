@@ -82,6 +82,17 @@ DEFAULT_CONFIG = {
     "map_render": "auto",
     "map_external": False,
 
+    # Map source: "deadline" (SquadCalc build with AGS-17 and the target
+    # bridge) or "squadcalc" (squadcalc.app). map_follow puts the newest
+    # map target into the calculator; relay_code joins a SquadCalc page
+    # open elsewhere through the relay (empty = off).
+    "map_source": "deadline",
+    "map_follow": True,
+    "relay_code": "",
+
+    # Beep when S has been held for the AGS-17 hold time (Windows).
+    "hold_timer": True,
+
     "hotkeys": {
         "toggle_overlay": "F8",
         "reset_offset": "F9",
@@ -97,6 +108,7 @@ CHOICES = {
     "unit_mode": ("auto", "deg", "mil"),
     "outline_color": ("white", "black"),
     "map_render": ("auto", "software"),
+    "map_source": ("deadline", "squadcalc"),
 }
 
 RANGES = {

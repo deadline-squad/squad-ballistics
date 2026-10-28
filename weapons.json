@@ -28,6 +28,19 @@
         "note": "Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m.",
         "note_ru": "Стреляйте короткими очередями и подводите разрывы к цели; взведение ~30 м."
     },
+    "AGS-17 · emplacement": {
+        "velocity": 230,
+        "gravity": 2.801,
+        "launch_height": 1,
+        "arc": "high",
+        "aim": "overlay",
+        "hold_rate": 9.17,
+        "hold_elevation": [47.4, 85.84],
+        "elevation_limits": [-90, 85.84],
+        "category": "agl",
+        "note": "High arc: W puts the barrel up, hold S for the shown time (the app beeps). Low arc: aim with the overlay mark. Model fitted on 67 in-game hold-time measurements (280–1930 m, 6.4 m error), the same as the Deadline SquadCalc.",
+        "note_ru": "Навесная: W поднимает ствол вверх, держите S указанное время (программа пискнет). Прямая: наводитесь меткой оверлея. Модель подобрана по 67 замерам в игре (280–1930 м, ошибка 6.4 м), та же, что в SquadCalc Deadline."
+    },
     "QLZ87": {
         "velocity": 190,
         "gravity": 1,

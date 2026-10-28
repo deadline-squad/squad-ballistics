@@ -98,12 +98,22 @@ Squad Ballistics предоставляет:
 3. The result updates while you type. The **How to fire** block tells you exactly what to do for the selected weapon.
 4. Direct fire (launchers, grenade launchers, guns): put the overlay mark on the target and fire.
 5. Indirect fire (mortars, Hell Cannon, rockets): set the shown elevation (mils or degrees) on the weapon.
+6. Or skip typing: place your weapon and a target on the SquadCalc map (tab **SquadCalc**) — distance, height difference and bearing go to the calculator by themselves.
 
 1. Выберите оружие (поиск по списку, недавние сверху), введите дистанцию и при необходимости перепад высот: цель выше `+`, ниже `-`.
 2. Укажите горизонтальный FOV: значение из настроек игры или FOV прицела при стрельбе через оптику.
 3. Результат пересчитывается при вводе. Блок **«Как стрелять»** говорит, что делать для выбранного оружия.
 4. Прямая наводка (гранатомёты, пушки): совместите метку оверлея с целью и стреляйте.
 5. Навесной огонь (миномёты, Hell Cannon, ракеты): выставьте показанный угол (милы или градусы) на орудии.
+6. Или не вводите ничего: поставьте своё оружие и цель на карте SquadCalc (вкладка **SquadCalc**) — дистанция, перепад высот и азимут подставятся в калькулятор сами.
+
+### AGS-17
+
+Pick **AGS-17 · emplacement**. / Выберите **AGS-17 · emplacement**.
+
+* **High arc / навесная:** the result is how long to hold **S**: press **W** (barrel back to the top), hold **S**, release on the beep. The app counts the hold itself while the game is focused (Windows; run it as administrator if the game is). / Результат — сколько держать **S**: нажмите **W** (ствол вверх), зажмите **S**, отпустите по сигналу. Программа сама считает зажатие, пока игра в фокусе (Windows; если игра запущена от администратора — запустите программу так же).
+* **Low arc / настильная:** direct fire with the overlay mark, like other grenade launchers. / Прямая наводка меткой оверлея, как у других гранатомётов.
+* Hold range 280–1925 m on flat ground; the model is fitted on 67 in-game measurements (hold time → distance, 0.02 s RMS) and is the same as in the Deadline SquadCalc. / Зажатием S — от 280 до 1925 м по ровной земле; модель подобрана по 67 замерам в игре (ошибка 0.02 с) и совпадает с SquadCalc Deadline.
 
 Tips / Советы:
 
@@ -122,7 +132,10 @@ If the mark is slightly off in your setup, adjust **Offset calibration** in Sett
 
 ### Map / Карта
 
-The map tab embeds [SquadCalc](https://squadcalc.app). Map tiles are cached on disk, so a map you have opened loads instantly next time. / Вкладка карты встраивает SquadCalc; тайлы кэшируются на диске.
+The map tab embeds SquadCalc: by default the Deadline build (`calc.tk104.duckdns.org`, with AGS-17), or [squadcalc.app](https://squadcalc.app) (Settings → Map). Map tiles are cached on disk, so a map you have opened loads instantly next time. / Вкладка карты встраивает SquadCalc: по умолчанию сборку Deadline (с АГС-17), либо squadcalc.app (Настройки → Карта); тайлы кэшируются на диске.
+
+* **Map → calculator / карта → калькулятор:** with the Deadline build, the newest target on the map fills the distance and the height difference, and the bearing appears in the steps and next to the mark (Settings → Map → *Put the map target into the calculator*). Typing a value by hand takes over until the next map target. squadcalc.app does not share its targets. / Со сборкой Deadline последняя цель на карте подставляет дистанцию и перепад высот, азимут виден в шагах и у метки. Ручной ввод действует до следующей цели с карты. squadcalc.app цели не передаёт.
+* **SquadCalc on another device / SquadCalc на другом устройстве:** in the Deadline SquadCalc enable the overlay link in its settings and enter the code it shows in Settings → Map → *SquadCalc session code*. / Включите «Связать оверлей-таймер» в настройках SquadCalc Deadline и введите показанный код в Настройки → Карта → «Код сессии SquadCalc».
 
 * **Black map / чёрная карта:** the app offers **Compatibility mode** (draws without the GPU) when the map looks black; it can also be switched in Settings → Map. / Если карта чёрная, программа предложит **режим совместимости** (Настройки → Карта).
 * **Does not load / не грузится:** press **Retry** or **Open in browser**; Settings → Map → *Open the map in the regular browser* makes that the default. / Кнопки **Повторить** и **Открыть в браузере**; в настройках можно всегда открывать карту в обычном браузере.
@@ -130,7 +143,7 @@ The map tab embeds [SquadCalc](https://squadcalc.app). Map tiles are cached on d
 
 ## Features / Возможности
 
-* 52 standard weapons in 8 groups plus 7 popular mod weapons (hidden by default). / 52 стандартных вида оружия в 8 группах и 7 модовых (по умолчанию скрыты).
+* 51 standard weapons in 8 groups plus 9 popular mod weapons (hidden by default). / 51 стандартный вид оружия в 8 группах и 9 модовых (по умолчанию скрыты).
 * Rocket boost and slow-down phases (RPG-7, Carl Gustav, NLAW, UB-32). / Учёт разгона и торможения ракет.
 * Trajectory view, flight time, apex, impact angle, lead for moving targets. / График траектории, время полёта, высота подъёма, угол падения, упреждение.
 * Crosshair page with live preview, presets, color swatches, outline and glow. / Прицел с живым предпросмотром, пресетами, палитрой, обводкой и свечением.
@@ -139,7 +152,8 @@ The map tab embeds [SquadCalc](https://squadcalc.app). Map tiles are cached on d
 ## How it works / Как считается
 
 * No air drag, gravity `9.78 m/s² × gravity scale` of the weapon. Rocket boost/slow-down is folded into the equivalent velocity over the distance.
-* Elevation: `θ = atan((v² ∓ √(v⁴ − g(g·d² + 2·h·v²))) / (g·d))`, low or high arc.
+* Elevation: `θ = atan((v² ∓ √(v⁴ − g(g·d² + 2·h·v²))) / (g·d))`, low or high arc; `h` is measured from the muzzle (`launch_height` above the ground).
+* Hold weapons (AGS-17): `hold = (top − θ) / rate` seconds of S after W, within `hold_elevation`.
 * Screen offset: rectilinear projection, `offset = (screen_width / 2) / tan(FOV / 2) × tan(θ)`, so it works on any resolution.
 * Data: in-game values from the [official Squad wiki](https://squad.fandom.com/wiki/Weapons) and [SquadCalc](https://github.com/sh4rkman/SquadCalc). After a game patch, edit `weapons.json`.
 
@@ -164,6 +178,8 @@ Weapons live in `weapons.json`. Only `velocity` is required:
 * `arc`: default trajectory, `low` or `high`; `aim`: `overlay` (direct fire) or `elevation` (set the angle on the weapon).
 * `unit`: `mil` shows mils first (mortars).
 * `angle_offset`: subtracted from the elevation, for weapons whose readout is shifted (technical mortar).
+* `launch_height`: muzzle height above the ground in metres (the map height difference is ground to ground).
+* `hold_rate` / `hold_elevation`: weapons laid by holding a key (AGS-17): degrees per second and `[lowest, top]` elevation; the high arc is then shown as a hold time.
 * `min_distance`, `elevation_limits` `[min, max]`, `category`, `mod`.
 
 ## Development / Разработка
