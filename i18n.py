@@ -95,6 +95,17 @@ STRINGS = {
         "Зажмите S и отпустите по сигналу — через {t} с. W сбрасывает отсчёт.",
         "Hold S and release on the beep — after {t} s. W restarts the count."
     ),
+    "direct_short": ("прямой наводкой {angle}", "direct fire {angle}"),
+    "how_hold_direct": (
+        "Или прямой наводкой: совместите метку оверлея с целью — ствол "
+        "окажется поднят на {angle}.",
+        "Or direct fire: put the overlay mark on the target — the barrel is "
+        "then raised by {angle}."
+    ),
+    "how_hold_direct_offscreen": (
+        "Или прямой наводкой: ствол на {angle} (метка за пределами экрана).",
+        "Or direct fire: barrel at {angle} (the mark is off-screen)."
+    ),
     "how_hold_no_keys": (
         "Программа не видит клавиши: отсчитайте время сами. На Linux "
         "добавьте себя в группу input (sudo usermod -aG input $USER, затем "
@@ -276,10 +287,13 @@ STRINGS = {
     ),
     "s_map": ("Карта", "Map"),
     "s_map_source": ("SquadCalc", "SquadCalc"),
-    "s_map_source_deadline": ("Deadline (АГС-17)", "Deadline (AGS-17)"),
+    "s_map_source_deadline": (
+        "Deadline (прямая наводка, АГС-17)",
+        "Deadline (direct fire, AGS-17)"
+    ),
     "s_map_follow": (
-        "Брать цель с карты в калькулятор",
-        "Put the map target into the calculator"
+        "Брать цель и оружие с карты в калькулятор",
+        "Put the map target and weapon into the calculator"
     ),
     "s_relay_code": ("Код сессии SquadCalc", "SquadCalc session code"),
     "s_relay_hint": (
@@ -304,9 +318,11 @@ STRINGS = {
     "map_target": ("С карты: {t}", "From the map: {t}"),
     "map_follow_hint": (
         "Поставьте оружие и цель на карте SquadCalc — дистанция и перепад "
-        "высот подставятся сами.",
+        "высот подставятся сами, а оружие, выбранное в SquadCalc Deadline, "
+        "выберется и здесь.",
         "Place the weapon and a target on the SquadCalc map — distance and "
-        "height fill in by themselves."
+        "height fill in by themselves, and the weapon selected in the "
+        "Deadline SquadCalc is selected here too."
     ),
     "bearing_short": ("азимут {b}°", "bearing {b}°"),
     "map_bridge_on": ("цели передаются в калькулятор", "targets go to the calculator"),

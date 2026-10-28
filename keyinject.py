@@ -154,7 +154,7 @@ class XTestInjector:
 
         xlib.XOpenDisplay.restype = ctypes.c_void_p
         xlib.XOpenDisplay.argtypes = [ctypes.c_char_p]
-        xlib.XFlush.argtypes = [ctypes.c_void_p]
+        xlib.XSync.argtypes = [ctypes.c_void_p, ctypes.c_int]
         xtst.XTestFakeKeyEvent.argtypes = [
             ctypes.c_void_p, ctypes.c_uint, ctypes.c_int, ctypes.c_ulong
         ]
@@ -170,7 +170,9 @@ class XTestInjector:
 
     def _key(self, down):
         self.xtst.XTestFakeKeyEvent(self.display, self.keycode, int(down), 0)
-        self.xlib.XFlush(self.display)
+        # XSync, not XFlush: return once the server has applied the event,
+        # so the hold is timed from the real press.
+        self.xlib.XSync(self.display, 0)
 
     def press(self):
         self._key(True)

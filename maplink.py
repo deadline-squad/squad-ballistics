@@ -1,21 +1,26 @@
 """Targets from SquadCalc: distance, height difference and bearing.
 
 The calculator takes the target geometry from the SquadCalc map and solves it
-for the weapon picked here, so the map only needs the weapon and target
-markers. Two channels deliver the targets:
+itself, so the map only needs the weapon and target markers. The Deadline
+SquadCalc build also tells which weapon is selected there, by its name in
+weapons.json (null when the weapon has no counterpart here); the calculator
+then switches to it. Two channels deliver the targets:
 
 * Embedded map. The Deadline SquadCalc build exposes
-  `window.squadBallistics.targets()`, which `webmap.MapPage` polls (see
-  `BRIDGE_SCRIPT`); `parse_bridge_targets` reads its result.
+  `window.squadBallistics.targets()` and `.weapon()`, which
+  `webmap.MapPage` polls (see `BRIDGE_SCRIPT`); `parse_bridge` reads the
+  result.
 * Relay. A SquadCalc page open anywhere (another PC, a phone) with
   "Link the overlay" enabled sends its targets to the relay of that build
   (`ags17_relay.py` on the SquadCalc host) under a session code. `RelayLink`
-  joins the session as an overlay; `parse_target_lines` reads the text.
+  joins the session as an overlay; `parse_relay_text` reads the text.
 
 Relay text, one line per target (the SquadMortarOverlay format plus the
-height; older pages omit it):
+height; older pages omit it), then the selected weapon when it has a name
+here (older pages omit it; it has no "|", so target readers skip it):
 
     "<elevation> | <bearing>° | <distance>m[ | <height>m]"
+    "weapon: <name>"
 """
 
 import json
@@ -52,10 +57,19 @@ CONNECT_TIMEOUT_MS = 15000
 MAX_DISTANCE = 10000
 MAX_HEIGHT = 3000
 
-# Script polled on the embedded page; null on SquadCalc builds without it.
+# Weapon names longer than this are not weapons.json names (see MAX_DISTANCE).
+MAX_WEAPON_NAME = 200
+
+WEAPON_PREFIX = "weapon:"
+
+# Script polled on the embedded page: {targets, weapon}, or null on SquadCalc
+# builds without the bridge. Builds before the weapon export give no weapon.
 BRIDGE_SCRIPT = (
-    "window.squadBallistics && typeof window.squadBallistics.targets"
-    " === 'function' ? window.squadBallistics.targets() : null"
+    "(function (bridge) {"
+    " if (!bridge || typeof bridge.targets !== 'function') return null;"
+    " return {targets: bridge.targets(), weapon: typeof bridge.weapon"
+    " === 'function' ? bridge.weapon() : null};"
+    "})(window.squadBallistics)"
 )
 
 
@@ -153,6 +167,45 @@ def parse_bridge_targets(value):
     return targets
 
 
+def parse_weapon_name(value):
+    """A weapon name sent by SquadCalc, None if missing or unusable."""
+    if not isinstance(value, str):
+        return None
+
+    name = value.strip()
+
+    if not name or len(name) > MAX_WEAPON_NAME:
+        return None
+
+    return name
+
+
+def parse_bridge(value):
+    """(targets, weapon) from the result of `BRIDGE_SCRIPT`.
+
+    None means the page has no bridge. `weapon` is None when the page does
+    not tell it (older build, or a weapon without a name here).
+    """
+    if not isinstance(value, dict):
+        return None
+
+    return (
+        parse_bridge_targets(value.get("targets")),
+        parse_weapon_name(value.get("weapon"))
+    )
+
+
+def parse_relay_text(text):
+    """(targets, weapon) from the text a SquadCalc page sent to the relay."""
+    weapon = None
+
+    for line in str(text).splitlines():
+        if line.startswith(WEAPON_PREFIX):
+            weapon = parse_weapon_name(line[len(WEAPON_PREFIX):])
+
+    return parse_target_lines(text), weapon
+
+
 def normalize_code(text):
     """Session code as the relay expects it ("abcd-2345" -> "ABCD2345")."""
     code = re.sub(r"[\s-]", "", str(text)).upper()
@@ -173,11 +226,16 @@ class RelayLink(QObject):
     link keeps itself alive: it reconnects after a failure (5 s, doubling up
     to a minute, with jitter so clients do not retry in sync), pings the
     relay every 20 s and drops a connection that stops answering or never
-    finishes its handshake. A target list equal to the last one delivered
-    (the relay repeats it on every reconnect) is not emitted again.
+    finishes its handshake. A target list or weapon equal to the last one
+    delivered (the relay repeats them on every reconnect) is not emitted
+    again.
     """
 
     targets_received = pyqtSignal(list)
+
+    # Name of the weapon selected in SquadCalc (see parse_relay_text).
+    weapon_received = pyqtSignal(str)
+
     status_changed = pyqtSignal(str)
 
     def __init__(self, base=DEFAULT_RELAY, parent=None):
@@ -188,6 +246,7 @@ class RelayLink(QObject):
         self.status = "off"
         self.socket = None
         self.last_targets = None
+        self.last_weapon = None
         self.reconnect_delay = RECONNECT_DELAY_MS
 
         self.reconnect_timer = QTimer(self)
@@ -213,6 +272,7 @@ class RelayLink(QObject):
         self.disconnect_relay()
 
         self.last_targets = None
+        self.last_weapon = None
         self.reconnect_delay = RECONNECT_DELAY_MS
 
         if code:
@@ -314,7 +374,12 @@ class RelayLink(QObject):
             pages = message.get("pages")
             self.set_status("connected" if pages else "waiting")
         elif message.get("type") == "targets":
-            targets = parse_target_lines(message.get("text", ""))
+            targets, weapon = parse_relay_text(message.get("text", ""))
+
+            # The weapon first: the targets are then solved for it.
+            if weapon is not None and weapon != self.last_weapon:
+                self.last_weapon = weapon
+                self.weapon_received.emit(weapon)
 
             if targets == self.last_targets:
                 return

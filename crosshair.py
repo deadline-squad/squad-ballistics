@@ -191,6 +191,10 @@ class MainWindow(QMainWindow):
 
         self.last_solution = None
 
+        # Direct-fire (low arc) solution of a hold weapon while it lobs,
+        # for the overlay mark; None otherwise.
+        self.direct_solution = None
+
         self.current_steps = []
 
         # Created once and kept across UI rebuilds, so the map is not
@@ -223,6 +227,7 @@ class MainWindow(QMainWindow):
 
         self.relay = RelayLink(parent=self)
         self.relay.targets_received.connect(self.on_map_targets)
+        self.relay.weapon_received.connect(self.on_map_weapon)
         self.relay.status_changed.connect(
             lambda _status: self.update_map_status()
         )
@@ -765,6 +770,21 @@ class MainWindow(QMainWindow):
         # The distance was just filled: any remaining error (FOV) is real.
         self.calculate()
 
+    def on_map_weapon(self, name):
+        """Switch to the weapon selected in SquadCalc (with `map_follow`).
+
+        `name` is a weapons.json name sent by the Deadline SquadCalc build
+        when its weapon changes; a weapon picked here afterwards stays until
+        the next change there. Names hidden by the mod filter are ignored.
+        """
+        if not self.config["map_follow"] or name == self.picker.current:
+            return
+
+        if name not in self.visible_weapons():
+            return
+
+        self.select_weapon(name)
+
     def forget_map_target(self):
         if self.map_target is None:
             return
@@ -900,11 +920,22 @@ class MainWindow(QMainWindow):
                 height,
                 self.config["arc"]
             )
+
+            direct = None
+
+            # A hold weapon lobbing (AGS-17) can also fire directly through
+            # its sight: the overlay mark shows that aim at the same time.
+            if weapon.has_hold and solution.arc == "high":
+                direct = solve(weapon, distance, height, "low")
+
+                if not direct.reachable:
+                    direct = None
         except (ValueError, ArithmeticError) as e:
             # ArithmeticError: absurd numbers (1e200 m) overflow the math.
             message = str(e) if isinstance(e, ValueError) else tr("bad_number")
 
             self.last_solution = None
+            self.direct_solution = None
 
             self.overlay.reset_offset()
 
@@ -923,7 +954,12 @@ class MainWindow(QMainWindow):
             self.config["fov"] = fov
             self.schedule_save()
 
+        # Too close or too far to lob (AGS-17 under 280 m): fire directly.
+        if not solution.reachable and direct is not None:
+            solution, direct = direct, None
+
         self.last_solution = solution
+        self.direct_solution = direct
 
         if not solution.reachable:
             self.show_unreachable(weapon, solution)
@@ -970,9 +1006,11 @@ class MainWindow(QMainWindow):
         s = tr("unit_s")
         m = tr("unit_m")
 
-        # Hold weapons on the high arc are laid by holding S, not by aiming.
+        # Hold weapons on the high arc are laid by holding S, not by aiming;
+        # the overlay mark then shows the direct-fire aim (`direct`).
         hold = solution.hold_time
         holding = math.isfinite(hold)
+        direct = self.direct_solution if holding else None
 
         offset = self.current_offset()
 
@@ -987,6 +1025,9 @@ class MainWindow(QMainWindow):
 
         info = f"{solution.distance:.0f} {m}  ·  {readout}"
 
+        if direct is not None:
+            info += "  ·  " + tr("direct_short", angle=format_angle(direct.angle, "deg"))
+
         bearing = self.map_bearing()
 
         if bearing is not None:
@@ -997,10 +1038,17 @@ class MainWindow(QMainWindow):
         if holding:
             self.set_big(tr("hold_big", t=f"{hold:.2f}"))
 
-            self.sub_label.setText(
+            sub = (
                 f"{format_angle(solution.angle, 'deg')}  ·  "
                 f"{format_angle(solution.angle, 'mil')}"
             )
+
+            if direct is not None:
+                sub += "  ·  " + tr(
+                    "direct_short", angle=format_angle(direct.angle, unit)
+                )
+
+            self.sub_label.setText(sub)
         else:
             self.set_big(format_angle(solution.angle, unit))
 
@@ -1019,7 +1067,7 @@ class MainWindow(QMainWindow):
             f"{solution.velocity:.0f} {tr('unit_mps')}"
         )
 
-        if holding:
+        if holding and direct is None:
             self.stats["stat_offset"].set("—")
         elif offscreen:
             self.stats["stat_offset"].set(tr("off_screen"))
@@ -1075,6 +1123,15 @@ class MainWindow(QMainWindow):
 
             if not self.hold_timer.available and self.config["hold_timer"]:
                 steps.append(tr("how_hold_no_keys"))
+
+            if direct is not None:
+                steps.append(
+                    tr(
+                        "how_hold_direct_offscreen" if offscreen
+                        else "how_hold_direct",
+                        angle=format_angle(direct.angle, unit)
+                    )
+                )
         elif weapon.aim == "overlay":
             if offscreen:
                 steps = [tr("how_overlay_offscreen", angle=angle_text)]
@@ -1267,9 +1324,13 @@ class MainWindow(QMainWindow):
         if solution is None or not solution.reachable:
             return 0.0
 
-        # The mark is not used when the barrel is laid by holding S.
+        # The barrel is laid by holding S: the mark shows the direct-fire
+        # aim instead, when there is one.
         if math.isfinite(solution.hold_time):
-            return 0.0
+            solution = self.direct_solution
+
+            if solution is None:
+                return 0.0
 
         return screen_offset(
             solution.angle,
@@ -1280,6 +1341,7 @@ class MainWindow(QMainWindow):
 
     def reset_offset(self):
         self.last_solution = None
+        self.direct_solution = None
 
         self.overlay.reset_offset()
 
@@ -1954,6 +2016,7 @@ class MainWindow(QMainWindow):
             )
 
             self.map_page.targets_received.connect(self.on_map_targets)
+            self.map_page.weapon_received.connect(self.on_map_weapon)
         else:
             self.map_page.retranslate()
 

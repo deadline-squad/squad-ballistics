@@ -9,7 +9,7 @@ pytest.importorskip("qtawesome")
 from PyQt6.QtWidgets import QApplication
 
 import config
-from ballistics import load_weapons, solve
+from ballistics import load_weapons, screen_offset, solve
 from i18n import tr
 from conftest import ROOT
 
@@ -385,10 +385,29 @@ def test_ags17_lob_is_laid_by_holding_s(window):
     solution = window.last_solution
     assert solution.reachable
     assert window.status_text() == tr("hold_big", t=f"{solution.hold_time:.2f}")
-    assert window.overlay.offset == 0.0
     assert window.hold_timer.target == pytest.approx(solution.hold_time)
     assert any("S" in step for step in window.current_steps)
     assert "S " in window.overlay.info_text
+
+    # The overlay mark shows the direct-fire aim at the same time.
+    direct = window.direct_solution
+    assert direct.reachable and direct.arc == "low"
+    assert direct.angle < 45 < solution.angle
+    assert window.overlay.offset == pytest.approx(
+        screen_offset(
+            direct.angle,
+            window.config["fov"],
+            window.overlay.screen_width(),
+            window.config["offset_scale"] / 100
+        )
+    )
+    assert window.overlay.offset > 0
+    direct_text = tr("direct_short", angle=f"{direct.angle:.2f}°")
+    assert direct_text in window.overlay.info_text
+    assert direct_text in window.sub_label.text()
+    assert window.current_steps[-1] == tr(
+        "how_hold_direct", angle=f"{direct.angle:.2f}°"
+    )
 
     # Holding S reaches the target and the readout says so.
     window.hold_timer.advance(solution.hold_time + 0.01, True, False)
@@ -400,8 +419,38 @@ def test_ags17_lob_is_laid_by_holding_s(window):
     window.config["arc"] = "low"
     window.calculate()
     assert window.hold_timer.target is None
+    assert window.direct_solution is None
     assert "°" in window.status_text()
+    assert window.current_offset() == pytest.approx(window.overlay.offset)
     assert window.current_offset() > 0
+
+
+def test_ags17_too_close_to_lob_fires_directly(window):
+    window.select_weapon(AGS17)
+    window.config["arc"] = "high"
+
+    # The top of the hold range lands at 280 m: closer is direct fire only.
+    window.distance_entry.setText("150")
+    window.height_entry.setText("")
+    window.calculate()
+
+    solution = window.last_solution
+    assert solution.reachable and solution.arc == "low"
+    assert window.direct_solution is None
+    assert window.hold_timer.target is None
+    assert window.status_text() == f"{solution.angle:.2f}°"
+    assert window.overlay.offset > 0
+    assert any(
+        tr("how_overlay_1", angle=f"{solution.angle:.2f}°") in step
+        for step in window.current_steps
+    )
+
+    # Beyond the reach of both arcs nothing is aimed.
+    window.distance_entry.setText("5000")
+    window.calculate()
+    assert not window.last_solution.reachable
+    assert window.direct_solution is None
+    assert window.overlay.offset == 0.0
 
 
 def test_hold_timer_setting_and_missing_keys(window):
@@ -480,19 +529,92 @@ def test_embedded_map_bridge_feeds_the_calculator(window):
     page.on_bridge_result(None)
     assert page.bridge_found is False
 
-    page.on_bridge_result([{"distance": 950.2, "heightDiff": 3.9, "bearing": 5}])
+    # A build before the weapon export: targets only, the weapon stays.
+    window.select_weapon("AT-4")
+    page.on_bridge_result({
+        "targets": [{"distance": 950.2, "heightDiff": 3.9, "bearing": 5}]
+    })
     assert page.bridge_found is True
+    assert window.picker.current == "AT-4"
     assert window.distance_entry.text() == "950"
     assert window.height_entry.text() == "4"
+
+    # The weapon selected in SquadCalc is selected here and solved.
+    page.on_bridge_result({
+        "targets": [{"distance": 420, "heightDiff": -6, "bearing": 90}],
+        "weapon": "M2A1 .50"
+    })
+    assert window.picker.current == "M2A1 .50"
+    assert window.config["last_weapon"] == "M2A1 .50"
+    assert window.distance_entry.text() == "420"
+    assert window.last_solution.distance == 420
+    angle = solve(window.weapons["M2A1 .50"], 420, -6, "low").angle
+    assert window.last_solution.angle == pytest.approx(angle)
+    # Downhill: the mark goes above the centre.
+    assert window.overlay.offset == pytest.approx(
+        screen_offset(
+            angle,
+            window.config["fov"],
+            window.overlay.screen_width(),
+            window.config["offset_scale"] / 100
+        )
+    )
+    assert window.overlay.offset < 0
+
+    # A weapon picked here stays until the SquadCalc weapon changes.
+    window.select_weapon("AT-4")
+    page.on_bridge_result({
+        "targets": [{"distance": 420, "heightDiff": -6, "bearing": 90}],
+        "weapon": "M2A1 .50"
+    })
+    assert window.picker.current == "AT-4"
 
     page.load_source()
     assert page.bridge_found is None
 
     # A late answer after the map was shut down is ignored.
     page.shutdown()
-    page.on_bridge_result([{"distance": 300}])
+    page.on_bridge_result({"targets": [{"distance": 300}], "weapon": "NSV"})
     assert page.bridge_found is None
-    assert window.distance_entry.text() == "950"
+    assert window.distance_entry.text() == "420"
+    assert window.picker.current == "AT-4"
+
+
+def test_map_weapon_is_followed_only_when_known_and_enabled(window):
+    window.select_weapon("AT-4")
+
+    window.on_map_weapon("Not a weapon here")
+    assert window.picker.current == "AT-4"
+
+    window.config["map_follow"] = False
+    window.on_map_weapon("NSV")
+    assert window.picker.current == "AT-4"
+
+    window.config["map_follow"] = True
+    window.on_map_weapon("NSV")
+    assert window.picker.current == "NSV"
+
+    # Mod weapons hidden by the filter are not selected behind the user's back.
+    mod_weapon = next(n for n, w in window.weapons.items() if w.mod)
+    window.config["show_mods"] = False
+    window.refresh_weapon_list()
+    window.on_map_weapon(mod_weapon)
+    assert window.picker.current == "NSV"
+
+
+def test_relay_weapon_line_selects_the_weapon(window):
+    import json
+
+    window.select_weapon("AT-4")
+    window.relay.on_message(json.dumps({
+        "type": "targets",
+        "text": "12.34 | 10.0° | 300m | +2m\nweapon: RPG-29"
+    }))
+    assert window.picker.current == "RPG-29"
+    assert window.distance_entry.text() == "300"
+    assert window.last_solution.angle == pytest.approx(
+        solve(window.weapons["RPG-29"], 300, 2, "low").angle
+    )
 
 
 def test_relay_code_setting(window, monkeypatch):
@@ -678,12 +800,14 @@ def test_embedded_bridge_reads_a_real_page(window, monkeypatch):
     from PyQt6.QtCore import QCoreApplication, QElapsedTimer
 
     html = (
-        "data:text/html,<script>window.squadBallistics={version:1,"
-        "targets:()=>[{distance:612.4,heightDiff:-8.6,bearing:181}]}"
+        "data:text/html;charset=utf-8,<script>window.squadBallistics={version:2,"
+        "targets:()=>[{distance:612.4,heightDiff:-8.6,bearing:181}],"
+        "weapon:()=>'RPG-7V1 · HEAT'}"
         "</script>"
     )
     monkeypatch.setitem(webmap.MAP_SOURCES, "deadline", html)
 
+    window.select_weapon("AT-4")
     window.set_page(3)
 
     clock = QElapsedTimer()
@@ -694,6 +818,36 @@ def test_embedded_bridge_reads_a_real_page(window, monkeypatch):
     assert window.distance_entry.text() == "612"
     assert window.height_entry.text() == "-9"
     assert window.map_page.bridge_found is True
+    assert window.picker.current == "RPG-7V1 · HEAT"
+    assert window.last_solution.angle == pytest.approx(
+        solve(window.weapons["RPG-7V1 · HEAT"], 612, -9, "low").angle
+    )
+
+
+def test_embedded_bridge_reads_a_page_without_the_weapon(window, monkeypatch):
+    """A SquadCalc build before the weapon export (bridge version 1)."""
+    pytest.importorskip("PyQt6.QtWebEngineWidgets")
+    import webmap
+    from PyQt6.QtCore import QCoreApplication, QElapsedTimer
+
+    html = (
+        "data:text/html,<script>window.squadBallistics={version:1,"
+        "targets:()=>[{distance:333,heightDiff:2,bearing:10}]}"
+        "</script>"
+    )
+    monkeypatch.setitem(webmap.MAP_SOURCES, "deadline", html)
+
+    window.select_weapon("AT-4")
+    window.set_page(3)
+
+    clock = QElapsedTimer()
+    clock.start()
+    while window.distance_entry.text() != "333" and clock.elapsed() < 15000:
+        QCoreApplication.processEvents()
+
+    assert window.distance_entry.text() == "333"
+    assert window.map_page.bridge_found is True
+    assert window.picker.current == "AT-4"
 
 
 def test_hotkeys_are_polled_when_keys_can_be_read(app, tmp_path, monkeypatch):

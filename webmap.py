@@ -45,7 +45,7 @@ from PyQt6.QtWidgets import (
 import theme
 from config import data_dir
 from i18n import tr
-from maplink import BRIDGE_SCRIPT, parse_bridge_targets
+from maplink import BRIDGE_SCRIPT, parse_bridge
 
 SQUADCALC_URL = "https://squadcalc.app/"
 DEADLINE_SQUADCALC_URL = "https://calc.tk104.duckdns.org/"
@@ -226,13 +226,16 @@ def shared_profile():
 class MapPage(QWidget):
     """Map tab: a small toolbar, the web view and a help panel.
 
-    While the page is loaded it is polled for its targets; every change is
-    emitted as `targets_received` (a list of `maplink.MapTarget`).
+    While the page is loaded it is polled for its targets and weapon; every
+    change is emitted as `targets_received` (a list of `maplink.MapTarget`)
+    and `weapon_received` (a weapons.json name).
     """
 
     compat_requested = pyqtSignal()
 
     targets_received = pyqtSignal(list)
+
+    weapon_received = pyqtSignal(str)
 
     def __init__(self, config):
         super().__init__()
@@ -249,6 +252,7 @@ class MapPage(QWidget):
         self.bridge_found = None
 
         self.last_targets = None
+        self.last_weapon = None
 
         layout = QVBoxLayout(self)
 
@@ -528,7 +532,7 @@ class MapPage(QWidget):
         self.page.runJavaScript(BRIDGE_SCRIPT, 0, self.on_bridge_result)
 
     def on_bridge_result(self, value):
-        """Result of BRIDGE_SCRIPT: a list of targets, None without bridge.
+        """Result of BRIDGE_SCRIPT: {targets, weapon}, None without bridge.
 
         Answers can arrive after `shutdown` (the window is closing); they
         are dropped.
@@ -536,9 +540,16 @@ class MapPage(QWidget):
         if self.page is None:
             return
 
-        self.set_bridge_found(isinstance(value, list))
+        state = parse_bridge(value)
 
-        targets = parse_bridge_targets(value)
+        self.set_bridge_found(state is not None)
+
+        targets, weapon = state if state is not None else ([], None)
+
+        # The weapon first: the targets are then solved for it.
+        if weapon is not None and weapon != self.last_weapon:
+            self.last_weapon = weapon
+            self.weapon_received.emit(weapon)
 
         if targets == self.last_targets:
             return
@@ -555,6 +566,7 @@ class MapPage(QWidget):
 
         if found is None:
             self.last_targets = None
+            self.last_weapon = None
 
         self.update_status()
 

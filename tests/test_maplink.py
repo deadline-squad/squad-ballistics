@@ -6,8 +6,11 @@ from maplink import (
     MapTarget,
     make_target,
     normalize_code,
+    parse_bridge,
     parse_bridge_targets,
+    parse_relay_text,
     parse_target_lines,
+    parse_weapon_name,
     relay_url,
 )
 
@@ -58,6 +61,52 @@ def test_bridge_targets():
     assert parse_bridge_targets({"distance": 5}) == []
 
 
+def test_bridge_with_weapon():
+    value = {
+        "targets": [{"distance": 420, "heightDiff": -6, "bearing": 90}],
+        "weapon": "M2A1 .50",
+    }
+
+    assert parse_bridge(value) == ([MapTarget(420.0, -6.0, 90.0)], "M2A1 .50")
+
+    # No bridge on the page, a page before the weapon export, no targets.
+    assert parse_bridge(None) is None
+    assert parse_bridge([{"distance": 300}]) is None
+    assert parse_bridge({"targets": [{"distance": 300}]}) == (
+        [MapTarget(300.0, None, None)], None
+    )
+    assert parse_bridge({"targets": None, "weapon": None}) == ([], None)
+
+
+@pytest.mark.parametrize("value, name", [
+    ("RPG-7 · PG-7VR Tandem", "RPG-7 · PG-7VR Tandem"),
+    ("  NSV ", "NSV"),
+    ("", None),
+    ("   ", None),
+    (None, None),
+    (42, None),
+    (["NSV"], None),
+    ("x" * 201, None),
+])
+def test_weapon_names(value, name):
+    assert parse_weapon_name(value) == name
+
+
+def test_relay_text_with_weapon_line():
+    text = "1.25s | 123.4° | 1000m | +12m\nweapon: AGS-17 · emplacement"
+
+    assert parse_relay_text(text) == (
+        [MapTarget(1000.0, 12.0, 123.4)], "AGS-17 · emplacement"
+    )
+    # The weapon line alone (no targets yet), and an older page without it.
+    assert parse_relay_text("weapon: NSV") == ([], "NSV")
+    assert parse_relay_text("0.5 | 10° | 300m") == (
+        [MapTarget(300.0, None, 10.0)], None
+    )
+    # Target readers skip the weapon line.
+    assert parse_target_lines(text) == [MapTarget(1000.0, 12.0, 123.4)]
+
+
 def test_untrusted_values_are_bounded():
     # Anyone with the session code can send targets: absurd values must not
     # reach the ballistics (1e200 m overflows it).
@@ -97,8 +146,10 @@ def test_relay_messages(qapp):
     link = RelayLink()
     received = []
     statuses = []
+    weapons = []
     link.targets_received.connect(received.append)
     link.status_changed.connect(statuses.append)
+    link.weapon_received.connect(weapons.append)
 
     link.on_message(json.dumps({"type": "peers", "pages": 1, "overlays": 1}))
     link.on_message(json.dumps({"type": "targets", "text": "1s | 90° | 700m | -3m"}))
@@ -111,6 +162,25 @@ def test_relay_messages(qapp):
 
     assert received == [[MapTarget(700.0, -3.0, 90.0)]]
     assert statuses == ["connected", "waiting"]
+    assert weapons == []
+
+    # The weapon is delivered once per change; a page without it keeps it.
+    for text in (
+        "1s | 90° | 700m | -3m\nweapon: NSV",
+        "1s | 90° | 700m | -3m\nweapon: NSV",
+        "1s | 90° | 700m | -3m",
+        "weapon: AT-4",
+    ):
+        link.on_message(json.dumps({"type": "targets", "text": text}))
+
+    assert weapons == ["NSV", "AT-4"]
+    assert received == [[MapTarget(700.0, -3.0, 90.0)], []]
+
+    # A new session code forgets the last weapon.
+    link.connect_relay = lambda: None
+    link.set_code("ABCD2345")
+    link.on_message(json.dumps({"type": "targets", "text": "weapon: AT-4"}))
+    assert weapons == ["NSV", "AT-4", "AT-4"]
 
 
 def test_relay_link_end_to_end(qapp):
