@@ -135,3 +135,27 @@ def test_legacy_config_next_to_frozen_exe(tmp_path, monkeypatch):
 
     assert config.load_config(str(path))["fov"] == 104
     assert json.loads(path.read_text())["fov"] == 104
+
+
+def test_linux_wayland_runs_through_xwayland():
+    from app import prefer_x11
+
+    wayland = {"WAYLAND_DISPLAY": "wayland-0", "DISPLAY": ":0"}
+    prefer_x11(wayland, "linux")
+    assert wayland["QT_QPA_PLATFORM"] == "xcb"
+
+    chosen = {"WAYLAND_DISPLAY": "wayland-0", "DISPLAY": ":0", "QT_QPA_PLATFORM": "wayland"}
+    prefer_x11(chosen, "linux")
+    assert chosen["QT_QPA_PLATFORM"] == "wayland"
+
+    no_xwayland = {"WAYLAND_DISPLAY": "wayland-0"}
+    prefer_x11(no_xwayland, "linux")
+    assert "QT_QPA_PLATFORM" not in no_xwayland
+
+    x11 = {"DISPLAY": ":0"}
+    prefer_x11(x11, "linux")
+    assert "QT_QPA_PLATFORM" not in x11
+
+    windows = {"WAYLAND_DISPLAY": "x", "DISPLAY": ":0"}
+    prefer_x11(windows, "win32")
+    assert "QT_QPA_PLATFORM" not in windows

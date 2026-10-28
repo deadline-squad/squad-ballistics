@@ -2,8 +2,11 @@
 
 A QShortcut only fires while the Squad Ballistics window has focus, which is
 useless while playing. On Windows the keys are registered system-wide with
-RegisterHotKey so they also work in game; elsewhere (or if another program
-already owns the key) we fall back to a normal window shortcut.
+RegisterHotKey so they also work in game. Elsewhere, when the physical keys
+can be read (`window.key_reader`, see keystate: Linux evdev or X11), they
+are polled and an action fires when its key goes down; the game still gets
+the key. Otherwise (or if another program already owns the key on Windows)
+we fall back to a normal window shortcut.
 """
 
 import sys
@@ -11,7 +14,8 @@ import sys
 from PyQt6.QtCore import (
     Qt,
     QAbstractNativeEventFilter,
-    QCoreApplication
+    QCoreApplication,
+    QTimer
 )
 
 from PyQt6.QtGui import (
@@ -41,6 +45,9 @@ ACTIONS = [
 
 WM_HOTKEY = 0x0312
 MOD_NOREPEAT = 0x4000
+
+# How often polled hotkeys are read (off Windows).
+POLL_INTERVAL_MS = 30
 
 
 class _WindowsHotkeyFilter(QAbstractNativeEventFilter):
@@ -115,15 +122,41 @@ def _register_global(window, items):
     return failed
 
 
+def _start_polling(window, items, reader):
+    """Fire each action when its key goes down (edge, no auto-repeat)."""
+    was_down = {key: False for key, _action in items}
+
+    def poll():
+        for key, action in items:
+            down = reader(KEYS[key])
+
+            if down and not was_down[key]:
+                getattr(window, action)()
+
+            was_down[key] = down
+
+    timer = QTimer(window)
+    timer.setInterval(POLL_INTERVAL_MS)
+    timer.timeout.connect(poll)
+    timer.start()
+
+    window._hotkey_poller = timer
+
+
 def setup_hotkeys(window):
     items = bindings(window)
     local = items
+
+    reader = getattr(window, "key_reader", None)
 
     if sys.platform == "win32":
         try:
             local = _register_global(window, items)
         except Exception:
             local = items
+    elif reader is not None and items:
+        _start_polling(window, items, reader)
+        local = []
 
     window._shortcuts = []
 
@@ -145,6 +178,13 @@ def setup_hotkeys(window):
 
 
 def teardown_hotkeys(window):
+    poller = getattr(window, "_hotkey_poller", None)
+
+    if poller is not None:
+        poller.stop()
+        poller.deleteLater()
+        window._hotkey_poller = None
+
     for shortcut in getattr(window, "_shortcuts", []):
         shortcut.setEnabled(False)
         shortcut.deleteLater()

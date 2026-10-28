@@ -38,6 +38,24 @@ from updater import (
 from webmap import configure_environment
 
 
+def prefer_x11(environ=None, platform=None):
+    """Run through XWayland on a Linux Wayland session.
+
+    Wayland compositors ignore "stay on top" for ordinary windows, so the
+    overlay would end up under a fullscreen game; through XWayland it stays
+    on top and lets the mouse through, like on X11. Skipped when the user
+    chose a Qt platform or there is no X server.
+    """
+    environ = os.environ if environ is None else environ
+    platform = sys.platform if platform is None else platform
+
+    if not platform.startswith("linux") or environ.get("QT_QPA_PLATFORM"):
+        return
+
+    if environ.get("WAYLAND_DISPLAY") and environ.get("DISPLAY"):
+        environ["QT_QPA_PLATFORM"] = "xcb"
+
+
 def close_build_splash():
     """Close the image PyInstaller shows while the .exe unpacks itself."""
     try:
@@ -210,8 +228,10 @@ def main():
 
     settings = load_config()
 
-    # Browser switches must be in place before QApplication exists.
+    # Browser switches and the Qt platform must be set before QApplication.
     configure_environment(settings["map_render"])
+
+    prefer_x11()
 
     app = QApplication(sys.argv)
 

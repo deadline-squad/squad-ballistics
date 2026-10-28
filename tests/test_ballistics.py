@@ -369,6 +369,12 @@ def test_ags17_arcs_and_limits():
     assert edge.reason_code == "hold_limit"
     assert "limited" in edge.reason
 
+    # ...so it is not offered as the other arc of a direct shot either.
+    direct_edge = solve(AGS17, 1928, 0, "low")
+    assert direct_edge.reachable
+    assert "high" not in direct_edge.alternatives
+    assert "high" in solve(AGS17, 1000, 0, "low").alternatives
+
     assert AGS17.max_hold_time() == pytest.approx((85.84 - 47.4) / 9.17)
     assert math.isnan(AGS17.hold_time(90))
     assert math.isnan(

@@ -55,8 +55,7 @@ from config import (
 
 from holdtimer import (
     HoldTimer,
-    beep,
-    windows_key_reader
+    beep
 )
 
 from hotkeys import (
@@ -72,6 +71,8 @@ from i18n import (
     tr,
     weapon_note
 )
+
+from keystate import system_key_reader
 
 from maplink import (
     RelayLink,
@@ -201,11 +202,19 @@ class MainWindow(QMainWindow):
         # distance or height is edited by hand.
         self.map_target = None
 
+        # The newest target the map delivered, kept after a manual edit so a
+        # re-delivery of the same target does not overwrite typed values.
+        self.last_map_target = None
+
         # Text of the overlay label for the current solution; hold weapons
         # append the live hold progress to it.
         self.info_base = ""
 
-        self.hold_timer = HoldTimer(windows_key_reader(), self)
+        # Physical keys read system-wide (None where impossible): the hold
+        # timer and, off Windows, the in-game hotkeys use it.
+        self.key_reader = system_key_reader()
+
+        self.hold_timer = HoldTimer(self.key_reader, self)
         self.hold_timer.changed.connect(self.update_hold_readout)
         self.hold_timer.reached.connect(self.on_hold_reached)
 
@@ -666,6 +675,8 @@ class MainWindow(QMainWindow):
 
         self.solution_weapon.setText(name)
 
+        self.update_hold_watch()
+
         self.recalculate_if_ready()
 
     def update_weapon_info(self, weapon):
@@ -721,16 +732,19 @@ class MainWindow(QMainWindow):
         """Put the newest SquadCalc target into the inputs and solve it.
 
         `targets` comes from the embedded map or the relay (see maplink);
-        the last one is the most recently placed marker. An unchanged or
-        empty list keeps the current inputs.
+        the last one is the most recently placed marker. An empty list, or
+        the same newest target delivered again (even after the inputs were
+        edited by hand), keeps the current inputs.
         """
         if not self.config["map_follow"] or not targets:
             return
 
         target = targets[-1]
 
-        if target == self.map_target:
+        if target == self.last_map_target:
             return
+
+        self.last_map_target = target
 
         self.distance_entry.set_value(round(target.distance))
 
@@ -743,7 +757,8 @@ class MainWindow(QMainWindow):
 
         self.update_map_status()
 
-        self.calculate(show_errors=False)
+        # The distance was just filled: any remaining error (FOV) is real.
+        self.calculate()
 
     def forget_map_target(self):
         if self.map_target is None:
@@ -880,7 +895,10 @@ class MainWindow(QMainWindow):
                 height,
                 self.config["arc"]
             )
-        except ValueError as e:
+        except (ValueError, ArithmeticError) as e:
+            # ArithmeticError: absurd numbers (1e200 m) overflow the math.
+            message = str(e) if isinstance(e, ValueError) else tr("bad_number")
+
             self.last_solution = None
 
             self.overlay.reset_offset()
@@ -890,7 +908,7 @@ class MainWindow(QMainWindow):
             self.hold_timer.set_target(None)
 
             if show_errors:
-                self.clear_result(str(e), error=True)
+                self.clear_result(message, error=True)
             else:
                 self.clear_result()
 
@@ -1124,6 +1142,16 @@ class MainWindow(QMainWindow):
         self.hold_label.show()
 
         self.overlay.set_info(f"{self.info_base}  ·  {progress}")
+
+    def update_hold_watch(self):
+        """Watch S/W only while a hold weapon is selected and enabled."""
+        weapon = self.current_weapon()
+
+        self.hold_timer.set_active(
+            weapon is not None
+            and weapon.has_hold
+            and self.config["hold_timer"]
+        )
 
     def on_hold_reached(self):
         beep()
@@ -1535,11 +1563,15 @@ class MainWindow(QMainWindow):
             lambda _checked: self.refresh_weapon_list()
         )
 
+        def on_hold_timer_toggled(_checked):
+            self.update_hold_watch()
+            self.recalculate_if_ready()
+
         self.add_toggle(
             layout,
             tr("s_hold_timer"),
             "hold_timer",
-            lambda _checked: self.recalculate_if_ready()
+            on_hold_timer_toggled
         )
 
         hold_hint = label(tr("s_hold_timer_hint"), "small")
@@ -1724,6 +1756,8 @@ class MainWindow(QMainWindow):
 
         teardown_hotkeys(self)
 
+        old_map_url = map_url(self.config)
+
         # The overlay keeps a reference to this dict, so update it in place.
         self.config.clear()
 
@@ -1739,9 +1773,14 @@ class MainWindow(QMainWindow):
 
         self.relay.set_code(normalize_code(self.config["relay_code"]))
 
+        if self.map_page is not None and map_url(self.config) != old_map_url:
+            self.map_page.load_source()
+
         save_config(self.config)
 
         self.rebuild()
+
+        self.update_hold_watch()
 
     def schedule_save(self):
         self.save_timer.start()
@@ -1925,6 +1964,8 @@ class MainWindow(QMainWindow):
         teardown_hotkeys(self)
 
         self.hold_timer.set_target(None)
+
+        self.hold_timer.set_active(False)
 
         self.relay.set_code(None)
 

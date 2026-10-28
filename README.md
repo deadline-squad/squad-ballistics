@@ -111,7 +111,7 @@ Squad Ballistics предоставляет:
 
 Pick **AGS-17 · emplacement**. / Выберите **AGS-17 · emplacement**.
 
-* **High arc / навесная:** the result is how long to hold **S**: press **W** (barrel back to the top), hold **S**, release on the beep. The app counts the hold itself while the game is focused (Windows; run it as administrator if the game is). / Результат — сколько держать **S**: нажмите **W** (ствол вверх), зажмите **S**, отпустите по сигналу. Программа сама считает зажатие, пока игра в фокусе (Windows; если игра запущена от администратора — запустите программу так же).
+* **High arc / навесная:** the result is how long to hold **S**: press **W** (barrel back to the top), hold **S**, release on the beep. While AGS-17 is selected the app counts every S press since the last W, in any window, so always press W right before laying (Windows: run it as administrator if the game is; Linux: see below). / Результат — сколько держать **S**: нажмите **W** (ствол вверх), зажмите **S**, отпустите по сигналу. Пока выбран АГС-17, программа считает каждое нажатие S с последнего W в любом окне, поэтому всегда жмите W прямо перед наводкой (Windows: если игра запущена от администратора — запустите программу так же; Linux — см. ниже).
 * **Low arc / настильная:** direct fire with the overlay mark, like other grenade launchers. / Прямая наводка меткой оверлея, как у других гранатомётов.
 * Hold range 280–1925 m on flat ground; the model is fitted on 67 in-game measurements (hold time → distance, 0.02 s RMS) and is the same as in the Deadline SquadCalc. / Зажатием S — от 280 до 1925 м по ровной земле; модель подобрана по 67 замерам в игре (ошибка 0.02 с) и совпадает с SquadCalc Deadline.
 
@@ -126,9 +126,20 @@ Tips / Советы:
 | F9 | Reset aim mark — сбросить метку |
 | — | Distance + / − (bind in Settings) — дистанция + / − (назначается в настройках) |
 
-Hotkeys can be changed in **Settings**. On Windows they are global, so they work while the game is focused. / Клавиши меняются в **Настройках**. В Windows они глобальные и работают поверх игры.
+Hotkeys can be changed in **Settings**. They are global, so they work while the game is focused: on Windows always, on Linux when the keys can be read (see *Linux* below). / Клавиши меняются в **Настройках**. Они глобальные и работают поверх игры: в Windows всегда, в Linux — когда программа видит клавиатуру (см. *Linux* ниже).
 
 If the mark is slightly off in your setup, adjust **Offset calibration** in Settings. / Если метка немного не совпадает, подстройте **Калибровку смещения** в настройках.
+
+### Linux
+
+Squad runs on Linux through Proton; the S timer, its beep and the in-game hotkeys work there too. The `.exe` is Windows-only: run from source with `pip install -r requirements.txt` and `python app.py`. On a Wayland session the app runs itself through XWayland so the overlay stays above the game (set `QT_QPA_PLATFORM` to override). / Squad запускается в Linux через Proton; таймер S, его сигнал и горячие клавиши в игре работают и там. `.exe` только для Windows: запуск из исходников — `pip install -r requirements.txt` и `python app.py`. В сессии Wayland программа сама запускается через XWayland, чтобы оверлей был поверх игры (`QT_QPA_PLATFORM` переопределяет).
+
+The app reads the keyboard in one of two ways: / Клавиатура читается одним из двух способов:
+
+* **input group / группа input** (any session, X11 or Wayland): `sudo usermod -aG input $USER`, then log out and in. / Любая сессия; после команды перезайдите в систему.
+* **X11 / XWayland** without extra rights, while the game window has the focus (Proton games run on XWayland). / Без прав, пока в фокусе окно игры (игры Proton работают через XWayland).
+
+The beep is played with `pw-play`, `paplay` or `aplay`, whichever is installed. Unlike Windows, the game still receives the hotkeys, so bind keys the game does not use. / Сигнал играет `pw-play`, `paplay` или `aplay` — что установлено. В отличие от Windows, игра тоже получает горячие клавиши: назначайте те, что игра не использует.
 
 ### Map / Карта
 

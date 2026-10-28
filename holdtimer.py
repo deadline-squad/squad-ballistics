@@ -6,12 +6,17 @@ elevation and holding S lowers it at a constant rate (see
 since the last W and signals once when the hold time of the target is
 reached, so the player can release S on the beep.
 
-Keys are read with GetAsyncKeyState, which sees them while the game has the
-focus; it does not work on other systems (`available` is then False), and
-not for a game started as administrator unless this app is too.
+Keys are read system-wide by `keystate` (Windows, Linux evdev or X11);
+where they cannot be read `available` is False. Because the keys are
+global, S pressed anywhere counts until the next W.
 """
 
+import os
+import shutil
+import struct
+import subprocess
 import sys
+import tempfile
 import time
 
 from PyQt6.QtCore import (
@@ -23,25 +28,25 @@ from PyQt6.QtCore import (
 VK_S = 0x53
 VK_W = 0x57
 
+BEEP_FREQUENCY = 1200
+BEEP_MS = 120
+
+# Players tried in order on Linux (PipeWire, PulseAudio, ALSA).
+LINUX_PLAYERS = ("pw-play", "paplay", "aplay")
+
 POLL_INTERVAL_MS = 10
 
-
-def windows_key_reader():
-    """`reader(vk) -> bool` for the physical key state, None off Windows."""
-    if sys.platform != "win32":
-        return None
-
-    import ctypes
-
-    user32 = ctypes.windll.user32
-
-    return lambda vk: bool(user32.GetAsyncKeyState(vk) & 0x8000)
+# A longer gap between two polls means the UI was frozen: the key state in
+# between is unknown, so at most this much of the gap is counted.
+MAX_POLL_GAP = 0.05
 
 
 class HoldTimer(QObject):
-    """Counts how long S is held and signals when the target time is reached.
+    """Counts how long S is held since the last W and signals the target.
 
-    Polling only runs while a target is set. `advance` holds the logic and
+    The keys are polled while the timer is `active` (a hold weapon is
+    selected), with or without a target, so a W pressed while the target
+    is out of range still resets the count. `advance` holds the logic and
     is driven by the poll timer; tests call it directly.
     """
 
@@ -51,10 +56,14 @@ class HoldTimer(QObject):
     # The held time has just reached the target (beep now).
     reached = pyqtSignal()
 
-    def __init__(self, key_reader=None, parent=None):
+    def __init__(self, key_reader=None, parent=None, clock=time.perf_counter):
         super().__init__(parent)
 
         self.key_reader = key_reader
+
+        # perf_counter: time.monotonic ticks every ~15.6 ms on Windows
+        # before Python 3.13, which is ~8 m of AGS-17 range.
+        self.clock = clock
 
         self.held = 0.0
         self.target = None
@@ -72,11 +81,26 @@ class HoldTimer(QObject):
         return self.key_reader is not None
 
     @property
+    def active(self):
+        return self.poll_timer.isActive()
+
+    @property
     def is_reached(self):
         return self.target is not None and self._reached
 
+    def set_active(self, active):
+        """Start or stop watching the keys (no effect without a reader)."""
+        if not active or not self.available:
+            self.poll_timer.stop()
+            self._last_poll = None
+            return
+
+        if not self.poll_timer.isActive():
+            self._last_poll = self.clock()
+            self.poll_timer.start()
+
     def set_target(self, seconds):
-        """Track a new hold time; None stops the timer.
+        """Track a new hold time; None means no target (keys still watched).
 
         The held time is kept: a new target while S is already partly held
         continues from there, and does not beep again if already past it.
@@ -87,13 +111,6 @@ class HoldTimer(QObject):
         self.target = seconds
 
         self._reached = seconds is None or self.held >= seconds
-
-        if seconds is None or not self.available:
-            self.poll_timer.stop()
-            self._last_poll = None
-        elif not self.poll_timer.isActive():
-            self._last_poll = time.monotonic()
-            self.poll_timer.start()
 
         self.changed.emit()
 
@@ -125,17 +142,66 @@ class HoldTimer(QObject):
             self.reached.emit()
 
     def poll(self):
-        now = time.monotonic()
+        now = self.clock()
 
         elapsed = 0.0 if self._last_poll is None else now - self._last_poll
 
         self._last_poll = now
 
         self.advance(
-            elapsed,
+            min(elapsed, MAX_POLL_GAP),
             self.key_reader(VK_S),
             self.key_reader(VK_W)
         )
+
+
+def beep_wav(frequency=BEEP_FREQUENCY, duration_ms=BEEP_MS, rate=22050):
+    """A mono 16-bit WAV of a sine tone with short fades (no clicks)."""
+    import math
+
+    count = rate * duration_ms // 1000
+    fade = max(1, rate * 5 // 1000)
+
+    samples = bytearray()
+
+    for i in range(count):
+        envelope = min(1.0, i / fade, (count - 1 - i) / fade)
+        value = 0.5 * envelope * math.sin(2 * math.pi * frequency * i / rate)
+        samples += struct.pack("<h", int(value * 32767))
+
+    header = struct.pack(
+        "<4sI4s4sIHHIIHH4sI",
+        b"RIFF", 36 + len(samples), b"WAVE",
+        b"fmt ", 16, 1, 1, rate, rate * 2, 2, 16,
+        b"data", len(samples)
+    )
+
+    return header + bytes(samples)
+
+
+_beep_file = None
+
+
+def linux_beep_command():
+    """Command that plays the beep on Linux, None without a player."""
+    global _beep_file
+
+    player = next(
+        (path for path in map(shutil.which, LINUX_PLAYERS) if path), None
+    )
+
+    if player is None:
+        return None
+
+    if _beep_file is None or not os.path.exists(_beep_file):
+        handle, path = tempfile.mkstemp(prefix="squad-ballistics-", suffix=".wav")
+
+        with os.fdopen(handle, "wb") as f:
+            f.write(beep_wav())
+
+        _beep_file = path
+
+    return [player, _beep_file]
 
 
 def beep():
@@ -146,11 +212,27 @@ def beep():
 
         threading.Thread(
             target=winsound.Beep,
-            args=(1200, 120),
+            args=(BEEP_FREQUENCY, BEEP_MS),
             daemon=True
         ).start()
         return
 
+    command = linux_beep_command() if sys.platform.startswith("linux") else None
+
+    if command is not None:
+        try:
+            subprocess.Popen(
+                command,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True
+            )
+            return
+        except OSError:
+            pass
+
+    # Often muted on Linux desktops: only the last resort.
     from PyQt6.QtWidgets import QApplication
 
     QApplication.beep()

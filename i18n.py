@@ -35,6 +35,7 @@ STRINGS = {
     "unreachable": ("Недостижимо", "Unreachable"),
     "enter_distance": ("Введите дистанцию", "Enter the distance"),
     "bad_fov": ("FOV должен быть от 1 до 179", "FOV must be between 1 and 179"),
+    "bad_number": ("Слишком большое число", "The number is too large"),
     "bad_distance": ("Дистанция должна быть больше 0", "Distance must be greater than 0"),
 
     "stat_tof": ("Время полёта", "Flight time"),
@@ -95,8 +96,12 @@ STRINGS = {
         "Hold S and release on the beep — after {t} s. W restarts the count."
     ),
     "how_hold_no_keys": (
-        "Сигнал по зажатию S работает только в Windows: отсчитайте время сами.",
-        "The S hold beep only works on Windows: count the time yourself."
+        "Программа не видит клавиши: отсчитайте время сами. На Linux "
+        "добавьте себя в группу input (sudo usermod -aG input $USER, затем "
+        "перезайдите) или запустите игру через XWayland/X11.",
+        "The app cannot read the keys: count the time yourself. On Linux "
+        "add yourself to the input group (sudo usermod -aG input $USER, then "
+        "log in again) or run the game through XWayland/X11."
     ),
     "how_tof_moving": (
         "Снаряд летит {tof} с: по цели, идущей 10 м/с, упреждение ≈ {lead} м.",
@@ -209,8 +214,10 @@ STRINGS = {
     "s_calibration": ("Калибровка смещения, %", "Offset calibration, %"),
     "s_hotkeys": ("Горячие клавиши", "Hotkeys"),
     "s_hotkeys_hint": (
-        "В Windows работают поверх игры. Игра при этом эти клавиши не получает.",
-        "Global on Windows, so they work in game. The game no longer receives these keys."
+        "Работают поверх игры. В Windows игра эти клавиши не получает; на Linux "
+        "получает (клавиши читаются, как для таймера АГС-17).",
+        "They work in game. On Windows the game no longer receives these keys; "
+        "on Linux it does (keys are read like for the AGS-17 timer)."
     ),
     "hk_toggle_overlay": ("Оверлей вкл/выкл", "Overlay on/off"),
     "hk_reset_offset": ("Сбросить метку", "Reset mark"),
@@ -324,11 +331,13 @@ STRINGS = {
     ),
     "s_hold_timer_hint": (
         "Считает, сколько зажата S после W, и пищит, когда пора отпускать. "
-        "Только Windows; если игра запущена от администратора — запустите "
-        "программу так же.",
+        "Windows: если игра запущена от администратора — запустите программу "
+        "так же. Linux: группа input (sudo usermod -aG input $USER) или игра "
+        "в X11/XWayland (Proton).",
         "Counts how long S is held since W and beeps when to release. "
-        "Windows only; if the game runs as administrator, run this app the "
-        "same way."
+        "Windows: if the game runs as administrator, run this app the same "
+        "way. Linux: the input group (sudo usermod -aG input $USER) or the "
+        "game on X11/XWayland (Proton)."
     ),
     "restart_title": ("Перезапуск", "Restart"),
     "restart_text": (

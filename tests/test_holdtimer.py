@@ -1,14 +1,17 @@
+import os
+
 import pytest
 
 pytest.importorskip("PyQt6.QtCore")
 
-from holdtimer import VK_S, VK_W, HoldTimer
+from holdtimer import MAX_POLL_GAP, VK_S, VK_W, HoldTimer
 
 
 def make_timer(keys=None):
     keys = set() if keys is None else keys
 
     timer = HoldTimer(lambda vk: vk in keys)
+    timer.set_active(True)
 
     reached = []
     timer.reached.connect(lambda: reached.append(timer.held))
@@ -78,19 +81,96 @@ def test_new_target_continues_from_the_held_time():
     assert len(reached) == 1
 
 
-def test_poll_reads_the_keys():
-    timer, keys, _reached = make_timer()
+class FakeClock:
+    def __init__(self):
+        self.now = 100.0
+
+    def __call__(self):
+        return self.now
+
+
+def make_polled_timer():
+    keys = set()
+    clock = FakeClock()
+    timer = HoldTimer(lambda vk: vk in keys, clock=clock)
+    reached = []
+    timer.reached.connect(lambda: reached.append(timer.held))
+    timer.set_active(True)
+    return timer, keys, clock, reached
+
+
+def test_poll_measures_the_time_between_polls():
+    timer, keys, clock, _reached = make_polled_timer()
 
     timer.set_target(10.0)
 
     keys.add(VK_S)
-    timer.poll()
-    timer.poll()
-    assert timer.held >= 0.0
+    for _ in range(5):
+        clock.now += 0.01
+        timer.poll()
+
+    assert timer.held == pytest.approx(0.05)
 
     keys.add(VK_W)
+    clock.now += 0.01
     timer.poll()
     assert timer.held == 0.0
+
+
+def test_ui_freeze_is_not_counted_as_holding():
+    timer, keys, clock, _reached = make_polled_timer()
+
+    timer.set_target(1.0)
+
+    # The UI froze for 2 s; S is down only at the next poll.
+    clock.now += 2.0
+    keys.add(VK_S)
+    timer.poll()
+
+    assert timer.held <= MAX_POLL_GAP
+
+
+def test_w_is_watched_without_a_target():
+    """Target out of range, W pressed, new target: the count starts anew."""
+    timer, keys, clock, reached = make_polled_timer()
+
+    timer.set_target(2.0)
+    keys.add(VK_S)
+    for _ in range(250):
+        clock.now += 0.01
+        timer.poll()
+    keys.discard(VK_S)
+    assert len(reached) == 1
+
+    timer.set_target(None)
+    assert timer.active
+
+    keys.add(VK_W)
+    clock.now += 0.01
+    timer.poll()
+    keys.discard(VK_W)
+    clock.now += 0.01
+    timer.poll()
+
+    timer.set_target(1.5)
+    assert timer.held == 0.0
+    assert not timer.is_reached
+
+    keys.add(VK_S)
+    for _ in range(160):
+        clock.now += 0.01
+        timer.poll()
+    assert len(reached) == 2
+    assert reached[1] == pytest.approx(1.5, abs=0.011)
+
+
+def test_set_active_starts_and_stops_polling():
+    timer, _keys, _clock, _reached = make_polled_timer()
+
+    assert timer.active
+
+    timer.set_active(False)
+    assert not timer.active
 
 
 def test_without_key_reader_nothing_polls():
@@ -98,9 +178,45 @@ def test_without_key_reader_nothing_polls():
 
     assert not timer.available
 
+    timer.set_active(True)
     timer.set_target(1.0)
 
-    assert not timer.poll_timer.isActive()
+    assert not timer.active
 
     timer.set_target(None)
     assert not timer.is_reached
+
+
+def test_beep_wav_is_a_valid_tone():
+    import io
+    import wave
+
+    from holdtimer import BEEP_MS, beep_wav
+
+    with wave.open(io.BytesIO(beep_wav())) as w:
+        assert w.getnchannels() == 1
+        assert w.getsampwidth() == 2
+        frames = w.readframes(w.getnframes())
+        assert w.getnframes() == w.getframerate() * BEEP_MS // 1000
+
+    samples = [int.from_bytes(frames[i:i + 2], "little", signed=True)
+               for i in range(0, len(frames), 2)]
+    assert max(samples) > 10000
+    assert samples[0] == 0  # faded in: no click
+
+
+def test_linux_beep_uses_the_first_player_found(monkeypatch, tmp_path):
+    import holdtimer
+
+    players = {"paplay": "/usr/bin/paplay", "aplay": "/usr/bin/aplay"}
+    monkeypatch.setattr(holdtimer.shutil, "which", players.get)
+    monkeypatch.setattr(holdtimer, "_beep_file", None)
+    monkeypatch.setattr(holdtimer.tempfile, "tempdir", str(tmp_path))
+
+    command = holdtimer.linux_beep_command()
+
+    assert command[0] == "/usr/bin/paplay"
+    assert os.path.getsize(command[1]) > 44
+
+    monkeypatch.setattr(holdtimer.shutil, "which", lambda name: None)
+    assert holdtimer.linux_beep_command() is None

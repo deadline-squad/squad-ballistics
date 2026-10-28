@@ -363,8 +363,13 @@ def solve(weapon, distance, height_diff=0.0, arc=None):
 
     for name, rad in raw.items():
         angle = math.degrees(rad) - weapon.angle_offset
-        if low_limit <= angle <= high_limit:
-            result.alternatives[name] = angle
+        if not low_limit <= angle <= high_limit:
+            continue
+        # The high arc of a hold weapon can only be fired by holding the key.
+        if weapon.has_hold and name == "high" \
+                and not math.isfinite(weapon.hold_time(angle)):
+            continue
+        result.alternatives[name] = angle
 
     rad = raw[arc]
     angle = math.degrees(rad) - weapon.angle_offset

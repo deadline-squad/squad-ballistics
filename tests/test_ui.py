@@ -522,3 +522,217 @@ def test_switching_map_source_reloads(window):
     assert window.config["map_source"] == "squadcalc"
     assert window.map_page.page.requestedUrl().host() == "squadcalc.app"
 
+
+
+def test_hold_timer_cleared_on_unreachable_error_and_reset(window):
+    window.hold_timer.key_reader = lambda vk: False
+    window.select_weapon(AGS17)
+    window.config["arc"] = "high"
+
+    def lay():
+        window.distance_entry.setText("1000")
+        window.fov_entry.setText("90")
+        window.calculate()
+        assert window.hold_timer.target is not None
+
+    lay()
+    window.distance_entry.setText("5000")
+    window.calculate()
+    assert window.hold_timer.target is None
+
+    lay()
+    window.fov_entry.setText("500")
+    window.calculate()
+    assert window.hold_timer.target is None
+
+    lay()
+    window.reset_offset()
+    assert window.hold_timer.target is None
+
+
+def test_hold_watch_follows_weapon_and_setting(window):
+    window.hold_timer.key_reader = lambda vk: False
+
+    window.select_weapon(AGS17)
+    assert window.hold_timer.active
+
+    window.select_weapon("RPG-29")
+    assert not window.hold_timer.active
+
+    window.select_weapon(AGS17)
+    window.controls["hold_timer"].setChecked(False)
+    window.controls["hold_timer"].toggled.emit(False)
+    assert not window.hold_timer.active
+
+
+def test_hold_readout_survives_rebuild(window):
+    window.hold_timer.key_reader = lambda vk: False
+    window.select_weapon(AGS17)
+    window.config["arc"] = "high"
+    window.distance_entry.setText("1000")
+    window.calculate()
+
+    window.set_language("en")
+
+    assert not window.hold_label.isHidden()
+    assert window.hold_label.text().startswith("S held 0.00 of")
+
+
+def test_typed_value_survives_redelivery_of_the_same_target(window):
+    from maplink import MapTarget
+
+    target = MapTarget(1100, 4, 33.0)
+    window.on_map_targets([target])
+    assert window.distance_entry.text() == "1100"
+
+    window.distance_entry.setText("1500")
+    window.distance_entry.textEdited.emit("1500")
+    assert window.map_target is None
+
+    window.on_map_targets([target])
+    assert window.distance_entry.text() == "1500"
+
+    # A new target does take over again.
+    window.on_map_targets([MapTarget(800, 0, 10.0)])
+    assert window.distance_entry.text() == "800"
+
+
+@pytest.mark.parametrize("edit", ["wheel", "hotkey_up", "hotkey_down"])
+def test_wheel_and_distance_keys_forget_the_map_target(window, edit):
+    from maplink import MapTarget
+
+    window.on_map_targets([MapTarget(1100, 4, 33.0)])
+    assert window.map_target is not None
+
+    if edit == "wheel":
+        window.distance_entry.stepped.emit()
+    elif edit == "hotkey_up":
+        window.distance_up()
+    else:
+        window.distance_down()
+
+    assert window.map_target is None
+
+
+def test_map_target_with_bad_fov_shows_the_fov_error(window):
+    from maplink import MapTarget
+
+    window.fov_entry.setText("")
+    window.on_map_targets([MapTarget(900, 0, 1.0)])
+
+    assert window.status_text() == tr("bad_fov")
+
+
+def test_absurd_typed_distance_does_not_crash(window):
+    window.select_weapon(AGS17)
+    window.distance_entry.setText("1" + "0" * 200)
+    window.calculate()
+
+    assert window.status_text() == tr("bad_number")
+    assert window.last_solution is None
+
+
+def test_map_status_is_shown_on_start(window):
+    assert window.map_label.text() == tr("map_follow_hint")
+    assert window.relay_status_label.text() == tr("relay_off")
+
+
+def test_reset_settings_reloads_map_and_drops_relay(window, monkeypatch):
+    pytest.importorskip("PyQt6.QtWebEngineWidgets")
+    from PyQt6.QtWidgets import QMessageBox
+
+    monkeypatch.setattr(window.relay, "connect_relay", lambda: None)
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        lambda *a, **k: QMessageBox.StandardButton.Yes
+    )
+
+    window.set_page(3)
+    window.set_map_source("squadcalc")
+    window.set_relay_code("ABCD-2345")
+    assert window.relay.code == "ABCD2345"
+
+    window.reset_settings()
+
+    assert window.config["map_source"] == "deadline"
+    assert window.map_page.page.requestedUrl().host() == "calc.tk104.duckdns.org"
+    assert window.relay.code is None
+
+
+def test_close_drops_relay_and_key_watch(window, monkeypatch):
+    monkeypatch.setattr(window.relay, "connect_relay", lambda: None)
+    window.hold_timer.key_reader = lambda vk: False
+    window.select_weapon(AGS17)
+    window.set_relay_code("ABCD-2345")
+
+    window.close()
+
+    assert window.relay.code is None
+    assert not window.hold_timer.active
+
+
+def test_embedded_bridge_reads_a_real_page(window, monkeypatch):
+    """The real poll: BRIDGE_SCRIPT runs in a page defining the bridge."""
+    pytest.importorskip("PyQt6.QtWebEngineWidgets")
+    import webmap
+    from PyQt6.QtCore import QCoreApplication, QElapsedTimer
+
+    html = (
+        "data:text/html,<script>window.squadBallistics={version:1,"
+        "targets:()=>[{distance:612.4,heightDiff:-8.6,bearing:181}]}"
+        "</script>"
+    )
+    monkeypatch.setitem(webmap.MAP_SOURCES, "deadline", html)
+
+    window.set_page(3)
+
+    clock = QElapsedTimer()
+    clock.start()
+    while window.distance_entry.text() != "612" and clock.elapsed() < 15000:
+        QCoreApplication.processEvents()
+
+    assert window.distance_entry.text() == "612"
+    assert window.height_entry.text() == "-9"
+    assert window.map_page.bridge_found is True
+
+
+def test_hotkeys_are_polled_when_keys_can_be_read(app, tmp_path, monkeypatch):
+    """Off Windows the bound keys are read like the hold timer's keys."""
+    import sys as real_sys
+
+    if real_sys.platform == "win32":
+        pytest.skip("Windows registers hotkeys instead")
+
+    import crosshair
+
+    pressed = set()
+    monkeypatch.setattr(crosshair, "system_key_reader", lambda: (lambda vk: vk in pressed))
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(config, "CONFIG_PATH", str(tmp_path / "config.json"))
+
+    win = crosshair.MainWindow(load_weapons(os.path.join(ROOT, "weapons.json")))
+
+    try:
+        assert win._hotkey_poller.isActive()
+        assert win._shortcuts == []
+
+        calls = []
+        monkeypatch.setattr(win, "toggle_overlay", lambda: calls.append("F8"))
+        # Re-bind so the poller picks up the patched method.
+        win.set_hotkey("toggle_overlay", "F8")
+        poller = win._hotkey_poller
+
+        F8 = 0x77
+        pressed.add(F8)
+        poller.timeout.emit()
+        poller.timeout.emit()  # held: fires once
+        pressed.discard(F8)
+        poller.timeout.emit()
+        pressed.add(F8)
+        poller.timeout.emit()
+
+        assert calls == ["F8", "F8"]
+    finally:
+        win.close()
+
+    assert win._hotkey_poller is None

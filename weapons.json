@@ -25,8 +25,8 @@
         "velocity": 230,
         "gravity": 1,
         "category": "agl",
-        "note": "Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m.",
-        "note_ru": "Стреляйте короткими очередями и подводите разрывы к цели; взведение ~30 м."
+        "note": "Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m. For the AGS-17 emplacement pick \"AGS-17 · emplacement\": it is fitted on in-game measurements and drops ~2.8 times faster.",
+        "note_ru": "Стреляйте короткими очередями и подводите разрывы к цели; взведение ~30 м. Для станкового АГС-17 выберите «AGS-17 · emplacement»: он подобран по замерам в игре, и граната падает примерно в 2.8 раза быстрее."
     },
     "AGS-17 · emplacement": {
         "velocity": 230,
