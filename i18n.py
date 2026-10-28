@@ -55,20 +55,21 @@ STRINGS = {
     "how_overlay_on": ("Включите оверлей ({hotkey}).", "Turn the overlay on ({hotkey})."),
     "how_overlay_1": (
         "Совместите метку оверлея с целью — ствол окажется поднят ровно "
-        "на {angle}.",
-        "Put the overlay mark on the target — the barrel is then raised by "
-        "exactly {angle}."
+        "на {angle} над линией на цель.",
+        "Put the overlay mark on the target — the barrel is then raised "
+        "exactly {angle} above the line to the target."
     ),
     "how_overlay_2": (
         "FOV в игре должен быть {fov}°. Через оптику — укажите FOV прицела.",
         "Your in-game FOV must be {fov}°. Through a scope, enter the scope FOV."
     ),
     "how_overlay_offscreen": (
-        "Метка за пределами экрана: поднимите ствол на {angle} по шкале "
-        "прицела или подойдите ближе.",
-        "The mark is off-screen: raise the barrel by {angle} using the sight "
-        "scale, or move closer."
+        "Метка за пределами экрана: поднимите ствол на {angle} над целью "
+        "по шкале прицела или подойдите ближе.",
+        "The mark is off-screen: raise the barrel {angle} above the target "
+        "using the sight scale, or move closer."
     ),
+    "to_horizon": ("к горизонту {angle}", "{angle} to the horizon"),
     "how_elevation_1": (
         "Развернитесь на цель по азимуту (карта или SquadCalc).",
         "Turn to the target bearing (map or SquadCalc)."
@@ -98,13 +99,15 @@ STRINGS = {
     "direct_short": ("прямой наводкой {angle}", "direct fire {angle}"),
     "how_hold_direct": (
         "Или прямой наводкой: совместите метку оверлея с целью — ствол "
-        "окажется поднят на {angle}.",
+        "окажется поднят на {angle} над линией на цель.",
         "Or direct fire: put the overlay mark on the target — the barrel is "
-        "then raised by {angle}."
+        "then raised {angle} above the line to the target."
     ),
     "how_hold_direct_offscreen": (
-        "Или прямой наводкой: ствол на {angle} (метка за пределами экрана).",
-        "Or direct fire: barrel at {angle} (the mark is off-screen)."
+        "Или прямой наводкой: ствол на {angle} над целью (метка за "
+        "пределами экрана).",
+        "Or direct fire: barrel {angle} above the target (the mark is "
+        "off-screen)."
     ),
     "how_hold_no_keys": (
         "Программа не видит клавиши: отсчитайте время сами. На Linux "

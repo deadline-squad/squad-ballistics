@@ -1018,15 +1018,21 @@ class MainWindow(QMainWindow):
 
         self.overlay.set_offset(offset)
 
+        # Weapons aimed with the overlay are laid relative to the target, not
+        # the horizon (see Solution.sight_angle).
+        aimed = solution.sight_angle if weapon.aim == "overlay" else solution.angle
+
         if holding:
             readout = f"S {hold:.2f} {s}"
         else:
-            readout = format_angle(solution.angle, unit)
+            readout = format_angle(aimed, unit)
 
         info = f"{solution.distance:.0f} {m}  ·  {readout}"
 
         if direct is not None:
-            info += "  ·  " + tr("direct_short", angle=format_angle(direct.angle, "deg"))
+            info += "  ·  " + tr(
+                "direct_short", angle=format_angle(direct.sight_angle, "deg")
+            )
 
         bearing = self.map_bearing()
 
@@ -1045,14 +1051,21 @@ class MainWindow(QMainWindow):
 
             if direct is not None:
                 sub += "  ·  " + tr(
-                    "direct_short", angle=format_angle(direct.angle, unit)
+                    "direct_short", angle=format_angle(direct.sight_angle, unit)
                 )
 
             self.sub_label.setText(sub)
         else:
-            self.set_big(format_angle(solution.angle, unit))
+            self.set_big(format_angle(aimed, unit))
 
-            self.sub_label.setText(format_angle(solution.angle, other))
+            sub = format_angle(aimed, other)
+
+            if weapon.aim == "overlay":
+                sub += "  ·  " + tr(
+                    "to_horizon", angle=format_angle(solution.angle, "deg")
+                )
+
+            self.sub_label.setText(sub)
 
         self.hold_timer.set_target(
             hold if holding and self.config["hold_timer"] else None
@@ -1105,7 +1118,7 @@ class MainWindow(QMainWindow):
             (solution.distance, solution.height_diff)
         )
 
-        angle_text = format_angle(solution.angle, unit)
+        angle_text = format_angle(aimed, unit)
 
         tof = f"{solution.time_of_flight:.1f}"
 
@@ -1129,7 +1142,7 @@ class MainWindow(QMainWindow):
                     tr(
                         "how_hold_direct_offscreen" if offscreen
                         else "how_hold_direct",
-                        angle=format_angle(direct.angle, unit)
+                        angle=format_angle(direct.sight_angle, unit)
                     )
                 )
         elif weapon.aim == "overlay":
@@ -1332,8 +1345,10 @@ class MainWindow(QMainWindow):
             if solution is None:
                 return 0.0
 
+        # The player puts the target, not the horizon, on the mark: the
+        # mark is below the centre by the angle over the line of sight.
         return screen_offset(
-            solution.angle,
+            solution.sight_angle,
             self.config["fov"],
             self.overlay.screen_width(),
             self.config["offset_scale"] / 100

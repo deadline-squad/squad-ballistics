@@ -395,18 +395,18 @@ def test_ags17_lob_is_laid_by_holding_s(window):
     assert direct.angle < 45 < solution.angle
     assert window.overlay.offset == pytest.approx(
         screen_offset(
-            direct.angle,
+            direct.sight_angle,
             window.config["fov"],
             window.overlay.screen_width(),
             window.config["offset_scale"] / 100
         )
     )
     assert window.overlay.offset > 0
-    direct_text = tr("direct_short", angle=f"{direct.angle:.2f}°")
+    direct_text = tr("direct_short", angle=f"{direct.sight_angle:.2f}°")
     assert direct_text in window.overlay.info_text
     assert direct_text in window.sub_label.text()
     assert window.current_steps[-1] == tr(
-        "how_hold_direct", angle=f"{direct.angle:.2f}°"
+        "how_hold_direct", angle=f"{direct.sight_angle:.2f}°"
     )
 
     # Holding S reaches the target and the readout says so.
@@ -438,10 +438,12 @@ def test_ags17_too_close_to_lob_fires_directly(window):
     assert solution.reachable and solution.arc == "low"
     assert window.direct_solution is None
     assert window.hold_timer.target is None
-    assert window.status_text() == f"{solution.angle:.2f}°"
+    # Shown over the line of sight, like the mark.
+    assert window.status_text() == f"{solution.sight_angle:.2f}°"
+    assert tr("to_horizon", angle=f"{solution.angle:.2f}°") in window.sub_label.text()
     assert window.overlay.offset > 0
     assert any(
-        tr("how_overlay_1", angle=f"{solution.angle:.2f}°") in step
+        tr("how_overlay_1", angle=f"{solution.sight_angle:.2f}°") in step
         for step in window.current_steps
     )
 
@@ -548,18 +550,20 @@ def test_embedded_map_bridge_feeds_the_calculator(window):
     assert window.config["last_weapon"] == "M2A1 .50"
     assert window.distance_entry.text() == "420"
     assert window.last_solution.distance == 420
-    angle = solve(window.weapons["M2A1 .50"], 420, -6, "low").angle
-    assert window.last_solution.angle == pytest.approx(angle)
-    # Downhill: the mark goes above the centre.
+    expected = solve(window.weapons["M2A1 .50"], 420, -6, "low")
+    assert window.last_solution.angle == pytest.approx(expected.angle)
+    # The target is put on the mark: below the centre by the angle over the
+    # line of sight, not by the (here negative) angle to the horizon.
+    assert expected.angle < 0 < expected.sight_angle
     assert window.overlay.offset == pytest.approx(
         screen_offset(
-            angle,
+            expected.sight_angle,
             window.config["fov"],
             window.overlay.screen_width(),
             window.config["offset_scale"] / 100
         )
     )
-    assert window.overlay.offset < 0
+    assert window.overlay.offset > 0
 
     # A weapon picked here stays until the SquadCalc weapon changes.
     window.select_weapon("AT-4")

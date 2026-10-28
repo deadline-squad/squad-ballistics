@@ -289,6 +289,9 @@ class Solution:
     height_diff: float
     angle: float = math.nan          # elevation in degrees, angle_offset applied
     raw_angle: float = math.nan      # physical barrel angle in degrees
+    # Elevation above the line of sight to the target, in degrees: what the
+    # overlay mark and sight scales measure (angle on flat ground).
+    sight_angle: float = math.nan
     mils: float = math.nan
     time_of_flight: float = math.nan
     velocity: float = math.nan
@@ -421,6 +424,10 @@ def solve(weapon, distance, height_diff=0.0, arc=None):
 
     result.reachable = True
     result.mils = angle * MILS_PER_DEGREE
+
+    # The eye is taken at the muzzle: the target is seen this far above the
+    # horizon, so aiming at it already raises the barrel by that much.
+    result.sight_angle = angle - math.degrees(math.atan2(rise, distance))
     result.time_of_flight = distance / (v * math.cos(rad))
 
     if g == 0:

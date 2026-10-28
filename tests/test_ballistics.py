@@ -249,6 +249,52 @@ def test_no_gravity_flies_straight():
     )
 
 
+def test_sight_angle_is_measured_from_the_line_of_sight():
+    """The overlay puts the target on the mark: aiming at a target above
+    already raises the barrel by the angle the target is seen at."""
+    rpg = WEAPONS["RPG-29"]
+
+    uphill = solve(rpg, 300, 30)
+    flat = solve(rpg, 300, 0)
+
+    assert flat.sight_angle == pytest.approx(flat.angle)
+    assert uphill.angle == pytest.approx(6.78, abs=0.01)
+    assert uphill.sight_angle == pytest.approx(
+        uphill.angle - math.degrees(math.atan2(30, 300))
+    )
+    assert uphill.sight_angle == pytest.approx(1.07, abs=0.01)
+
+    # Without gravity the projectile goes where the sight looks.
+    for height in (-60, 0, 45):
+        assert solve(WEAPONS["NLAW"], 400, height).sight_angle == pytest.approx(0)
+
+    # The muzzle height counts: the line of sight starts there too.
+    ags = WEAPONS["AGS-17 · emplacement"]
+    low = solve(ags, 400, 0, "low")
+    assert low.sight_angle == pytest.approx(
+        low.angle - math.degrees(math.atan2(-ags.launch_height, 400))
+    )
+
+
+@pytest.mark.parametrize("name", [
+    "Tank AP · M256 / Rh120",
+    "M2A1 .50",
+    "2A42 / 2A72 30mm · HE",
+])
+def test_sight_angle_follows_the_riflemans_rule(name):
+    # Independent check: for flat fire the angle over the line of sight to
+    # a target up or down a slope is close to the flat-ground one at the
+    # same horizontal distance. The angle to the horizon is not.
+    weapon = WEAPONS[name]
+    flat = solve(weapon, 800, 0).sight_angle
+
+    for height in (-120, -40, 40, 120):
+        solution = solve(weapon, 800, height)
+
+        assert solution.sight_angle == pytest.approx(flat, rel=0.05)
+        assert abs(solution.angle - flat) > 2
+
+
 @pytest.mark.parametrize("name", list(WEAPONS))
 def test_trajectory_ends_on_target(name):
     weapon = WEAPONS[name]
