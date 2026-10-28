@@ -1,3 +1,19 @@
+## Squad Ballistics 1.3.0
+
+**Скачайте только `SquadBallistics.exe`** — это вся программа, ничего распаковывать не нужно. На Linux — запуск из исходников (см. README). Настройки и кэш карты сохраняются.
+
+### Что нового
+- **Метка оверлея с учётом перепада высот:** метка ставится по углу над линией на цель, а не к горизонту. Раньше перепад высот учитывался дважды, и по цели выше или ниже снаряд уходил мимо на величину перепада. Крупная цифра — угол над линией на цель, угол к горизонту — под ней.
+- **Карта SquadCalc Deadline → калькулятор:** цель с карты подставляет дистанцию, перепад высот и азимут, а оружие, выбранное в SquadCalc, выбирается и здесь — метка оверлея встаёт на цель сама. В SquadCalc Deadline есть группа «Прямая наводка (Squad Ballistics)» со всеми оружиями оверлея, посчитанными по тем же данным, и кнопка «Зона поражения»: куда оружие достаёт с позиции с учётом рельефа и зданий. С другого устройства — по коду сессии.
+- **АГС-17 (станковый):** навесная стрельба по времени удержания S (модель по 67 замерам в игре), таймер с сигналом, панель таймера на оверлее, автозажатие S (выключено по умолчанию). Одновременно метка оверлея показывает прямую наводку; цель ближе 280 м считается прямой наводкой.
+- **Linux:** таймер, сигнал, горячие клавиши и автозажатие работают (evdev, X11/XWayland, uinput).
+
+### What's new
+- **Overlay mark accounts for the height difference:** it is placed by the angle above the line to the target, not to the horizon (the height difference used to be counted twice).
+- **Deadline SquadCalc map → calculator:** the map target fills distance, height and bearing, and the weapon selected there is selected here; the Deadline SquadCalc has a direct-fire group with every overlay weapon and a fire coverage map (terrain and buildings). Remote devices link with a session code.
+- **AGS-17 emplacement:** lob by S hold time (fitted on 67 in-game measurements), beep timer, timer panel on the overlay, opt-in auto-hold; the overlay mark shows direct fire at the same time.
+- **Linux:** timer, beep, hotkeys and auto-hold work (evdev, X11/XWayland, uinput).
+
 ## Squad Ballistics 1.2.0
 
 **Скачайте только `SquadBallistics.exe`** — это вся программа, ничего распаковывать не нужно. Настройки хранятся в `%APPDATA%\SquadBallistics`, кэш карты — в `%LOCALAPPDATA%\SquadBallistics`. Если у вас стоит старая версия, она обновится сама.
