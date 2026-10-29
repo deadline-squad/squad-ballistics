@@ -31,7 +31,9 @@ from sightreader import REFERENCE_HEIGHT, GrayImage, read_scale
 TOLERANCE = 0.5
 
 # Rate of the sight while W or S is held (mil/s), until measured: measured
-# on a 81 mm mortar sight video (about 46 mil/s).
+# on a 81 mm mortar sight video (about 46 mil/s). The game moves the barrel
+# a fixed step for every frame the key is down (0.075 degree, 1.33 mil,
+# times the view's sensitivity), so the rate depends on the frame rate.
 DEFAULT_RATE = 46.0
 
 # Readings while holding, and the wait for the barrel to stop after a
@@ -110,13 +112,14 @@ ELEVATION = Axis(
     min_move=MIN_MOVE,
 )
 
-# The mortar traverses at 50 degrees/s with A or D (SQTurretMovementComponent
-# of BP_GenericDeployableMortarVehicle: KeyboardYawRotationMultiplier 500 x
-# InputMultiplier 0.1, MaxYawSpeed 50), so one game frame turns it 0.8
-# degree at 60 fps: the lay stops within half of the step it measures.
+# The mortar turns a fixed step for every game frame A or D is down
+# (USQTurretMovementComponent of the mortar, decompiled from the game
+# server: 0.25 degree times the view's sensitivity, up to 50 degrees/s), so
+# its rate grows with the frame rate: 15 degrees/s at 60 fps. The lay
+# measures the rate and the step and stops within half of the step.
 BEARING = Axis(
     value=lambda reading: reading.degrees,
-    default_rate=50.0,
+    default_rate=15.0,
     tolerance=0.1,
     confirm=0.3,
     max_jump=10.0,
@@ -236,41 +239,17 @@ class ScreenSight:
 
 
 class CompassReader:
-    """Reads a compass grab (a Sight) for a SightLayer on the BEARING axis.
+    """Reads a compass grab (a Sight) for a SightLayer on the BEARING axis
+    (`compassreader.read_compass` with the digit pictures `digits`)."""
 
-    The box's digits are read when there is no recent reading; while
-    laying, the last reading stands in for them (`compassreader.read_compass`
-    `near`), which is faster and works while the digits blur.
-    """
-
-    # A reading older than this (s) no longer stands in for the digits.
-    RECENT = 1.0
-
-    def __init__(self, digits, clock=time.perf_counter):
+    def __init__(self, digits):
         self.digits = digits
-        self.clock = clock
-        self.last = None
 
     def __call__(self, sight):
         if sight is None:
             return None
 
-        now = self.clock()
-        near = None
-
-        if self.last is not None and now - self.last[0] <= self.RECENT:
-            near = self.last[1].degrees
-
-        reading = read_compass(sight.image, sight.centre_x, sight.scale,
-                               None if near is not None else self.digits, near)
-
-        if reading is None and near is not None:
-            reading = read_compass(sight.image, sight.centre_x, sight.scale, self.digits)
-
-        if reading is not None:
-            self.last = (now, reading)
-
-        return reading
+        return read_compass(sight.image, sight.centre_x, sight.scale, self.digits)
 
 
 def read_sight(sight, templates):
@@ -497,11 +476,15 @@ class SightLayer(QObject):
         """The barrel is still: done, hold or tap towards the target.
 
         Done within the axis' tolerance, or within half the move of the
-        shortest tap (the game's frame step) when that is larger.
+        shortest tap (the game's frame step) or of the reading's resolution
+        when that is larger.
         """
         error = self.difference(target, self.value(self.last))
 
-        if abs(error) <= max(self.axis.tolerance, self.step_size / 2):
+        # A reading shown in whole degrees cannot tell more than half of one
+        resolution = getattr(self.last, "resolution", 0.0)
+
+        if abs(error) <= max(self.axis.tolerance, self.step_size / 2, resolution / 2):
             self.finish(True)
             return
 
