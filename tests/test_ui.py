@@ -2250,3 +2250,63 @@ def test_map_without_a_browser_stays_embedded_and_says_so(window, monkeypatch):
 
     window.map_page.open_in_browser()
     assert window.map_page.status.text() == tr("open_failed", target="https://calc.tk104.duckdns.org/")
+
+
+def aim_tapv(window, view, fov, distance):
+    window.overlay.setGeometry(0, 0, 1920, 1080)
+    window.select_weapon("MK19 · TAPV C16 RWS")
+    window.view_control.changed.emit(view)
+    window.distance_entry.setText(str(distance))
+    window.height_entry.setText("0")
+    window.fov_entry.setText(str(fov))
+    window.calculate()
+
+
+def test_an_off_screen_mark_names_the_view_where_it_fits(window):
+    """TAPV C16 RWS, FOV 120, 1200 m: the x12 mark is far below the screen,
+    the x5 one is 384 px below the centre."""
+    aim_tapv(window, "optic2", 120, 1200)
+
+    assert window.overlay.is_offscreen(window.overlay.offset)
+    assert window.current_offset(1) == pytest.approx(384, abs=1)
+    assert window.current_offset(2) == pytest.approx(933, abs=1)
+    assert window.current_steps[0] == tr(
+        "how_overlay_other_view", view="×12", better="×5", px="384", side=tr("below")
+    )
+    assert "×12" in window.current_steps[0] and "×5" in window.current_steps[0]
+    assert "384 px below the centre" in window.current_steps[0]
+
+
+def test_the_highest_zoom_that_fits_is_named(window):
+    aim_tapv(window, "optic2", 120, 1200)
+
+    fit_index, fit_offset = window.view_that_fits(window.current_weapon())
+    assert fit_index == 1
+    assert fit_offset == pytest.approx(384, abs=1)
+
+    # A shorter shot fits at x12 itself: nothing to switch to
+    aim_tapv(window, "optic2", 120, 400)
+
+    assert not window.overlay.is_offscreen(window.overlay.offset)
+    assert not any("off-screen" in step for step in window.current_steps)
+
+
+def test_an_off_screen_mark_keeps_the_old_text_when_no_view_fits(window):
+    aim_tapv(window, "optic2", 10, 1200)
+
+    weapon = window.current_weapon()
+    assert all(abs(window.current_offset(i)) > 0.45 * 1080 for i in range(len(weapon.sight_views)))
+    assert window.view_that_fits(weapon) is None
+    assert window.overlay.is_offscreen(window.overlay.offset)
+    assert window.current_steps[0].startswith("The mark is off-screen: raise the barrel")
+
+
+def test_a_weapon_with_one_view_keeps_the_old_off_screen_text(window):
+    window.overlay.setGeometry(0, 0, 1920, 1080)
+    window.select_weapon("AT-4")
+    window.distance_entry.setText("300")
+    window.fov_entry.setText("3")
+    window.calculate()
+
+    assert window.overlay.is_offscreen(window.overlay.offset)
+    assert window.current_steps[0].startswith("The mark is off-screen: raise the barrel")

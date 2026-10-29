@@ -81,6 +81,12 @@ STRINGS = {
         "The mark is off-screen: raise the barrel {angle} above the target "
         "using the sight scale, or move closer."
     ),
+    "how_overlay_other_view": (
+        "The mark is off-screen at {view}. Use {better} "
+        "(the mark is {px} px {side} the centre)."
+    ),
+    "below": "below",
+    "above": "above",
     "to_horizon": "{angle} to the horizon",
     "how_elevation_1": "Turn to the target bearing (map or SquadCalc).",
     "how_elevation_2": "Set the elevation to {angle}.",
