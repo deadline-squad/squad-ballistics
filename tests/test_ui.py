@@ -6,7 +6,7 @@ import pytest
 pytest.importorskip("PyQt6.QtWidgets")
 pytest.importorskip("qtawesome")
 
-from PyQt6.QtWidgets import QApplication, QPushButton
+from PyQt6.QtWidgets import QApplication, QLabel, QPushButton
 
 import config
 import theme
@@ -29,7 +29,6 @@ def window(app, tmp_path, monkeypatch):
     from crosshair import MainWindow
 
     win = MainWindow(load_weapons(os.path.join(ROOT, "weapons.json")))
-    win.config["animated"] = False
     yield win
     win.close()
 
@@ -95,7 +94,7 @@ def test_comma_decimal_and_errors(window):
     window.distance_entry.setText("100000")
     window.calculate()
     assert not window.last_solution.reachable
-    assert window.overlay.target_offset == 0
+    assert window.overlay.offset == 0
 
 
 @pytest.mark.parametrize("name", ["Mortar (M252 / 2B14 / L16 / Type 63)", "BM-21 Grad", "Hell Cannon"])
@@ -106,7 +105,7 @@ def test_no_overlay_mark_for_weapons_laid_by_elevation(window, name):
     window.calculate()
     assert window.last_solution.reachable
     assert not window.overlay.mark_visible
-    assert window.overlay.target_offset == 0
+    assert window.overlay.offset == 0
     assert "900 m" in window.overlay.info_text
     assert window.stats["stat_offset"].value.text() == "—"
 
@@ -126,7 +125,7 @@ def test_overlay_mark_follows_the_weapon_aim(window):
         window.distance_entry.setText("500")
         window.calculate()
         assert window.overlay.mark_visible, name
-        assert window.overlay.target_offset > 0, name
+        assert window.overlay.offset > 0, name
 
     window.select_weapon("Mortar (M252 / 2B14 / L16 / Type 63)")
     assert not window.overlay.mark_visible
@@ -136,7 +135,7 @@ def test_reset_toggle_and_distance_keys(window):
     window.select_weapon("SPG-9 · HEAT")
     window.distance_entry.setText("500")
     window.calculate()
-    assert window.overlay.target_offset > 0
+    assert window.overlay.offset > 0
     assert "500 m" in window.overlay.info_text
 
     window.config["distance_step"] = 25
@@ -147,7 +146,7 @@ def test_reset_toggle_and_distance_keys(window):
     assert window.last_solution.distance == 475
 
     window.reset_offset()
-    assert window.overlay.target_offset == 0
+    assert window.overlay.offset == 0
     assert window.overlay.info_text == ""
 
     visible = window.overlay.isVisible()
@@ -211,26 +210,7 @@ def test_recent_weapons(window):
     assert window.config["last_weapon"] == "AT-4"
 
 
-def test_presets_and_colors(window):
-    window.apply_preset("circle")
-    assert window.config["circle_enabled"] is True
-    assert window.controls["circle_enabled"].isChecked()
-
-    window.pick_crosshair_color("#ff00ff")
-    assert window.config["color"] == [255, 0, 255]
-    assert window.controls[("color", 1)].slider.value() == 0
-
-    window.set_setting(("color", 2), 200)
-    assert window.config["color"][2] == 200
-
-    for key in ("circle_enabled", "glow_enabled", "lines_enabled",
-                "outline_enabled"):
-        window.set_setting(key, True)
-    window.set_setting("outline_color", "black")
-    window.overlay.repaint()
-    window.preview.repaint()
-
-    # Off-screen aim point is drawn as an edge arrow.
+def test_off_screen_aim_point_is_drawn_as_an_edge_arrow(window):
     window.overlay.set_offset(1e9)
     window.overlay.repaint()
 
@@ -1449,18 +1429,302 @@ def test_crosshair_page_fits_the_minimum_window(window):
     window.set_page(1)
     QApplication.processEvents()
 
-    from crosshair import PRESETS
+    page = window.pages.currentWidget()
+    names = {tr(f"style_{key}") for key in config.MARK_STYLES}
+    buttons = [b for b in page.findChildren(QPushButton) if b.text() in names]
 
-    names = {tr(f"preset_{key}") for key in PRESETS}
-    buttons = [b for b in window.pages.currentWidget().findChildren(QPushButton) if b.text() in names]
-
-    assert len(buttons) == len(PRESETS)
+    assert len(buttons) == len(config.MARK_STYLES)
 
     for button in buttons:
         assert button.width() >= button.sizeHint().width(), button.text()
-        # Nothing laid over the preview
-        assert button.mapTo(window, button.rect().topLeft()).y() > \
-            window.preview.mapTo(window, window.preview.rect().bottomLeft()).y()
+        assert page.rect().contains(button.mapTo(page, button.rect().bottomRight()))
+
+    # The preview and the caption under it are on the page, whole
+    caption = next(l for l in page.findChildren(QLabel) if l.text() == tr("mark_caption"))
+
+    for widget in (window.preview, caption):
+        assert widget.isVisible()
+        assert page.rect().contains(widget.mapTo(page, widget.rect().bottomRight()))
+
+
+def mark_ink(overlay, half=40):
+    """(left, top, right, bottom) pixel box of what is painted within `half`
+    px of the overlay's centre, as image coordinates (right/bottom included)."""
+    image = overlay.grab().toImage()
+    cx, cy = int(overlay.width() / 2), int(overlay.height() / 2)
+    points = [
+        (x, y)
+        for y in range(cy - half, cy + half)
+        for x in range(cx - half, cx + half)
+        if image.pixelColor(x, y).alpha() > 0
+    ]
+    xs, ys = [p[0] for p in points], [p[1] for p in points]
+
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+@pytest.fixture
+def full_hd_overlay(window):
+    window.set_setting("range_ladder", False)
+    window.overlay.setGeometry(0, 0, 1920, 1080)
+    window.overlay.set_offset(0)
+    return window.overlay
+
+
+@pytest.mark.parametrize("style", config.MARK_STYLES)
+def test_every_style_is_centred_on_the_screen_centre(window, full_hd_overlay, style):
+    """The mark is symmetric about the exact centre of the 1920x1080 screen
+    (between pixels 959/960 and 539/540); the T has no bottom line."""
+    window.set_setting("mark_style", style)
+
+    left, top, right, bottom = mark_ink(full_hd_overlay)
+
+    assert left + right + 1 == 1920
+    if style != "t":
+        assert top + bottom + 1 == 1080
+
+
+def test_the_dot_paints_the_centre_pixels_in_the_mark_colour(window, full_hd_overlay):
+    window.set_setting("mark_style", "dot")
+    image = full_hd_overlay.grab().toImage()
+
+    for x, y in ((959, 539), (960, 539), (959, 540), (960, 540)):
+        pixel = image.pixelColor(x, y)
+        assert (pixel.red(), pixel.green(), pixel.blue(), pixel.alpha()) == (0, 255, 0, 255), (x, y)
+
+    # The outline around the dot is white
+    outline = image.pixelColor(955, 540)
+    assert (outline.red(), outline.green(), outline.blue()) == (255, 255, 255)
+    assert image.pixelColor(950, 540).alpha() == 0
+
+
+def test_the_mark_is_centred_on_the_chosen_monitor(window, full_hd_overlay):
+    """The overlay covers the monitor, so its centre is the monitor's centre
+    whatever the monitor's size."""
+    window.set_setting("mark_style", "dot")
+    full_hd_overlay.setGeometry(0, 0, 1280, 720)
+
+    left, top, right, bottom = mark_ink(full_hd_overlay)
+
+    assert (left + right + 1, top + bottom + 1) == (1280, 720)
+
+
+def test_the_styles_render_distinct_previews(window):
+    images = {}
+
+    for style in config.MARK_STYLES:
+        window.set_setting("mark_style", style)
+        image = window.preview.grab().toImage()
+        images[style] = image.constBits().asstring(image.sizeInBytes())
+
+    assert len(set(images.values())) == len(config.MARK_STYLES)
+
+
+def test_the_styles_render_distinct_overlays(window, full_hd_overlay):
+    boxes = {}
+
+    for style in config.MARK_STYLES:
+        window.set_setting("mark_style", style)
+        image = full_hd_overlay.grab().toImage()
+        boxes[style] = image.constBits().asstring(image.sizeInBytes())
+
+    assert len(set(boxes.values())) == len(config.MARK_STYLES)
+
+
+def test_size_scales_the_whole_mark(window, full_hd_overlay):
+    window.set_setting("mark_style", "circle")
+    window.set_setting("mark_size", 100)
+    left, _top, right, _bottom = mark_ink(full_hd_overlay, 100)
+
+    window.set_setting("mark_size", 200)
+    big_left, _top, big_right, _bottom = mark_ink(full_hd_overlay, 100)
+
+    # A radius-16 circle with its stroke and outline
+    assert right - left + 1 == pytest.approx(2 * 16 + 4, abs=2)
+    assert big_right - big_left + 1 == pytest.approx(2 * 32 + 4, abs=2)
+
+
+def test_every_colour_is_painted(window, full_hd_overlay):
+    window.set_setting("mark_style", "dot")
+
+    for name, rgb in config.MARK_COLORS.items():
+        window.color_swatches.buttons[name].click()
+        pixel = full_hd_overlay.grab().toImage().pixelColor(960, 540)
+
+        assert (pixel.red(), pixel.green(), pixel.blue()) == rgb, name
+        assert window.config["color"] == name
+        assert window.color_swatches.buttons[name].isChecked()
+
+
+def test_style_colour_size_and_toggles_persist_and_reload(window, tmp_path):
+    from crosshair import MainWindow
+
+    page = window.pages.widget(1)
+    next(b for b in page.findChildren(QPushButton) if b.text() == tr("style_circle")).click()
+    window.color_swatches.buttons["red"].click()
+    window.controls["mark_size"].slider.setValue(140)
+    window.controls["range_ladder"].setChecked(False)
+    window.controls["info_enabled"].setChecked(False)
+    window.controls["center_offset_x"].slider.setValue(-12)
+    window.controls["center_offset_y"].slider.setValue(7)
+    window.controls["offset_scale"].slider.setValue(110)
+
+    config.save_config(window.config)
+    saved = config.load_config()
+
+    assert (saved["mark_style"], saved["color"], saved["mark_size"]) == ("circle", "red", 140)
+    assert (saved["range_ladder"], saved["info_enabled"]) == (False, False)
+    assert (saved["center_offset_x"], saved["center_offset_y"], saved["offset_scale"]) == (-12, 7, 110)
+
+    again = MainWindow(window.weapons)
+    try:
+        page = again.pages.widget(1)
+        circle = next(b for b in page.findChildren(QPushButton) if b.text() == tr("style_circle"))
+
+        assert circle.isChecked()
+        assert again.color_swatches.buttons["red"].isChecked()
+        assert again.controls["mark_size"].slider.value() == 140
+        assert not again.controls["range_ladder"].isChecked()
+        assert not again.controls["info_enabled"].isChecked()
+        assert again.controls["center_offset_x"].slider.value() == -12
+        assert again.controls["center_offset_y"].slider.value() == 7
+        assert again.controls["offset_scale"].slider.value() == 110
+        assert again.overlay.center_x == again.overlay.width() / 2 - 12
+    finally:
+        again.close()
+
+
+def test_the_alignment_moves_and_scales_the_mark_and_reset_undoes_it(window):
+    overlay = window.overlay
+    overlay.setGeometry(0, 0, 1920, 1080)
+    window.select_weapon("SPG-9 · HEAT")
+    window.distance_entry.setText("500")
+    window.calculate()
+    plain = overlay.offset
+    assert plain > 0
+
+    window.controls["offset_scale"].slider.setValue(150)
+    assert overlay.offset == pytest.approx(plain * 1.5)
+
+    window.controls["center_offset_x"].slider.setValue(30)
+    window.controls["center_offset_y"].slider.setValue(-20)
+    assert (overlay.center_x, overlay.center_y) == (990, 520)
+
+    window.set_setting("range_ladder", True)
+    ladder = dict(overlay.ladder)
+
+    window.reset_alignment()
+
+    assert overlay.offset == pytest.approx(plain)
+    assert (overlay.center_x, overlay.center_y) == (960, 540)
+    assert [window.controls[k].slider.value() for k in ("center_offset_x", "center_offset_y", "offset_scale")] == [0, 0, 100]
+    assert dict(overlay.ladder) != ladder
+
+
+def test_alignment_sliders_step_by_one_with_the_arrow_keys(window):
+    from PyQt6.QtCore import Qt
+    from PyQt6.QtTest import QTest
+
+    for key in ("center_offset_x", "center_offset_y", "offset_scale"):
+        slider = window.controls[key].slider
+        before = slider.value()
+
+        QTest.keyClick(slider, Qt.Key.Key_Right)
+
+        assert slider.value() == before + 1, key
+        assert window.config[key] == before + 1
+
+
+def inventory(window, page_index):
+    """The user-operable controls of a page: (switch keys, sliders, segmented
+    rows, drop-downs, swatches, plain buttons)."""
+    from PyQt6.QtWidgets import QComboBox
+    from widgets import Segmented, SliderRow, Swatches, Toggle
+
+    page = window.pages.widget(page_index)
+
+    def keys(kind):
+        return [k for k, c in window.controls.items() if isinstance(c, kind) and page.isAncestorOf(c)]
+
+    inside = [b for b in page.findChildren(QPushButton)
+              if not any(isinstance(a, (Segmented, Swatches)) for a in _ancestors(b))]
+
+    return {
+        "switches": keys(Toggle),
+        "sliders": keys(SliderRow),
+        "segmented": [[b.text() for b in row.buttons.values()] for row in page.findChildren(Segmented)],
+        "dropdowns": len(page.findChildren(QComboBox)),
+        "swatches": [list(row.buttons) for row in page.findChildren(Swatches)],
+        "buttons": [b.text() for b in inside],
+    }
+
+
+def _ancestors(widget):
+    while widget is not None:
+        widget = widget.parentWidget()
+        yield widget
+
+
+def test_the_crosshair_page_has_exactly_these_controls(window):
+    assert inventory(window, 1) == {
+        "switches": ["range_ladder", "info_enabled"],
+        "sliders": ["center_offset_x", "center_offset_y", "offset_scale", "mark_size"],
+        "segmented": [[tr(f"style_{k}") for k in config.MARK_STYLES]],
+        "dropdowns": 0,
+        "swatches": [list(config.MARK_COLORS)],
+        "buttons": [tr("align_reset")],
+    }
+
+
+def test_the_settings_page_has_exactly_these_controls(window):
+    assert inventory(window, 2) == {
+        "switches": ["main_on_top", "auto_calc", "auto_hold", "sight_reader", "map_follow", "map_external"],
+        "sliders": [],
+        "segmented": [
+            [tr("s_units_auto"), tr("s_units_deg"), tr("s_units_mil")],
+            [tr("s_map_source_deadline"), "squadcalc.app"],
+            [tr("s_map_render_auto"), tr("s_map_render_software")],
+        ],
+        # distance step + the five hotkeys; the monitor row needs two monitors
+        "dropdowns": 6,
+        "swatches": [],
+        "buttons": [tr("s_map_clear"), tr("s_open_config"), tr("s_reset")],
+    }
+
+
+def test_the_monitor_row_shows_only_with_several_monitors(window, monkeypatch):
+    from PyQt6.QtGui import QGuiApplication
+    from PyQt6.QtWidgets import QComboBox
+    from crosshair import MainWindow
+
+    screen = QGuiApplication.primaryScreen()
+    assert len(QGuiApplication.screens()) == 1
+
+    monkeypatch.setattr(QGuiApplication, "screens", staticmethod(lambda: [screen, screen]))
+    two = MainWindow(window.weapons)
+    try:
+        assert len(two.pages.widget(2).findChildren(QComboBox)) == 7
+    finally:
+        two.close()
+
+
+def test_the_hotkeys_are_unchanged():
+    from hotkeys import ACTIONS
+
+    assert ACTIONS == ["toggle_overlay", "reset_offset", "distance_up", "distance_down", "auto_hold"]
+    assert config.DEFAULT_CONFIG["hotkeys"] == {
+        "toggle_overlay": "F8",
+        "reset_offset": "F9",
+        "distance_up": "",
+        "distance_down": "",
+        "auto_hold": "F7",
+    }
+
+
+def test_the_presets_and_the_config_styles_agree():
+    from overlay import PRESETS
+
+    assert set(PRESETS) == set(config.MARK_STYLES)
 
 
 def test_window_fits_the_screen(window):
@@ -1694,7 +1958,7 @@ def test_range_ladder_follows_the_weapon(window):
     assert window.overlay.ladder == []
 
 
-def test_range_ladder_follows_fov_calibration_and_toggle(window):
+def test_range_ladder_follows_fov_and_toggle(window):
     window.overlay.setGeometry(0, 0, 1920, 1080)
     window.select_weapon("M203 / M320 / GP-25 / HK79 / SL40")
     window.distance_entry.setText("200")

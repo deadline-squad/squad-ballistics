@@ -16,37 +16,34 @@ LEGACY_CONFIG_PATH = os.path.join("configs", "config.json")
 def legacy_config_paths():
     return [LEGACY_CONFIG_PATH]
 
+# The mark's colours (RGB), in the order of the swatches on the Crosshair page.
+MARK_COLORS = {
+    "white": (255, 255, 255),
+    "red": (255, 48, 48),
+    "orange": (255, 154, 31),
+    "yellow": (255, 255, 0),
+    "green": (0, 255, 0),
+    "cyan": (0, 255, 255),
+    "blue": (48, 112, 255),
+    "magenta": (255, 0, 255),
+}
+
+# The shapes the mark can take; overlay.PRESETS gives each one its geometry.
+MARK_STYLES = ("dot", "cross", "t", "circle", "cross_dot")
+
 DEFAULT_CONFIG = {
     "fov": 90,
 
-    "fps": 60,
+    # The mark: shape, colour (a MARK_COLORS name) and size in percent.
+    "mark_style": "cross_dot",
+    "color": "green",
+    "mark_size": 100,
 
-    "opacity": 255,
-
-    "color": [0, 255, 0],
-
-    "dot_enabled": True,
-    "dot_size": 4,
-
-    "lines_enabled": True,
-    "line_length": 14,
-    "line_thickness": 2,
-    "line_gap": 6,
-
-    "outline_enabled": True,
-    "outline_thickness": 1,
-
-    "glow_enabled": True,
-
-    "t_style": False,
-
-    "circle_enabled": False,
-    "circle_radius": 20,
-
-    "animated": True,
-
-    # Multiplier for the pixel offset, to fine-tune the overlay if it does
-    # not line up perfectly with the game (100 = no correction).
+    # Aligning the mark with the in-game sight: the mark's centre moves by
+    # the offsets (px) and its distance from the centre is multiplied by
+    # offset_scale (100 = no correction).
+    "center_offset_x": 0,
+    "center_offset_y": 0,
     "offset_scale": 100,
 
     "last_weapon": "",
@@ -54,7 +51,6 @@ DEFAULT_CONFIG = {
     "arc": "auto",
     "sight_view": "optic",
 
-    "outline_color": "white",
     "info_enabled": True,
 
     # Range ticks under the mark for direct-fire weapons: where a target at
@@ -63,8 +59,6 @@ DEFAULT_CONFIG = {
 
     # Overlay placement
     "monitor": 0,
-    "center_offset_x": 0,
-    "center_offset_y": 0,
 
     # Interface
     "main_on_top": False,
@@ -112,25 +106,19 @@ CHOICES = {
     "arc": ("auto", "low", "high"),
     "sight_view": ("plain", "optic"),
     "unit_mode": ("auto", "deg", "mil"),
-    "outline_color": ("white", "black"),
+    "mark_style": MARK_STYLES,
+    "color": tuple(MARK_COLORS),
     "map_render": ("auto", "software"),
     "map_source": ("deadline", "squadcalc"),
 }
 
 RANGES = {
     "fov": (1, 179),
-    "fps": (10, 240),
-    "opacity": (20, 255),
-    "dot_size": (1, 20),
-    "line_length": (1, 40),
-    "line_gap": (0, 30),
-    "line_thickness": (1, 10),
-    "outline_thickness": (1, 5),
-    "circle_radius": (5, 80),
+    "mark_size": (50, 200),
     "offset_scale": (50, 150),
-    "monitor": (0, 15),
     "center_offset_x": (-300, 300),
     "center_offset_y": (-300, 300),
+    "monitor": (0, 15),
     "distance_step": (1, 100),
 }
 
@@ -158,6 +146,23 @@ def data_dir():
 CONFIG_PATH = os.path.join(config_dir(), "config.json")
 
 
+def is_rgb(value):
+    """Whether `value` is a colour as older versions stored it: [r, g, b]."""
+    return (
+        isinstance(value, list)
+        and len(value) == 3
+        and all(isinstance(c, (int, float)) and not isinstance(c, bool) for c in value)
+    )
+
+
+def nearest_mark_color(rgb):
+    """The name of the MARK_COLORS entry closest to `rgb`, by RGB distance."""
+    return min(
+        MARK_COLORS,
+        key=lambda name: sum((a - b) ** 2 for a, b in zip(MARK_COLORS[name], rgb))
+    )
+
+
 def _merge(loaded):
     """Fill missing keys with defaults and drop values of the wrong type."""
     config = copy.deepcopy(DEFAULT_CONFIG)
@@ -171,13 +176,8 @@ def _merge(loaded):
 
         value = loaded[key]
 
-        if key == "color":
-            if (
-                isinstance(value, list)
-                and len(value) == 3
-                and all(isinstance(c, (int, float)) for c in value)
-            ):
-                config[key] = [max(0, min(255, int(c))) for c in value]
+        if key == "color" and is_rgb(value):
+            config[key] = nearest_mark_color(value)
             continue
 
         if key == "hotkeys":

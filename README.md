@@ -30,9 +30,7 @@ Main Features:
 
 * Real-time ballistic calculations
 * Dynamic crosshair overlay
-* True Crosshair Editor
-* RGB customization
-* Glow / Bloom effects
+* Simple mark setup: style, colour, size
 * Built-in SquadCalc browser
 * Hotkeys support
 * Modern tactical interface
@@ -75,9 +73,7 @@ Squad Ballistics предоставляет:
 
 * Баллистические расчёты в реальном времени
 * Overlay-прицел
-* True Crosshair Editor
-* RGB кастомизация
-* Glow / Bloom эффекты
+* Простая настройка метки: вид, цвет, размер
 * Встроенный браузер SquadCalc
 * Система автообновлений
 * Поддержка hotkeys
@@ -134,7 +130,13 @@ Tips / Советы:
 
 Hotkeys can be changed in **Settings**. They are global, so they work while the game is focused, when the keys can be read (see *Linux* below). / Клавиши меняются в **Настройках**. Они глобальные и работают поверх игры, когда программа видит клавиатуру (см. *Linux* ниже).
 
-If the mark is slightly off in your setup, adjust **Offset calibration** in Settings. / Если метка немного не совпадает, подстройте **Калибровку смещения** в настройках.
+### The mark / Метка
+
+The **Crosshair** page has everything about the mark: the live preview, *Align with the sight*, *Style* (dot, cross, T, circle, cross + dot), *Color* (8 swatches), *Size* (one slider, 50–200 %) and two switches, *Range ladder* and *Info text*. The outline is always on and the mark jumps straight to its place.
+
+*Align with the sight* is for when the mark does not sit on the game's sight (for example when you open the MK19's sight): *Move left/right* and *Move up/down* shift the mark and the range ladder (±300 px), *Scale* stretches them (50–150 %), the arrow keys step by 1 and *Reset* puts them back. The F9 hotkey does not touch the alignment: it clears the target. With several monitors, pick the one with the overlay in **Settings → Overlay**. Settings files of older versions load as before: their colour becomes the nearest swatch, the removed options are dropped. / На странице **Crosshair** есть всё про метку: предпросмотр, *Align with the sight*, *Style* (точка, крест, T, круг, крест с точкой), *Color* (8 цветов), *Size* (один ползунок, 50–200 %) и два переключателя, *Range ladder* и *Info text*. Обводка всегда включена, метка сразу встаёт на место.
+
+*Align with the sight* нужен, когда метка не совпадает с прицелом в игре (например, при открытом прицеле MK19): *Move left/right* и *Move up/down* сдвигают метку и шкалу дальности (±300 px), *Scale* растягивает их (50–150 %), стрелки двигают на 1, *Reset* возвращает всё назад. Клавиша F9 выравнивание не трогает: она сбрасывает цель. При нескольких мониторах монитор с оверлеем выбирается в **Settings → Overlay**. Файлы настроек старых версий загружаются как раньше: цвет становится ближайшим из восьми, убранные пункты отбрасываются.
 
 ### Linux
 
@@ -164,8 +166,8 @@ The map tab embeds SquadCalc: by default the Deadline build (`calc.tk104.duckdns
 * 50 weapons in 6 groups: grenade launchers, automatic grenade launchers, anti-tank launchers, recoilless and field guns, tank guns, indirect fire. / 50 видов оружия в 6 группах: гранатомёты, автоматические гранатомёты, противотанковые, безоткатные и полевые орудия, танковые пушки, миномёты и РСЗО.
 * Rocket boost and slow-down phases (RPG-7, Carl Gustav, NLAW, UB-32). / Учёт разгона и торможения ракет.
 * Trajectory view, flight time, apex, impact angle, lead for moving targets. / График траектории, время полёта, высота подъёма, угол падения, упреждение.
-* Crosshair page with live preview, presets, color swatches, outline and glow. / Прицел с живым предпросмотром, пресетами, палитрой, обводкой и свечением.
-* Monitor choice, overlay center offset, label next to the mark. The interface is in English. / Выбор монитора, смещение центра, подпись у метки. Интерфейс на английском.
+* Crosshair page with live preview, five styles, eight colours and one size slider. / Прицел с живым предпросмотром, пятью видами, восемью цветами и одним ползунком размера.
+* Aligning the mark with the in-game sight, monitor choice (with several monitors), label next to the mark. The interface is in English. / Выравнивание метки по прицелу игры, выбор монитора (если их несколько), подпись у метки. Интерфейс на английском.
 
 ## How it works / Как считается
 

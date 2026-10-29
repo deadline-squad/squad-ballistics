@@ -1,8 +1,8 @@
 import math
+from typing import NamedTuple
 
 from PyQt6.QtCore import (
     Qt,
-    QTimer,
     QPointF,
     QRectF
 )
@@ -20,6 +20,8 @@ from PyQt6.QtGui import (
 
 from PyQt6.QtWidgets import QWidget
 
+from config import MARK_COLORS
+
 
 # Fonts of the overlay text, the first one installed is used.
 OVERLAY_FONTS = ["Inter", "Noto Sans", "DejaVu Sans"]
@@ -33,34 +35,79 @@ def overlay_font(size):
     return font
 
 
+class MarkShape(NamedTuple):
+    """What a mark style draws at size 100 %, in pixels; 0 leaves a part out.
+
+    `no_bottom` drops the lower line (the T).
+    """
+
+    dot_radius: float = 0
+    line_length: float = 0
+    line_gap: float = 0
+    line_thickness: float = 0
+    circle_radius: float = 0
+    no_bottom: bool = False
+
+
+# The shapes of config.MARK_STYLES.
+PRESETS = {
+    "dot": MarkShape(dot_radius=4),
+    "cross": MarkShape(line_length=10, line_gap=0, line_thickness=2),
+    "t": MarkShape(line_length=12, line_gap=5, line_thickness=2, no_bottom=True),
+    "circle": MarkShape(dot_radius=2, circle_radius=16),
+    "cross_dot": MarkShape(dot_radius=3, line_length=14, line_gap=6, line_thickness=2),
+}
+
+# The outline around every part of the mark (px) and the circle's stroke.
+OUTLINE_WIDTH = 1
+CIRCLE_THICKNESS = 2
+
+
+def mark_shape(cfg):
+    """The shape of `cfg["mark_style"]` scaled by `cfg["mark_size"]` percent."""
+    base = PRESETS[cfg["mark_style"]]
+    factor = cfg["mark_size"] / 100
+
+    return MarkShape(
+        dot_radius=base.dot_radius * factor,
+        line_length=base.line_length * factor,
+        line_gap=base.line_gap * factor,
+        line_thickness=base.line_thickness * factor,
+        circle_radius=base.circle_radius * factor,
+        no_bottom=base.no_bottom
+    )
+
+
+def mark_color(cfg):
+    """The configured mark colour as a QColor."""
+    return QColor(*MARK_COLORS[cfg["color"]])
+
+
+def mark_reach(cfg):
+    """How far the mark reaches from its centre (px)."""
+    shape = mark_shape(cfg)
+
+    return max(
+        shape.circle_radius,
+        shape.line_gap + shape.line_length,
+        shape.dot_radius + 6
+    )
+
+
 def paint_crosshair(painter, cfg, x, y):
-    """Draw the configured crosshair centred on (x, y).
+    """Draw the configured mark centred on (x, y).
 
     Shared by the overlay and the preview on the crosshair page.
     """
-    r, g, b = cfg["color"]
+    shape = mark_shape(cfg)
 
-    color = QColor(r, g, b, cfg["opacity"])
+    color = mark_color(cfg)
 
-    outline = QColor(
-        "black" if cfg.get("outline_color") == "black" else "white"
-    )
-    outline.setAlpha(cfg["opacity"])
+    outline = QColor("white")
 
-    outline_width = cfg["outline_thickness"]
-
-    dot_size = cfg["dot_size"]
-
-    if cfg["glow_enabled"]:
-        painter.setPen(Qt.PenStyle.NoPen)
-
-        for spread, alpha in ((dot_size + 9, 25), (dot_size + 5, 55)):
-            painter.setBrush(QBrush(QColor(r, g, b, min(alpha, cfg["opacity"]))))
-            painter.drawEllipse(QPointF(x, y), spread, spread)
-
-    if cfg["lines_enabled"]:
-        length = cfg["line_length"]
-        gap = cfg["line_gap"]
+    if shape.line_length:
+        length = shape.line_length
+        gap = shape.line_gap
 
         lines = [
             (x, y - gap, x, y - gap - length),
@@ -68,57 +115,38 @@ def paint_crosshair(painter, cfg, x, y):
             (x + gap, y, x + gap + length, y),
         ]
 
-        if not cfg["t_style"]:
+        if not shape.no_bottom:
             lines.append((x, y + gap, x, y + gap + length))
 
-        passes = []
-
-        if cfg["outline_enabled"]:
-            passes.append(
+        for pen_color, width in (
+            (outline, shape.line_thickness + OUTLINE_WIDTH * 2),
+            (color, shape.line_thickness),
+        ):
+            painter.setPen(
                 QPen(
-                    outline,
-                    cfg["line_thickness"] + outline_width * 2,
+                    pen_color,
+                    width,
                     Qt.PenStyle.SolidLine,
                     Qt.PenCapStyle.FlatCap
                 )
             )
 
-        passes.append(
-            QPen(
-                color,
-                cfg["line_thickness"],
-                Qt.PenStyle.SolidLine,
-                Qt.PenCapStyle.FlatCap
-            )
-        )
-
-        for pen in passes:
-            painter.setPen(pen)
-
             for x1, y1, x2, y2 in lines:
                 painter.drawLine(QPointF(x1, y1), QPointF(x2, y2))
 
-    if cfg["circle_enabled"]:
+    if shape.circle_radius:
         painter.setBrush(Qt.BrushStyle.NoBrush)
 
-        radius = cfg["circle_radius"]
+        painter.setPen(QPen(outline, CIRCLE_THICKNESS + OUTLINE_WIDTH * 2))
+        painter.drawEllipse(QPointF(x, y), shape.circle_radius, shape.circle_radius)
 
-        if cfg["outline_enabled"]:
-            painter.setPen(QPen(outline, 2 + outline_width * 2))
-            painter.drawEllipse(QPointF(x, y), radius, radius)
+        painter.setPen(QPen(color, CIRCLE_THICKNESS))
+        painter.drawEllipse(QPointF(x, y), shape.circle_radius, shape.circle_radius)
 
-        painter.setPen(QPen(color, 2))
-        painter.drawEllipse(QPointF(x, y), radius, radius)
-
-    if cfg["dot_enabled"]:
+    if shape.dot_radius:
         painter.setBrush(QBrush(color))
-
-        if cfg["outline_enabled"]:
-            painter.setPen(QPen(outline, outline_width))
-        else:
-            painter.setPen(Qt.PenStyle.NoPen)
-
-        painter.drawEllipse(QPointF(x, y), dot_size, dot_size)
+        painter.setPen(QPen(outline, OUTLINE_WIDTH))
+        painter.drawEllipse(QPointF(x, y), shape.dot_radius, shape.dot_radius)
 
 
 # The info label: gap right of the crosshair, height of one line, the
@@ -170,20 +198,11 @@ class Overlay(QWidget):
 
         self.offset = 0.0
 
-        self.target_offset = 0.0
-
         # False for weapons laid by elevation: no aim mark, only the info line.
         self.mark_visible = True
 
         # Range ticks under the centre: [(distance m, pixels below)].
         self.ladder = []
-
-        # The animation timer only runs while the aim point is moving.
-        self.animation_timer = QTimer(self)
-
-        self.animation_timer.timeout.connect(
-            self.animate_offset
-        )
 
         self.move_to_screen()
 
@@ -243,13 +262,7 @@ class Overlay(QWidget):
 
     def crosshair_reach(self):
         """How far the crosshair reaches from its centre (px)."""
-        cfg = self.config
-
-        return max(
-            cfg["circle_radius"] if cfg["circle_enabled"] else 0,
-            cfg["line_gap"] + cfg["line_length"] if cfg["lines_enabled"] else 0,
-            cfg["dot_size"] + 6
-        )
+        return mark_reach(self.config)
 
     def ladder_bounds(self):
         """(first, spacing, reach) of the range ladder in px, as
@@ -324,8 +337,7 @@ class Overlay(QWidget):
         """
         if value is None:
             self.mark_visible = False
-            self.offset = self.target_offset = 0.0
-            self.animation_timer.stop()
+            self.offset = 0.0
             self.update()
             return
 
@@ -337,34 +349,7 @@ class Overlay(QWidget):
 
         # Off-screen offsets only need to keep their direction.
         limit = self.height() * 2
-        self.target_offset = max(-limit, min(limit, value))
-
-        if not self.config.get("animated", True):
-            self.offset = self.target_offset
-            self.animation_timer.stop()
-            self.update()
-            return
-
-        fps = max(10, min(240, int(self.config.get("fps", 60))))
-
-        self.animation_timer.start(int(1000 / fps))
-
-    def reset_offset(self):
-        self.set_offset(0)
-
-    def animate_offset(self):
-        self.offset += (
-            self.target_offset - self.offset
-        ) * 0.12
-
-        if abs(
-            self.target_offset - self.offset
-        ) < 0.01:
-
-            self.offset = self.target_offset
-
-            self.animation_timer.stop()
-
+        self.offset = max(-limit, min(limit, value))
         self.update()
 
     def paintEvent(self, event):
@@ -376,9 +361,7 @@ class Overlay(QWidget):
 
         cfg = self.config
 
-        r, g, b = cfg["color"]
-
-        color = QColor(r, g, b, cfg["opacity"])
+        color = mark_color(cfg)
 
         x = self.center_x
         y = self.center_y + self.offset
