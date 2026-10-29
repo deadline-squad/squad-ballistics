@@ -159,13 +159,16 @@ class Reading:
 
     `mils`: the reading; `labels`: labels decoded; `match`: their mean
     match to the decoded values (1 is a perfect match); `margin`: how much
-    better than the next best sequence of values (0 is a tie).
+    better than the next best sequence of values (0 is a tie);
+    `resolution`: the least the scale tells apart (mils; 0, it is
+    interpolated between ticks).
     """
 
     mils: float
     labels: int
     match: float
     margin: float
+    resolution: float = 0.0
 
 
 def _dark_table(threshold):

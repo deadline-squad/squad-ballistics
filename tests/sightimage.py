@@ -7,8 +7,10 @@ triangle pointer on the centre line, the ticks slanting away from the centre
 as on the wheel.
 """
 
+from functools import cache
+
 from PyQt6.QtCore import QPointF, QRectF, Qt
-from PyQt6.QtGui import QColor, QFont, QImage, QPainter, QPolygonF
+from PyQt6.QtGui import QColor, QFont, QFontDatabase, QImage, QPainter, QPolygonF
 
 from sightreader import LabelTemplates
 
@@ -27,10 +29,11 @@ SCENE_GREY = 70
 INK_GREY = 60
 
 
+@cache
 def font_family():
+    """The sight's font (Roboto Condensed), registered with Qt on the first
+    call, or a generic family when it is not found."""
     LabelTemplates()
-
-    from PyQt6.QtGui import QFontDatabase
 
     for family in QFontDatabase.families():
         if "Roboto" in family:

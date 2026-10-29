@@ -10,21 +10,30 @@ elevation in mils, D/A for the bearing in degrees, which wraps at 360):
 1. two readings that agree confirm the sight is seen;
 2. the key towards the target is held (W raises the barrel, S lowers it)
    while the sight is read; the rate is measured from the readings and the
-   key is released when the target is about to be reached;
+   key is released when the target is about to be reached. A hold ends
+   without the target when the reading stops moving (the barrel's end) or
+   takes far longer than the error needs;
 3. after the barrel stops, the rest is covered by taps timed with the
    measured rate, until the sight is within TOLERANCE of the target.
 
+The compass strip lags behind a turn, so the bearing is read from the
+number alone while the barrel moves; the strip confirms it only when the
+barrel is still (the confirm and settle phases).
+
 Everything runs on the GUI thread (screen grabs are GUI-thread only) from
-Qt timers; a reading takes a few tens of milliseconds.
+Qt timers; a reading takes a few tens of milliseconds. Whatever goes wrong
+inside a timer callback releases the key before the error is raised.
 """
 
 import time
+from collections.abc import Callable
+from contextlib import contextmanager
 from dataclasses import dataclass
 
 from PyQt6.QtCore import QObject, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QGuiApplication
 
-from compassreader import SEARCH_TOP, STRIP_HALF_WIDTH, read_compass
+from compassreader import SEARCH_TOP, STILL_TOLERANCE, STRIP_HALF_WIDTH, TICK_TOLERANCE, read_compass
 from sightreader import REFERENCE_HEIGHT, GrayImage, read_scale
 
 # Done when the sight is this close to the target (mils).
@@ -40,6 +49,19 @@ DEFAULT_RATE = 46.0
 # release before reading it (ms): a few frames of the game and the screen.
 READ_INTERVAL_MS = 30
 SETTLE_MS = 150
+
+# The rate of a hold is measured over its last RATE_WINDOW readings (the
+# first, from before the barrel moved, is left out): 8 readings of a
+# barrel that moves a step per 60 fps frame give it within 2%.
+RATE_WINDOW = 8
+
+# A hold whose reading has not moved for STALL_TICKS readings in a row is
+# at the barrel's end (or its key does not reach the game); a hold ends
+# after HOLD_FACTOR times what the error needs at the rate, plus HOLD_SLACK
+# seconds.
+STALL_TICKS = 10
+HOLD_FACTOR = 2.0
+HOLD_SLACK = 1.0
 
 # Release this long before the target is predicted, at first: the time
 # from a frame on the screen to the game seeing the key up (s). Each hold's
@@ -79,18 +101,21 @@ class Axis:
     """What a SightLayer lays: how to get the value from a reading, and
     the axis' own limits (in its unit: mils or degrees).
 
-    `period`: values wrap at it (bearings at 360), None for none;
-    `default_rate`: units per second while a key is held, until measured;
-    `tolerance`, `confirm`, `max_jump`, `min_move`: as TOLERANCE, CONFIRM,
-    MAX_JUMP and MIN_MOVE for the elevation.
+    `value`: the axis' value of a reading; `default_rate`: units per second
+    while a key is held, until measured; `tolerance`, `confirm`,
+    `max_jump`, `min_move`: as TOLERANCE, CONFIRM, MAX_JUMP and MIN_MOVE
+    for the elevation; `max_rate`: the fastest the game can move it (units
+    per second), which bounds a reading's jump until the rate is measured;
+    `period`: values wrap at it (bearings at 360), None for none.
     """
 
-    value: object
+    value: Callable[[object], float]
     default_rate: float
     tolerance: float
     confirm: float
     max_jump: float
     min_move: float
+    max_rate: float
     period: float | None = None
 
     def difference(self, a, b):
@@ -103,6 +128,9 @@ class Axis:
         return (a - b + half) % self.period - half
 
 
+# The mortar's barrel turns a fixed step for every game frame W or S is
+# down, up to 25 degrees/s (USQTurretMovementComponent MaxPitch of the
+# mortar, decompiled from the game server): 6400 mils / 360 degrees * 25.
 ELEVATION = Axis(
     value=lambda reading: reading.mils,
     default_rate=DEFAULT_RATE,
@@ -110,13 +138,15 @@ ELEVATION = Axis(
     confirm=CONFIRM,
     max_jump=MAX_JUMP,
     min_move=MIN_MOVE,
+    max_rate=444.0,
 )
 
 # The mortar turns a fixed step for every game frame A or D is down
 # (USQTurretMovementComponent of the mortar, decompiled from the game
-# server: 0.25 degree times the view's sensitivity, up to 50 degrees/s), so
-# its rate grows with the frame rate: 15 degrees/s at 60 fps. The lay
-# measures the rate and the step and stops within half of the step.
+# server: 0.25 degree times the view's sensitivity, up to MaxYaw 50
+# degrees/s), so its rate grows with the frame rate: 15 degrees/s at 60
+# fps. The lay measures the rate and the step and stops within half of the
+# step.
 BEARING = Axis(
     value=lambda reading: reading.degrees,
     default_rate=15.0,
@@ -124,6 +154,7 @@ BEARING = Axis(
     confirm=0.3,
     max_jump=10.0,
     min_move=0.05,
+    max_rate=50.0,
     period=360.0,
 )
 
@@ -196,7 +227,6 @@ class ScreenSight:
             self.overlay.height() * ratio / REFERENCE_HEIGHT
         )
 
-
     def compass_region(self):
         """(left, top, right, bottom) of the compass grab in the screen's
         logical pixels: the strip at the bottom centre, or None."""
@@ -204,8 +234,10 @@ class ScreenSight:
         height = overlay.height()
         scale = height / REFERENCE_HEIGHT
         half = (STRIP_HALF_WIDTH + COMPASS_MARGIN) * scale
-        left = max(0, round(overlay.center_x - half))
-        right = min(overlay.width(), round(overlay.center_x + half))
+        # The compass is at the screen's centre, wherever the crosshair is
+        centre = overlay.width() / 2
+        left = max(0, round(centre - half))
+        right = min(overlay.width(), round(centre + half))
         top = max(0, round(height - SEARCH_TOP * scale))
 
         if right <= left or height <= top:
@@ -245,11 +277,21 @@ class CompassReader:
     def __init__(self, digits):
         self.digits = digits
 
-    def __call__(self, sight):
+    def __call__(self, sight, moving=None):
+        """The compass reading (compassreader.CompassReading) on `sight`,
+        or None. `moving` tells whether the barrel is turning: the strip
+        lags behind a turn, so then (True) the number is taken alone; when
+        it is still (False) the strip must confirm the number closely;
+        None (not known) allows for a lagging strip."""
         if sight is None:
             return None
 
-        return read_compass(sight.image, sight.centre_x, sight.scale, self.digits)
+        if moving is None:
+            tolerance = TICK_TOLERANCE
+        else:
+            tolerance = None if moving else STILL_TOLERANCE
+
+        return read_compass(sight.image, sight.centre_x, sight.scale, self.digits, tolerance)
 
 
 def read_sight(sight, templates):
@@ -267,8 +309,9 @@ class SightLayer(QObject):
     stops the lay); `raise_key` and `lower_key` are key injectors that move
     the value up and down (W and S for the elevation, D and A for the
     bearing). `axis` says what is laid (ELEVATION by default); `reader`
-    turns a grab into a reading (default: the elevation scale with
-    `templates`).
+    turns a grab into a reading, `reader(sight, moving)` with `moving` true
+    while the barrel turns (default: the elevation scale with `templates`).
+    `clock` gives the time in seconds.
     """
 
     # Every reading while laying (sightreader.Reading).
@@ -289,7 +332,7 @@ class SightLayer(QObject):
         self.lower_key = lower_key
         self.clock = clock
         self.axis = axis
-        self.reader = reader or (lambda sight: read_sight(sight, self.templates))
+        self.reader = reader or (lambda sight, moving: read_sight(sight, self.templates))
 
         # Rate (units/s), the shortest tap that moves the barrel (s) and its
         # move (the game's frame step), measured and kept between lays.
@@ -302,13 +345,20 @@ class SightLayer(QObject):
         self.key = None
         self.phase = None
         self.last = None
+        self.last_time = 0.0
         self.stopped = False
+        self.failure = None
         self.samples = []
         self.moves = 0
         self.tap = 0.0
         self.misses = 0
+        self.settle_until = 0.0
+        self.hold_started = 0.0
+        self.hold_error = 0.0
+        self.hold_rate = 0.0
+        self.still_ticks = 0
 
-        # The last move: (time pressed, mils then, direction, time released)
+        # The last move: (time pressed, value then, direction, time released)
         self.move = None
 
         self.timer = QTimer(self)
@@ -323,19 +373,35 @@ class SightLayer(QObject):
 
     @property
     def active(self):
+        """Whether a lay is under way."""
         return self.phase is not None
 
-    def reading(self):
-        """A reading now, as (time, sightreader.Reading or None)."""
+    def reading(self, moving=False):
+        """A reading now, as (time, reading or None); `moving`: the barrel
+        is turning (see the reader)."""
         now = self.clock()
 
-        return now, self.reader(self.grab())
+        return now, self.reader(self.grab(), moving)
 
     def value(self, reading):
+        """The axis' value of a reading."""
         return self.axis.value(reading)
 
     def difference(self, a, b):
+        """a - b on the layer's axis (the short way round on a bearing)."""
         return self.axis.difference(a, b)
+
+    @contextmanager
+    def failsafe(self):
+        """Whatever is raised inside releases the key and ends the lay
+        before it goes on; the lay is over, so nothing raises it again."""
+        try:
+            yield
+        except BaseException:
+            if self.active:
+                self.finish(False, "error")
+
+            raise
 
     def start(self):
         """Begin a lay; False if the sight is not seen or there is no
@@ -343,13 +409,15 @@ class SightLayer(QObject):
         if self.active or self.target() is None:
             return False
 
-        _, first = self.reading()
+        now, first = self.reading()
 
         if first is None:
             return False
 
         self.last = first
+        self.last_time = now
         self.stopped = False
+        self.failure = None
         self.moves = 0
         self.tap = 0.0
         self.misses = 0
@@ -366,54 +434,91 @@ class SightLayer(QObject):
             return
 
         self.stopped = True
-        self.finish(False)
+        self.finish(False, "stopped")
 
-    def finish(self, on_target):
+    def finish(self, on_target, failure=None):
+        """End the lay: stop the timers, release the key, tell `finished`.
+
+        `failure` says why the lay is not on the target: "stopped" (by the
+        player), "target" (gone), "lost" (the sight was not read),
+        "moves" (MAX_MOVES holds and taps were not enough), "stalled" (the
+        barrel stopped under a held key, at its end), "timeout" (a hold took
+        far longer than the error needs), "error" (something raised); None
+        on the target. The caller can show it from `failure`.
+        """
         self.timer.stop()
         self.release_timer.stop()
-        self.release()
-        self.phase = None
-        self.finished.emit(self.last, on_target)
 
-    def press(self, key, now):
+        try:
+            self.release()
+        finally:
+            self.phase = None
+            self.failure = None if on_target else failure
+            self.finished.emit(self.last, on_target)
+
+    def press(self, key):
+        """Press `key`: a move towards the key's direction, from now."""
         self.key = key
-        self.move = (now, self.value(self.last), 1 if key is self.raise_key else -1, None)
+        self.move = (self.clock(), self.value(self.last), 1 if key is self.raise_key else -1, None)
         key.press()
 
     def release(self):
-        if self.key is None:
+        """Release the key, if one is down."""
+        key, self.key = self.key, None
+
+        if key is None:
             return
 
-        self.key.release()
-        self.key = None
+        try:
+            key.release()
+        finally:
+            if self.move is not None:
+                pressed, value, direction, _ = self.move
+                self.move = (pressed, value, direction, self.clock())
 
-        if self.move is not None:
-            pressed, mils, direction, _ = self.move
-            self.move = (pressed, mils, direction, self.clock())
+    def held_since(self, since, now):
+        """Seconds between `since` and `now` that a key was down."""
+        if self.move is None:
+            return 0.0
+
+        pressed, _, _, released = self.move
+
+        return max(0.0, min(now, now if released is None else released) - max(since, pressed))
 
     def expected(self, now):
-        """Where the sight should be, and how far off a reading may be:
-        the last reading, moved on at the rate for the time a key was held
-        (the rate may be off by half while it is not measured)."""
-        max_jump = self.axis.max_jump
+        """Where the sight should be, and how far off a reading may be: the
+        last reading, moved on at the rate for the time a key was held since
+        then. The rate may be off by half once it is measured; until then
+        the barrel may be as fast as the game allows."""
+        value = self.value(self.last)
+        held = self.held_since(self.last_time, now)
 
-        if self.move is None:
-            return self.value(self.last), max_jump
+        if not held:
+            return value, self.axis.max_jump
 
-        pressed, value, direction, released = self.move
-        held = (released or now) - pressed
+        direction = self.move[2]
+        slack = 0.5 * self.rate if self.rate_measured else self.axis.max_rate
 
-        return value + direction * self.rate * held, max_jump + 0.5 * self.rate * held
+        return value + direction * self.rate * held, self.axis.max_jump + slack * held
 
     def step(self):
         """Timer tick: read the sight and act on the phase."""
+        with self.failsafe():
+            self.read_and_act()
+
+    def read_and_act(self):
+        """The body of a tick."""
         target = self.target()
 
         if target is None:
-            self.finish(False)
+            self.finish(False, "target")
             return
 
-        now, reading = self.reading()
+        # The barrel is not read until it has stopped
+        if self.phase == "settle" and self.clock() < self.settle_until:
+            return
+
+        now, reading = self.reading(moving=self.phase == "hold")
 
         if reading is not None and self.phase != "confirm":
             expected, allowed = self.expected(now)
@@ -425,7 +530,7 @@ class SightLayer(QObject):
             self.misses += 1
 
             if self.misses > MAX_MISSES:
-                self.finish(False)
+                self.finish(False, "lost")
 
             return
 
@@ -436,15 +541,15 @@ class SightLayer(QObject):
             confirmed = abs(self.difference(self.value(reading), self.value(self.last))) \
                 <= self.axis.confirm
             self.last = reading
+            self.last_time = now
 
             if confirmed:
                 self.aim(target, now)
         elif self.phase == "hold":
-            self.last = reading
-            self.samples.append((now, self.value(reading)))
-            self.hold(target, now)
+            self.hold(reading, target, now)
         elif self.phase == "settle":
             self.settled(reading, target)
+            self.last_time = now
             self.aim(target, now)
 
     def settled(self, reading, target):
@@ -482,14 +587,12 @@ class SightLayer(QObject):
         error = self.difference(target, self.value(self.last))
 
         # A reading shown in whole degrees cannot tell more than half of one
-        resolution = getattr(self.last, "resolution", 0.0)
-
-        if abs(error) <= max(self.axis.tolerance, self.step_size / 2, resolution / 2):
+        if abs(error) <= max(self.axis.tolerance, self.step_size / 2, self.last.resolution / 2):
             self.finish(True)
             return
 
         if self.moves >= MAX_MOVES:
-            self.finish(False)
+            self.finish(False, "moves")
             return
 
         self.moves += 1
@@ -498,26 +601,43 @@ class SightLayer(QObject):
         if abs(error) / self.rate > MAX_TAP:
             self.samples = [(now, self.value(self.last))]
             self.tap = 0.0
+            self.hold_started = now
+            self.hold_error = abs(error)
+            self.hold_rate = 0.0
+            self.still_ticks = 0
             self.phase = "hold"
-            self.press(key, now)
+            self.press(key)
             return
 
         seconds = min(MAX_TAP, max(self.short_tap, abs(error) / self.rate))
         self.tap = seconds
         self.phase = "move"
         self.timer.stop()
-        self.press(key, now)
+        self.press(key)
         self.release_timer.start(round(seconds * 1000))
 
-    def hold(self, target, now):
-        """Holding: measure the rate, release just before the target."""
-        if len(self.samples) >= 3:
-            (t0, m0), (t1, m1) = self.samples[0], self.samples[-1]
-            moved = abs(self.difference(m1, m0))
+    def hold(self, reading, target, now):
+        """Holding: end the hold when the barrel is not moving or it takes
+        too long, else measure the rate and release just before the
+        target."""
+        moved = abs(self.difference(self.value(reading), self.value(self.last)))
+        self.still_ticks = self.still_ticks + 1 if moved < self.axis.min_move else 0
+        self.last = reading
+        self.last_time = now
+        self.samples.append((now, self.value(reading)))
 
-            if t1 > t0 and moved > 1:
-                self.rate = moved / (t1 - t0)
-                self.rate_measured = True
+        # At the fastest rate this hold has measured: a stopping barrel does
+        # not make the time allowed longer
+        too_long = now - self.hold_started > HOLD_FACTOR * self.hold_error / (self.hold_rate or self.rate) + HOLD_SLACK
+
+        if self.still_ticks >= STALL_TICKS or too_long:
+            # Whatever rate was seen is of a barrel that was stopping
+            self.rate = self.axis.default_rate
+            self.rate_measured = False
+            self.finish(False, "stalled" if self.still_ticks >= STALL_TICKS else "timeout")
+            return
+
+        self.measure_rate()
 
         _, _, direction, _ = self.move
         left = direction * self.difference(target, self.value(self.last))
@@ -529,12 +649,33 @@ class SightLayer(QObject):
             self.phase = "move"
             self.release_timer.start(max(0, round(seconds * 1000)))
 
+    def measure_rate(self):
+        """The rate of the hold: the slope of a line through its last
+        RATE_WINDOW readings, without the first (taken before the barrel
+        started, it would make the rate 10 to 13% low). A line, not the two
+        ends, because the barrel moves a step per game frame."""
+        recent = self.samples[1:][-RATE_WINDOW:]
+
+        if len(recent) < 3:
+            return
+
+        first = recent[0][1]
+        points = [(t, self.difference(v, first)) for t, v in recent]
+        mean_t = sum(t for t, _ in points) / len(points)
+        mean_v = sum(v for _, v in points) / len(points)
+        spread = sum((t - mean_t) ** 2 for t, _ in points)
+
+        if not spread or abs(points[-1][1] - points[0][1]) <= 1:
+            return
+
+        self.rate = abs(sum((t - mean_t) * (v - mean_v) for t, v in points) / spread)
+        self.hold_rate = max(self.hold_rate, self.rate)
+        self.rate_measured = True
+
     def end_move(self):
         """Release the key, then read once the barrel has stopped."""
-        self.release()
-        self.phase = "settle"
-        QTimer.singleShot(SETTLE_MS, Qt.TimerType.PreciseTimer, self.resume)
-
-    def resume(self):
-        if self.phase == "settle":
+        with self.failsafe():
+            self.release()
+            self.phase = "settle"
+            self.settle_until = self.clock() + SETTLE_MS / 1000
             self.timer.start()
