@@ -9,6 +9,7 @@ pytest.importorskip("qtawesome")
 from PyQt6.QtWidgets import QApplication, QPushButton
 
 import config
+import theme
 from ballistics import load_weapons, screen_offset, solve
 from i18n import tr
 from widgets import format_angle
@@ -62,7 +63,7 @@ def test_every_weapon_through_ui(window):
             assert window.status_text().startswith("S "), name
         else:
             assert any(
-                c in window.status_text() for c in ("°", "mil", "мил")
+                c in window.status_text() for c in ("°", "mil")
             )
 
         assert len(window.current_steps) >= 2, name
@@ -158,7 +159,7 @@ def test_unit_mode_and_arc(window):
     window.select_weapon("Mortar (M252 / 2B14 / L16 / Type 63)")
     window.distance_entry.setText("800")
     window.calculate()
-    assert "mil" in window.status_text() or "мил" in window.status_text()
+    assert "mil" in window.status_text()
 
     window.set_unit_mode("deg")
     assert "°" in window.status_text()
@@ -209,19 +210,15 @@ def test_presets_and_colors(window):
     window.overlay.repaint()
 
 
-def test_language_and_accent_rebuild(window):
+def test_rebuild_keeps_the_inputs(window):
     window.select_weapon("SPG-9 · HEAT")
     window.distance_entry.setText("400")
     window.calculate()
 
-    window.set_language("en")
+    window.rebuild()
+
     assert window.distance_entry.text() == "400"
     assert window.last_solution.reachable
-
-    window.set_language("ru")
-    window.set_accent("#22c55e")
-    assert window.config["accent"] == "#22c55e"
-    assert window.distance_entry.text() == "400"
 
 
 def test_hotkey_rebinding(window):
@@ -360,7 +357,7 @@ def test_map_page_survives_rebuild(window, monkeypatch):
     assert view.page().requestedUrl().host() == "calc.tk104.duckdns.org"
     assert window.pages.currentIndex() == 3
 
-    window.set_language("en")
+    window.rebuild()
 
     assert window.map_page is page
     assert window.map_page.view is view
@@ -534,7 +531,7 @@ def test_ags17_card_shows_the_hold_seconds(window):
     assert window.overlay.info_text.startswith(window.info_base)
     assert seconds in window.overlay.info_text
 
-    window.set_language("en")
+    window.rebuild()
 
     assert window.status_text() == f"S {seconds} {tr('unit_s')}"
 
@@ -1382,9 +1379,7 @@ def calc_page_overflow(window):
     return max(0, area.widget().width() - area.viewport().width())
 
 
-@pytest.mark.parametrize("language", ["en", "ru"])
-def test_calculator_fits_the_minimum_window(window, language):
-    window.set_language(language)
+def test_calculator_fits_the_minimum_window(window):
     show_at(window, 900, 600)
 
     window.select_weapon(AGS17)
@@ -1425,9 +1420,7 @@ def test_long_weapon_name_is_elided_in_the_picker(window):
     assert picker.text() == f"{AGS17}   ▾"
 
 
-@pytest.mark.parametrize("language", ["en", "ru"])
-def test_crosshair_page_fits_the_minimum_window(window, language):
-    window.set_language(language)
+def test_crosshair_page_fits_the_minimum_window(window):
     show_at(window, 900, 600)
     window.set_page(1)
     QApplication.processEvents()
@@ -1570,10 +1563,8 @@ def test_calibration_status_is_cleared_with_the_weapon(window):
     assert window.lay_status.text() == ""
 
 
-def test_map_progress_bar_follows_the_accent(window):
-    window.set_accent("#22c55e")
-
-    assert "#22c55e" in window.map_page.progress.styleSheet()
+def test_map_progress_bar_uses_the_accent(window):
+    assert theme.ACCENT in window.map_page.progress.styleSheet()
 
 
 def test_map_failed_panel_names_the_map_site(window):
@@ -1855,16 +1846,15 @@ def test_message_boxes_are_readable(window, app):
         box.close()
 
 
-@pytest.mark.parametrize("accent", __import__("theme").ACCENTS)
-def test_text_on_the_accent_is_readable(accent):
+def test_the_accent_is_blue_with_readable_text():
     import theme
 
-    text = theme.on_accent(accent)
-
-    assert theme.contrast(text, accent) >= theme.MIN_TEXT_CONTRAST
+    assert theme.ACCENT == "#3b82f6"
+    assert theme.ACCENT_TEXT == theme.on_accent(theme.ACCENT)
+    assert theme.contrast(theme.ACCENT_TEXT, theme.ACCENT) >= theme.MIN_TEXT_CONTRAST
     # Buttons, checked segments and selected rows all use it
-    assert theme.stylesheet(accent).count(f"color: {text};") >= 3
-    assert "color: white" not in theme.stylesheet(accent)
+    assert theme.stylesheet().count(f"color: {theme.ACCENT_TEXT};") >= 3
+    assert "color: white" not in theme.stylesheet()
 
 
 def test_light_accents_get_dark_text():

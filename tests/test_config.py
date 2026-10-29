@@ -105,9 +105,7 @@ def test_values_are_validated(tmp_path, monkeypatch):
         "dot_size": 500,
         "opacity": -4,
         "fov": 0,
-        "language": "klingon",
         "arc": "sideways",
-        "accent": "red; background: url(x)",
         "distance_step": 7,
         "outline_color": "black",
     }))
@@ -117,9 +115,7 @@ def test_values_are_validated(tmp_path, monkeypatch):
     assert cfg["dot_size"] == config.RANGES["dot_size"][1]
     assert cfg["opacity"] == config.RANGES["opacity"][0]
     assert cfg["fov"] == 1
-    assert cfg["language"] == "auto"
     assert cfg["arc"] == "auto"
-    assert cfg["accent"] == config.DEFAULT_CONFIG["accent"]
     assert cfg["distance_step"] == config.DEFAULT_CONFIG["distance_step"]
     assert cfg["outline_color"] == "black"
 
@@ -223,3 +219,19 @@ def test_saving_replaces_a_world_readable_file_and_temp_file(tmp_path):
     assert os.stat(path).st_mode & 0o777 == 0o600
     assert json.loads(path.read_text()) == {"fov": 60}
     assert not (tmp_path / "config.json.tmp").exists()
+
+
+def test_language_and_accent_settings_are_ignored(tmp_path):
+    """Files saved by older versions with the language and accent still load."""
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({
+        "language": "ru",
+        "accent": "#22c55e",
+        "fov": 60
+    }))
+
+    cfg = config.load_config(str(path))
+
+    assert cfg["fov"] == 60
+    assert "language" not in cfg
+    assert "accent" not in cfg

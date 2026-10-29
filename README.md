@@ -165,7 +165,7 @@ The map tab embeds SquadCalc: by default the Deadline build (`calc.tk104.duckdns
 * Rocket boost and slow-down phases (RPG-7, Carl Gustav, NLAW, UB-32). / Учёт разгона и торможения ракет.
 * Trajectory view, flight time, apex, impact angle, lead for moving targets. / График траектории, время полёта, высота подъёма, угол падения, упреждение.
 * Crosshair page with live preview, presets, color swatches, outline and glow. / Прицел с живым предпросмотром, пресетами, палитрой, обводкой и свечением.
-* Russian / English interface, accent colors, monitor choice, overlay center offset, label next to the mark. / Русский и английский интерфейс, цвет акцента, выбор монитора, смещение центра, подпись у метки.
+* Monitor choice, overlay center offset, label next to the mark. The interface is in English. / Выбор монитора, смещение центра, подпись у метки. Интерфейс на английском.
 
 ## How it works / Как считается
 

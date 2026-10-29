@@ -6,6 +6,7 @@
 
 ### Изменено
 - **Только Linux:** поддержка Windows убрана целиком — нет больше exe, автообновления, сборки PyInstaller и Windows-клавиш. Программа запускается из исходников (`python app.py`), обновление — `git pull`. Клавиши читаются через evdev или X11, нажимаются через uinput или XTest; настройки лежат в `~/.config/SquadBallistics`, кэш карты — в `~/.cache/SquadBallistics`.
+- **Интерфейс только на английском, выбор языка и цвета акцента убраны:** акцент один, синий. Старые файлы настроек с этими пунктами загружаются без ошибок.
 - **Убрана связь с телефоном или вторым монитором по ссылке и QR-коду** (настройки «Подключить устройство», код сессии, «Связь с устройствами»). Цели по-прежнему приходят со встроенной карты SquadCalc.
 - **Убраны сигнал удержания АГС-17, панель таймера на оверлее и их настройки** (сигнал, панель и её угол): программа по-прежнему показывает, сколько держать S (на карточке АГС-17 «S 1,23 с»), а по F7 может держать S сама. Сигнал окончания наводки миномёта остался.
 
@@ -27,6 +28,7 @@
 
 ### Changed
 - **Linux only:** Windows support is gone entirely — no exe, auto-update, PyInstaller build or Windows key handling. The app runs from source (`python app.py`) and updates with `git pull`. Keys are read through evdev or X11 and sent through uinput or XTest; settings live in `~/.config/SquadBallistics`, the map cache in `~/.cache/SquadBallistics`.
+- **The interface is English-only; the language option and the accent colour choice are removed:** there is one accent, blue. Settings files that still hold them load without errors.
 - **The link to a phone or a second monitor by link and QR code is removed** (the *Connect a device* settings, the session code, *Link with devices*). Targets still come from the embedded SquadCalc map.
 - **The AGS-17 hold beep, the hold timer panel on the overlay and their settings (beep, panel, panel corner) are removed:** the app still shows how long to hold S (the AGS-17 card reads "S 1.23 s") and F7 can hold it for you. The mortar's "lay finished" beep stays.
 

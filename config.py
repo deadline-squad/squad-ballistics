@@ -1,7 +1,6 @@
 import copy
 import json
 import os
-import re
 
 from ballistics import current_weapon_name
 
@@ -68,8 +67,6 @@ DEFAULT_CONFIG = {
     "center_offset_y": 0,
 
     # Interface
-    "language": "auto",
-    "accent": "#3b82f6",
     "main_on_top": False,
 
     # Calculator
@@ -113,7 +110,6 @@ DEFAULT_CONFIG = {
 
 # Allowed values. RANGES are also the limits of the sliders in the UI.
 CHOICES = {
-    "language": ("auto", "ru", "en"),
     "arc": ("auto", "low", "high"),
     "sight_view": ("plain", "optic"),
     "unit_mode": ("auto", "deg", "mil"),
@@ -140,8 +136,6 @@ RANGES = {
 }
 
 DISTANCE_STEPS = (1, 5, 10, 25, 50, 100)
-
-_HEX_COLOR = re.compile(r"#[0-9a-fA-F]{6}")
 
 
 def config_dir():
@@ -225,9 +219,6 @@ def _merge(loaded):
                 config[key] = max(low, min(high, value))
         elif key in CHOICES:
             if value in CHOICES[key]:
-                config[key] = value
-        elif key == "accent":
-            if isinstance(value, str) and _HEX_COLOR.fullmatch(value):
                 config[key] = value
         elif isinstance(value, type(default)):
             config[key] = value

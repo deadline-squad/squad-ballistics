@@ -75,7 +75,7 @@ def card():
 class Toggle(QAbstractButton):
     """Minimal on/off switch with a text label."""
 
-    def __init__(self, text, accent, checked=False):
+    def __init__(self, text, checked=False):
         super().__init__()
 
         self.setText(text)
@@ -83,8 +83,6 @@ class Toggle(QAbstractButton):
         self.setCheckable(True)
 
         self.setChecked(checked)
-
-        self.accent = QColor(accent)
 
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
@@ -102,7 +100,7 @@ class Toggle(QAbstractButton):
         painter.setPen(Qt.PenStyle.NoPen)
 
         painter.setBrush(
-            self.accent if self.isChecked() else QColor(theme.BORDER)
+            QColor(theme.ACCENT) if self.isChecked() else QColor(theme.BORDER)
         )
 
         painter.drawRoundedRect(track, 9, 9)
@@ -706,10 +704,10 @@ class TrajectoryView(QWidget):
     terrain and buildings in between when the map gives them, with the
     point where the shown arc hits them first."""
 
-    def __init__(self, accent):
+    def __init__(self):
         super().__init__()
 
-        self.accent = QColor(accent)
+        self.accent = QColor(theme.ACCENT)
 
         self.main = []
         self.alt = []

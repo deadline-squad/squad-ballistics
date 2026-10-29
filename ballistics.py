@@ -74,7 +74,6 @@ class Weapon:
     hold_elevation: tuple = ()
     category: str = "other"
     note: str = ""
-    note_ru: str = ""
     mod: str = ""
 
     @classmethod
@@ -185,7 +184,6 @@ class Weapon:
             hold_elevation=hold_elevation,
             category=str(data.get("category", "other")),
             note=str(data.get("note", "")),
-            note_ru=str(data.get("note_ru", "")),
             mod=str(data.get("mod", "")),
         )
 

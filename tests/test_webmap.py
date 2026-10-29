@@ -114,7 +114,7 @@ def test_profile_cache_lives_in_user_data_dir():
 def test_shutdown_is_safe_and_idempotent():
     pytest.importorskip("PyQt6.QtWebEngineWidgets")
 
-    page = webmap.MapPage({"accent": "#3b82f6", "map_render": "auto"})
+    page = webmap.MapPage({"map_render": "auto"})
     page.ensure_loaded()
     assert page.view is not None
 

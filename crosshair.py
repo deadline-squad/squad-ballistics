@@ -72,12 +72,7 @@ from hotkeys import (
     teardown_hotkeys
 )
 
-from i18n import (
-    LANGUAGES,
-    set_language,
-    tr,
-    weapon_note
-)
+from i18n import tr
 
 from keyinject import AutoHold, system_key_injector
 
@@ -215,8 +210,6 @@ class MainWindow(QMainWindow):
 
         self.apply_lay_rates()
 
-        set_language(self.config["language"])
-
         self.last_solution = None
 
         # Direct-fire (low arc) solution of a hold weapon while it lobs,
@@ -226,7 +219,7 @@ class MainWindow(QMainWindow):
         self.current_steps = []
 
         # Created once and kept across UI rebuilds, so the map is not
-        # reloaded when the language or accent changes.
+        # reloaded when the UI is rebuilt.
         self.map_page = None
 
         self.overlay = Overlay(
@@ -322,12 +315,8 @@ class MainWindow(QMainWindow):
     # LAYOUT
     # =========================
 
-    @property
-    def accent(self):
-        return self.config.get("accent") or theme.ACCENTS[0]
-
     def build_ui(self):
-        self.setStyleSheet(theme.stylesheet(self.accent))
+        self.setStyleSheet(theme.stylesheet())
 
         root = QWidget()
 
@@ -358,7 +347,7 @@ class MainWindow(QMainWindow):
         self.update_map_status()
 
     def rebuild(self):
-        """Recreate the UI (language / accent change), keeping the inputs."""
+        """Recreate the UI (texts and bindings), keeping the inputs."""
         page = self.pages.currentIndex()
 
         texts = (
@@ -712,7 +701,7 @@ class MainWindow(QMainWindow):
 
         layout.addLayout(grid)
 
-        self.trajectory_view = TrajectoryView(self.accent)
+        self.trajectory_view = TrajectoryView()
 
         layout.addWidget(self.trajectory_view, 1)
 
@@ -1328,7 +1317,7 @@ class MainWindow(QMainWindow):
 
         self.set_steps(steps)
 
-        self.note_label.setText(weapon_note(weapon))
+        self.note_label.setText(weapon.note)
 
     def obstacle_steps(self, weapon, solution, obstacle, alt_solution,
                        profile, step, unit):
@@ -2104,7 +2093,7 @@ class MainWindow(QMainWindow):
         return page
 
     def add_toggle(self, layout, text, key, on_change=None):
-        toggle = Toggle(text, self.accent, bool(self.get_setting(key)))
+        toggle = Toggle(text, bool(self.get_setting(key)))
 
         def handle(checked):
             self.set_setting(key, checked)
@@ -2275,28 +2264,6 @@ class MainWindow(QMainWindow):
         frame, layout = card()
 
         layout.addWidget(label(tr("s_interface"), "title"))
-
-        languages = [("auto", tr("s_lang_auto"))] + list(LANGUAGES.items())
-
-        self.setting_row(
-            layout,
-            tr("s_language"),
-            self.combo(languages, self.config["language"], self.set_language)
-        )
-
-        accent_row = QHBoxLayout()
-
-        accent_row.addWidget(label(tr("s_accent")))
-
-        accent_row.addStretch()
-
-        swatches = Swatches(theme.ACCENTS, self.accent)
-
-        swatches.picked.connect(self.set_accent)
-
-        accent_row.addWidget(swatches)
-
-        layout.addLayout(accent_row)
 
         self.add_toggle(
             layout,
@@ -2505,22 +2472,6 @@ class MainWindow(QMainWindow):
 
         self.open_status.show()
 
-    def set_language(self, code):
-        self.config["language"] = code
-
-        set_language(code)
-
-        self.schedule_save()
-
-        self.rebuild()
-
-    def set_accent(self, color):
-        self.config["accent"] = color
-
-        self.schedule_save()
-
-        self.rebuild()
-
     def set_on_top(self, checked):
         self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, checked)
 
@@ -2592,8 +2543,6 @@ class MainWindow(QMainWindow):
 
         self.config.update(copy.deepcopy(DEFAULT_CONFIG))
 
-        set_language(self.config["language"])
-
         setup_hotkeys(self)
 
         self.overlay.move_to_screen()
@@ -2637,7 +2586,6 @@ class MainWindow(QMainWindow):
             self.map_page.weapon_received.connect(self.on_map_weapon)
         else:
             self.map_page.retranslate()
-            self.map_page.restyle()
 
         return self.map_page
 
