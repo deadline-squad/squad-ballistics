@@ -64,6 +64,55 @@ def test_cancel_releases_at_once():
     assert injector.events[1][1] - injector.events[0][1] < 0.5
 
 
+class NamedInjector(FakeInjector):
+    def __init__(self, name, log):
+        super().__init__()
+        self.name = name
+        self.events = log
+
+    def press(self):
+        self.events.append((self.name, "press", time.perf_counter()))
+
+    def release(self):
+        self.events.append((self.name, "release", time.perf_counter()))
+
+
+def test_auto_lay_holds_w_then_s():
+    log = []
+    auto = AutoHold(NamedInjector("S", log), NamedInjector("W", log))
+
+    assert auto.start(0.2, reset_seconds=0.3)
+    time.sleep(0.1)
+    assert auto.resetting.is_set() and not auto.pressing.is_set()
+    auto.thread.join(2)
+
+    assert [(key, kind) for key, kind, _ in log] == [
+        ("W", "press"), ("W", "release"), ("S", "press"), ("S", "release")]
+    w_held = log[1][2] - log[0][2]
+    gap = log[2][2] - log[1][2]
+    s_held = log[3][2] - log[2][2]
+    assert w_held == pytest.approx(0.3, abs=0.01)
+    assert gap == pytest.approx(keyinject.RESET_SETTLE_SECONDS, abs=0.02)
+    assert s_held == pytest.approx(0.2, abs=0.01)
+    assert not auto.resetting.is_set() and not auto.pressing.is_set()
+
+
+def test_cancel_during_the_reset_never_presses_s():
+    log = []
+    auto = AutoHold(NamedInjector("S", log), NamedInjector("W", log))
+
+    assert auto.start(1.0, reset_seconds=5.0)
+    time.sleep(0.05)
+    auto.stop()
+
+    assert [(key, kind) for key, kind, _ in log] == [("W", "press"), ("W", "release")]
+    assert not auto.resetting.is_set()
+
+
+def test_reset_needs_a_w_injector():
+    assert not AutoHold(FakeInjector()).start(1.0, reset_seconds=5.0)
+
+
 def test_nothing_to_hold():
     auto = AutoHold(FakeInjector())
 

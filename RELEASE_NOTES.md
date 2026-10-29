@@ -1,3 +1,17 @@
+## Squad Ballistics 1.4.1
+
+### Что нового
+- **Автонаводка миномёта:** с включённым автозажатием нажмите F7 в прицеле миномёта — программа поднимет ствол до упора (W) и опустит его, держа S нужное время; крупно по-прежнему показаны милы для проверки по прицелу. Скорость ствола (9°/с) взята из файлов игры. Чтобы подогнать её под вашу игру, введите после наводки милы с прицела и нажмите «Уточнить» — программа запомнит уточнённую скорость.
+
+### Исправлено
+- **Метка оверлея только для оружия, которое ей наводится:** миномёты, Hell Cannon и реактивная артиллерия наводятся своим прицелом по углу, поэтому метки и стрелки у края экрана для них больше нет, остаётся строка с дальностью и углом. Раньше метка уезжала за экран на угол возвышения и сбивала с толку.
+
+### What's new
+- **Mortar auto-lay:** with auto-hold on, press F7 in the mortar sight — the app raises the barrel to its top (W) and lowers it by holding S for the right time; the mils stay the big readout to check on the sight. The barrel rate (9°/s) comes from the game files. To fit it to your game, type the mils the sight shows after a lay and press "Calibrate": the app keeps the fitted rate.
+
+### Fixed
+- **Overlay mark only for weapons aimed with it:** mortars, Hell Cannon and rocket artillery are laid on their own sight by elevation, so they no longer get a mark or an edge arrow, only the info line with the range and angle. The mark used to fly off-screen by the elevation angle.
+
 ## Squad Ballistics 1.4.0
 
 ### Что нового

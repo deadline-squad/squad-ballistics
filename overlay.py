@@ -166,6 +166,9 @@ class Overlay(QWidget):
 
         self.target_offset = 0.0
 
+        # False for weapons laid by elevation: no aim mark, only the info line.
+        self.mark_visible = True
+
         # The animation timer only runs while the aim point is moving.
         self.animation_timer = QTimer(self)
 
@@ -238,6 +241,19 @@ class Overlay(QWidget):
         self.update(self.hold_panel_rect().toAlignedRect().adjusted(-2, -2, 2, 2))
 
     def set_offset(self, value):
+        """Move the aim mark `value` pixels below the centre; None hides it.
+
+        None is for weapons laid by elevation on their own sight (mortars,
+        rocket artillery): a mark on the screen would point nowhere useful.
+        """
+        if value is None:
+            self.mark_visible = False
+            self.offset = self.target_offset = 0.0
+            self.animation_timer.stop()
+            self.update()
+            return
+
+        self.mark_visible = True
         value = float(value)
 
         if math.isnan(value):
@@ -291,7 +307,9 @@ class Overlay(QWidget):
         x = self.center_x
         y = self.center_y + self.offset
 
-        if self.is_offscreen(self.offset):
+        if not self.mark_visible:
+            pass
+        elif self.is_offscreen(self.offset):
             # The aim point is off-screen (very high angle shot):
             # show an arrow on the edge pointing towards it.
             top = y < self.EDGE_MARGIN

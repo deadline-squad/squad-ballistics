@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import QApplication
 import config
 from ballistics import load_weapons, screen_offset, solve
 from i18n import tr
+from widgets import format_angle
 from conftest import ROOT
 
 
@@ -56,7 +57,7 @@ def test_every_weapon_through_ui(window):
         assert window.last_solution is not None, name
         assert window.last_solution.reachable, (name, window.status_text())
 
-        if math.isfinite(window.last_solution.hold_time):
+        if math.isfinite(window.last_solution.hold_time) and window.current_weapon().aim == "overlay":
             # Laid by holding S (AGS-17 high arc): the readout is a time.
             assert window.status_text().startswith("S "), name
         else:
@@ -67,7 +68,12 @@ def test_every_weapon_through_ui(window):
         assert len(window.current_steps) >= 2, name
 
         expected = window.current_offset()
-        if abs(expected) < window.overlay.height():
+        weapon = window.current_weapon()
+        if weapon.aim == "elevation":
+            # Laid on its own sight: no overlay mark
+            assert expected is None and not window.overlay.mark_visible, name
+        elif abs(expected) < window.overlay.height():
+            assert window.overlay.mark_visible, name
             assert window.overlay.offset == pytest.approx(expected), name
 
 
@@ -89,6 +95,40 @@ def test_comma_decimal_and_errors(window):
     window.calculate()
     assert not window.last_solution.reachable
     assert window.overlay.target_offset == 0
+
+
+@pytest.mark.parametrize("name", ["Mortar (M252 / 2B14 / L16 / Type 63)", "BM-21 Grad", "Hell Cannon"])
+def test_no_overlay_mark_for_weapons_laid_by_elevation(window, name):
+    # Laid on their own sight in mils/degrees: no mark, the info line stays.
+    window.select_weapon(name)
+    window.distance_entry.setText("900")
+    window.calculate()
+    assert window.last_solution.reachable
+    assert not window.overlay.mark_visible
+    assert window.overlay.target_offset == 0
+    assert "900 m" in window.overlay.info_text
+    assert window.stats["stat_offset"].value.text() == "—"
+
+    window.reset_offset()
+    assert not window.overlay.mark_visible
+
+
+def test_overlay_mark_follows_the_weapon_aim(window):
+    window.select_weapon("Mortar (M252 / 2B14 / L16 / Type 63)")
+    window.distance_entry.setText("")
+    window.recalculate_if_ready()
+    assert not window.overlay.mark_visible
+
+    # Direct fire and the AGS-17 (its direct-fire aim) are aimed with the mark
+    for name in ("SPG-9 · HEAT", "AGS-17 · emplacement"):
+        window.select_weapon(name)
+        window.distance_entry.setText("500")
+        window.calculate()
+        assert window.overlay.mark_visible, name
+        assert window.overlay.target_offset > 0, name
+
+    window.select_weapon("Mortar (M252 / 2B14 / L16 / Type 63)")
+    assert not window.overlay.mark_visible
 
 
 def test_reset_toggle_and_distance_keys(window):
@@ -1049,6 +1089,109 @@ def test_auto_hold_setting(window, monkeypatch):
     window.close()
     assert pressed == ["press", "release"]
     assert Injector.closed
+
+
+MORTAR = "Mortar (M252 / 2B14 / L16 / Type 63)"
+
+
+def test_mortar_shows_mils_with_the_auto_lay_time(window):
+    window.select_weapon(MORTAR)
+    window.config["arc"] = "high"
+    window.distance_entry.setText("1000")
+    window.calculate()
+
+    solution = window.last_solution
+    assert solution.reachable and math.isfinite(solution.hold_time)
+    # The sight reads mils: they stay the big readout, the hold time is the auto-lay helper
+    assert window.status_text() == format_angle(solution.angle, "mil")
+    assert tr("lay_short", t=f"{solution.hold_time:.2f}") in window.sub_label.text()
+    assert f"S {solution.hold_time:.2f}" in window.overlay.info_text
+    assert not window.overlay.mark_visible
+    assert any(tr("how_lay_off", t=f"{solution.hold_time:.2f}") == step for step in window.current_steps)
+
+
+def test_mortar_auto_lay_hotkey(window, monkeypatch):
+    import crosshair
+
+    log = []
+
+    class Injector:
+        def __init__(self, vk):
+            self.vk = vk
+
+        def press(self):
+            log.append((self.vk, "press"))
+
+        def release(self):
+            log.append((self.vk, "release"))
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(crosshair, "system_key_injector", Injector)
+    window.controls["auto_hold"].toggled.emit(True)
+    window.hold_timer.key_reader = lambda vk: False
+    window.hold_timer.set_active(True)
+
+    window.select_weapon(MORTAR)
+    window.config["arc"] = "high"
+    window.distance_entry.setText("1000")
+    window.calculate()
+    weapon = window.current_weapon()
+    assert any(tr("how_lay", hotkey="F7", t=f"{window.last_solution.hold_time:.2f}") == step
+               for step in window.current_steps)
+
+    started = []
+    monkeypatch.setattr(window.hold_timer.auto_hold, "start",
+                        lambda seconds, reset_seconds=0.0: started.append((seconds, reset_seconds)) or True)
+    window.auto_hold()
+    assert started == [(pytest.approx(window.last_solution.hold_time),
+                        pytest.approx(weapon.max_hold_time() + crosshair.LAY_RESET_MARGIN))]
+
+    # The AGS-17 still holds only the time left (the player presses W)
+    started.clear()
+    window.select_weapon(AGS17)
+    window.distance_entry.setText("1000")
+    window.calculate()
+    window.auto_hold()
+    assert started == [(pytest.approx(window.hold_timer.target), 0.0)]
+
+
+def test_mortar_auto_lay_calibration(window):
+    window.select_weapon(MORTAR)
+    assert window.lay_row.isVisibleTo(window)
+    window.config["arc"] = "high"
+    window.distance_entry.setText("1000")
+    window.calculate()
+    top = window.current_weapon().hold_elevation[1]
+
+    # Too short a hold measures nothing
+    window.hold_timer.held = 0.2
+    window.lay_entry.setText("1500")
+    assert not window.calibrate_lay()
+    assert window.lay_status.text() == tr("lay_need_hold", t="0.5")
+
+    # 3 s of S and the sight shows the angle of 8.5°/s: that rate is kept
+    window.hold_timer.held = 3.0
+    window.lay_entry.setText(f"{(top - 3.0 * 8.5) * 6400 / 360:.4f}")
+    assert window.calibrate_lay()
+    assert window.config["lay_rates"][MORTAR] == pytest.approx(8.5, abs=1e-4)
+    assert window.current_weapon().hold_rate == pytest.approx(8.5, abs=1e-4)
+    assert window.last_solution.hold_time == pytest.approx((top - window.last_solution.angle) / 8.5, rel=1e-4)
+    assert window.file_weapons[MORTAR].hold_rate == 9.0
+
+    # A typo (15°/s) is refused and changes nothing
+    window.lay_entry.setText(f"{(top - 3.0 * 15) * 6400 / 360:.1f}")
+    assert not window.calibrate_lay()
+    assert window.current_weapon().hold_rate == pytest.approx(8.5, abs=1e-4)
+
+    window.reset_lay_rate()
+    assert MORTAR not in window.config["lay_rates"]
+    assert window.current_weapon().hold_rate == 9.0
+
+    # Weapons without the auto-lay have no calibration row
+    window.select_weapon(AGS17)
+    assert not window.lay_row.isVisibleTo(window)
 
 
 def test_auto_hold_key_is_free_while_disabled(window):

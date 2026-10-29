@@ -1,4 +1,5 @@
 import os
+import threading
 
 import pytest
 
@@ -223,19 +224,29 @@ def test_linux_beep_uses_the_first_player_found(monkeypatch, tmp_path):
 
 
 class FakeAutoHold:
+    """keyinject.AutoHold without threads: the test drives `resetting`/`pressing`."""
+
     def __init__(self):
         self.started = []
         self.stopped = 0
         self.active = False
+        self.resetting = threading.Event()
+        self.pressing = threading.Event()
 
-    def start(self, seconds):
-        self.started.append(seconds)
+    def start(self, seconds, reset_seconds=0.0):
+        self.started.append(seconds if not reset_seconds else (seconds, reset_seconds))
         self.active = True
+        if reset_seconds:
+            self.resetting.set()
+        else:
+            self.pressing.set()
         return True
 
     def stop(self):
         self.stopped += 1
         self.active = False
+        self.resetting.clear()
+        self.pressing.clear()
 
 
 def test_auto_hold_holds_the_time_left_and_counts_it():
@@ -279,6 +290,59 @@ def test_auto_hold_is_cancelled(cancel):
         timer.set_target(None)
     else:
         timer.set_active(False)
+
+    assert not timer.auto_hold.active
+
+
+def test_mortar_auto_lay_resets_with_its_own_w_then_holds_the_whole_time():
+    timer, keys, clock, reached = make_polled_timer()
+    timer.auto_hold = FakeAutoHold()
+    timer.set_target(1.0)
+
+    # S partly held by hand: the auto-lay still holds the whole time after W
+    keys.add(VK_S)
+    for _ in range(30):
+        clock.now += 0.01
+        timer.poll()
+    keys.discard(VK_S)
+
+    assert timer.toggle_auto_hold(reset_seconds=5.2)
+    assert timer.auto_hold.started == [(1.0, 5.2)]
+
+    # Our own W (unseen by the reader) restarts the count without cancelling
+    for _ in range(50):
+        clock.now += 0.01
+        timer.poll()
+    assert timer.auto_hold.active
+    assert timer.held == 0
+    assert timer.w_down and not timer.s_down
+
+    # W released, S not yet pressed (settle pause): nothing counted
+    timer.auto_hold.resetting.clear()
+    for _ in range(10):
+        clock.now += 0.01
+        timer.poll()
+    assert timer.held == 0
+
+    timer.auto_hold.pressing.set()
+    for _ in range(101):
+        clock.now += 0.01
+        timer.poll()
+    assert timer.held == pytest.approx(1.01)
+    assert len(reached) == 1
+
+
+def test_player_w_still_cancels_a_mortar_auto_lay():
+    timer, keys, clock, _reached = make_polled_timer()
+    timer.auto_hold = FakeAutoHold()
+    timer.set_target(1.0)
+    timer.toggle_auto_hold(reset_seconds=5.2)
+    timer.auto_hold.resetting.clear()
+    timer.auto_hold.pressing.set()
+
+    keys.add(VK_W)
+    clock.now += 0.01
+    timer.poll()
 
     assert not timer.auto_hold.active
 

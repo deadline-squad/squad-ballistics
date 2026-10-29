@@ -11,7 +11,9 @@ where they cannot be read `available` is False. Because the keys are
 global, S pressed anywhere counts until the next W.
 
 Auto-hold (opt-in): `toggle_auto_hold` makes the app hold S itself for the
-time left to the target through a `keyinject.AutoHold`.
+time left to the target through a `keyinject.AutoHold`. For mortars it lays
+the barrel from scratch: W to the top first (`reset_seconds`), then S for
+the whole hold time.
 """
 
 import os
@@ -102,9 +104,21 @@ class HoldTimer(QObject):
     def auto_holding(self):
         return self.auto_hold is not None and self.auto_hold.active
 
-    def toggle_auto_hold(self):
+    @property
+    def auto_resetting(self):
+        """The app is holding W itself, before the hold (mortar auto-lay)."""
+        return self.auto_holding and self.auto_hold.resetting.is_set()
+
+    @property
+    def auto_pressing(self):
+        """The app is holding S itself."""
+        return self.auto_holding and self.auto_hold.pressing.is_set()
+
+    def toggle_auto_hold(self, reset_seconds=0.0):
         """Hold S for the time left to the target; again: release it.
 
+        With `reset_seconds` > 0 the app first holds W that long, which puts
+        the barrel back to its top, then S for the whole target time.
         Returns True when a hold was started.
         """
         if self.auto_hold is None:
@@ -117,7 +131,10 @@ class HoldTimer(QObject):
         if self.target is None or not self.active:
             return False
 
-        started = self.auto_hold.start(self.target - self.held)
+        if reset_seconds > 0:
+            started = self.auto_hold.start(self.target, reset_seconds)
+        else:
+            started = self.auto_hold.start(self.target - self.held)
 
         self.changed.emit()
 
@@ -168,14 +185,19 @@ class HoldTimer(QObject):
 
         self.changed.emit()
 
-    def advance(self, elapsed, s_down, w_down):
-        """Account for `elapsed` seconds with the given key states."""
+    def advance(self, elapsed, s_down, w_down, own_w=False):
+        """Account for `elapsed` seconds with the given key states.
+
+        `own_w`: W is the app's own reset (mortar auto-lay), which restarts
+        the count without cancelling the auto-hold it belongs to.
+        """
         keys_changed = (s_down, w_down) != (self.s_down, self.w_down)
 
         self.s_down, self.w_down = s_down, w_down
 
         if w_down and not self._w_was_down:
-            self.stop_auto_hold()
+            if not own_w:
+                self.stop_auto_hold()
             self.reset()
         elif keys_changed:
             self.changed.emit()
@@ -201,11 +223,14 @@ class HoldTimer(QObject):
 
         self._last_poll = now
 
+        resetting = self.auto_resetting
+
         self.advance(
             min(elapsed, MAX_POLL_GAP),
-            # The reader may not see our own synthetic S (evdev, Windows).
-            self.key_reader(VK_S) or self.auto_holding,
-            self.key_reader(VK_W)
+            # The reader may not see our own synthetic keys (evdev, Windows).
+            self.key_reader(VK_S) or self.auto_pressing,
+            self.key_reader(VK_W) or resetting,
+            own_w=resetting
         )
 
 

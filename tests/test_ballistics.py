@@ -392,6 +392,22 @@ def test_ags17_hold_time_follows_height():
     assert height_at(AGS17, higher.angle, 1000) == pytest.approx(30, abs=0.01)
 
 
+def test_mortar_auto_lay_model():
+    # W to the top (1580 mil), S lowers 9°/s: keyboard pitch ×300 × input ×0.03 in the game files
+    mortar = WEAPONS["Mortar (M252 / 2B14 / L16 / Type 63)"]
+    assert mortar.aim == "elevation" and mortar.has_hold
+    assert mortar.hold_time(88.875) == 0
+    assert mortar.hold_time(60) == pytest.approx((88.875 - 60) / 9.0)
+    assert mortar.max_hold_time() == pytest.approx(43.875 / 9.0)
+    assert math.isnan(mortar.hold_time(44))
+
+    # Every reachable shot can be laid by the hold, across the whole range
+    for distance in (51, 300, 800, 1237):
+        solution = solve(mortar, distance, 0, "high")
+        assert solution.reachable, distance
+        assert solution.hold_time == pytest.approx((88.875 - solution.angle) / 9.0), distance
+
+
 def test_ags17_arcs_and_limits():
     lob = solve(AGS17, 1000, 0, "high")
     direct = solve(AGS17, 1000, 0, "low")
@@ -421,9 +437,8 @@ def test_ags17_arcs_and_limits():
 
     assert AGS17.max_hold_time() == pytest.approx((85.87 - 47.81) / 9.08)
     assert math.isnan(AGS17.hold_time(90))
-    assert math.isnan(
-        WEAPONS["Mortar (M252 / 2B14 / L16 / Type 63)"].hold_time(60)
-    )
+    # Weapons without a hold model have no hold time
+    assert math.isnan(WEAPONS["Hell Cannon"].hold_time(60))
 
 
 def test_hold_fields_are_validated():

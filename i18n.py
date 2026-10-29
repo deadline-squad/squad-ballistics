@@ -83,6 +83,38 @@ STRINGS = {
         "Turn to bearing {b}° (from the SquadCalc map)."
     ),
     "hold_big": ("S {t} с", "S {t} s"),
+    "lay_short": ("автонаводка: S {t} с", "auto-lay: S {t} s"),
+    "lay_read": ("Прицел показал (мил):", "Sight shows (mil):"),
+    "lay_calibrate": ("Уточнить", "Calibrate"),
+    "lay_reset": ("Сброс", "Reset"),
+    "lay_done": (
+        "Скорость автонаводки: {rate}°/с (по файлам игры {base}°/с)",
+        "Auto-lay rate: {rate}°/s (game files: {base}°/s)"
+    ),
+    "lay_reset_done": (
+        "Скорость автонаводки по файлам игры: {base}°/с",
+        "Auto-lay rate from the game files: {base}°/s"
+    ),
+    "lay_need_hold": (
+        "Сначала наведите (автонаводка или W, затем S дольше {t} с)",
+        "Lay first (auto-lay, or W then S for over {t} s)"
+    ),
+    "lay_out_of_range": (
+        "Не похоже на правду: {rate}°/с при {base}°/с по файлам игры — проверьте милы",
+        "Unlikely: {rate}°/s against {base}°/s in the game files — check the mils"
+    ),
+    "how_lay": (
+        "Или автонаводка: в прицеле миномёта нажмите {hotkey} — программа "
+        "поднимет ствол до упора (W) и опустит его, держа S {t} с. Сверьте "
+        "милы на прицеле; повторное нажатие или W отменяет.",
+        "Or auto-lay: in the mortar sight press {hotkey} — the app raises the "
+        "barrel to its top (W) and lowers it by holding S for {t} s. Check "
+        "the mils on the sight; the key again or W cancels."
+    ),
+    "how_lay_off": (
+        "Автонаводка (S {t} с) включается в настройках: «Автозажатие S».",
+        "Auto-lay (S {t} s) is turned on in the settings: \"Auto-hold S\"."
+    ),
     "hold_progress": ("S зажата {held} из {t} с", "S held {held} of {t} s"),
     "how_hold_1": (
         "Нажмите W — ствол встанет в верхнее положение.",
@@ -256,7 +288,7 @@ STRINGS = {
     "hk_reset_offset": ("Сбросить метку", "Reset mark"),
     "hk_distance_up": ("Дистанция +", "Distance +"),
     "hk_distance_down": ("Дистанция −", "Distance −"),
-    "hk_auto_hold": ("Автозажатие S (АГС-17)", "Auto-hold S (AGS-17)"),
+    "hk_auto_hold": ("Автозажатие S / автонаводка миномёта", "Auto-hold S / mortar auto-lay"),
     "hk_none": ("Нет", "None"),
     "s_about": ("О программе", "About"),
     "s_version": ("Версия {v}", "Version {v}"),
@@ -390,12 +422,14 @@ STRINGS = {
     ),
     "s_auto_hold_hint": (
         "По клавише программа сама держит S оставшееся до цели время и "
-        "отпускает; повторное нажатие или W отменяет. Нажатия от программы "
+        "отпускает (миномёт: сначала W до упора, затем S на всё время — "
+        "автонаводка по углу); повторное нажатие или W отменяет. Нажатия от программы "
         "античит (EAC) и правила сервера могут счесть макросом — включайте "
         "на свой риск. Linux: нужен доступ к /dev/uinput (правила Steam) "
         "или игра в X11/XWayland.",
         "On the key the app holds S for the time left to the target and "
-        "releases it; the key again or W cancels. Synthetic key presses may "
+        "releases it (mortars: W to the top first, then S for the whole time "
+        "— auto-lay by the angle); the key again or W cancels. Synthetic key presses may "
         "be treated as a macro by the anti-cheat (EAC) or server rules — "
         "enable at your own risk. Linux: needs access to /dev/uinput "
         "(Steam rules) or the game on X11/XWayland."
