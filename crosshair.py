@@ -830,12 +830,15 @@ class MainWindow(QMainWindow):
 
         self.last_map_target = target
 
-        self.distance_entry.set_value(round(target.distance))
+        # Tenths of a metre: whole metres would throw away up to 0.5 m the
+        # map delivered (and a metre of height moves a short UB-32 shot
+        # 20-40 m).
+        self.distance_entry.set_value(round(target.distance, 1))
 
         if target.height is None:
             self.height_entry.setText("")
         else:
-            self.height_entry.set_value(round(target.height))
+            self.height_entry.set_value(round(target.height, 1))
 
         self.map_target = target
 

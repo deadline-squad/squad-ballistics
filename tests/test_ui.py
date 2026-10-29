@@ -523,10 +523,12 @@ def test_map_target_fills_the_inputs(window):
         MapTarget(1234.4, -12.6, 271.25),
     ])
 
-    assert window.distance_entry.text() == "1234"
-    assert window.height_entry.text() == "-13"
+    # Kept to a tenth of a metre, not rounded to whole metres
+    assert window.distance_entry.text() == "1234.4"
+    assert window.height_entry.text() == "-12.6"
     assert window.last_solution.reachable
-    assert window.last_solution.height_diff == -13
+    assert window.last_solution.distance == pytest.approx(1234.4)
+    assert window.last_solution.height_diff == pytest.approx(-12.6)
     bearing = f"{271.25:.1f}"
     assert bearing in window.map_label.text()
     assert window.current_steps[0] == tr("how_bearing", b=bearing)
@@ -577,8 +579,8 @@ def test_embedded_map_bridge_feeds_the_calculator(window):
     })
     assert page.bridge_found is True
     assert window.picker.current == "AT-4"
-    assert window.distance_entry.text() == "950"
-    assert window.height_entry.text() == "4"
+    assert window.distance_entry.text() == "950.2"
+    assert window.height_entry.text() == "3.9"
 
     # The weapon selected in SquadCalc is selected here and solved.
     page.on_bridge_result({
@@ -860,15 +862,15 @@ def test_embedded_bridge_reads_a_real_page(window, monkeypatch):
 
     clock = QElapsedTimer()
     clock.start()
-    while window.distance_entry.text() != "612" and clock.elapsed() < 15000:
+    while window.distance_entry.text() != "612.4" and clock.elapsed() < 15000:
         QCoreApplication.processEvents()
 
-    assert window.distance_entry.text() == "612"
-    assert window.height_entry.text() == "-9"
+    assert window.distance_entry.text() == "612.4"
+    assert window.height_entry.text() == "-8.6"
     assert window.map_page.bridge_found is True
     assert window.picker.current == "RPG-7V1 · HEAT"
     assert window.last_solution.angle == pytest.approx(
-        solve(window.weapons["RPG-7V1 · HEAT"], 612, -9, "low").angle
+        solve(window.weapons["RPG-7V1 · HEAT"], 612.4, -8.6, "low").angle
     )
 
 
