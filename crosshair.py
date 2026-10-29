@@ -1064,6 +1064,15 @@ class MainWindow(QMainWindow):
         if weapon is None:
             return
 
+        # The FOV applies without a distance too: the range ladder follows it.
+        fov = self.fov_entry.value()
+
+        if fov is not None and RANGES["fov"][0] <= fov <= RANGES["fov"][1] \
+                and self.config["fov"] != fov:
+            self.config["fov"] = fov
+            self.schedule_save()
+            self.update_ladder()
+
         try:
             distance, height, fov = self.read_inputs()
 
@@ -1104,11 +1113,6 @@ class MainWindow(QMainWindow):
                 self.clear_result()
 
             return
-
-        if self.config["fov"] != fov:
-            self.config["fov"] = fov
-            self.schedule_save()
-            self.update_ladder()
 
         # Too close or too far to lob (AGS-17 under 280 m): fire directly.
         if not solution.reachable and direct is not None:

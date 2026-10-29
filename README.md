@@ -95,7 +95,7 @@ Squad Ballistics предоставляет:
 1. Pick a weapon (searchable list, recent weapons on top), enter the distance and, optionally, the height difference: target higher `+`, lower `-`.
 2. Enter your horizontal FOV: the in-game setting, or the zoomed FOV when aiming through a scope. Tripod weapons whose optic zooms the whole screen (QLZ87, Kord SPP) show a *view* switch instead: keep the game's FOV and pick *Optic (RMB)* or *Unzoomed*; the mark follows that view's zoom and zero.
 3. The result updates while you type. The **How to fire** block tells you exactly what to do for the selected weapon.
-4. Direct fire (launchers, grenade launchers, guns): put the overlay mark on the target and fire. Without a distance typed, the *range ladder* under the mark shows where a target at 100, 200, 300 m… goes (flat ground, the weapon's own ballistics); turn it off on the crosshair page.
+4. Direct fire (launchers, grenade launchers, guns): put the overlay mark on the target and fire. Without a distance typed, the *range ladder* under the mark shows where a target at each round range (every 25–1000 m, finer near the weapon) goes (flat ground, the weapon's own ballistics); turn it off on the crosshair page.
 5. Indirect fire (mortars, Hell Cannon, rockets): set the shown elevation (mils or degrees) on the weapon. These weapons are laid on their own sight, so the overlay shows only the info line, no aim mark.
 6. Or skip typing: place your weapon and a target on the SquadCalc map (tab **SquadCalc**) — distance, height difference and bearing go to the calculator by themselves.
 

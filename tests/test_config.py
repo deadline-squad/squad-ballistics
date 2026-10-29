@@ -125,6 +125,9 @@ def test_values_are_validated(tmp_path, monkeypatch):
 
 def test_defaults_are_inside_ranges():
     for key, (low, high) in config.RANGES.items():
+        if config.DEFAULT_CONFIG[key] is None:
+            continue
+
         assert low <= config.DEFAULT_CONFIG[key] <= high, key
 
     for key, choices in config.CHOICES.items():
@@ -173,3 +176,21 @@ def test_device_link_settings_from_older_versions(tmp_path):
     cfg = config.load_config(str(path))
     assert cfg["relay_code"] == ""
     assert cfg["relay_enabled"] is True
+
+
+def test_learnt_hold_lead_survives_a_restart(tmp_path):
+    from holdtimer import MAX_LEAD
+
+    path = tmp_path / "config.json"
+    cfg = config.load_config(str(path))
+    assert cfg["hold_lead"] is None
+
+    cfg["hold_lead"] = 0.31
+    config.save_config(cfg, str(path))
+    assert config.load_config(str(path))["hold_lead"] == 0.31
+
+    assert config.RANGES["hold_lead"] == (0.0, MAX_LEAD)
+
+    for stored, loaded in ((9.0, MAX_LEAD), (-1, 0.0), (True, None), ("0.3", None), (float("nan"), None)):
+        path.write_text(json.dumps({"hold_lead": stored}))
+        assert config.load_config(str(path))["hold_lead"] == loaded

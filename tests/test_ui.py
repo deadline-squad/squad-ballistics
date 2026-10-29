@@ -1985,6 +1985,39 @@ def test_optic_view_moves_the_mark_and_the_ladder(window):
     assert window.view_control.isHidden()
 
 
+def test_fov_edit_moves_the_ladder_without_a_distance(window):
+    window.overlay.setGeometry(0, 0, 1920, 1080)
+    window.select_weapon("M203 / M320 / GP-25 / HK79 / SL40")
+    window.distance_entry.setText("")
+    window.fov_entry.setText("90")
+    window.calculate(show_errors=False)
+    wide = dict(window.overlay.ladder)
+
+    window.fov_entry.setText("60")
+    window.calculate(show_errors=False)
+    narrow = dict(window.overlay.ladder)
+
+    assert window.config["fov"] == 60
+    assert narrow[100] > wide[100] * 1.5
+
+
+def test_small_fov_through_the_optic_neither_raises_nor_stops_the_app(window):
+    """FOV 2 through the QLZ87's x3 optic is a view under 1 degree."""
+    window.overlay.setGeometry(0, 0, 1920, 1080)
+    window.select_weapon("QLZ87")
+    window.distance_entry.setText("300")
+    window.fov_entry.setText("2")
+    window.calculate()
+
+    assert window.last_solution is not None
+    assert window.current_offset() > 0
+    window.fov_entry.setText("1")
+    window.calculate()
+    window.view_control.changed.emit("plain")
+    window.select_weapon("Kord · SPP emplacement")
+    window.view_control.changed.emit("optic")
+
+
 def test_range_ladder_is_drawn_left_of_the_centre(window):
     overlay = window.overlay
     overlay.setGeometry(0, 0, 1920, 1080)

@@ -603,8 +603,9 @@ def screen_offset(angle, fov, screen_width, scale=1.0):
     return focal * math.tan(math.radians(angle)) * scale
 
 
-# Range steps of the overlay's ladder (m): the step grows through these as
-# the ticks close up with distance, so every label stays a round number.
+# Range steps of the overlay's ladder (m): ranges are rounded up to the
+# largest of these that is at most a quarter of the range, so every label
+# is a round number and the ladder stays dense near the weapon.
 LADDER_STEPS = (25, 50, 100, 200, 250, 500, 1000)
 
 # A ladder longer than this is clutter (ticks, nearest first); no Squad
@@ -618,10 +619,16 @@ def mark_offset(weapon, sight_angle, fov, screen_width, scale=1.0, zoomed=False)
     `sight_angle` degrees over the line of sight (`Solution.sight_angle`)
     from the view `Weapon.sight_view` gives: the shot already leaves `bore`
     degrees above the centre, so the mark is that much higher.
+
+    A zoomed view narrower than 1 degree (a small FOV through a strong
+    optic) is held at 1 degree, the narrowest `screen_offset` takes.
     """
+    if not 1 <= fov <= 179:
+        raise ValueError("FOV must be between 1 and 179 degrees")
+
     view_fov, bore = weapon.sight_view(fov, zoomed)
 
-    return screen_offset(sight_angle - bore, view_fov, screen_width, scale)
+    return screen_offset(sight_angle - bore, max(view_fov, 1.0), screen_width, scale)
 
 
 def range_ladder(weapon, fov, screen_width, first, spacing, reach, scale=1.0,
@@ -629,62 +636,68 @@ def range_ladder(weapon, fov, screen_width, first, spacing, reach, scale=1.0,
     """Range ticks of the overlay ladder: where to put a target at each
     range on flat ground, as [(distance m, pixels below the centre)].
 
-    The first tick is at least `first` pixels below the centre (clear of
-    the crosshair) and the ticks at least `spacing` apart; the step grows
-    through LADDER_STEPS to keep them apart, and the ladder ends where the
-    weapon cannot reach, at `reach` pixels, after LADDER_MAX_TICKS or at
+    The first tick is the nearest range at least `first` pixels below the
+    centre (clear of the crosshair), each next one the nearest at least
+    `spacing` pixels below the previous. Ranges are rounded up to a step
+    of LADDER_STEPS that grows with the range (a quarter of it at most),
+    so every label is a round number. The ladder ends where the weapon
+    cannot reach, at `reach` pixels, after LADDER_MAX_TICKS or at
     LADDER_MAX_DISTANCE.
     The offsets are those of the overlay mark (`mark_offset` of the
     low-arc `Solution.sight_angle`, from the view `zoomed` picks); ranges
-    above the centre (inside the view's zero) get no tick. Empty for weapons laid by elevation and
-    for weapons without gravity (every range is on the centre).
+    above the centre (inside the view's zero) get no tick. Empty for
+    weapons laid by elevation and for weapons without gravity (every range
+    is on the centre).
     """
     if weapon.aim != "overlay" or weapon.g == 0:
         return []
 
-    ticks = []
-    last_offset = 0.0
-    last_distance = 0
-    steps = list(LADDER_STEPS)
-    step = steps.pop(0)
-    distance = step
-
-    while len(ticks) < LADDER_MAX_TICKS and distance <= LADDER_MAX_DISTANCE:
-        if distance < weapon.min_distance:
-            distance += step
-            continue
-
+    def offset_at(distance):
         solution = solve(weapon, distance, 0.0, "low")
 
         if not solution.reachable:
-            break
+            return None
 
-        offset = mark_offset(
+        return mark_offset(
             weapon, solution.sight_angle, fov, screen_width, scale, zoomed
         )
 
-        if offset > reach:
-            break
+    ticks = []
+    last_offset = 0.0
+    distance = 0
 
-        # Inside the view's zero the range is at or above the centre: no
-        # tick there, and no reason to coarsen the step.
-        if not ticks and offset <= 0:
-            distance += step
-            continue
-
+    while len(ticks) < LADDER_MAX_TICKS:
         gap = first if not ticks else spacing
 
-        if offset - last_offset < gap:
-            if steps:
-                step = steps.pop(0)
-                distance = (last_distance // step + 1) * step
-            else:
-                distance += step
-            continue
+        # The nearest range that clears the previous tick
+        while True:
+            distance += LADDER_STEPS[0]
+
+            if distance > LADDER_MAX_DISTANCE:
+                return ticks
+
+            if distance < weapon.min_distance:
+                continue
+
+            offset = offset_at(distance)
+
+            if offset is None:
+                return ticks
+
+            if offset - last_offset >= gap:
+                break
+
+        step = max(
+            (s for s in LADDER_STEPS if s <= distance / 4), default=LADDER_STEPS[0]
+        )
+        distance = -(-distance // step) * step
+        offset = offset_at(distance)
+
+        if offset is None or offset > reach or distance > LADDER_MAX_DISTANCE:
+            return ticks
 
         ticks.append((distance, offset))
-        last_offset, last_distance = offset, distance
-        distance += step
+        last_offset = offset
 
     return ticks
 

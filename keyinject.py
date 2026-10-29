@@ -44,8 +44,14 @@ _UI_DEV_CREATE = (ord("U") << 8) | 1
 _UI_DEV_DESTROY = (ord("U") << 8) | 2
 
 
+# The keys udev needs on a device (KEY_ESC .. KEY_D, the first 32 codes)
+# before it tags it as a keyboard, which the compositor and the game's
+# input stack then use; the injector still sends only its own key.
+_KEYBOARD_PROBE_KEYS = range(1, 32)
+
+
 class UinputInjector:
-    """A virtual keyboard with one key."""
+    """A virtual keyboard that sends one key."""
 
     def __init__(self, code, path="/dev/uinput"):
         self.code = code
@@ -53,7 +59,9 @@ class UinputInjector:
 
         try:
             fcntl.ioctl(self.fd, _UI_SET_EVBIT, EV_KEY)
-            fcntl.ioctl(self.fd, _UI_SET_KEYBIT, self.code)
+
+            for key in (*_KEYBOARD_PROBE_KEYS, self.code):
+                fcntl.ioctl(self.fd, _UI_SET_KEYBIT, key)
 
             # struct uinput_user_dev: name, input_id (BUS_VIRTUAL),
             # ff_effects_max, absmax/absmin/absfuzz/absflat[64].
@@ -104,6 +112,7 @@ class XTestInjector:
         xlib.XOpenDisplay.restype = ctypes.c_void_p
         xlib.XOpenDisplay.argtypes = [ctypes.c_char_p]
         xlib.XSync.argtypes = [ctypes.c_void_p, ctypes.c_int]
+        xlib.XCloseDisplay.argtypes = [ctypes.c_void_p]
         xtst.XTestFakeKeyEvent.argtypes = [
             ctypes.c_void_p, ctypes.c_uint, ctypes.c_int, ctypes.c_ulong
         ]
@@ -130,7 +139,13 @@ class XTestInjector:
         self._key(False)
 
     def close(self):
-        pass
+        """Close the connection to the X server (once; later calls do nothing)."""
+        if self.display is None:
+            return
+
+        self.xlib.XCloseDisplay(self.display)
+
+        self.display = None
 
 
 def system_key_injector(code):
