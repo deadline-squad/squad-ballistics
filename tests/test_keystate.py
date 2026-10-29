@@ -5,7 +5,6 @@ writable /dev/uinput, no Xvfb/xdotool).
 """
 
 import ctypes
-import fcntl
 import glob
 import os
 import shutil
@@ -77,6 +76,7 @@ def uinput_keyboard():
     if not os.access("/dev/uinput", os.W_OK):
         pytest.skip("/dev/uinput is not writable")
 
+    fcntl = pytest.importorskip("fcntl")
     fd = os.open("/dev/uinput", os.O_WRONLY | os.O_NONBLOCK)
 
     try:

@@ -18,10 +18,15 @@ Only plain ctypes/fcntl are used, nothing to install.
 
 import ctypes
 import ctypes.util
-import fcntl
 import glob
 import os
 import sys
+
+try:
+    import fcntl
+except ImportError:
+    # Windows: only the Linux readers and injectors (evdev, uinput) use it
+    fcntl = None
 
 # Windows virtual-key code -> Linux input event code (linux/input-event-codes.h).
 # X11 keycodes on Linux are the evdev codes + 8.

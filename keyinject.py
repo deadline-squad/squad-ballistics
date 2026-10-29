@@ -21,12 +21,17 @@ rules; the feature is off unless the user enables it.
 
 import ctypes
 import ctypes.util
-import fcntl
 import os
 import struct
 import sys
 import threading
 import time
+
+try:
+    import fcntl
+except ImportError:
+    # Windows: only the Linux readers and injectors (evdev, uinput) use it
+    fcntl = None
 
 from keystate import EV_KEY, EVDEV_CODES
 
