@@ -624,8 +624,8 @@ def test_embedded_map_bridge_feeds_the_calculator(window):
     expected = solve(window.weapons["Tank AP · M256 / Rh120"], 420, -6, "low")
     assert window.last_solution.angle == pytest.approx(expected.angle)
     # The target is put on the mark: below the centre by the angle over the
-    # line of sight, not by the (here negative) angle to the horizon, in the
-    # gunner's zoom level the view switch is on.
+    # line of sight, not by the (here negative) angle to the horizon, through
+    # the gunner's sight.
     weapon = window.weapons["Tank AP · M256 / Rh120"]
     assert expected.angle < 0 < expected.sight_angle
     assert window.overlay.offset == pytest.approx(
@@ -634,8 +634,7 @@ def test_embedded_map_bridge_feeds_the_calculator(window):
             expected.sight_angle,
             window.config["fov"],
             window.overlay.screen_width(),
-            window.config["offset_scale"] / 100,
-            window.optic_view(weapon)
+            window.config["offset_scale"] / 100
         )
     )
     # 420 m is inside this gun's 635 m zero: the mark is above the centre.
@@ -1986,17 +1985,12 @@ def test_range_ladder_follows_fov_and_toggle(window):
 
 
 def test_optic_view_moves_the_mark_and_the_ladder(window):
-    """The QLZ87 tripod: the view control shows for weapons with an optic;
-    the optic view (default) zooms ×3 and is zeroed at 100 m, the unzoomed
-    view fires 0.9 degrees under the centre."""
+    """The QLZ87 tripod has one view, the optic: it zooms x3 and is zeroed
+    at 100 m; a weapon without an optic is aimed through the plain view."""
     from ballistics import mark_offset
 
     window.overlay.setGeometry(0, 0, 1920, 1080)
-    window.select_weapon("AT-4")
-    assert window.view_control.isHidden()
-
     window.select_weapon("QLZ87")
-    assert not window.view_control.isHidden()
     window.distance_entry.setText("400")
     window.height_entry.setText("0")
     window.fov_entry.setText("90")
@@ -2004,17 +1998,17 @@ def test_optic_view_moves_the_mark_and_the_ladder(window):
     weapon = window.current_weapon()
     angle = window.last_solution.sight_angle
 
-    assert window.config["sight_view"] == "optic"
-    assert window.current_offset() == pytest.approx(mark_offset(weapon, angle, 90, 1920, zoomed=True))
-    optic_ladder = window.overlay.ladder
-
-    window.view_control.changed.emit("plain")
-    assert window.config["sight_view"] == "plain"
+    assert weapon.sight_view(90) == (30, 0.774)
     assert window.current_offset() == pytest.approx(mark_offset(weapon, angle, 90, 1920))
-    assert window.overlay.ladder != optic_ladder
+    assert window.overlay.offset == pytest.approx(mark_offset(weapon, angle, 90, 1920))
+    optic_ladder = window.overlay.ladder
+    assert optic_ladder and optic_ladder[0][0] > 100
 
     window.select_weapon("M203 / M320 / GP-25 / HK79 / SL40")
-    assert window.view_control.isHidden()
+    window.distance_entry.setText("400")
+    window.calculate()
+    assert window.overlay.ladder != optic_ladder
+    assert window.current_weapon().sight_view(90) == (90, 0.0)
 
 
 def test_fov_edit_moves_the_ladder_without_a_distance(window):
@@ -2045,9 +2039,7 @@ def test_small_fov_through_the_optic_neither_raises_nor_stops_the_app(window):
     assert window.current_offset() > 0
     window.fov_entry.setText("1")
     window.calculate()
-    window.view_control.changed.emit("plain")
-    window.select_weapon("QLZ87")
-    window.view_control.changed.emit("optic")
+    assert window.last_solution is not None
 
 
 def painted_rows(overlay, width=25):
@@ -2068,9 +2060,8 @@ def painted_rows(overlay, width=25):
     ("ZiS-3", 350),
 ])
 def test_emplaced_mark_is_drawn_where_the_view_puts_it(window, name, zero):
-    """The painted mark is `mark_offset` below the centre in each view, the
-    ladder of the sight view starts past that view's zero, and the views
-    differ by the camera tilt."""
+    """The painted mark is `mark_offset` below the centre and the ladder of
+    the weapon's sight view starts past that view's zero."""
     from ballistics import mark_offset, solve
 
     overlay = window.overlay
@@ -2082,26 +2073,16 @@ def test_emplaced_mark_is_drawn_where_the_view_puts_it(window, name, zero):
     window.height_entry.setText("0")
     window.fov_entry.setText("90")
 
-    drawn = {}
+    window.calculate()
+    angle = solve(weapon, distance, 0.0, "low").sight_angle
+    expected = mark_offset(weapon, angle, 90, 1920)
+    rows = painted_rows(overlay)
 
-    for key, zoomed in (("optic", True), ("plain", False)):
-        window.view_control.changed.emit(key)
-        window.calculate()
-        angle = solve(weapon, distance, 0.0, "low").sight_angle
-        expected = mark_offset(weapon, angle, 90, 1920, zoomed=zoomed)
-        rows = painted_rows(overlay)
-        drawn[key] = expected
-
-        assert window.current_offset() == pytest.approx(expected)
-        assert overlay.offset == pytest.approx(expected)
-        assert (min(rows) + max(rows)) / 2 == pytest.approx(overlay.center_y + expected, abs=1.5)
-
-        if zoomed:
-            assert overlay.ladder
-            assert overlay.ladder[0][0] > zero
-
-    if weapon.bore != weapon.zoom_bore:
-        assert drawn["optic"] != pytest.approx(drawn["plain"])
+    assert window.current_offset() == pytest.approx(expected)
+    assert overlay.offset == pytest.approx(expected)
+    assert (min(rows) + max(rows)) / 2 == pytest.approx(overlay.center_y + expected, abs=1.5)
+    assert overlay.ladder
+    assert overlay.ladder[0][0] > zero
 
 
 def test_range_ladder_is_drawn_left_of_the_centre(window):
@@ -2250,55 +2231,6 @@ def test_map_without_a_browser_stays_embedded_and_says_so(window, monkeypatch):
 
     window.map_page.open_in_browser()
     assert window.map_page.status.text() == tr("open_failed", target="https://calc.tk104.duckdns.org/")
-
-
-def aim_tapv(window, view, fov, distance):
-    window.overlay.setGeometry(0, 0, 1920, 1080)
-    window.select_weapon("MK19 · TAPV C16 RWS")
-    window.view_control.changed.emit(view)
-    window.distance_entry.setText(str(distance))
-    window.height_entry.setText("0")
-    window.fov_entry.setText(str(fov))
-    window.calculate()
-
-
-def test_an_off_screen_mark_names_the_view_where_it_fits(window):
-    """TAPV C16 RWS, FOV 120, 1200 m: the x12 mark is far below the screen,
-    the x5 one is 384 px below the centre."""
-    aim_tapv(window, "optic2", 120, 1200)
-
-    assert window.overlay.is_offscreen(window.overlay.offset)
-    assert window.current_offset(1) == pytest.approx(384, abs=1)
-    assert window.current_offset(2) == pytest.approx(933, abs=1)
-    assert window.current_steps[0] == tr(
-        "how_overlay_other_view", view="×12", better="×5", px="384", side=tr("below")
-    )
-    assert "×12" in window.current_steps[0] and "×5" in window.current_steps[0]
-    assert "384 px below the centre" in window.current_steps[0]
-
-
-def test_the_highest_zoom_that_fits_is_named(window):
-    aim_tapv(window, "optic2", 120, 1200)
-
-    fit_index, fit_offset = window.view_that_fits(window.current_weapon())
-    assert fit_index == 1
-    assert fit_offset == pytest.approx(384, abs=1)
-
-    # A shorter shot fits at x12 itself: nothing to switch to
-    aim_tapv(window, "optic2", 120, 400)
-
-    assert not window.overlay.is_offscreen(window.overlay.offset)
-    assert not any("off-screen" in step for step in window.current_steps)
-
-
-def test_an_off_screen_mark_keeps_the_old_text_when_no_view_fits(window):
-    aim_tapv(window, "optic2", 10, 1200)
-
-    weapon = window.current_weapon()
-    assert all(abs(window.current_offset(i)) > 0.45 * 1080 for i in range(len(weapon.sight_views)))
-    assert window.view_that_fits(weapon) is None
-    assert window.overlay.is_offscreen(window.overlay.offset)
-    assert window.current_steps[0].startswith("The mark is off-screen: raise the barrel")
 
 
 def test_a_weapon_with_one_view_keeps_the_old_off_screen_text(window):

@@ -228,9 +228,9 @@ def test_range_ladder_matches_the_mark(name):
 def test_range_ladder_is_as_dense_as_the_spacing_allows():
     """Each tick is the nearest range that clears the previous one by
     `spacing` pixels, rounded up to a round step that grows with range:
-    the optic view of the QLZ87 gets a tick every 50 m, not every 200 m."""
+    the QLZ87's optic gets a tick every 50 m, not every 200 m."""
     weapon = WEAPONS["QLZ87"]
-    ticks = range_ladder(weapon, 90, 1920, 20, 18, 520, zoomed=True)
+    ticks = range_ladder(weapon, 90, 1920, 20, 18, 520)
     distances = [d for d, _ in ticks]
 
     # The 100 m zero is on the centre; the next ranges follow every 50 m
@@ -273,19 +273,19 @@ def test_range_ladder_starts_past_the_minimum_distance():
 
 
 # The game fires along the barrel socket (Attach_Muzzle), whose tilt
-# against the camera zeroes each view at a round range (game files, build
-# 26005357): there the mark is on the screen centre.
-@pytest.mark.parametrize("name, zoomed, zero", [
-    ("QLZ87", True, 100),
-    ("QLZ87 · Lynx / CSK131", True, 110),
+# against the camera zeroes the weapon's view at a round range (game files,
+# build 26005357): there the mark is on the screen centre.
+@pytest.mark.parametrize("name, zero", [
+    ("QLZ87", 100),
+    ("QLZ87 · Lynx / CSK131", 110),
 ])
-def test_views_are_zeroed_where_the_game_puts_them(name, zoomed, zero):
+def test_views_are_zeroed_where_the_game_puts_them(name, zero):
     weapon = WEAPONS[name]
     sight_angle = solve(weapon, zero, 0.0, "low").sight_angle
-    view_fov, bore = weapon.sight_view(90, zoomed)
+    view_fov, bore = weapon.sight_view(90)
 
     assert sight_angle == pytest.approx(bore, abs=0.05)
-    assert abs(mark_offset(weapon, sight_angle, 90, 1920, zoomed=zoomed)) < screen_offset(0.05, view_fov, 1920)
+    assert abs(mark_offset(weapon, sight_angle, 90, 1920)) < screen_offset(0.05, view_fov, 1920)
 
 
 def zero_range(weapon, bore):
@@ -310,16 +310,17 @@ def zero_range(weapon, bore):
 # bone rotations), the pitch of the tripod's `AdsCamera1pPositionComponent`
 # against the gun mount (the plain camera, `FirstPersonVehicleCam`, sits at
 # 0 on the mount) and the divisor the RMB handler puts on the FOV
-# (`SetFieldOfView(UserSettings.FOV / k)`, None: it does not zoom).
+# (`SetFieldOfView(UserSettings.FOV / k)`, None: no RMB sight).
 # The shot leaves `socket` above the plain camera's centre and
-# `socket - ads_camera` above the RMB camera's.
+# `socket - ads_camera` above the RMB camera's. Each entry has one view: the
+# RMB sight's when the weapon has one, else the plain camera's.
 EMPLACED_GEOMETRY = {
     "QLZ87": (-0.9, -1.6738, 3.0),
     "MK19 · emplacement / C16 / L134A1": (0.0, -1.6738, 1.0),
     "AGS-17 · emplacement": (0.85, 0.0, 2.5),
-    "AGS-17 · iron sights emplacement": (4.5, 0.0, None),
-    "SPG-9 · HEAT": (0.13, 0.0, None),
-    "SPG-9 · FRAG": (0.13, 0.0, None),
+    "AGS-17 · iron sights emplacement": (4.5, None, None),
+    "SPG-9 · HEAT": (0.13, None, None),
+    "SPG-9 · FRAG": (0.13, None, None),
     "SPG-9 · HEAT · scope": (2.34, 0.0, 4.0),
     "SPG-9 · FRAG · scope": (2.34, 0.0, 4.0),
     "ZiS-3": (0.4, 0.0, 4.0),
@@ -331,39 +332,36 @@ def test_weapons_json_matches_the_tripod_geometry(name):
     socket, ads_camera, divisor = EMPLACED_GEOMETRY[name]
     weapon = WEAPONS[name]
 
-    assert weapon.bore == pytest.approx(socket, abs=0.01)
-
     if divisor is None:
+        assert weapon.bore == pytest.approx(socket, abs=0.01)
         assert weapon.zoom == 0
-        assert weapon.sight_view(90, True) == (90, weapon.bore)
+        assert weapon.sight_view(90) == (90, weapon.bore)
         return
 
-    assert weapon.zoom == divisor
-    assert weapon.zoom_bore == pytest.approx(socket - ads_camera, abs=0.01)
-    assert weapon.sight_view(90, True) == (90 / divisor, weapon.zoom_bore)
+    assert weapon.bore == pytest.approx(socket - ads_camera, abs=0.01)
+    assert weapon.zoom == (divisor if divisor > 1 else 0)
+    assert weapon.sight_view(90) == (90 / divisor, weapon.bore)
 
 
-# (weapon, RMB view, round zero range in m): the zero each view comes out at
+# (weapon, round zero range in m): the zero each view comes out at
 # is a round number, which is what the tilt was built for; a model that put
 # a view elsewhere would not land on one. Not here: the open-sight SPG-9
 # (0.13 degrees, zero 73 m HEAT / 38 m FRAG) and the AGS-17 optic (0.85
 # degrees, 58 m) have no round zero; the AGS-17 optic is confirmed instead
 # by the hold fit, whose top 85.87 is the mount's 85 + 0.85.
 ROUND_ZEROS = [
-    ("MK19 · emplacement / C16 / L134A1", True, 330),
-    ("AGS-17 · iron sights emplacement", False, 300),
-    ("SPG-9 · HEAT · scope", True, 1300),
-    ("SPG-9 · HEAT · scope", False, 1300),
-    ("SPG-9 · FRAG · scope", True, 700),
-    ("ZiS-3", True, 350),
-    ("ZiS-3", False, 350),
+    ("MK19 · emplacement / C16 / L134A1", 330),
+    ("AGS-17 · iron sights emplacement", 300),
+    ("SPG-9 · HEAT · scope", 1300),
+    ("SPG-9 · FRAG · scope", 700),
+    ("ZiS-3", 350),
 ]
 
 
-@pytest.mark.parametrize("name, zoomed, zero", ROUND_ZEROS)
-def test_emplaced_views_are_zeroed_at_a_round_range(name, zoomed, zero):
+@pytest.mark.parametrize("name, zero", ROUND_ZEROS)
+def test_emplaced_views_are_zeroed_at_a_round_range(name, zero):
     weapon = WEAPONS[name]
-    view_fov, bore = weapon.sight_view(90, zoomed)
+    view_fov, bore = weapon.sight_view(90)
 
     assert zero_range(weapon, bore) == pytest.approx(zero, rel=0.05)
 
@@ -371,24 +369,23 @@ def test_emplaced_views_are_zeroed_at_a_round_range(name, zoomed, zero):
     # zero on it, beyond it below (positive offsets are below)
     def offset(distance):
         sight_angle = solve(weapon, distance, 0.0, "low").sight_angle
-        return mark_offset(weapon, sight_angle, 90, 1920, zoomed=zoomed)
+        return mark_offset(weapon, sight_angle, 90, 1920)
 
     assert offset(zero_range(weapon, bore)) == pytest.approx(0, abs=0.5)
     assert offset(zero / 2) < 0
     assert offset(zero * 1.5) > 0
 
 
-def test_the_mk19_sights_do_not_zoom_but_look_below_the_barrel():
+def test_the_mk19_sight_does_not_zoom_but_looks_below_the_barrel():
     """RMB on the tripod MK19 keeps the FOV and tilts the view 1.674
-    degrees under the barrel; without RMB the barrel is on the centre."""
+    degrees under the barrel: the shot leaves that much above the centre."""
     weapon = WEAPONS["MK19 · emplacement / C16 / L134A1"]
     sight_angle = solve(weapon, 500, 0.0, "low").sight_angle
 
-    assert weapon.sight_view(90, False) == (90, 0.0)
-    assert weapon.sight_view(90, True) == (90, 1.674)
-    assert mark_offset(weapon, sight_angle, 90, 1920) - mark_offset(
-        weapon, sight_angle, 90, 1920, zoomed=True
-    ) == pytest.approx(screen_offset(sight_angle, 90, 1920) - screen_offset(sight_angle - 1.674, 90, 1920))
+    assert weapon.sight_view(90) == (90, 1.674)
+    assert mark_offset(weapon, sight_angle, 90, 1920) == pytest.approx(
+        screen_offset(sight_angle - 1.674, 90, 1920)
+    )
 
 
 def test_the_scope_spg9_has_a_deeper_view_than_the_open_sights():
@@ -396,9 +393,8 @@ def test_the_scope_spg9_has_a_deeper_view_than_the_open_sights():
     scope = WEAPONS["SPG-9 · HEAT · scope"]
 
     assert (iron.velocity, iron.g) == (scope.velocity, scope.g)
-    assert iron.sight_view(90, True) == (90, 0.13)
-    assert scope.sight_view(90, False) == (90, 2.34)
-    assert scope.sight_view(90, True) == (22.5, 2.34)
+    assert iron.sight_view(90) == (90, 0.13)
+    assert scope.sight_view(90) == (22.5, 2.34)
 
 
 def test_the_iron_sight_ags17_lobs_closer_than_the_optic_one():
@@ -415,60 +411,49 @@ def test_the_iron_sight_ags17_lobs_closer_than_the_optic_one():
     assert solve(iron, 100, 0.0, "high").reachable
 
 
-def test_the_tripod_qlz87_fires_below_the_centre_unzoomed():
-    """Without the optic the shot leaves 0.9 degrees under the centre: the
-    mark is that much lower than for a barrel on the centre."""
-    weapon = WEAPONS["QLZ87"]
-    sight_angle = solve(weapon, 300, 0.0, "low").sight_angle
-
-    assert mark_offset(weapon, sight_angle, 90, 1920) == pytest.approx(
-        screen_offset(sight_angle + 0.9, 90, 1920)
-    )
-
-
 def test_a_fov_below_the_zoom_is_held_at_one_degree():
     """A small FOV through a strong optic is a view narrower than the
     narrowest screen_offset takes: it must not raise."""
     weapon = WEAPONS["QLZ87"]
     sight_angle = solve(weapon, 300, 0.0, "low").sight_angle
 
-    assert mark_offset(weapon, sight_angle, 2, 1920, zoomed=True) == pytest.approx(
+    assert mark_offset(weapon, sight_angle, 2, 1920) == pytest.approx(
         screen_offset(sight_angle - 0.774, 1, 1920)
     )
 
     with pytest.raises(ValueError):
-        mark_offset(weapon, sight_angle, 0.5, 1920, zoomed=True)
+        mark_offset(weapon, sight_angle, 0.5, 1920)
 
 
 def test_the_optic_view_narrows_the_fov_by_its_zoom():
     weapon = WEAPONS["QLZ87"]
     sight_angle = solve(weapon, 400, 0.0, "low").sight_angle
 
-    assert weapon.sight_view(90, True) == (30, 0.774)
-    assert mark_offset(weapon, sight_angle, 90, 1920, zoomed=True) == pytest.approx(
+    assert weapon.sight_view(90) == (30, 0.774)
+    assert mark_offset(weapon, sight_angle, 90, 1920) == pytest.approx(
         screen_offset(sight_angle - 0.774, 30, 1920)
     )
 
 
-def test_a_weapon_without_an_optic_ignores_the_zoomed_view():
+def test_a_weapon_without_an_optic_is_aimed_through_the_plain_view():
     weapon = WEAPONS["AT-4"]
     sight_angle = solve(weapon, 200, 0.0, "low").sight_angle
 
-    assert weapon.sight_view(90, True) == (90, 0.0)
-    assert mark_offset(weapon, sight_angle, 90, 1920, zoomed=True) == pytest.approx(
+    assert weapon.sight_view(90) == (90, 0.0)
+    assert mark_offset(weapon, sight_angle, 90, 1920) == pytest.approx(
         screen_offset(sight_angle, 90, 1920)
     )
 
 
 def test_the_optic_ladder_starts_past_the_zero_and_matches_the_mark():
     weapon = WEAPONS["QLZ87"]
-    ticks = range_ladder(weapon, 90, 1920, 20, 18, 520, zoomed=True)
+    ticks = range_ladder(weapon, 90, 1920, 20, 18, 520)
 
     assert ticks and ticks[0][0] > 100
 
     for distance, offset in ticks:
         sight_angle = solve(weapon, distance, 0.0, "low").sight_angle
-        assert offset == pytest.approx(mark_offset(weapon, sight_angle, 90, 1920, zoomed=True))
+        assert offset == pytest.approx(mark_offset(weapon, sight_angle, 90, 1920))
 
 
 @pytest.mark.parametrize("data", [
@@ -488,6 +473,29 @@ def test_the_optic_ladder_starts_past_the_zero_and_matches_the_mark():
 def test_invalid_weapon_data(data):
     with pytest.raises(WeaponDataError):
         parse_weapons(data)
+
+
+@pytest.mark.parametrize("key, value", [
+    ("views", [{"zoom": 1, "bore": 0.5}]),
+    ("zoom_bore", 1.2),
+    ("scope_zoom", 4),
+])
+def test_removed_and_unknown_weapon_keys_are_rejected(key, value):
+    with pytest.raises(WeaponDataError, match=key):
+        Weapon.from_dict("x", {"velocity": 100, key: value})
+
+
+@pytest.mark.parametrize("zoom", [0.5, 0.99, -2])
+def test_a_zoom_below_one_is_rejected(zoom):
+    with pytest.raises(WeaponDataError, match="zoom"):
+        Weapon.from_dict("x", {"velocity": 100, "zoom": zoom})
+
+
+def test_a_weapon_has_one_view_with_its_zoom_and_bore():
+    weapon = Weapon.from_dict("x", {"velocity": 100, "zoom": 2.5, "bore": 0.85})
+
+    assert weapon.sight_view(90) == (36, 0.85)
+    assert Weapon.from_dict("y", {"velocity": 100}).sight_view(90) == (90, 0.0)
 
 
 def test_legacy_format_still_works():
