@@ -27,6 +27,28 @@ UNITS = ("deg", "mil")
 AIMS = ("overlay", "elevation")
 
 
+# Weapons renamed when their data was checked against the game files (Squad build
+# 26005357): old weapons.json name -> current name. Settings saved by older
+# versions and older SquadCalc pages still send the old names.
+RENAMED_WEAPONS = {
+    "M203 / M320 / GP-25 / HK79 / MKE MGL": "M203 / M320 / GP-25 / HK79 / SL40",
+    "MK19 / AGS-17 / AGS-30": "MK19",
+    "BTR-4 AGS": "AGS-30 / BTR-4 AGS",
+    "Carl Gustav / M3 MAAWS · HEAT": "M3 MAAWS · HEAT / Smoke",
+    "Carl Gustav / M3 MAAWS · Tandem": "M3 MAAWS · Tandem",
+    "Tank AP · 2A46 / ZPT98 / 2A20 / M68A2": "Tank AP · 2A46 / ZPT98 / 2A20 / 2A45 / KBA3",
+    "Tank AP · L30A1 (Challenger 2)": "Tank AP · L30A1 (Challenger 2) / M68A2",
+    "2A42 / 2A72 30mm · HE": "2A42 30mm (BMP-2) · HE",
+    "ZPT99 30mm · AP": "ZPT99 30mm (ZBL-08) · APFSDS",
+    "ZPT99 30mm · HE": "ZPT99 30mm (ZBD-04A) · AP / HE",
+}
+
+
+def current_weapon_name(name):
+    """The current weapons.json name of `name`, which may be a pre-rename one."""
+    return RENAMED_WEAPONS.get(name, name)
+
+
 class WeaponDataError(ValueError):
     """Raised when weapons.json contains invalid data."""
 
