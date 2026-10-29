@@ -527,6 +527,15 @@ def test_first_obstacle_finds_the_wall():
     assert first_obstacle(TANK, shot, wall(300, 150, below), 1) is None
 
 
+def test_first_obstacle_starts_at_the_shoulder_without_launch_height():
+    # The tank's launch_height is 0: a path from the ground would graze a
+    # 0.3 m hump in front of the weapon; from the shoulder it clears it.
+    assert TANK.launch_height == 0
+    hump = [0.0] * 301
+    hump[3:6] = [0.3, 0.3, 0.3]
+    assert first_obstacle(TANK, solve(TANK, 300, 0, "low"), hump, 1) is None
+
+
 def test_first_obstacle_ignores_the_weapon_and_target_spots():
     shot = solve(TANK, 300, 0, "low")
     assert first_obstacle(TANK, shot, wall(300, 1, 50), 1) is None

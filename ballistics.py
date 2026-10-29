@@ -492,6 +492,10 @@ def trajectory(weapon, solution, points=64):
 MUZZLE_CLEARANCE = 3.0
 TARGET_CLEARANCE = 3.0
 
+# Muzzle height used to check obstacles for weapons whose launch_height is 0
+# (handheld and vehicle direct fire): the shoulder, like SquadCalc's coverage.
+SHOULDER_HEIGHT = 1.5
+
 
 def first_obstacle(weapon, solution, profile, step):
     """First point where a solved shot passes under the terrain profile.
@@ -499,14 +503,31 @@ def first_obstacle(weapon, solution, profile, step):
     `profile` holds the heights of the terrain and the buildings every `step`
     metres from the weapon (index 0) towards the target, relative to the
     weapon's ground like `solution.height_diff` (SquadCalc's map, see
-    maplink.MapTarget.profile). Returns (distance, height) of the obstacle
-    in metres, or None when the path clears it or the shot is unsolved.
+    maplink.MapTarget.profile). The path starts at the real muzzle,
+    `launch_height` above the ground or SHOULDER_HEIGHT when that is 0, and is
+    aimed from there at the target on the same arc. Returns (distance,
+    height) of the obstacle in metres, or None when the path clears it, the
+    shot is unsolved, or the target cannot be reached from that muzzle.
     """
     if not solution.reachable or not profile or not step:
         return None
 
-    rad = math.radians(solution.raw_angle)
-    v = solution.velocity
+    muzzle = weapon.launch_height if weapon.launch_height > 0 else SHOULDER_HEIGHT
+    shot = solution
+
+    if muzzle != weapon.launch_height:
+        shot = solve(
+            weapon,
+            solution.distance,
+            solution.height_diff - (muzzle - weapon.launch_height),
+            solution.arc
+        )
+
+        if not shot.reachable:
+            return None
+
+    rad = math.radians(shot.raw_angle)
+    v = shot.velocity
     g = weapon.g
     last = solution.distance - TARGET_CLEARANCE
 
@@ -516,7 +537,7 @@ def first_obstacle(weapon, solution, profile, step):
         if x > last:
             break
 
-        if _path(v, g, rad, x) + weapon.launch_height < profile[i]:
+        if _path(v, g, rad, x) + muzzle < profile[i]:
             return x, profile[i]
 
     return None
