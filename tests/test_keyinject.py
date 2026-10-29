@@ -213,3 +213,17 @@ def test_uinput_injector_is_a_real_keyboard():
         injector.close()
 
     injector.close()  # idempotent
+
+
+def test_imports_without_fcntl(monkeypatch):
+    """Windows has no fcntl: the key modules still import (the exe used to
+    stop with ModuleNotFoundError before showing a window)."""
+    import importlib
+    import sys
+
+    monkeypatch.setitem(sys.modules, "fcntl", None)
+    monkeypatch.delitem(sys.modules, "keystate")
+    monkeypatch.delitem(sys.modules, "keyinject")
+
+    assert importlib.import_module("keystate").fcntl is None
+    assert importlib.import_module("keyinject").fcntl is None
