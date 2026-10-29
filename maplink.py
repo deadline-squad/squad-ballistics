@@ -19,6 +19,12 @@ then switches to it. Two channels deliver the targets:
   "Link the overlay" enabled sends its targets to the relay of that build
   (`ags17_relay.py` on the SquadCalc host) under a session code. `RelayLink`
   joins the session as an overlay; `parse_relay_text` reads the text.
+  The app keeps one session code for good (`new_session_code`) and pairs a
+  device without typing: `device_link` is the Deadline SquadCalc address
+  with the code in its fragment (`#link=<code>`, also shown as a QR code),
+  and the page opened with it adopts the code, turns its link on and
+  remembers both. A fragment is never sent to the server, so the code does
+  not end up in its access logs.
 
 Relay text, one line per target (the SquadMortarOverlay format plus the
 height; older pages omit it), then the selected weapon when it has a name
@@ -32,6 +38,7 @@ import json
 import math
 import random
 import re
+import secrets
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
@@ -45,7 +52,18 @@ from PyQt6.QtCore import (
 # Relay of the Deadline SquadCalc build (same host as webmap's map).
 DEFAULT_RELAY = "wss://calc.tk104.duckdns.org"
 
+# Page a device opens to pair with the app (webmap.DEADLINE_SQUADCALC_URL,
+# served next to DEFAULT_RELAY).
+DEVICE_LINK_PAGE = "https://calc.tk104.duckdns.org/"
+
+# Codes the relay accepts.
 CODE_PATTERN = re.compile(r"[A-Z0-9]{6,16}")
+
+# Codes made here: SquadCalc's alphabet (no 0/O/1/I, the code may still be
+# read off the screen), 12 characters = 60 bits. The code is the only secret
+# of the session and now stays for good, hence longer than the page's 8.
+CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+NEW_CODE_LENGTH = 12
 
 # Reconnect after the first failure, doubling up to the maximum (±20 %).
 RECONNECT_DELAY_MS = 5000
@@ -273,6 +291,29 @@ def normalize_code(text):
     code = re.sub(r"[\s-]", "", str(text)).upper()
 
     return code if CODE_PATTERN.fullmatch(code) else None
+
+
+def new_session_code():
+    """A new random session code (`NEW_CODE_LENGTH` of `CODE_ALPHABET`).
+
+    Drawn with `secrets`: whoever guesses the code reads and replaces the
+    targets of the session.
+    """
+    return "".join(secrets.choice(CODE_ALPHABET) for _ in range(NEW_CODE_LENGTH))
+
+
+def format_code(code):
+    """Session code in groups of four for reading ("ABCDEFGH" -> "ABCD-EFGH")."""
+    return "-".join(code[i:i + 4] for i in range(0, len(code), 4))
+
+
+def device_link(code, page=DEVICE_LINK_PAGE):
+    """Address that pairs a SquadCalc page on another device with session `code`.
+
+    The code goes in the fragment (`#link=`), which browsers never send to
+    the server; SquadCalc's `overlayLink.js` reads and then removes it.
+    """
+    return f"{page}#link={code}"
 
 
 def relay_url(base, code):

@@ -412,3 +412,34 @@ def test_unusable_profiles_are_dropped(profile):
     assert parse_profile(profile, 4.2) == (None, None)
     [target] = parse_bridge_targets([{"distance": 4.2, "heightDiff": 0, "profile": profile}])
     assert target.distance == 4.2 and target.profile is None
+
+
+def test_new_session_codes():
+    from maplink import CODE_ALPHABET, NEW_CODE_LENGTH, new_session_code
+
+    codes = {new_session_code() for _ in range(200)}
+
+    # 60 bits each: 200 draws never repeat in practice.
+    assert len(codes) == 200
+
+    for code in codes:
+        assert len(code) == NEW_CODE_LENGTH
+        assert set(code) <= set(CODE_ALPHABET)
+        # Accepted by the relay as it is.
+        assert normalize_code(code) == code
+
+
+def test_code_format_and_device_link():
+    from maplink import DEVICE_LINK_PAGE, device_link, format_code
+
+    assert format_code("ABCDEFGHJKLM") == "ABCD-EFGH-JKLM"
+    assert format_code("ABCD2345") == "ABCD-2345"
+    assert normalize_code(format_code("ABCDEFGHJKLM")) == "ABCDEFGHJKLM"
+
+    # In the fragment: never sent to the server, so never in its logs.
+    assert device_link("ABCDEFGHJKLM") == "https://calc.tk104.duckdns.org/#link=ABCDEFGHJKLM"
+    assert device_link("ABCD2345", "http://localhost:3000/") == "http://localhost:3000/#link=ABCD2345"
+
+    from webmap import DEADLINE_SQUADCALC_URL
+
+    assert DEVICE_LINK_PAGE == DEADLINE_SQUADCALC_URL

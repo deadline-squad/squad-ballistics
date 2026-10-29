@@ -1,7 +1,13 @@
 ## Squad Ballistics 1.6.0
 
+### Что нового
+- **Подключение устройства без кода:** Настройки → «Подключить устройство» показывают ссылку и QR-код. Отсканируйте его телефоном или откройте ссылку на втором мониторе — SquadCalc Deadline там свяжется с программой сам, и цели с его карты придут сюда. Вводить код больше не нужно, а связь переживает перезапуск программы и браузера: у программы теперь постоянный код сессии (12 символов), «Новый код» отвязывает все устройства, переключатель «Связь с устройствами» выключает связь. Код передаётся во фрагменте ссылки (`#link=`), который не уходит на сервер.
+
 ### Изменено
 - **Только Linux:** поддержка Windows убрана целиком — нет больше exe, автообновления, сборки PyInstaller и Windows-клавиш. Программа запускается из исходников (`python app.py`), обновление — `git pull`. Клавиши читаются через evdev или X11, нажимаются через uinput или XTest; настройки лежат в `~/.config/SquadBallistics`, кэш карты — в `~/.cache/SquadBallistics`.
+
+### What's new
+- **Connect a device without typing a code:** Settings → *Connect a device* shows a link and a QR code. Scan it with the phone or open the link on the second monitor: the Deadline SquadCalc there links up with the app by itself and its map targets come here. No code to type any more, and the link survives restarts of the app and the browser: the app now keeps one session code (12 characters), *New code* unlinks every device, the *Link with devices* toggle turns the link off. The code travels in the link's fragment (`#link=`), which never reaches the server.
 
 ### Changed
 - **Linux only:** Windows support is gone entirely — no exe, auto-update, PyInstaller build or Windows key handling. The app runs from source (`python app.py`) and updates with `git pull`. Keys are read through evdev or X11 and sent through uinput or XTest; settings live in `~/.config/SquadBallistics`, the map cache in `~/.cache/SquadBallistics`.
