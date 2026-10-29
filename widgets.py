@@ -33,6 +33,7 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QPushButton,
+    QSizePolicy,
     QSlider,
     QVBoxLayout,
     QWidget
@@ -624,6 +625,61 @@ class SliderRow(QWidget):
     def on_change(self, value):
         self.update_label(value)
         self.changed.emit(value)
+
+
+class LiveLabel(QLabel):
+    """One line of text that changes many times a second (the hold timer).
+
+    QLabel's own setText re-lays out the whole window on every change,
+    2-3 ms with the calculator page, at every 10 ms poll of the hold timer.
+    Here `setText` only repaints the label: its size is one line of its
+    font, as wide as the layout makes it; longer text is cut.
+    """
+
+    def __init__(self, role=None):
+        super().__init__()
+
+        self._text = ""
+
+        if role:
+            self.setProperty("role", role)
+
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
+
+    def setText(self, text):
+        if text == self._text:
+            return
+
+        self._text = text
+
+        self.update()
+
+    def text(self):
+        return self._text
+
+    def sizeHint(self):
+        # The stylesheet font (role) is known once polished.
+        self.ensurePolished()
+
+        margins = self.contentsMargins()
+
+        return QSize(0, self.fontMetrics().height() + margins.top() + margins.bottom())
+
+    def minimumSizeHint(self):
+        return self.sizeHint()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+
+        self.style().drawItemText(
+            painter,
+            self.contentsRect(),
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+            self.palette(),
+            self.isEnabled(),
+            self._text,
+            self.foregroundRole()
+        )
 
 
 class StatTile(QFrame):

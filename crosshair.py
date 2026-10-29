@@ -102,6 +102,7 @@ from webmap import MapPage, map_url, open_external
 
 from widgets import (
     CrosshairPreview,
+    LiveLabel,
     NumberEdit,
     Segmented,
     SliderRow,
@@ -668,8 +669,9 @@ class MainWindow(QMainWindow):
 
         self.sub_label.setWordWrap(True)
 
-        # Live hold progress of hold weapons (AGS-17 high arc).
-        self.hold_label = label("", "sub")
+        # Live hold progress of hold weapons (AGS-17 high arc), redrawn at
+        # every poll of the hold timer.
+        self.hold_label = LiveLabel("sub")
 
         self.hold_label.hide()
 
