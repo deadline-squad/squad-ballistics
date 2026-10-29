@@ -72,7 +72,6 @@ DEFAULT_CONFIG = {
     # Calculator
     "unit_mode": "auto",
     "auto_calc": True,
-    "show_mods": False,
     "distance_step": 25,
 
     # Map page: "software" rendering fixes a black map on some GPUs/drivers;

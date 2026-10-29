@@ -168,14 +168,39 @@ def test_unit_mode_and_arc(window):
     assert not window.last_solution.reachable
 
 
-def test_mods_hidden_by_default(window):
-    mods = [n for n, w in window.weapons.items() if w.mod]
-    assert mods
+REMOVED_WEAPONS = ("M109", "NSV", "M2A1 .50", "2A42 / 2A72 30mm · HE")
 
-    assert not any(n in window.visible_weapons() for n in mods)
 
-    window.config["show_mods"] = True
-    assert all(n in window.visible_weapons() for n in mods)
+def test_removed_weapons_are_gone_and_a_saved_one_falls_back(app, tmp_path, monkeypatch):
+    """Mods, machine guns and autocannons are no longer in the database; a
+    settings file naming one starts the app on the first weapon."""
+    import json
+
+    from crosshair import MainWindow
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(config, "CONFIG_PATH", str(tmp_path / "config.json"))
+
+    weapons = load_weapons(os.path.join(ROOT, "weapons.json"))
+
+    assert not any(name in weapons for name in REMOVED_WEAPONS)
+    assert {weapon.category for weapon in weapons.values()} == {
+        "grenade_launchers", "agl", "launchers", "guns", "tanks", "indirect"
+    }
+
+    for removed in REMOVED_WEAPONS:
+        (tmp_path / "config.json").write_text(json.dumps({
+            "last_weapon": removed,
+            "recent_weapons": [removed, "RPG-29"],
+            "show_mods": True
+        }))
+
+        win = MainWindow(weapons)
+        try:
+            assert win.picker.current == next(iter(weapons)), removed
+            assert win.recent_weapons() == ["RPG-29"]
+        finally:
+            win.close()
 
 
 def test_recent_weapons(window):
@@ -609,13 +634,13 @@ def test_embedded_map_bridge_feeds_the_calculator(window):
     # The weapon selected in SquadCalc is selected here and solved.
     page.on_bridge_result({
         "targets": [{"distance": 420, "heightDiff": -6, "bearing": 90}],
-        "weapon": "M2A1 .50"
+        "weapon": "Tank AP · M256 / Rh120"
     })
-    assert window.picker.current == "M2A1 .50"
-    assert window.config["last_weapon"] == "M2A1 .50"
+    assert window.picker.current == "Tank AP · M256 / Rh120"
+    assert window.config["last_weapon"] == "Tank AP · M256 / Rh120"
     assert window.distance_entry.text() == "420"
     assert window.last_solution.distance == 420
-    expected = solve(window.weapons["M2A1 .50"], 420, -6, "low")
+    expected = solve(window.weapons["Tank AP · M256 / Rh120"], 420, -6, "low")
     assert window.last_solution.angle == pytest.approx(expected.angle)
     # The target is put on the mark: below the centre by the angle over the
     # line of sight, not by the (here negative) angle to the horizon.
@@ -634,7 +659,7 @@ def test_embedded_map_bridge_feeds_the_calculator(window):
     window.select_weapon("AT-4")
     page.on_bridge_result({
         "targets": [{"distance": 420, "heightDiff": -6, "bearing": 90}],
-        "weapon": "M2A1 .50"
+        "weapon": "Tank AP · M256 / Rh120"
     })
     assert window.picker.current == "AT-4"
 
@@ -643,7 +668,7 @@ def test_embedded_map_bridge_feeds_the_calculator(window):
 
     # A late answer after the map was shut down is ignored.
     page.shutdown()
-    page.on_bridge_result({"targets": [{"distance": 300}], "weapon": "NSV"})
+    page.on_bridge_result({"targets": [{"distance": 300}], "weapon": "RPG-29"})
     assert page.bridge_found is None
     assert window.distance_entry.text() == "420"
     assert window.picker.current == "AT-4"
@@ -656,24 +681,22 @@ def test_map_weapon_is_followed_only_when_known_and_enabled(window):
     assert window.picker.current == "AT-4"
 
     window.config["map_follow"] = False
-    window.on_map_weapon("NSV")
+    window.on_map_weapon("RPG-29")
     assert window.picker.current == "AT-4"
 
     window.config["map_follow"] = True
-    window.on_map_weapon("NSV")
-    assert window.picker.current == "NSV"
+    window.on_map_weapon("RPG-29")
+    assert window.picker.current == "RPG-29"
 
     # A SquadCalc page from before a rename sends the old name.
     window.on_map_weapon("BTR-4 AGS")
     assert window.picker.current == "AGS-30 / BTR-4 AGS"
-    window.on_map_weapon("NSV")
+    window.on_map_weapon("RPG-29")
 
-    # Mod weapons hidden by the filter are not selected behind the user's back.
-    mod_weapon = next(n for n, w in window.weapons.items() if w.mod)
-    window.config["show_mods"] = False
-    window.refresh_weapon_list()
-    window.on_map_weapon(mod_weapon)
-    assert window.picker.current == "NSV"
+    # SquadCalc keeps weapons removed here (mods, machine guns): ignored.
+    for removed in REMOVED_WEAPONS:
+        window.on_map_weapon(removed)
+        assert window.picker.current == "RPG-29"
 
 
 def test_switching_map_source_reloads(window):
@@ -883,13 +906,13 @@ def test_weapon_picked_here_is_selected_on_the_embedded_map(window, monkeypatch)
 
     # A weapon the page does not have: the page keeps its own and does not
     # switch the app back (no ping-pong).
-    window.select_weapon("NSV")
-    assert wait_for(lambda: "NSV" in page_value("calls.join(',')"))
+    window.select_weapon("RPG-29")
+    assert wait_for(lambda: "RPG-29" in page_value("calls.join(',')"))
     for _ in range(20):
         QCoreApplication.processEvents()
     page.poll_targets()
     assert wait_for(lambda: page_value("current") == "QLZ87")
-    assert window.picker.current == "NSV"
+    assert window.picker.current == "RPG-29"
 
 
 def test_embedded_bridge_reads_a_page_without_the_weapon(window, monkeypatch):
@@ -1753,7 +1776,7 @@ def test_small_fov_through_the_optic_neither_raises_nor_stops_the_app(window):
     window.fov_entry.setText("1")
     window.calculate()
     window.view_control.changed.emit("plain")
-    window.select_weapon("Kord · SPP emplacement")
+    window.select_weapon("QLZ87")
     window.view_control.changed.emit("optic")
 
 

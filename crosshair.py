@@ -461,32 +461,18 @@ class MainWindow(QMainWindow):
     # CALCULATOR PAGE
     # =========================
 
-    def visible_weapons(self):
-        show_mods = self.config["show_mods"]
-
-        visible = {
-            name: weapon
-            for name, weapon in self.weapons.items()
-            if show_mods or not weapon.mod
-        }
-
-        # A database with only mod weapons still has to show something.
-        return visible or dict(self.weapons)
-
     def weapon_groups(self):
         groups = {}
 
-        for name, weapon in self.visible_weapons().items():
+        for name, weapon in self.weapons.items():
             groups.setdefault(weapon.category, []).append(name)
 
         return list(groups.items())
 
     def recent_weapons(self):
-        visible = self.visible_weapons()
-
         return [
             name for name in self.config["recent_weapons"]
-            if name in visible
+            if name in self.weapons
         ]
 
     def build_calc_page(self):
@@ -516,12 +502,11 @@ class MainWindow(QMainWindow):
 
         self.picker.set_data(self.weapon_groups(), self.recent_weapons())
 
-        visible = self.visible_weapons()
-
+        # A saved weapon that weapons.json no longer has falls back to the first.
         current = self.config["last_weapon"]
 
-        if current not in visible:
-            current = next(iter(visible))
+        if current not in self.weapons:
+            current = next(iter(self.weapons))
 
         self.picker.set_current(current, emit=False)
 
@@ -789,9 +774,6 @@ class MainWindow(QMainWindow):
         if weapon.min_distance:
             parts.append(tr("chip_min", m=f"{weapon.min_distance:g}"))
 
-        if weapon.mod:
-            parts.append(tr("chip_mod", mod=weapon.mod))
-
         self.weapon_info.setText("  ·  ".join(parts))
 
     def on_view_changed(self, key):
@@ -860,7 +842,7 @@ class MainWindow(QMainWindow):
 
         `name` is a weapons.json name sent by the Deadline SquadCalc build
         when its weapon changes; a weapon picked here afterwards stays until
-        the next change there. Names hidden by the mod filter are ignored;
+        the next change there. Names this app does not have are ignored;
         names from before a rename (an older SquadCalc page) are mapped to
         the current ones.
         """
@@ -869,7 +851,7 @@ class MainWindow(QMainWindow):
         if not self.config["map_follow"] or name == self.picker.current:
             return
 
-        if name not in self.visible_weapons():
+        if name not in self.weapons:
             return
 
         self.select_weapon(name)
@@ -2311,13 +2293,6 @@ class MainWindow(QMainWindow):
 
         self.add_toggle(
             layout,
-            tr("s_mods"),
-            "show_mods",
-            lambda _checked: self.refresh_weapon_list()
-        )
-
-        self.add_toggle(
-            layout,
             tr(
                 "s_auto_hold",
                 key=self.config["hotkeys"].get("auto_hold") or tr("hk_none")
@@ -2515,14 +2490,6 @@ class MainWindow(QMainWindow):
         self.schedule_save()
 
         self.rebuild()
-
-    def refresh_weapon_list(self):
-        visible = self.visible_weapons()
-
-        self.picker.set_data(self.weapon_groups(), self.recent_weapons())
-
-        if self.picker.current not in visible:
-            self.picker.set_current(next(iter(visible)))
 
     def reset_settings(self):
         answer = QMessageBox.question(

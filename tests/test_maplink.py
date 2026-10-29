@@ -34,10 +34,10 @@ def test_bridge_targets():
 def test_bridge_with_weapon():
     value = {
         "targets": [{"distance": 420, "heightDiff": -6, "bearing": 90}],
-        "weapon": "M2A1 .50",
+        "weapon": "RPG-29",
     }
 
-    assert parse_bridge(value) == ([MapTarget(420.0, -6.0, 90.0)], "M2A1 .50")
+    assert parse_bridge(value) == ([MapTarget(420.0, -6.0, 90.0)], "RPG-29")
 
     # No bridge on the page, a page before the weapon export, no targets.
     assert parse_bridge(None) is None
@@ -50,12 +50,12 @@ def test_bridge_with_weapon():
 
 @pytest.mark.parametrize("value, name", [
     ("RPG-7 · PG-7VR Tandem", "RPG-7 · PG-7VR Tandem"),
-    ("  NSV ", "NSV"),
+    ("  RPG-29 ", "RPG-29"),
     ("", None),
     ("   ", None),
     (None, None),
     (42, None),
-    (["NSV"], None),
+    (["RPG-29"], None),
     ("x" * 201, None),
 ])
 def test_weapon_names(value, name):

@@ -132,7 +132,6 @@ STRINGS = {
     "chip_range_inf": "no drop",
     "chip_boost": "boost {a:+g} m/s² · {t:g} s",
     "chip_min": "from {m} m",
-    "chip_mod": "mod: {mod}",
 
     # Categories
     "cat_grenade_launchers": "Grenade launchers",
@@ -140,10 +139,7 @@ STRINGS = {
     "cat_launchers": "Anti-tank launchers",
     "cat_guns": "Recoilless & field guns",
     "cat_tanks": "Tank guns",
-    "cat_autocannons": "Autocannons",
-    "cat_hmg": "Heavy machine guns",
     "cat_indirect": "Indirect fire",
-    "cat_mods": "Mods",
     "cat_other": "Other",
 
     # Splash
@@ -192,7 +188,6 @@ STRINGS = {
     "s_units_deg": "Degrees",
     "s_units_mil": "Mils",
     "s_auto_calc": "Calculate while typing",
-    "s_mods": "Show mod weapons",
     "s_step": "Distance step (wheel & keys)",
     "s_overlay": "Overlay",
     "s_monitor": "Monitor",

@@ -38,9 +38,6 @@ RENAMED_WEAPONS = {
     "Carl Gustav / M3 MAAWS · Tandem": "M3 MAAWS · Tandem",
     "Tank AP · 2A46 / ZPT98 / 2A20 / M68A2": "Tank AP · 2A46 / ZPT98 / 2A20 / 2A45 / KBA3",
     "Tank AP · L30A1 (Challenger 2)": "Tank AP · L30A1 (Challenger 2) / M68A2",
-    "2A42 / 2A72 30mm · HE": "2A42 30mm (BMP-2) · HE",
-    "ZPT99 30mm · AP": "ZPT99 30mm (ZBL-08) · APFSDS",
-    "ZPT99 30mm · HE": "ZPT99 30mm (ZBD-04A) · AP / HE",
 }
 
 
@@ -74,7 +71,6 @@ class Weapon:
     hold_elevation: tuple = ()
     category: str = "other"
     note: str = ""
-    mod: str = ""
 
     @classmethod
     def from_dict(cls, name, data):
@@ -184,7 +180,6 @@ class Weapon:
             hold_elevation=hold_elevation,
             category=str(data.get("category", "other")),
             note=str(data.get("note", "")),
-            mod=str(data.get("mod", "")),
         )
 
     @property
