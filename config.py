@@ -101,6 +101,10 @@ DEFAULT_CONFIG = {
     "hold_panel_corner": "top_right",
     "auto_hold": False,
 
+    # Mortars: read the elevation off the sight on the screen (shown on the
+    # overlay; the auto-lay then lays on it, see sightlay).
+    "sight_reader": True,
+
     # Mortar auto-lay: hold rate (degrees per second) per weapon, fitted on
     # the mils the sight showed after a lay; replaces weapons.json's.
     "lay_rates": {},

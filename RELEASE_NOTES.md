@@ -1,3 +1,15 @@
+## Squad Ballistics 1.5.0
+
+### Что нового
+- **Чтение прицела миномёта с экрана:** пока выбран миномёт, программа читает милы со шкалы его прицела и пишет их на оверлее рядом с нужными, например «прицел 1041.5 мил (+4.6)». Точность около 0,1 мил, любое разрешение и соотношение сторон. Игра должна быть в оконном режиме или «без рамки».
+- **Автонаводка по прицелу:** F7 в прицеле миномёта теперь держит W или S, пока прицел не покажет решение с точностью до 0,5 мил: не нужно поднимать ствол до упора, и скорость ствола не важна. Если прицел не читается, работает прежняя наводка по времени.
+- **«Уточнить» без ввода:** с пустым полем милы берутся с прицела на экране.
+
+### What's new
+- **Mortar sight read off the screen:** while a mortar is selected the app reads the mils off its sight's scale and shows them on the overlay next to the target ones, e.g. "sight 1041.5 mil (+4.6)". About 0.1 mil, any resolution and aspect ratio. The game must run windowed or borderless.
+- **Auto-lay on the sight:** F7 in the mortar sight now holds W or S until the sight shows the solution within 0.5 mil — no trip to the top, and the barrel rate does not matter. If the sight cannot be read, the timed lay works as before.
+- **Calibrate without typing:** with the field empty the mils are read off the sight on the screen.
+
 ## Squad Ballistics 1.4.1
 
 ### Что нового
