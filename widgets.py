@@ -1,5 +1,6 @@
 """Reusable widgets for the main window."""
 
+import math
 import re
 
 from PyQt6.QtCore import (
@@ -615,8 +616,32 @@ class StatTile(QFrame):
         self.value.setText(text)
 
 
+# Most terrain points drawn by TrajectoryView; a longer profile is reduced to
+# the highest point of each bucket so thin walls stay visible.
+MAX_TERRAIN_POINTS = 400
+
+
+def reduce_profile(terrain, limit=MAX_TERRAIN_POINTS):
+    """`terrain` (x, height) samples cut to at most about `limit` points.
+
+    Each bucket of consecutive samples keeps its highest one: an obstacle
+    one sample wide must not vanish from the drawing.
+    """
+    if len(terrain) <= limit:
+        return list(terrain)
+
+    size = math.ceil(len(terrain) / limit)
+
+    return [
+        max(terrain[i:i + size], key=lambda p: p[1])
+        for i in range(0, len(terrain), size)
+    ]
+
+
 class TrajectoryView(QWidget):
-    """Side view of the shot: weapon, target and both possible arcs."""
+    """Side view of the shot: weapon, target, both possible arcs, and the
+    terrain and buildings in between when the map gives them, with the
+    point where the shown arc hits them first."""
 
     def __init__(self, accent):
         super().__init__()
@@ -626,13 +651,19 @@ class TrajectoryView(QWidget):
         self.main = []
         self.alt = []
         self.target = None
+        self.terrain = []
+        self.obstacle = None
 
         self.setMinimumHeight(170)
 
-    def set_data(self, main, alt, target):
+    def set_data(self, main, alt, target, terrain=None, obstacle=None):
+        """Show a shot. `terrain` is a list of (x, height) relative to the
+        weapon's ground, `obstacle` the (x, height) where `main` hits it."""
         self.main = main
         self.alt = alt
         self.target = target
+        self.terrain = reduce_profile(terrain or [])
+        self.obstacle = obstacle
         self.update()
 
     def clear(self):
@@ -660,7 +691,7 @@ class TrajectoryView(QWidget):
             )
             return
 
-        points = self.main + self.alt + [(0.0, 0.0), self.target]
+        points = self.main + self.alt + self.terrain + [(0.0, 0.0), self.target]
 
         max_x = max(p[0] for p in points) or 1.0
         min_y = min(p[1] for p in points)
@@ -686,6 +717,23 @@ class TrajectoryView(QWidget):
         painter.setPen(QPen(QColor(theme.BORDER), 1, Qt.PenStyle.DashLine))
 
         painter.drawLine(QPointF(rect.left(), zero), QPointF(rect.right(), zero))
+
+        # Terrain and buildings, filled down to the bottom of the view
+        if len(self.terrain) > 1:
+            ground = QPainterPath(QPointF(map_point(self.terrain[0]).x(), rect.bottom()))
+
+            for sample in self.terrain:
+                ground.lineTo(map_point(sample))
+
+            ground.lineTo(QPointF(map_point(self.terrain[-1]).x(), rect.bottom()))
+            ground.closeSubpath()
+
+            fill = QColor(theme.MUTED)
+            fill.setAlpha(70)
+
+            painter.setPen(QPen(QColor(theme.MUTED), 1))
+            painter.setBrush(fill)
+            painter.drawPath(ground)
 
         def draw_path(samples, pen):
             path = QPainterPath(map_point(samples[0]))
@@ -730,6 +778,21 @@ class TrajectoryView(QWidget):
                 QRectF(apex_point.x() - 60, apex_point.y() - 18, 120, 14),
                 Qt.AlignmentFlag.AlignCenter,
                 f"{apex[1]:.0f} {tr('unit_m')}"
+            )
+
+        # Where the shown arc hits the terrain or a building first
+        if self.obstacle is not None:
+            hit = map_point(self.obstacle)
+
+            painter.setPen(QPen(QColor(theme.DANGER), 2.5))
+            painter.drawLine(QPointF(hit.x() - 6, hit.y() - 6), QPointF(hit.x() + 6, hit.y() + 6))
+            painter.drawLine(QPointF(hit.x() - 6, hit.y() + 6), QPointF(hit.x() + 6, hit.y() - 6))
+
+            painter.setPen(QColor(theme.DANGER))
+            painter.drawText(
+                QRectF(hit.x() - 60, hit.y() - 22, 120, 14),
+                Qt.AlignmentFlag.AlignCenter,
+                f"{self.obstacle[0]:.0f} {tr('unit_m')}"
             )
 
         # Weapon and target

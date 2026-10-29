@@ -97,6 +97,25 @@ STRINGS = {
         "Hold S and release on the beep — after {t} s. W restarts the count."
     ),
     "direct_short": ("прямой наводкой {angle}", "direct fire {angle}"),
+    "blocked_short": ("⛔ {d} м", "⛔ {d} m"),
+    "how_blocked": (
+        "⛔ {arc} траектория упрётся в препятствие через {d} м "
+        "(рельеф или здание, {h} м от вас по высоте)",
+        "⛔ {arc} trajectory hits an obstacle after {d} m "
+        "(terrain or a building, {h} m from you in height)"
+    ),
+    "how_blocked_use": (
+        "{arc} траектория проходит: стреляйте ей ({angle})",
+        "{arc} trajectory clears it: fire that one ({angle})"
+    ),
+    "how_blocked_all": (
+        "Обе траектории перекрыты: смените позицию",
+        "Both trajectories are blocked: move to another position"
+    ),
+    "how_direct_blocked": (
+        "Прямая наводка перекрыта препятствием через {d} м: только навесом",
+        "Direct fire is blocked after {d} m: lob only"
+    ),
     "how_hold_direct": (
         "Или прямой наводкой: совместите метку оверлея с целью — ствол "
         "окажется поднят на {angle} над линией на цель.",

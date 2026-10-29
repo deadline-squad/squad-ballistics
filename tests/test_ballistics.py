@@ -8,6 +8,7 @@ from ballistics import (
     MILS_PER_DEGREE,
     Weapon,
     WeaponDataError,
+    first_obstacle,
     height_at,
     load_weapons,
     parse_weapons,
@@ -464,3 +465,51 @@ def test_ags17_hold_distance_matches_in_game_measurements():
     assert AGS17.hold_distance(99) == AGS17.hold_distance(AGS17.max_hold_time())
     assert AGS17.hold_distance(-1) == AGS17.hold_distance(0)
     assert math.isnan(WEAPONS["RPG-29"].hold_distance(1))
+
+
+TANK = WEAPONS["Tank AP · M256 / Rh120"]
+MORTAR = WEAPONS["Mortar (M252 / 2B14 / L16 / Type 63)"]
+
+
+def wall(length, at, height, step=1):
+    """Flat profile of `length` metres with a wall `height` m high at `at` m."""
+    profile = [0.0] * (int(length / step) + 1)
+    profile[int(at / step)] = float(height)
+    return profile
+
+
+def test_first_obstacle_on_flat_ground_is_none():
+    shot = solve(TANK, 300, 0, "low")
+    assert first_obstacle(TANK, shot, [0.0] * 301, 1) is None
+
+
+def test_first_obstacle_finds_the_wall():
+    shot = solve(TANK, 300, 0, "low")
+    assert first_obstacle(TANK, shot, wall(300, 150, 10), 1) == (150, 10)
+    # A coarser profile is indexed in metres.
+    assert first_obstacle(TANK, shot, wall(300, 150, 10, step=2), 2) == (150, 10)
+    # A wall half as high as the trajectory above it is cleared.
+    below = height_at(TANK, shot.angle, 150) / 2
+    assert below > 0
+    assert first_obstacle(TANK, shot, wall(300, 150, below), 1) is None
+
+
+def test_first_obstacle_ignores_the_weapon_and_target_spots():
+    shot = solve(TANK, 300, 0, "low")
+    assert first_obstacle(TANK, shot, wall(300, 1, 50), 1) is None
+    assert first_obstacle(TANK, shot, wall(300, 299, 50), 1) is None
+
+
+def test_mortar_lob_clears_a_wall_the_low_shot_would_hit():
+    lob = solve(MORTAR, 400, 0, "high")
+    assert lob.reachable
+    assert first_obstacle(MORTAR, lob, wall(400, 200, 20), 1) is None
+    assert first_obstacle(MORTAR, lob, wall(400, 5, 60), 1) == (5, 60)
+
+
+def test_first_obstacle_without_solution_or_profile():
+    assert first_obstacle(TANK, solve(TANK, 300, 0, "low"), None, None) is None
+    assert first_obstacle(TANK, solve(TANK, 300, 0, "low"), [], 1) is None
+    unreachable = solve(MORTAR, 5000, 0, "high")
+    assert not unreachable.reachable
+    assert first_obstacle(MORTAR, unreachable, wall(5000, 10, 100), 1) is None

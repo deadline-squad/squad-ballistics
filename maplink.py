@@ -11,7 +11,10 @@ then switches to it. Two channels deliver the targets:
   `webmap.MapPage` polls (see `BRIDGE_SCRIPT`); `parse_bridge` reads the
   result. The other way, `.selectWeapon(name)` (bridge version 3) selects
   the weapon picked here on the map (see `select_weapon_script`), so its
-  fire coverage and popups are for the same weapon.
+  fire coverage and popups are for the same weapon. Since bridge version 4
+  each target also carries the heights of the terrain and the buildings on
+  the line from the weapon to it (`MapTarget.profile`), so a trajectory that
+  hits a ridge or a roof first is detected (`ballistics.first_obstacle`).
 * Relay. A SquadCalc page open anywhere (another PC, a phone) with
   "Link the overlay" enabled sends its targets to the relay of that build
   (`ags17_relay.py` on the SquadCalc host) under a session code. `RelayLink`
@@ -30,7 +33,7 @@ import math
 import random
 import re
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Tuple
 
 from PyQt6.QtCore import (
     QObject,
@@ -59,6 +62,10 @@ CONNECT_TIMEOUT_MS = 15000
 MAX_DISTANCE = 10000
 MAX_HEIGHT = 3000
 
+# Profile heights are at least this far apart (a finer profile from a hostile
+# page would only cost memory and time), in metres.
+MIN_PROFILE_STEP = 0.5
+
 # Weapon names longer than this are not weapons.json names (see MAX_DISTANCE).
 MAX_WEAPON_NAME = 200
 
@@ -84,11 +91,17 @@ class MapTarget:
                 height padding) in metres, as SquadCalc computes it; the
                 muzzle height is not included. None if unknown
     bearing  -- degrees from north in [0, 360), None if unknown
+    profile  -- heights of the terrain and buildings every `profile_step`
+                metres from the weapon (index 0) to the target, relative to
+                the weapon like `height`; None if unknown
+    profile_step -- metres between two profile heights, None without profile
     """
 
     distance: float
     height: Optional[float] = None
     bearing: Optional[float] = None
+    profile: Optional[Tuple[float, ...]] = None
+    profile_step: Optional[float] = None
 
 
 def _number(text):
@@ -100,11 +113,40 @@ def _number(text):
     return value if math.isfinite(value) else None
 
 
-def make_target(distance, height=None, bearing=None):
+def parse_profile(value, distance):
+    """(heights, step) of a bridge target's profile, (None, None) if unusable.
+
+    `value` is {"step": metres, "heights": [...]} from SquadCalc; the heights
+    must cover the distance to the target (one per step, up to one step
+    short of it) and each be a number within MAX_HEIGHT.
+    """
+    if not isinstance(value, dict):
+        return None, None
+
+    step = _number(value.get("step"))
+    heights = value.get("heights")
+
+    if step is None or not MIN_PROFILE_STEP <= step <= distance:
+        return None, None
+
+    if not isinstance(heights, list) \
+            or not distance / step <= len(heights) <= distance / step + 2:
+        return None, None
+
+    numbers = tuple(_number(h) if not isinstance(h, bool) else None for h in heights)
+
+    if any(h is None or abs(h) > MAX_HEIGHT for h in numbers):
+        return None, None
+
+    return numbers, step
+
+
+def make_target(distance, height=None, bearing=None, profile=None):
     """MapTarget from raw numbers, None when the distance is unusable.
 
     The distance must be in (0, MAX_DISTANCE]; a height beyond MAX_HEIGHT
-    becomes unknown and the bearing is wrapped to [0, 360).
+    becomes unknown and the bearing is wrapped to [0, 360). `profile` is the
+    bridge's raw profile (see parse_profile); an unusable one is dropped.
     """
     distance, height, bearing = _number(distance), _number(height), _number(bearing)
 
@@ -117,7 +159,9 @@ def make_target(distance, height=None, bearing=None):
     if bearing is not None:
         bearing %= 360
 
-    return MapTarget(distance, height, bearing)
+    heights, step = parse_profile(profile, distance)
+
+    return MapTarget(distance, height, bearing, heights, step)
 
 
 def parse_target_lines(text):
@@ -145,8 +189,9 @@ def parse_target_lines(text):
 def parse_bridge_targets(value):
     """Targets from `window.squadBallistics.targets()`.
 
-    The page returns a list of {"distance", "heightDiff", "bearing"}; None
-    means the page has no bridge. Invalid entries are skipped.
+    The page returns a list of {"distance", "heightDiff", "bearing",
+    "profile"} (profile since bridge version 4); None means the page has no
+    bridge. Invalid entries are skipped.
     """
     if not isinstance(value, list):
         return []
@@ -160,7 +205,8 @@ def parse_bridge_targets(value):
         target = make_target(
             item.get("distance"),
             item.get("heightDiff"),
-            item.get("bearing")
+            item.get("bearing"),
+            item.get("profile")
         )
 
         if target is not None:

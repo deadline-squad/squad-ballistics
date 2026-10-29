@@ -8,6 +8,7 @@ from maplink import (
     normalize_code,
     parse_bridge,
     parse_bridge_targets,
+    parse_profile,
     parse_relay_text,
     parse_target_lines,
     parse_weapon_name,
@@ -378,3 +379,36 @@ def test_missing_pong_drops_the_connection(qapp, monkeypatch):
 
     link.set_code(None)
     server.close()
+
+
+def test_bridge_target_profile():
+    heights = [0.0, 1.5, -2.25, 4.0, 0.0]
+    [target] = parse_bridge_targets([
+        {"distance": 4.2, "heightDiff": 0, "bearing": 0, "profile": {"step": 1, "heights": heights}},
+    ])
+    assert target.profile == tuple(heights)
+    assert target.profile_step == 1
+
+    # Older pages (bridge version 3) send no profile.
+    [target] = parse_bridge_targets([{"distance": 4.2, "heightDiff": 0, "bearing": 0}])
+    assert target.profile is None and target.profile_step is None
+
+
+@pytest.mark.parametrize("profile", [
+    None,
+    "1,2,3",
+    {"step": 1},
+    {"step": 1, "heights": "0 0 0 0 0"},
+    {"step": 0.1, "heights": [0.0] * 43},          # finer than MIN_PROFILE_STEP
+    {"step": 1, "heights": [0.0] * 2},             # does not reach the target
+    {"step": 1, "heights": [0.0] * 50},            # far beyond the target
+    {"step": 1, "heights": [0, 0, None, 0, 0]},
+    {"step": 1, "heights": [0, 0, True, 0, 0]},
+    {"step": 1, "heights": [0, 0, "nan", 0, 0]},
+    {"step": 1, "heights": [0, 0, 1e9, 0, 0]},     # beyond MAX_HEIGHT
+    {"step": float("inf"), "heights": [0, 0, 0, 0, 0]},
+])
+def test_unusable_profiles_are_dropped(profile):
+    assert parse_profile(profile, 4.2) == (None, None)
+    [target] = parse_bridge_targets([{"distance": 4.2, "heightDiff": 0, "profile": profile}])
+    assert target.distance == 4.2 and target.profile is None
