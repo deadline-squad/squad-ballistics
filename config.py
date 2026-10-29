@@ -110,7 +110,7 @@ DEFAULT_CONFIG = {
 # Allowed values. RANGES are also the limits of the sliders in the UI.
 CHOICES = {
     "arc": ("auto", "low", "high"),
-    "sight_view": ("plain", "optic"),
+    "sight_view": ("plain", "optic", "optic2"),
     "unit_mode": ("auto", "deg", "mil"),
     "outline_color": ("white", "black"),
     "map_render": ("auto", "software"),

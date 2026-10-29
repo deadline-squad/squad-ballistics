@@ -54,6 +54,7 @@ from beep import beep
 
 from config import (
     APP_VERSION,
+    CHOICES,
     DEFAULT_CONFIG,
     DISTANCE_STEPS,
     RANGES,
@@ -537,7 +538,8 @@ class MainWindow(QMainWindow):
         self.view_control = Segmented(
             [
                 ("plain", tr("view_plain")),
-                ("optic", tr("view_optic"))
+                ("optic", tr("view_optic")),
+                ("optic2", "")
             ],
             self.config["sight_view"]
         )
@@ -735,7 +737,7 @@ class MainWindow(QMainWindow):
 
         self.update_weapon_info(weapon)
 
-        self.view_control.setVisible(bool(weapon.zoom))
+        self.update_view_control(weapon)
 
         # The calibration status is about the previous weapon.
         self.lay_status.setText("")
@@ -776,8 +778,41 @@ class MainWindow(QMainWindow):
 
         self.weapon_info.setText("  ·  ".join(parts))
 
+    def update_view_control(self, weapon):
+        """Show the view buttons `weapon` needs: the plain and RMB views of
+        a weapon with an RMB sight, or one button per zoom level of a
+        vehicle gunner's sight (`views`)."""
+        views = weapon.sight_views
+
+        self.view_control.setVisible(weapon.has_views)
+
+        for index, (key, button) in enumerate(self.view_control.buttons.items()):
+            button.setVisible(index < len(views))
+
+            if index >= len(views):
+                continue
+
+            if weapon.views:
+                button.setText(f"×{views[index][0]:g}")
+            else:
+                button.setText(tr("view_optic" if index else "view_plain"))
+
+            button.setChecked(index == self.view_index(weapon))
+
+    def view_index(self, weapon):
+        """Index in `weapon.sight_views` of the view the control is on (the
+        last view when the weapon has fewer than the control's choice)."""
+        chosen = CHOICES["sight_view"].index(self.config["sight_view"])
+
+        return min(chosen, len(weapon.sight_views) - 1)
+
     def on_view_changed(self, key):
         self.config["sight_view"] = key
+
+        weapon = self.current_weapon()
+
+        if weapon is not None:
+            self.update_view_control(weapon)
 
         self.schedule_save()
 
@@ -1257,9 +1292,7 @@ class MainWindow(QMainWindow):
 
                 steps = [
                     tr("how_overlay_1", angle=angle_text),
-                    tr("how_overlay_optic", fov=f"{fov:g}", zoom=f"{weapon.zoom:g}")
-                    if self.optic_view(weapon)
-                    else tr("how_overlay_2", fov=f"{fov:g}")
+                    self.how_overlay_view(weapon, fov)
                 ]
 
                 if toggle_key:
@@ -1897,9 +1930,24 @@ class MainWindow(QMainWindow):
         )
 
     def optic_view(self, weapon):
-        """True when `weapon` is aimed through its zoomed optic (it has
-        one and the view control is on "optic")."""
-        return bool(weapon.zoom) and self.config["sight_view"] == "optic"
+        """Index of the view `weapon` is aimed from, as `Weapon.sight_view`
+        takes it: 0 the plain view, 1 the optic (RMB) or the second zoom
+        level, 2 the third."""
+        return self.view_index(weapon)
+
+    def how_overlay_view(self, weapon, fov):
+        """The how-to step about the in-game FOV and the view the mark is
+        for."""
+        index = self.optic_view(weapon)
+        zoom = weapon.sight_views[index][0]
+
+        if weapon.views:
+            return tr("how_overlay_levels", fov=f"{fov:g}", zoom=f"{zoom:g}")
+
+        if index:
+            return tr("how_overlay_optic", fov=f"{fov:g}", zoom=f"{zoom:g}")
+
+        return tr("how_overlay_2", fov=f"{fov:g}")
 
     def update_ladder(self):
         """Put the current weapon's range ladder on the overlay, or clear
