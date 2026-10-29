@@ -860,3 +860,60 @@ def test_first_obstacle_without_solution_or_profile():
     unreachable = solve(MORTAR, 5000, 0, "high")
     assert not unreachable.reachable
     assert first_obstacle(MORTAR, unreachable, wall(5000, 10, 100), 1) is None
+
+
+def test_the_game_flight_model_fields_are_validated():
+    base = {"velocity": 100}
+
+    for bad in (
+        {"launch_height": -1},
+        {"muzzle_forward": -0.5},
+        {"hold_rate": 9, "hold_elevation": [45, 80], "acceleration": 10, "acceleration_time": 1},
+    ):
+        with pytest.raises(WeaponDataError):
+            Weapon.from_dict("x", {**base, **bad})
+
+    weapon = Weapon.from_dict(
+        "x", {**base, "launch_height": 1.2, "muzzle_forward": 2.0, "muzzle_up": 0.25}
+    )
+    assert not weapon.is_parabola
+    assert Weapon.from_dict("y", base).is_parabola
+
+
+def test_the_muzzle_moves_with_the_elevation():
+    weapon = Weapon.from_dict(
+        "x", {"velocity": 100, "launch_height": 1.0, "muzzle_forward": 2.0, "muzzle_up": 0.5}
+    )
+
+    flat = weapon.launch_point(0.0)
+    steep = weapon.launch_point(math.pi / 2)
+
+    assert flat == pytest.approx((2.0, 1.5))
+    assert steep == pytest.approx((-0.5, 3.0))
+
+
+def test_the_mortar_reaches_1236_9_m_from_its_barrel_socket():
+    mortar = WEAPONS["Mortar (M252 / 2B14 / L16 / Type 63)"]
+
+    # SquadCalc's squadBallistics.js gives the same 1236.936 m
+    assert mortar.max_range() == pytest.approx(1236.936, abs=0.001)
+    assert solve(mortar, 1236, 0, "high").reachable
+    assert not solve(mortar, 1237, 0, "high").reachable
+
+
+def test_a_boosted_rocket_flies_the_exact_two_phase_parabola():
+    rocket = Weapon.from_dict(
+        "r", {"velocity": 100, "acceleration": 50, "acceleration_time": 1.0}
+    )
+    rad = math.radians(10)
+
+    # After the boost: x = cos(a) * (100 + 25 + 150 * (t - 1)), t = 3
+    distance = math.cos(rad) * (125 + 150 * 2)
+    height = (
+        math.sin(rad) * 125 - 0.5 * GRAVITY
+        + (math.sin(rad) * 150 - GRAVITY) * 2 - 0.5 * GRAVITY * 4
+    )
+
+    assert rocket.flight_height(rad, distance) == pytest.approx(height)
+    assert rocket.flight_time(rad, distance) == pytest.approx(3.0)
+    assert rocket.flight_state(rad, 3.0)[:2] == pytest.approx((distance, height))
