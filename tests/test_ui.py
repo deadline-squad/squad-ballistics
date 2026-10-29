@@ -1240,3 +1240,126 @@ def test_blocked_direct_fire_suggests_the_lob(window):
     window.distance_entry.textEdited.emit("600")
     window.calculate()
     assert window.trajectory_view.obstacle is None
+
+
+def sight_at(mils):
+    """A grab of the mortar sight showing `mils` (ScreenSight.grab)."""
+    from sightimage import draw_sight
+    from sightlay import Sight
+    from sightreader import GrayImage
+
+    return Sight(GrayImage.from_qimage(draw_sight(mils, 1280, 720)), 640, 360, 720 / 1080)
+
+
+def test_mortar_sight_reading_on_the_overlay(window, monkeypatch):
+    monkeypatch.setattr(window.screen_sight, "grab", lambda: sight_at(1043.4))
+    window.select_weapon(MORTAR)
+    window.config["arc"] = "high"
+    window.distance_entry.setText("1000")
+    window.calculate()
+    assert window.sight_timer.isActive()
+
+    window.watch_sight()
+    target = window.last_solution.angle * 6400 / 360
+    assert tr("sight_reading_left", mils="1043.4", left=f"{target - 1043.4:+.1f}") in window.overlay.info_text
+    assert window.overlay.info_text.startswith(window.info_base)
+
+    # The sight off the screen: the reading goes
+    monkeypatch.setattr(window.screen_sight, "grab", lambda: None)
+    window.watch_sight()
+    assert "1043.4" not in window.overlay.info_text
+
+    # Turned off, or another weapon: not read
+    window.controls["sight_reader"].toggled.emit(False)
+    assert not window.sight_timer.isActive()
+    window.controls["sight_reader"].toggled.emit(True)
+    assert window.sight_timer.isActive()
+    window.select_weapon(AGS17)
+    assert not window.sight_timer.isActive()
+
+
+def test_mortar_auto_lay_on_the_sight(window, monkeypatch):
+    import crosshair
+
+    class Injector:
+        def __init__(self, vk):
+            self.vk = vk
+
+        def press(self):
+            pass
+
+        def release(self):
+            pass
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(crosshair, "system_key_injector", Injector)
+    window.controls["auto_hold"].toggled.emit(True)
+    window.hold_timer.key_reader = lambda vk: False
+    window.select_weapon(MORTAR)
+    window.config["arc"] = "high"
+    window.distance_entry.setText("1000")
+    window.calculate()
+
+    layer = window.sight_layer
+    assert layer is not None
+    assert layer.raise_key.vk == crosshair.VK_W and layer.lower_key.vk == crosshair.VK_S
+    assert window.sight_target() == pytest.approx(window.last_solution.angle * 6400 / 360)
+
+    timed = []
+    monkeypatch.setattr(window.hold_timer.auto_hold, "start",
+                        lambda seconds, reset_seconds=0.0: timed.append(seconds) or True)
+
+    # The sight is seen: the lay is on it, not timed; the key again stops it
+    monkeypatch.setattr(window.screen_sight, "grab", lambda: sight_at(1100.0))
+    window.auto_hold()
+    assert layer.active and timed == []
+    assert not window.sight_timer.isActive()
+    window.auto_hold()
+    assert not layer.active
+    assert window.sight_timer.isActive()
+
+    # Not seen: the timed lay
+    monkeypatch.setattr(window.screen_sight, "grab", lambda: None)
+    window.auto_hold()
+    assert not layer.active and timed == [pytest.approx(window.last_solution.hold_time)]
+
+    # Reading turned off: timed even with the sight on the screen
+    timed.clear()
+    monkeypatch.setattr(window.screen_sight, "grab", lambda: sight_at(1100.0))
+    window.config["sight_reader"] = False
+    window.auto_hold()
+    assert not layer.active and len(timed) == 1
+
+    window.close()
+    assert window.sight_layer is None
+
+
+def test_mortar_calibration_reads_the_sight(window, monkeypatch, tmp_path):
+    import crosshair
+
+    monkeypatch.setattr(crosshair, "config_dir", lambda: str(tmp_path / "settings"))
+    window.select_weapon(MORTAR)
+    window.config["arc"] = "high"
+    window.distance_entry.setText("1000")
+    window.calculate()
+    top = window.current_weapon().hold_elevation[1]
+    window.hold_timer.held = 3.0
+    window.lay_entry.clear()
+
+    # Not read: what was grabbed is saved for a look
+    from PyQt6.QtGui import QImage
+    grabbed = QImage(64, 32, QImage.Format.Format_RGB32)
+    grabbed.fill(0)
+    monkeypatch.setattr(window.screen_sight, "grab", lambda: None)
+    monkeypatch.setattr(window.screen_sight, "grab_image", lambda: grabbed)
+    assert not window.calibrate_lay()
+    path = os.path.join(str(tmp_path / "settings"), "sight-grab.png")
+    assert window.lay_status.text() == tr("lay_no_sight", path=path)
+    assert QImage(path).size() == grabbed.size()
+
+    shown = (top - 3.0 * 8.5) * 6400 / 360
+    monkeypatch.setattr(window.screen_sight, "grab", lambda: sight_at(shown))
+    assert window.calibrate_lay()
+    assert window.config["lay_rates"][MORTAR] == pytest.approx(8.5, abs=0.01)

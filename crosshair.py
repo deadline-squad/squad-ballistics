@@ -90,6 +90,10 @@ from maplink import (
 
 from overlay import HoldPanel, Overlay
 
+from sightlay import ScreenSight, SightLayer, read_sight
+
+from sightreader import LabelTemplates
+
 from updater import CURRENT_VERSION
 
 from utils import resource_path
@@ -121,6 +125,11 @@ LAY_RESET_MARGIN = 0.3
 # (a typo in the mils would give an absurd one).
 LAY_CALIBRATION_MIN_HOLD = 0.5
 LAY_RATE_TOLERANCE = 0.3
+
+# How often the mortar sight is read while a mortar is selected (ms), and
+# where a grab it could not read is saved (in the settings folder).
+SIGHT_WATCH_MS = 300
+SIGHT_GRAB_FILE = "sight-grab.png"
 
 CROSSHAIR_COLORS = [
     "#00ff00",
@@ -234,8 +243,20 @@ class MainWindow(QMainWindow):
         self.last_map_target = None
 
         # Text of the overlay label for the current solution; hold weapons
-        # append the live hold progress to it.
+        # append the live hold progress to it, mortars the sight reading.
         self.info_base = ""
+        self.hold_info = ""
+        self.sight_info = ""
+
+        # Mortar sight on the screen: digit pictures (made on first use),
+        # the grabber, and the lay on the sight (with the key injectors).
+        self.sight_templates = None
+        self.screen_sight = ScreenSight(self.overlay)
+        self.sight_layer = None
+
+        self.sight_timer = QTimer(self)
+        self.sight_timer.setInterval(SIGHT_WATCH_MS)
+        self.sight_timer.timeout.connect(self.watch_sight)
 
         # Physical keys read system-wide (None where impossible): the hold
         # timer and, off Windows, the in-game hotkeys use it.
@@ -1318,7 +1339,13 @@ class MainWindow(QMainWindow):
     def set_overlay_info(self, text):
         self.info_base = text
 
-        self.overlay.set_info(text)
+        self.show_overlay_info()
+
+    def show_overlay_info(self):
+        """The overlay label: the solution, the hold progress, the sight."""
+        parts = (self.info_base, self.hold_info, self.sight_info)
+
+        self.overlay.set_info("  ·  ".join(part for part in parts if part))
 
     def update_hold_readout(self):
         """Show how long S has been held against the target hold time."""
@@ -1328,6 +1355,8 @@ class MainWindow(QMainWindow):
 
         if timer.target is None or not timer.available:
             self.hold_label.hide()
+            self.hold_info = ""
+            self.show_overlay_info()
             return
 
         progress = tr(
@@ -1343,7 +1372,8 @@ class MainWindow(QMainWindow):
 
         self.hold_label.show()
 
-        self.overlay.set_info(f"{self.info_base}  ·  {progress}")
+        self.hold_info = progress
+        self.show_overlay_info()
 
     def update_hold_panel(self):
         """The timer panel on the overlay, while S/W are being watched."""
@@ -1398,6 +1428,8 @@ class MainWindow(QMainWindow):
         )
 
         self.update_hold_panel()
+
+        self.update_sight_watch()
 
     def build_lay_calibration(self):
         """Row of the mortar auto-lay calibration: the mils the sight shows."""
@@ -1454,11 +1486,23 @@ class MainWindow(QMainWindow):
 
         The barrel went down from the top for the time S was held since the
         last W (the hold timer's count, auto-lay or by hand), so the rate is
-        (top - shown angle) / held. Returns True when the rate was saved.
+        (top - shown angle) / held. The mils are the typed ones, or read off
+        the sight on the screen when none are typed. Returns True when the
+        rate was saved.
         """
         weapon = self.current_weapon()
         mils = self.lay_entry.value()
         held = self.hold_timer.held
+
+        # Nothing typed: the mils the sight shows on the screen
+        if mils is None and self.config["sight_reader"] and self.lays_by_sight(weapon):
+            reading = self.read_sight_now()
+
+            if reading is None:
+                self.lay_status.setText(tr("lay_no_sight", path=self.save_sight_grab()))
+                return False
+
+            mils = reading.mils
 
         if weapon is None or not weapon.has_hold or weapon.aim != "elevation" or mils is None:
             return False
@@ -1521,9 +1565,122 @@ class MainWindow(QMainWindow):
     def auto_hold(self):
         """Hotkey: hold S for the time left to the target (again: release).
 
-        Mortars are laid from scratch: W to the top first, then S.
+        Mortars are laid on their sight when it is seen on the screen (W or
+        S until it shows the target), otherwise from scratch: W to the top
+        first, then S for the hold time.
         """
-        self.hold_timer.toggle_auto_hold(self.lay_reset_time(self.current_weapon()))
+        layer = self.sight_layer
+
+        if layer is not None and layer.active:
+            layer.stop()
+            return
+
+        weapon = self.current_weapon()
+
+        if layer is not None and not self.hold_timer.auto_holding \
+                and self.config["sight_reader"] and self.lays_by_sight(weapon) \
+                and layer.start():
+            self.sight_timer.stop()
+            return
+
+        self.hold_timer.toggle_auto_hold(self.lay_reset_time(weapon))
+
+    @staticmethod
+    def lays_by_sight(weapon):
+        """Mortars: laid by holding W/S while looking at the elevation on
+        their sight."""
+        return weapon is not None and weapon.has_hold and weapon.aim == "elevation"
+
+    def templates(self):
+        """Digit pictures for the sight reader, made on first use."""
+        if self.sight_templates is None:
+            self.sight_templates = LabelTemplates()
+
+        return self.sight_templates
+
+    def sight_target(self):
+        """Mils the sight should show for the current solution, or None."""
+        solution = self.last_solution
+
+        if not self.lays_by_sight(self.current_weapon()) or solution is None \
+                or not math.isfinite(solution.hold_time):
+            return None
+
+        return solution.angle * MILS_PER_DEGREE
+
+    def read_sight_now(self):
+        """The elevation on the mortar sight now (sightreader.Reading), or
+        None when the sight is not on the screen."""
+        return read_sight(self.screen_sight.grab(), self.templates())
+
+    def save_sight_grab(self):
+        """Save what the sight reader sees, for a sight it could not read;
+        returns the file's path, or "" if the screen can't be grabbed."""
+        image = self.screen_sight.grab_image()
+
+        if image is None:
+            return ""
+
+        os.makedirs(config_dir(), exist_ok=True)
+        path = os.path.join(config_dir(), SIGHT_GRAB_FILE)
+
+        if not image.save(path):
+            return ""
+
+        return path
+
+    def update_sight_watch(self):
+        """Read the sight periodically while a mortar is selected."""
+        watch = self.config["sight_reader"] and self.lays_by_sight(self.current_weapon())
+
+        if not watch:
+            self.sight_timer.stop()
+            self.set_sight_info("")
+            return
+
+        if not self.sight_timer.isActive() and not (
+            self.sight_layer is not None and self.sight_layer.active
+        ):
+            self.sight_timer.start()
+
+    def watch_sight(self):
+        self.show_sight_reading(self.read_sight_now())
+
+    def show_sight_reading(self, reading, mark=""):
+        """The sight reading and what is left to the target on the overlay."""
+        if reading is None:
+            self.set_sight_info("")
+            return
+
+        target = self.sight_target()
+
+        if target is None:
+            text = tr("sight_reading", mils=f"{reading.mils:.1f}")
+        else:
+            text = tr(
+                "sight_reading_left",
+                mils=f"{reading.mils:.1f}",
+                left=f"{target - reading.mils:+.1f}"
+            )
+
+        self.set_sight_info(f"{text}{mark}")
+
+    def set_sight_info(self, text):
+        if text == self.sight_info:
+            return
+
+        self.sight_info = text
+        self.show_overlay_info()
+
+    def on_sight_lay_finished(self, reading, on_target):
+        """The lay on the sight ended: show where it stopped, beep on target,
+        and go back to watching the sight."""
+        self.show_sight_reading(reading, "  ✓" if on_target else "  ✗")
+
+        if on_target:
+            beep()
+
+        self.update_sight_watch()
 
     def apply_auto_hold(self):
         """Create or drop the key injector according to the setting.
@@ -1553,6 +1710,19 @@ class MainWindow(QMainWindow):
 
         self.hold_timer.auto_hold = AutoHold(injector, reset_injector)
 
+        # Mortars: laying on the sight needs both keys (W up, S down)
+        if reset_injector is not None:
+            self.sight_layer = SightLayer(
+                lambda: self.screen_sight.grab(),
+                self.templates(),
+                self.sight_target,
+                reset_injector,
+                injector,
+                self
+            )
+            self.sight_layer.read.connect(self.show_sight_reading)
+            self.sight_layer.finished.connect(self.on_sight_lay_finished)
+
         return True
 
     def drop_auto_hold(self):
@@ -1560,6 +1730,11 @@ class MainWindow(QMainWindow):
         timer = self.hold_timer
 
         timer.stop_auto_hold()
+
+        if self.sight_layer is not None:
+            self.sight_layer.stop()
+            self.sight_layer.deleteLater()
+            self.sight_layer = None
 
         if timer.auto_hold is not None:
             timer.auto_hold.injector.close()
@@ -2050,6 +2225,19 @@ class MainWindow(QMainWindow):
         self.auto_hold_status.setProperty("state", "error")
 
         layout.addWidget(self.auto_hold_status)
+
+        self.add_toggle(
+            layout,
+            tr("s_sight_reader"),
+            "sight_reader",
+            lambda _checked: self.update_sight_watch()
+        )
+
+        sight_hint = label(tr("s_sight_reader_hint"), "small")
+
+        sight_hint.setWordWrap(True)
+
+        layout.addWidget(sight_hint)
 
         return frame
 

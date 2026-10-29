@@ -105,11 +105,20 @@ STRINGS = {
     ),
     "how_lay": (
         "Или автонаводка: в прицеле миномёта нажмите {hotkey} — программа "
-        "поднимет ствол до упора (W) и опустит его, держа S {t} с. Сверьте "
-        "милы на прицеле; повторное нажатие или W отменяет.",
-        "Or auto-lay: in the mortar sight press {hotkey} — the app raises the "
-        "barrel to its top (W) and lowers it by holding S for {t} s. Check "
-        "the mils on the sight; the key again or W cancels."
+        "читает милы с прицела на экране и держит W или S, пока он не "
+        "покажет нужное. Если прицел не читается, она поднимет ствол до "
+        "упора (W) и опустит его, держа S {t} с. Повторное нажатие отменяет.",
+        "Or auto-lay: in the mortar sight press {hotkey} — the app reads the "
+        "mils off the sight on the screen and holds W or S until it shows "
+        "the target. If the sight cannot be read, it raises the barrel to "
+        "its top (W) and lowers it by holding S for {t} s. The key again "
+        "cancels."
+    ),
+    "sight_reading": ("прицел {mils} мил", "sight {mils} mil"),
+    "sight_reading_left": ("прицел {mils} мил ({left})", "sight {mils} mil ({left})"),
+    "lay_no_sight": (
+        "Прицел не прочитан: войдите в прицел миномёта или введите милы. Снимок: {path}",
+        "The sight was not read: look through the mortar sight or type the mils. Grab: {path}"
     ),
     "how_lay_off": (
         "Автонаводка (S {t} с) включается в настройках: «Автозажатие S».",
@@ -422,17 +431,37 @@ STRINGS = {
     ),
     "s_auto_hold_hint": (
         "По клавише программа сама держит S оставшееся до цели время и "
-        "отпускает (миномёт: сначала W до упора, затем S на всё время — "
-        "автонаводка по углу); повторное нажатие или W отменяет. Нажатия от программы "
+        "отпускает (миномёт: по прицелу на экране, а если он не читается — "
+        "сначала W до упора, затем S на всё время); повторное нажатие или W "
+        "отменяет. Нажатия от программы "
         "античит (EAC) и правила сервера могут счесть макросом — включайте "
         "на свой риск. Linux: нужен доступ к /dev/uinput (правила Steam) "
         "или игра в X11/XWayland.",
         "On the key the app holds S for the time left to the target and "
-        "releases it (mortars: W to the top first, then S for the whole time "
-        "— auto-lay by the angle); the key again or W cancels. Synthetic key presses may "
+        "releases it (mortars: on the sight on the screen, or if it cannot "
+        "be read, W to the top first, then S for the whole time); the key "
+        "again or W cancels. Synthetic key presses may "
         "be treated as a macro by the anti-cheat (EAC) or server rules — "
         "enable at your own risk. Linux: needs access to /dev/uinput "
         "(Steam rules) or the game on X11/XWayland."
+    ),
+    "s_sight_reader": (
+        "Читать прицел миномёта с экрана",
+        "Read the mortar sight off the screen"
+    ),
+    "s_sight_reader_hint": (
+        "Пока выбран миномёт, программа читает милы со шкалы его прицела "
+        "(слева от центра экрана) и пишет их на оверлее рядом с нужными. "
+        "Автонаводка тогда наводит по прицелу: держит W или S, пока он не "
+        "покажет цель с точностью до 0,5 мил. Игра должна быть в оконном "
+        "режиме или «без рамки»: в эксклюзивном полноэкранном режиме и под "
+        "Wayland экран не снимается.",
+        "While a mortar is selected the app reads the mils off its sight's "
+        "scale (left of the screen centre) and shows them on the overlay "
+        "next to the target ones. The auto-lay then lays on the sight: it "
+        "holds W or S until the sight shows the target within 0.5 mil. The "
+        "game must run windowed or borderless: the screen cannot be grabbed "
+        "in exclusive fullscreen or under Wayland."
     ),
     "auto_hold_unavailable": (
         "Не получилось: программа не может нажимать клавиши в этой системе.",
