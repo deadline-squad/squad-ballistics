@@ -68,6 +68,7 @@ from holdtimer import (
 from hotkeys import (
     ACTIONS,
     KEYS,
+    bindings,
     setup_hotkeys,
     teardown_hotkeys
 )
@@ -315,9 +316,11 @@ class MainWindow(QMainWindow):
         if self.config["main_on_top"]:
             self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
 
-        self.build_ui()
-
+        # Before the UI: a saved "on" that cannot work here is turned off
+        # first, so the settings toggle shows it off.
         self.apply_auto_hold()
+
+        self.build_ui()
 
         # Only after the UI exists: a hotkey may fire right away.
         setup_hotkeys(self)
@@ -625,21 +628,21 @@ class MainWindow(QMainWindow):
 
         layout.addStretch()
 
-        hotkeys = self.config["hotkeys"]
+        self.hotkey_hint = label("", "small")
 
-        hints = [
-            f"{hotkeys[action]} — {tr('hk_' + action)}"
-            for action in ACTIONS
-            if hotkeys.get(action)
-        ]
+        self.hotkey_hint.setWordWrap(True)
 
-        hint = label("   ·   ".join(hints), "small")
+        self.update_hotkey_hint()
 
-        hint.setWordWrap(True)
-
-        layout.addWidget(hint)
+        layout.addWidget(self.hotkey_hint)
 
         return frame
+
+    def update_hotkey_hint(self):
+        """The keys that work now (auto-hold's only while it is on)."""
+        self.hotkey_hint.setText("   ·   ".join(
+            f"{key} — {tr('hk_' + action)}" for key, action in bindings(self)
+        ))
 
     def build_solution_card(self):
         frame, layout = card()
@@ -750,6 +753,9 @@ class MainWindow(QMainWindow):
             self.schedule_save()
 
         self.update_weapon_info(weapon)
+
+        # The calibration status is about the previous weapon.
+        self.lay_status.setText("")
 
         self.solution_weapon.setText(name)
 
@@ -1798,6 +1804,8 @@ class MainWindow(QMainWindow):
 
         self.auto_hold_status.setText("" if ok else tr("auto_hold_unavailable"))
 
+        self.update_hotkey_hint()
+
     def on_hold_reached(self):
         beep()
 
@@ -2505,6 +2513,11 @@ class MainWindow(QMainWindow):
 
         self.apply_auto_hold()
 
+        self.apply_lay_rates()
+
+        # rebuild() keeps the typed inputs; the FOV is a setting.
+        self.fov_entry.set_value(self.config["fov"])
+
         if self.map_page is not None and map_url(self.config) != old_map_url:
             self.map_page.load_source()
 
@@ -2533,6 +2546,7 @@ class MainWindow(QMainWindow):
             self.map_page.weapon_received.connect(self.on_map_weapon)
         else:
             self.map_page.retranslate()
+            self.map_page.restyle()
 
         return self.map_page
 
@@ -2699,6 +2713,8 @@ class MainWindow(QMainWindow):
         self.hold_timer.set_target(None)
 
         self.hold_timer.set_active(False)
+
+        self.sight_timer.stop()
 
         # Release a held S and remove the virtual keyboard.
         self.drop_auto_hold()

@@ -1613,3 +1613,113 @@ def test_hold_progress_does_not_lay_out_the_window(window):
 
     assert window.hold_label.text() == tr("hold_progress", held="0.06", t=f"{window.hold_timer.target:.2f}")
     assert requests.count == 0
+
+
+def test_close_stops_the_sight_watch(window):
+    window.select_weapon(MORTAR)
+    assert window.sight_timer.isActive()
+
+    window.close()
+
+    assert not window.sight_timer.isActive()
+
+
+def test_reset_settings_drops_the_calibration_and_the_fov(window, monkeypatch):
+    from PyQt6.QtWidgets import QMessageBox
+
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes)
+
+    window.select_weapon(MORTAR)
+    window.config["lay_rates"][MORTAR] = 9.9
+    window.apply_lay_rates()
+    window.fov_entry.setText("75")
+    window.distance_entry.setText("900")
+    window.calculate()
+    assert window.config["fov"] == 75
+
+    window.reset_settings()
+
+    assert window.weapons[MORTAR].hold_rate == window.file_weapons[MORTAR].hold_rate
+    assert window.fov_entry.text() == "90"
+    assert window.config["fov"] == 90
+    # The typed target stays
+    assert window.distance_entry.text() == "900"
+
+
+def test_calibration_status_is_cleared_with_the_weapon(window):
+    window.select_weapon(MORTAR)
+    window.lay_status.setText(tr("lay_done", rate="9.10", base="9"))
+
+    window.select_weapon("BM-21 Grad")
+    window.select_weapon(MORTAR)
+
+    assert window.lay_status.text() == ""
+
+
+def test_map_progress_bar_follows_the_accent(window):
+    window.set_accent("#22c55e")
+
+    assert "#22c55e" in window.map_page.progress.styleSheet()
+
+
+def test_map_failed_panel_names_the_map_site(window):
+    page = window.map_page
+
+    page.show_panel("failed")
+    assert "calc.tk104.duckdns.org" in page.panel_text.text()
+
+    window.config["map_source"] = "squadcalc"
+    page.show_panel("failed")
+    assert "squadcalc.app" in page.panel_text.text()
+
+
+def test_auto_hold_toggle_is_off_when_keys_cannot_be_sent(app, tmp_path, monkeypatch):
+    import crosshair
+
+    monkeypatch.setattr(config, "CONFIG_PATH", str(tmp_path / "config.json"))
+    monkeypatch.setattr(crosshair, "system_key_injector", lambda vk: None)
+
+    saved = config.load_config()
+    saved["auto_hold"] = True
+    config.save_config(saved)
+
+    win = crosshair.MainWindow(load_weapons(os.path.join(ROOT, "weapons.json")))
+
+    try:
+        assert win.config["auto_hold"] is False
+        assert not win.controls["auto_hold"].isChecked()
+    finally:
+        win.close()
+
+
+def test_hotkey_hint_lists_only_bound_keys(window):
+    def hint():
+        return window.hotkey_hint.text()
+
+    # Auto-hold is off: its key is not bound and not listed
+    assert "F8" in hint()
+    assert "F7" not in hint()
+
+    class Injector:
+        def press(self):
+            pass
+
+        def release(self):
+            pass
+
+        def close(self):
+            pass
+
+    import crosshair
+
+    original = crosshair.system_key_injector
+    crosshair.system_key_injector = lambda vk: Injector()
+
+    try:
+        window.controls["auto_hold"].toggled.emit(True)
+        assert f"F7 — {tr('hk_auto_hold')}" in hint()
+
+        window.controls["auto_hold"].toggled.emit(False)
+        assert "F7" not in hint()
+    finally:
+        crosshair.system_key_injector = original

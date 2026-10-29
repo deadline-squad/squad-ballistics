@@ -315,9 +315,9 @@ STRINGS = {
     "map_compat_on": ("режим совместимости", "compatibility mode"),
     "map_failed_title": ("Карта не загрузилась", "The map did not load"),
     "map_failed_text": (
-        "Нет связи с squadcalc.app. Проверьте интернет и нажмите «Повторить». "
+        "Нет связи с {host}. Проверьте интернет и нажмите «Повторить». "
         "Если в обычном браузере сайт открывается — откройте карту там.",
-        "Could not reach squadcalc.app. Check your connection and press "
+        "Could not reach {host}. Check your connection and press "
         "Retry. If the site opens in your regular browser, use it there."
     ),
     "map_slow_title": ("Карта грузится слишком долго", "The map takes too long"),

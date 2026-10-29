@@ -290,10 +290,7 @@ class MapPage(QWidget):
 
         self.progress.setRange(0, 100)
 
-        self.progress.setStyleSheet(
-            f"QProgressBar {{ background: transparent; border: none; }}"
-            f"QProgressBar::chunk {{ background: {config['accent']}; }}"
-        )
+        self.restyle()
 
         self.progress.hide()
 
@@ -377,7 +374,14 @@ class MapPage(QWidget):
 
         self.retranslate()
 
-    # ---------- texts ----------
+    # ---------- texts and colours ----------
+
+    def restyle(self):
+        """Colour the loading bar with the current accent."""
+        self.progress.setStyleSheet(
+            f"QProgressBar {{ background: transparent; border: none; }}"
+            f"QProgressBar::chunk {{ background: {self.config['accent']}; }}"
+        )
 
     def retranslate(self):
         self.reload_button.setText(tr("map_reload"))
@@ -620,7 +624,9 @@ class MapPage(QWidget):
 
         self.panel_title.setText(tr(f"map_{kind}_title"))
 
-        self.panel_text.setText(tr(f"map_{kind}_text"))
+        self.panel_text.setText(
+            tr(f"map_{kind}_text", host=QUrl(map_url(self.config)).host())
+        )
 
         self.retry_button.setVisible(kind != "missing")
 
