@@ -69,6 +69,12 @@ STRINGS = {
         "Your in-game FOV must be {fov}°. The mark is for the optic's view (RMB, zoom ×{zoom}); "
         "unzoomed, switch the view."
     ),
+    "how_overlay_levels": (
+        "FOV в игре должен быть {fov}°. Метка — для вида прицела с приближением ×{zoom}; "
+        "уровень приближения выберите переключателем вида.",
+        "Your in-game FOV must be {fov}°. The mark is for the sight's view at zoom ×{zoom}; "
+        "pick the zoom level with the view switch."
+    ),
     "how_overlay_2": (
         "FOV в игре должен быть {fov}°. Через оптику — укажите FOV прицела.",
         "Your in-game FOV must be {fov}°. Through a scope, enter the scope FOV."

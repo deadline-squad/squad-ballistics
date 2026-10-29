@@ -129,7 +129,7 @@ DEFAULT_CONFIG = {
 CHOICES = {
     "language": ("auto", "ru", "en"),
     "arc": ("auto", "low", "high"),
-    "sight_view": ("plain", "optic"),
+    "sight_view": ("plain", "optic", "optic2"),
     "unit_mode": ("auto", "deg", "mil"),
     "outline_color": ("white", "black"),
     "map_render": ("auto", "software"),
