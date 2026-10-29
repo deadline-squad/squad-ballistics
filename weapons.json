@@ -1,5 +1,5 @@
 {
-    "_comment": "velocity m/s, gravity = projectile gravity scale. Optional: acceleration (m/s^2, negative = slows down) + acceleration_time (s), arc low/high, aim overlay/elevation, unit deg/mil, angle_offset, min_distance, elevation_limits [min,max], category, note, note_ru, mod. Sources: velocity, gravity and rocket boost read from the game files (Squad build 26005357: WeaponConfig.MuzzleVelocity, projectile ProjectileGravityScale, ConstantAcceleration/Timeout capped at MaxSpeed); elevation limits, arcs and the AGS-17 hold model from in-game measurements, the official Squad wiki (squad.fandom.com) and SquadCalc (github.com/sh4rkman/SquadCalc).",
+    "_comment": "velocity m/s, gravity = projectile gravity scale. Optional: acceleration (m/s^2, negative = slows down) + acceleration_time (s), arc low/high, aim overlay/elevation, unit deg/mil, angle_offset, min_distance, elevation_limits [min,max], bore (deg: how far above the screen centre the shot leaves; the game fires along the barrel socket Attach_Muzzle, tilted against the camera), zoom (the optic's FOV divisor on RMB) + zoom_bore (bore in that view), category, note, note_ru, mod. Sources: velocity, gravity and rocket boost read from the game files (Squad build 26005357: WeaponConfig.MuzzleVelocity, projectile ProjectileGravityScale, ConstantAcceleration/Timeout capped at MaxSpeed); elevation limits, arcs and the AGS-17 hold model from in-game measurements, the official Squad wiki (squad.fandom.com) and SquadCalc (github.com/sh4rkman/SquadCalc).",
     "M203 / M320 / GP-25 / HK79 / SL40": {
         "velocity": 76,
         "gravity": 1,
@@ -71,9 +71,22 @@
     "QLZ87": {
         "velocity": 190,
         "gravity": 1,
+        "bore": -0.9,
+        "zoom": 3,
+        "zoom_bore": 0.774,
         "category": "agl",
-        "note": "Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m.",
-        "note_ru": "Стреляйте короткими очередями и подводите разрывы к цели; взведение ~30 м."
+        "note": "Tripod QLZ87. Its optic (RMB, ×3) is zeroed at 100 m; without it the shot leaves 0.9° below the screen centre — the mark accounts for both, pick the view you aim from. Fire short bursts; minimum arming range ~30 m.",
+        "note_ru": "Станковый QLZ87. Его оптика (ПКМ, ×3) пристреляна на 100 м, а без неё выстрел уходит на 0,9° ниже центра экрана — метка учитывает и то, и другое, выберите вид, из которого стреляете. Стреляйте короткими очередями; взведение ~30 м."
+    },
+    "QLZ87 · Lynx / CSK131": {
+        "velocity": 190,
+        "gravity": 1,
+        "bore": 0.85,
+        "zoom": 3,
+        "zoom_bore": 0.85,
+        "category": "agl",
+        "note": "QLZ87 on the Lynx and CSK131: the shot leaves 0.85° above the screen centre (zero ~110 m), with or without the optic (RMB, ×3). Fire short bursts; minimum arming range ~30 m.",
+        "note_ru": "QLZ87 на Lynx и CSK131: выстрел уходит на 0,85° выше центра экрана (пристрелка ~110 м), с оптикой (ПКМ, ×3) и без неё. Стреляйте короткими очередями; взведение ~30 м."
     },
     "AGS-30 / BTR-4 AGS": {
         "velocity": 190,
@@ -361,9 +374,10 @@
     "M2A1 .50 · ACOG emplacement": {
         "velocity": 890,
         "gravity": 3,
+        "bore": 0.22,
         "category": "hmg",
-        "note": "The tripod M2 with the ACOG fires a heavier-dropping round in game (gravity ×3, not ×1.5).",
-        "note_ru": "Станковый M2 с прицелом ACOG в игре стреляет пулей с большим падением (гравитация ×3, а не ×1.5)."
+        "note": "The tripod M2 with the ACOG fires a heavier-dropping round in game (gravity ×3, not ×1.5), 0.22° above the screen centre (zero ~200 m); the mark accounts for it.",
+        "note_ru": "Станковый M2 с прицелом ACOG в игре стреляет пулей с большим падением (гравитация ×3, а не ×1.5) на 0,22° выше центра экрана (пристрелка ~200 м); метка это учитывает."
     },
     "NSV": {
         "velocity": 860,
@@ -373,9 +387,12 @@
     "Kord · SPP emplacement": {
         "velocity": 860,
         "gravity": 3,
+        "bore": 0.45,
+        "zoom": 4.5,
+        "zoom_bore": 0.45,
         "category": "hmg",
-        "note": "The tripod Kord with the SPP optic fires a heavier-dropping round in game (gravity ×3, not ×1.5).",
-        "note_ru": "Станковый «Корд» с прицелом СПП в игре стреляет пулей с большим падением (гравитация ×3, а не ×1.5)."
+        "note": "The tripod Kord with the SPP optic fires a heavier-dropping round in game (gravity ×3, not ×1.5), 0.45° above the screen centre (zero ~400 m); the optic (RMB) zooms ×4.5. The mark accounts for both.",
+        "note_ru": "Станковый «Корд» с прицелом СПП в игре стреляет пулей с большим падением (гравитация ×3, а не ×1.5) на 0,45° выше центра экрана (пристрелка ~400 м); оптика (ПКМ) приближает ×4,5. Метка учитывает и то, и другое."
     },
     "DShK-M": {
         "velocity": 850,

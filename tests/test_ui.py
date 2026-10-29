@@ -1953,6 +1953,38 @@ def test_range_ladder_follows_fov_calibration_and_toggle(window):
     assert window.overlay.ladder
 
 
+def test_optic_view_moves_the_mark_and_the_ladder(window):
+    """The QLZ87 tripod: the view control shows for weapons with an optic;
+    the optic view (default) zooms ×3 and is zeroed at 100 m, the unzoomed
+    view fires 0.9 degrees under the centre."""
+    from ballistics import mark_offset
+
+    window.overlay.setGeometry(0, 0, 1920, 1080)
+    window.select_weapon("AT-4")
+    assert window.view_control.isHidden()
+
+    window.select_weapon("QLZ87")
+    assert not window.view_control.isHidden()
+    window.distance_entry.setText("400")
+    window.height_entry.setText("0")
+    window.fov_entry.setText("90")
+    window.calculate()
+    weapon = window.current_weapon()
+    angle = window.last_solution.sight_angle
+
+    assert window.config["sight_view"] == "optic"
+    assert window.current_offset() == pytest.approx(mark_offset(weapon, angle, 90, 1920, zoomed=True))
+    optic_ladder = window.overlay.ladder
+
+    window.view_control.changed.emit("plain")
+    assert window.config["sight_view"] == "plain"
+    assert window.current_offset() == pytest.approx(mark_offset(weapon, angle, 90, 1920))
+    assert window.overlay.ladder != optic_ladder
+
+    window.select_weapon("M203 / M320 / GP-25 / HK79 / SL40")
+    assert window.view_control.isHidden()
+
+
 def test_range_ladder_is_drawn_left_of_the_centre(window):
     overlay = window.overlay
     overlay.setGeometry(0, 0, 1920, 1080)

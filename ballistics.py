@@ -67,6 +67,9 @@ class Weapon:
     min_distance: float = 0.0
     elevation_limits: tuple = (-90.0, 90.0)
     launch_height: float = 0.0
+    bore: float = 0.0
+    zoom: float = 0.0
+    zoom_bore: float = 0.0
     hold_rate: float = 0.0
     hold_elevation: tuple = ()
     category: str = "other"
@@ -139,6 +142,10 @@ class Weapon:
         if low >= high:
             raise WeaponDataError(f"{name}: invalid 'elevation_limits'")
 
+        zoom = number("zoom", 0.0)
+        if zoom and zoom < 1:
+            raise WeaponDataError(f"{name}: 'zoom' must be >= 1 (or 0: none)")
+
         hold_rate = number("hold_rate", 0.0)
         if hold_rate < 0:
             raise WeaponDataError(f"{name}: 'hold_rate' must be >= 0")
@@ -171,6 +178,9 @@ class Weapon:
             min_distance=number("min_distance", 0.0),
             elevation_limits=(low, high),
             launch_height=number("launch_height", 0.0),
+            bore=number("bore", 0.0),
+            zoom=zoom,
+            zoom_bore=number("zoom_bore", 0.0),
             hold_rate=hold_rate,
             hold_elevation=hold_elevation,
             category=str(data.get("category", "other")),
@@ -191,6 +201,21 @@ class Weapon:
     def boost_distance(self):
         t = self.acceleration_time
         return self.velocity * t + 0.5 * self.acceleration * t * t
+
+    def sight_view(self, fov, zoomed):
+        """(field of view, bore) of the view the player aims from.
+
+        `fov` is the game's FOV setting; `zoomed` the optic's view (right
+        mouse button), which the game draws at fov / `zoom` for weapons
+        with one. The bore (degrees) is how far above the screen centre the
+        shot leaves: the game fires along the barrel socket
+        (`Attach_Muzzle`), which can be tilted against the camera, so the
+        view is zeroed at some range.
+        """
+        if zoomed and self.zoom:
+            return fov / self.zoom, self.zoom_bore
+
+        return fov, self.bore
 
     @property
     def has_hold(self):
@@ -588,7 +613,19 @@ LADDER_MAX_TICKS = 24
 LADDER_MAX_DISTANCE = 5000
 
 
-def range_ladder(weapon, fov, screen_width, first, spacing, reach, scale=1.0):
+def mark_offset(weapon, sight_angle, fov, screen_width, scale=1.0, zoomed=False):
+    """Pixels below the screen centre to put the target on, for a shot
+    `sight_angle` degrees over the line of sight (`Solution.sight_angle`)
+    from the view `Weapon.sight_view` gives: the shot already leaves `bore`
+    degrees above the centre, so the mark is that much higher.
+    """
+    view_fov, bore = weapon.sight_view(fov, zoomed)
+
+    return screen_offset(sight_angle - bore, view_fov, screen_width, scale)
+
+
+def range_ladder(weapon, fov, screen_width, first, spacing, reach, scale=1.0,
+                 zoomed=False):
     """Range ticks of the overlay ladder: where to put a target at each
     range on flat ground, as [(distance m, pixels below the centre)].
 
@@ -597,8 +634,9 @@ def range_ladder(weapon, fov, screen_width, first, spacing, reach, scale=1.0):
     through LADDER_STEPS to keep them apart, and the ladder ends where the
     weapon cannot reach, at `reach` pixels, after LADDER_MAX_TICKS or at
     LADDER_MAX_DISTANCE.
-    The offsets are those of the overlay mark (`screen_offset` of the
-    low-arc `Solution.sight_angle`). Empty for weapons laid by elevation and
+    The offsets are those of the overlay mark (`mark_offset` of the
+    low-arc `Solution.sight_angle`, from the view `zoomed` picks); ranges
+    above the centre (inside the view's zero) get no tick. Empty for weapons laid by elevation and
     for weapons without gravity (every range is on the centre).
     """
     if weapon.aim != "overlay" or weapon.g == 0:
@@ -621,10 +659,18 @@ def range_ladder(weapon, fov, screen_width, first, spacing, reach, scale=1.0):
         if not solution.reachable:
             break
 
-        offset = screen_offset(solution.sight_angle, fov, screen_width, scale)
+        offset = mark_offset(
+            weapon, solution.sight_angle, fov, screen_width, scale, zoomed
+        )
 
         if offset > reach:
             break
+
+        # Inside the view's zero the range is at or above the centre: no
+        # tick there, and no reason to coarsen the step.
+        if not ticks and offset <= 0:
+            distance += step
+            continue
 
         gap = first if not ticks else spacing
 

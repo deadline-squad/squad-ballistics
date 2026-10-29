@@ -13,6 +13,7 @@ from ballistics import (
     first_obstacle,
     height_at,
     load_weapons,
+    mark_offset,
     parse_weapons,
     range_ladder,
     screen_offset,
@@ -264,10 +265,72 @@ def test_range_ladder_starts_past_the_minimum_distance():
     assert range_ladder(weapon, 90, 1920, 1, 1, 520)[0][0] >= 60
 
 
+# The game fires along the barrel socket (Attach_Muzzle), whose tilt
+# against the camera zeroes each view at a round range (game files, build
+# 26005357): there the mark is on the screen centre.
+@pytest.mark.parametrize("name, zoomed, zero", [
+    ("QLZ87", True, 100),
+    ("QLZ87 · Lynx / CSK131", True, 110),
+    ("Kord · SPP emplacement", True, 400),
+    ("Kord · SPP emplacement", False, 400),
+    ("M2A1 .50 · ACOG emplacement", False, 200),
+])
+def test_views_are_zeroed_where_the_game_puts_them(name, zoomed, zero):
+    weapon = WEAPONS[name]
+    sight_angle = solve(weapon, zero, 0.0, "low").sight_angle
+    view_fov, bore = weapon.sight_view(90, zoomed)
+
+    assert sight_angle == pytest.approx(bore, abs=0.05)
+    assert abs(mark_offset(weapon, sight_angle, 90, 1920, zoomed=zoomed)) < screen_offset(0.05, view_fov, 1920)
+
+
+def test_the_tripod_qlz87_fires_below_the_centre_unzoomed():
+    """Without the optic the shot leaves 0.9 degrees under the centre: the
+    mark is that much lower than for a barrel on the centre."""
+    weapon = WEAPONS["QLZ87"]
+    sight_angle = solve(weapon, 300, 0.0, "low").sight_angle
+
+    assert mark_offset(weapon, sight_angle, 90, 1920) == pytest.approx(
+        screen_offset(sight_angle + 0.9, 90, 1920)
+    )
+
+
+def test_the_optic_view_narrows_the_fov_by_its_zoom():
+    weapon = WEAPONS["QLZ87"]
+    sight_angle = solve(weapon, 400, 0.0, "low").sight_angle
+
+    assert weapon.sight_view(90, True) == (30, 0.774)
+    assert mark_offset(weapon, sight_angle, 90, 1920, zoomed=True) == pytest.approx(
+        screen_offset(sight_angle - 0.774, 30, 1920)
+    )
+
+
+def test_a_weapon_without_an_optic_ignores_the_zoomed_view():
+    weapon = WEAPONS["AT-4"]
+    sight_angle = solve(weapon, 200, 0.0, "low").sight_angle
+
+    assert weapon.sight_view(90, True) == (90, 0.0)
+    assert mark_offset(weapon, sight_angle, 90, 1920, zoomed=True) == pytest.approx(
+        screen_offset(sight_angle, 90, 1920)
+    )
+
+
+def test_the_optic_ladder_starts_past_the_zero_and_matches_the_mark():
+    weapon = WEAPONS["QLZ87"]
+    ticks = range_ladder(weapon, 90, 1920, 20, 18, 520, zoomed=True)
+
+    assert ticks and ticks[0][0] > 100
+
+    for distance, offset in ticks:
+        sight_angle = solve(weapon, distance, 0.0, "low").sight_angle
+        assert offset == pytest.approx(mark_offset(weapon, sight_angle, 90, 1920, zoomed=True))
+
+
 @pytest.mark.parametrize("data", [
     {"x": {}},
     {"x": {"velocity": 0}},
     {"x": {"velocity": "fast"}},
+    {"x": {"velocity": 100, "zoom": 0.5}},
     {"x": {"velocity": 100, "gravity": -1}},
     {"x": {"velocity": 100, "aim": "telepathy"}},
     {"x": {"velocity": True}},

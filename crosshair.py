@@ -45,6 +45,7 @@ from ballistics import (
     current_weapon_name,
     first_obstacle,
     solve,
+    mark_offset,
     range_ladder,
     screen_offset,
     trajectory
@@ -588,6 +589,21 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(self.arc_control)
 
+        # Weapons with a zoomed optic: the mark follows the view aimed from.
+        self.view_control = Segmented(
+            [
+                ("plain", tr("view_plain")),
+                ("optic", tr("view_optic"))
+            ],
+            self.config["sight_view"]
+        )
+
+        self.view_control.changed.connect(self.on_view_changed)
+
+        self.view_control.setVisible(False)
+
+        layout.addWidget(self.view_control)
+
         self.distance_entry = NumberEdit(
             allow_negative=False,
             step=self.config["distance_step"]
@@ -782,6 +798,8 @@ class MainWindow(QMainWindow):
 
         self.update_weapon_info(weapon)
 
+        self.view_control.setVisible(bool(weapon.zoom))
+
         # The calibration status is about the previous weapon.
         self.lay_status.setText("")
 
@@ -823,6 +841,15 @@ class MainWindow(QMainWindow):
             parts.append(tr("chip_mod", mod=weapon.mod))
 
         self.weapon_info.setText("  ·  ".join(parts))
+
+    def on_view_changed(self, key):
+        self.config["sight_view"] = key
+
+        self.schedule_save()
+
+        self.update_ladder()
+
+        self.recalculate_if_ready()
 
     def on_arc_changed(self, key):
         self.config["arc"] = key
@@ -1310,7 +1337,9 @@ class MainWindow(QMainWindow):
 
                 steps = [
                     tr("how_overlay_1", angle=angle_text),
-                    tr("how_overlay_2", fov=f"{fov:g}")
+                    tr("how_overlay_optic", fov=f"{fov:g}", zoom=f"{weapon.zoom:g}")
+                    if self.optic_view(weapon)
+                    else tr("how_overlay_2", fov=f"{fov:g}")
                 ]
 
                 if toggle_key:
@@ -2015,13 +2044,29 @@ class MainWindow(QMainWindow):
                 return 0.0
 
         # The player puts the target, not the horizon, on the mark: the
-        # mark is below the centre by the angle over the line of sight.
-        return screen_offset(
+        # mark is below the centre by the angle over the line of sight, less
+        # what the view is zeroed for.
+        if weapon is None:
+            return screen_offset(
+                solution.sight_angle,
+                self.config["fov"],
+                self.overlay.screen_width(),
+                self.config["offset_scale"] / 100
+            )
+
+        return mark_offset(
+            weapon,
             solution.sight_angle,
             self.config["fov"],
             self.overlay.screen_width(),
-            self.config["offset_scale"] / 100
+            self.config["offset_scale"] / 100,
+            self.optic_view(weapon)
         )
+
+    def optic_view(self, weapon):
+        """True when `weapon` is aimed through its zoomed optic (it has
+        one and the view control is on "optic")."""
+        return bool(weapon.zoom) and self.config["sight_view"] == "optic"
 
     def update_ladder(self):
         """Put the current weapon's range ladder on the overlay, or clear
@@ -2041,7 +2086,8 @@ class MainWindow(QMainWindow):
             first,
             spacing,
             reach,
-            self.config["offset_scale"] / 100
+            self.config["offset_scale"] / 100,
+            self.optic_view(weapon)
         ))
 
     def reset_offset(self):

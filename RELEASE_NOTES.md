@@ -10,6 +10,7 @@
 - **Только Linux:** поддержка Windows убрана целиком — нет больше exe, автообновления, сборки PyInstaller и Windows-клавиш. Программа запускается из исходников (`python app.py`), обновление — `git pull`. Клавиши читаются через evdev или X11, нажимаются через uinput или XTest; настройки лежат в `~/.config/SquadBallistics`, кэш карты — в `~/.cache/SquadBallistics`.
 
 ### Исправлено
+- **QLZ87: метка без недолёта.** Игра стреляет вдоль гнезда ствола, повёрнутого относительно камеры, а оптика станкового QLZ87 (ПКМ) делит FOV на 3. Программа этого не учитывала, и метка давала недолёт и с оптикой, и без неё. Теперь у оружия с такой оптикой есть переключатель вида «Оптика (ПКМ) / Без приближения»: метка и шкала дальности учитывают приближение и пристрелку вида (оптика QLZ87 пристреляна на 100 м, без неё выстрел уходит на 0,9° ниже центра). QLZ87 на Lynx и CSK131 вынесен отдельно (+0,85°); у «Корда» с СПП (×4,5, +0,45°) и M2 с ACOG (+0,22°) поправка тоже учтена. Всё взято из файлов игры.
 - **Цель с карты точнее:** дистанция и перепад высот из SquadCalc больше не округляются до целого метра (теряли до 0,5 м, а метр высоты сдвигает близкий выстрел UB-32 на 20–40 м) — теперь до 0,1 м.
 - **Ошибки ввода видны сразу:** при расчёте во время ввода FOV вне 1–179 или нулевая дистанция показывали «Введите дистанцию». Теперь показывается сама ошибка; подсказка «Введите дистанцию» — только при пустом поле дистанции.
 - **Диалоги читаются:** в окнах «Перезапустить?» и «Сбросить настройки?» светлый текст стоял на светлом фоне и почти не был виден.
@@ -28,6 +29,7 @@
 - **Linux only:** Windows support is gone entirely — no exe, auto-update, PyInstaller build or Windows key handling. The app runs from source (`python app.py`) and updates with `git pull`. Keys are read through evdev or X11 and sent through uinput or XTest; settings live in `~/.config/SquadBallistics`, the map cache in `~/.cache/SquadBallistics`.
 
 ### Fixed
+- **QLZ87: no more falling short.** The game fires along the barrel socket, tilted against the camera, and the tripod QLZ87's optic (RMB) divides the FOV by 3. The app ignored both, so the mark fell short zoomed and unzoomed. Weapons with such an optic now have a view switch, *Optic (RMB) / Unzoomed*: the mark and the range ladder follow that view's zoom and zero (the QLZ87 optic is zeroed at 100 m; unzoomed the shot leaves 0.9° below the centre). The QLZ87 on the Lynx and CSK131 is a separate entry (+0.85°); the Kord SPP (×4.5, +0.45°) and the M2 ACOG (+0.22°) get the correction too. All from the game files.
 - **Map targets more exact:** the distance and height difference from SquadCalc are no longer rounded to whole metres (up to 0.5 m lost, and a metre of height moves a short UB-32 shot 20–40 m) — they keep a tenth of a metre.
 - **Input errors show right away:** while calculating as you type, a FOV outside 1–179 or a zero distance showed "Enter the distance". The error itself is shown now; "Enter the distance" only when the distance field is empty.
 - **Readable dialogs:** the "Restart?" and "Reset settings?" boxes had light text on a light background.
