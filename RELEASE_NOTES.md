@@ -6,7 +6,7 @@
 - **Маленькое окно и масштаб 150 %:** в окне 900×600 правая часть «Решения» обрезалась, а кнопки пресетов налезали на предпросмотр; на экране 1080p с масштабом 150 % окно не помещалось по высоте. Теперь всё помещается, а длинные названия оружия сокращаются (полное — во всплывающей подсказке).
 - **«Сбросить настройки»** сбрасывает и уточнённую скорость автонаводки, и FOV (раньше они оставались до перезапуска).
 - **Подсказка горячих клавиш** показывает только работающие клавиши: F7 — только при включённом автозажатии. Переключатель автозажатия больше не показывает «включено», если в этой системе программа не может нажимать клавиши.
-- Мелочи: после закрытия окна прицел больше не читается с экрана; статус «Уточнить» не переходит на другое оружие; полоса загрузки карты меняет цвет вместе с акцентом; сообщение «Карта не загрузилась» называет нужный сайт.
+- Мелочи: после закрытия окна прицел больше не читается с экрана; статус «Уточнить» не переходит на другое оружие; полоса загрузки карты меняет цвет вместе с акцентом; сообщение «Карта не загрузилась» называет нужный сайт; «Уточнить» с пустым полем подсказывает, чего не хватает, вместо того чтобы молча ничего не делать.
 
 ### Fixed
 - **The whole overlay line:** the line next to the mark was cut at 400 pixels, and mortars lost the sight reading ("sight 1041.5 mil (+4.6)"). It is shown in full now, and wraps when it would run past the screen edge.
@@ -14,7 +14,7 @@
 - **Small window and 150 % scaling:** at 900×600 the right side of "Solution" was cut off and the preset buttons overlapped the preview; on a 1080p screen at 150 % the window did not fit vertically. Everything fits now, and long weapon names are shortened (the full name is in the tooltip).
 - **"Reset settings"** also resets the calibrated auto-lay rate and the FOV (they used to stay until a restart).
 - **The hotkey hint** lists only keys that work: F7 only while auto-hold is on. The auto-hold toggle no longer shows "on" when the app cannot send key presses on this system.
-- Small things: the sight is no longer read off the screen after the window closes; the "Calibrate" status no longer carries over to another weapon; the map loading bar follows the accent colour; "The map did not load" names the right site.
+- Small things: the sight is no longer read off the screen after the window closes; the "Calibrate" status no longer carries over to another weapon; the map loading bar follows the accent colour; "The map did not load" names the right site; "Calibrate" with an empty field says what is missing instead of silently doing nothing.
 
 ## Squad Ballistics 1.5.0
 

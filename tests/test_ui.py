@@ -1723,3 +1723,24 @@ def test_hotkey_hint_lists_only_bound_keys(window):
         assert "F7" not in hint()
     finally:
         crosshair.system_key_injector = original
+
+
+def test_calibrate_without_mils_says_what_is_missing(window, monkeypatch):
+    window.select_weapon(MORTAR)
+    window.config["arc"] = "high"
+    window.distance_entry.setText("1000")
+    window.calculate()
+    window.hold_timer.held = 3.0
+    window.lay_entry.clear()
+
+    # Nothing typed and the sight is not read: the mils are asked for
+    window.config["sight_reader"] = False
+    assert not window.calibrate_lay()
+    assert window.lay_status.text() == tr("lay_need_mils")
+
+    # The screen cannot be grabbed at all: no grab to point to
+    window.config["sight_reader"] = True
+    monkeypatch.setattr(window.screen_sight, "grab", lambda: None)
+    monkeypatch.setattr(window.screen_sight, "grab_image", lambda: None)
+    assert not window.calibrate_lay()
+    assert window.lay_status.text() == tr("lay_no_grab")

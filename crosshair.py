@@ -1532,7 +1532,7 @@ class MainWindow(QMainWindow):
         last W (the hold timer's count, auto-lay or by hand), so the rate is
         (top - shown angle) / held. The mils are the typed ones, or read off
         the sight on the screen when none are typed. Returns True when the
-        rate was saved.
+        rate was saved; otherwise the status says what is missing.
         """
         weapon = self.current_weapon()
         mils = self.lay_entry.value()
@@ -1543,12 +1543,21 @@ class MainWindow(QMainWindow):
             reading = self.read_sight_now()
 
             if reading is None:
-                self.lay_status.setText(tr("lay_no_sight", path=self.save_sight_grab()))
+                path = self.save_sight_grab()
+
+                # No path: the screen cannot be grabbed (fullscreen, Wayland)
+                self.lay_status.setText(
+                    tr("lay_no_sight", path=path) if path else tr("lay_no_grab")
+                )
                 return False
 
             mils = reading.mils
 
-        if weapon is None or not weapon.has_hold or weapon.aim != "elevation" or mils is None:
+        if weapon is None or not weapon.has_hold or weapon.aim != "elevation":
+            return False
+
+        if mils is None:
+            self.lay_status.setText(tr("lay_need_mils"))
             return False
 
         if held < LAY_CALIBRATION_MIN_HOLD:
