@@ -41,13 +41,16 @@ from dataclasses import replace
 
 from ballistics import (
     MILS_PER_DEGREE,
+    TRIM_LIMIT,
+    clamp_trim,
     current_weapon_name,
     first_obstacle,
     solve,
     mark_offset,
     range_ladder,
     screen_offset,
-    trajectory
+    trajectory,
+    trim_for_landing
 )
 
 from beep import beep
@@ -60,7 +63,8 @@ from config import (
     RANGES,
     config_dir,
     load_config,
-    save_config
+    save_config,
+    trim_key
 )
 
 from holdtimer import HoldTimer
@@ -208,6 +212,13 @@ class MainWindow(QMainWindow):
         self.weapons = dict(weapons)
 
         self.config = load_config()
+
+        # Trims of weapons that weapons.json no longer has are dropped.
+        self.config["mark_trim"] = {
+            key: trim
+            for key, trim in self.config["mark_trim"].items()
+            if key.rpartition("|")[0] in self.weapons
+        }
 
         self.apply_lay_rates()
 
@@ -587,6 +598,8 @@ class MainWindow(QMainWindow):
 
         self.map_label.setWordWrap(True)
 
+        layout.addWidget(self.build_trim_box())
+
         layout.addWidget(self.map_label)
 
         buttons = QHBoxLayout()
@@ -620,6 +633,63 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.hotkey_hint)
 
         return frame
+
+    def build_trim_box(self):
+        """The field correction of the mark: the trim of the weapon and view,
+        and the landing that sets it. Shown for weapons aimed with the overlay."""
+        self.trim_box = QWidget()
+
+        column = QVBoxLayout(self.trim_box)
+
+        column.setContentsMargins(0, 0, 0, 0)
+
+        column.setSpacing(10)
+
+        self.trim_entry = NumberEdit(allow_negative=True, step=0.05)
+
+        self.trim_entry.setPlaceholderText(tr("trim_hint"))
+
+        self.trim_entry.textEdited.connect(self.on_trim_edited)
+
+        self.trim_entry.stepped.connect(self.on_trim_edited)
+
+        self.landed_entry = NumberEdit(allow_negative=False, step=self.config["distance_step"])
+
+        self.landed_entry.setPlaceholderText(tr("landed_hint"))
+
+        self.landed_entry.returnPressed.connect(self.apply_landing)
+
+        apply_button = QPushButton(tr("trim_apply"))
+
+        apply_button.clicked.connect(lambda: self.apply_landing())
+
+        reset_button = QPushButton(tr("trim_reset"))
+
+        reset_button.setProperty("flat_style", True)
+
+        reset_button.clicked.connect(lambda: self.reset_trim())
+
+        for caption, entry, button in (
+            (tr("trim"), self.trim_entry, reset_button),
+            (tr("landed"), self.landed_entry, apply_button)
+        ):
+            column.addWidget(label(caption.upper(), "section"))
+
+            row = QHBoxLayout()
+
+            row.addWidget(entry, 1)
+
+            row.addWidget(button)
+
+            column.addLayout(row)
+
+        self.trim_status = label("", "small")
+
+        self.trim_status.setWordWrap(True)
+
+        column.addWidget(self.trim_status)
+
+        return self.trim_box
 
     def update_hotkey_hint(self):
         """The keys that work now (auto-hold's only while it is on).
@@ -739,6 +809,8 @@ class MainWindow(QMainWindow):
 
         self.update_view_control(weapon)
 
+        self.show_trim()
+
         # The calibration status is about the previous weapon.
         self.lay_status.setText("")
 
@@ -816,9 +888,117 @@ class MainWindow(QMainWindow):
 
         self.schedule_save()
 
+        self.show_trim()
+
         self.update_ladder()
 
         self.recalculate_if_ready()
+
+    def trim_view(self, weapon):
+        """The view the trim of `weapon` belongs to: the `sight_view` value
+        of the view aimed from ("plain" when the weapon has no other)."""
+        return CHOICES["sight_view"][self.view_index(weapon)]
+
+    def current_trim(self, weapon):
+        """The trim (degrees) set for `weapon` in the view aimed from."""
+        if weapon is None:
+            return 0.0
+
+        return self.config["mark_trim"].get(
+            trim_key(weapon.name, self.trim_view(weapon)), 0.0
+        )
+
+    def show_trim(self):
+        """Load the trim of the current weapon and view into the controls."""
+        weapon = self.current_weapon()
+
+        self.trim_box.setVisible(weapon is not None and weapon.aim == "overlay")
+
+        self.trim_entry.set_value(self.current_trim(weapon))
+
+        self.landed_entry.clear()
+
+        self.trim_status.setText("")
+
+    def set_trim(self, trim):
+        """Store `trim` (degrees, limited and rounded to 0.001) for the
+        current weapon and view; the mark and the ladder follow at once."""
+        weapon = self.current_weapon()
+
+        if weapon is None:
+            return
+
+        trim = round(clamp_trim(trim), 3) + 0.0
+
+        key = trim_key(weapon.name, self.trim_view(weapon))
+
+        if trim:
+            self.config["mark_trim"][key] = trim
+        else:
+            self.config["mark_trim"].pop(key, None)
+
+        self.schedule_save()
+
+        self.recalculate_if_ready()
+
+    def on_trim_edited(self, *_):
+        value = self.trim_entry.value(0.0)
+
+        self.set_trim(value)
+
+        if abs(value) > TRIM_LIMIT:
+            self.trim_entry.set_value(self.current_trim(self.current_weapon()))
+
+        self.trim_status.setText("")
+
+    def reset_trim(self):
+        """Remove the trim of the current weapon and view."""
+        self.set_trim(0.0)
+
+        self.show_trim()
+
+    def apply_landing(self):
+        """Set the trim from one real shot: fired at the typed distance (and
+        height difference), landed at the typed landed distance. The status
+        shows the new trim, or what is wrong with the numbers."""
+        weapon = self.current_weapon()
+
+        if weapon is None:
+            return
+
+        distance = self.distance_entry.value()
+        landed = self.landed_entry.value()
+
+        try:
+            if distance is None:
+                raise ValueError(tr("enter_distance"))
+
+            if landed is None:
+                raise ValueError(tr("enter_landed"))
+
+            trim = trim_for_landing(
+                weapon,
+                distance,
+                self.height_entry.value(0.0),
+                landed,
+                self.current_trim(weapon)
+            )
+        except ValueError as e:
+            self.trim_status.setText(str(e))
+            return
+        except ArithmeticError:
+            self.trim_status.setText(tr("bad_number"))
+            return
+
+        self.set_trim(trim)
+
+        trim = self.current_trim(weapon)
+
+        self.show_trim()
+
+        self.trim_status.setText(
+            tr("trim_set_limit" if abs(trim) >= TRIM_LIMIT else "trim_set", trim=f"{trim:+g}")
+        )
 
     def on_arc_changed(self, key):
         self.config["arc"] = key
@@ -1167,6 +1347,11 @@ class MainWindow(QMainWindow):
 
         info = f"{solution.distance:.0f} {m}  ·  {readout}"
 
+        trim = self.current_trim(weapon) if weapon.aim == "overlay" else 0.0
+
+        if trim:
+            info += "  ·  " + tr("info_trim", trim=f"{trim:+g}")
+
         if direct is not None:
             info += "  ·  " + tr(
                 "direct_short", angle=format_angle(direct.sight_angle, "deg")
@@ -1300,6 +1485,9 @@ class MainWindow(QMainWindow):
                         tr("how_overlay_on", hotkey=toggle_key)
                         + " " + steps[0]
                     )
+
+            if trim:
+                steps.append(tr("how_trim", trim=f"{trim:+g}"))
 
             steps.append(
                 tr(
@@ -1926,7 +2114,8 @@ class MainWindow(QMainWindow):
             self.config["fov"],
             self.overlay.screen_width(),
             self.config["offset_scale"] / 100,
-            self.optic_view(weapon)
+            self.optic_view(weapon),
+            trim=self.current_trim(weapon)
         )
 
     def optic_view(self, weapon):
@@ -1968,7 +2157,8 @@ class MainWindow(QMainWindow):
             spacing,
             reach,
             self.config["offset_scale"] / 100,
-            self.optic_view(weapon)
+            self.optic_view(weapon),
+            trim=self.current_trim(weapon)
         ))
 
     def reset_offset(self):
