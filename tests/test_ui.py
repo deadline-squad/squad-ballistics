@@ -1459,3 +1459,157 @@ def test_window_fits_the_screen(window):
     assert window.width() == max(900, min(1180, available.width()))
     assert window.height() <= max(600, available.height())
     assert window.height() == max(600, min(780, available.height() - 40))
+
+
+LONG_INFO = "1150 m  ·  1016 mil  ·  S 3.53 s  ·  S held 1.23 of 2.13 s  ·  sight 1041.5 mil (+4.6)"
+
+
+def ink_box(overlay, left):
+    """(right, top, bottom) of what is painted on the overlay right of `left`."""
+    image = overlay.grab().toImage()
+    right, top, bottom = None, None, None
+
+    for y in range(0, image.height(), 2):
+        for x in range(int(left), image.width(), 2):
+            if image.pixelColor(x, y).alpha() > 0:
+                right = x if right is None else max(right, x)
+                top = y if top is None else top
+                bottom = y
+
+    return right, top, bottom
+
+
+def test_overlay_info_line_is_drawn_whole_on_a_wide_screen(window):
+    from PyQt6.QtGui import QFont, QFontMetricsF
+
+    overlay = window.overlay
+    overlay.setGeometry(0, 0, 1920, 1080)
+    overlay.set_offset(None)
+    overlay.set_info(LONG_INFO)
+
+    font = QFont("Segoe UI", 10)
+    font.setBold(True)
+    width = QFontMetricsF(font, overlay).horizontalAdvance(LONG_INFO)
+    assert width > 450
+
+    start = overlay.center_x + 20
+    right, top, bottom = ink_box(overlay, start)
+
+    # The whole line, not the first 400 px of it
+    assert right > start + width - 20
+    assert bottom - top < 30
+
+
+def test_overlay_info_line_wraps_inside_a_narrow_screen(window):
+    overlay = window.overlay
+    overlay.setGeometry(0, 0, 640, 480)
+    overlay.set_offset(None)
+    overlay.set_info(LONG_INFO)
+
+    right, top, bottom = ink_box(overlay, overlay.center_x + 20)
+
+    assert right < overlay.width() - 2
+    # More than one line
+    assert bottom - top > 25
+
+
+def test_hold_progress_repaints_only_the_info_line(window):
+    from PyQt6.QtCore import QEvent, QObject, QPoint
+
+    class Regions(QObject):
+        def __init__(self):
+            super().__init__()
+            self.regions = []
+
+        def eventFilter(self, watched, event):
+            if event.type() == QEvent.Type.Paint:
+                self.regions.append(event.region())
+            return False
+
+    window.hold_timer.key_reader = lambda vk: False
+    window.select_weapon(AGS17)
+    window.distance_entry.setText("900")
+    window.calculate()
+    assert window.hold_timer.active
+
+    overlay = window.overlay
+    overlay.setGeometry(0, 0, 1920, 1080)
+    QApplication.processEvents()
+
+    regions = Regions()
+    overlay.installEventFilter(regions)
+
+    for _ in range(5):
+        window.hold_timer.advance(0.01, True, False)
+        QApplication.processEvents()
+
+    overlay.removeEventFilter(regions)
+
+    assert regions.regions
+    assert tr("hold_progress", held="0.05", t=f"{window.hold_timer.target:.2f}") in overlay.info_text
+
+    # Far from the label and the timer panel: never repainted
+    for region in regions.regions:
+        assert not region.contains(QPoint(5, 1075))
+        assert not region.contains(QPoint(5, 5))
+
+
+def test_unchanged_info_is_not_repainted(window):
+    from PyQt6.QtCore import QEvent, QObject
+
+    class Count(QObject):
+        paints = 0
+
+        def eventFilter(self, watched, event):
+            if event.type() == QEvent.Type.Paint:
+                self.paints += 1
+            return False
+
+    overlay = window.overlay
+    overlay.set_info("600 m  ·  12.00°")
+    QApplication.processEvents()
+
+    count = Count()
+    overlay.installEventFilter(count)
+    overlay.set_info("600 m  ·  12.00°")
+    QApplication.processEvents()
+    overlay.removeEventFilter(count)
+
+    assert count.paints == 0
+
+
+def test_hold_progress_does_not_lay_out_the_window(window):
+    from PyQt6.QtCore import QEvent, QObject
+
+    class Requests(QObject):
+        count = 0
+
+        def eventFilter(self, watched, event):
+            if event.type() == QEvent.Type.LayoutRequest:
+                self.count += 1
+            return False
+
+    window.hold_timer.key_reader = lambda vk: False
+    show_at(window, 1180, 780)
+    window.select_weapon(AGS17)
+    window.distance_entry.setText("900")
+    window.calculate()
+    window.hold_timer.advance(0.01, True, False)
+
+    # Let the layout settle after the solution (a request per level)
+    for _ in range(10):
+        QApplication.processEvents()
+
+    assert window.hold_label.isVisible()
+
+    requests = Requests()
+    QApplication.instance().installEventFilter(requests)
+
+    for _ in range(5):
+        window.hold_timer.advance(0.01, True, False)
+        QApplication.processEvents()
+
+    QApplication.instance().removeEventFilter(requests)
+
+    assert window.hold_label.text() == tr("hold_progress", held="0.06", t=f"{window.hold_timer.target:.2f}")
+    assert requests.count == 0

@@ -15,6 +15,7 @@ from PyQt6.QtGui import (
     QPen,
     QPolygonF,
     QFont,
+    QFontMetricsF,
     QGuiApplication
 )
 
@@ -132,6 +133,17 @@ PANEL_WIDTH = 230
 PANEL_HEIGHT = 112
 PANEL_MARGIN = 24
 
+# The info label: gap right of the crosshair, height of one line, the
+# narrowest it wraps to and its distance from the screen's right edge (px).
+INFO_GAP = 10
+INFO_LINE_HEIGHT = 20
+INFO_MIN_WIDTH = 200
+INFO_EDGE = 8
+
+INFO_FLAGS = (
+    Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+).value | Qt.TextFlag.TextWordWrap.value
+
 
 class Overlay(QWidget):
     def __init__(self, config):
@@ -215,8 +227,68 @@ class Overlay(QWidget):
         return not self.EDGE_MARGIN <= y <= self.height() - self.EDGE_MARGIN
 
     def set_info(self, text):
+        """Show `text` next to the mark ("" hides it).
+
+        Only where the label was and is now is repainted, and nothing when
+        the text is the same: this runs on every hold-timer poll.
+        """
+        if text == self.info_text:
+            return
+
+        old = self.info_rect()
+
         self.info_text = text
-        self.update()
+
+        area = old.united(self.info_rect())
+
+        # The shadow is drawn 1 px lower right; antialiasing spills over.
+        self.update(area.toAlignedRect().adjusted(-2, -2, 3, 3))
+
+    def info_font(self):
+        font = QFont("Segoe UI", 10)
+        font.setBold(True)
+        return font
+
+    def info_anchor(self):
+        """(x, y) the info label is placed by: the mark, or next to the edge
+        arrow when the mark is off-screen."""
+        x = self.center_x
+        y = self.center_y + self.offset
+
+        if self.mark_visible and self.is_offscreen(self.offset):
+            y = 50 if y < self.EDGE_MARGIN else self.height() - 50
+
+        return x, y
+
+    def info_rect(self):
+        """Where the info label is drawn: right of the crosshair, as wide as
+        its text, wrapped onto more lines when it would leave the screen.
+        Centred on the anchor's height."""
+        x, y = self.info_anchor()
+        cfg = self.config
+
+        reach = max(
+            cfg["circle_radius"] if cfg["circle_enabled"] else 0,
+            cfg["line_gap"] + cfg["line_length"] if cfg["lines_enabled"] else 0,
+            cfg["dot_size"] + 6
+        )
+
+        left = x + reach + INFO_GAP
+        room = max(INFO_MIN_WIDTH, self.width() - INFO_EDGE - left)
+        metrics = QFontMetricsF(self.info_font(), self)
+
+        # +2: rounding must not wrap a line that fits
+        width = metrics.horizontalAdvance(self.info_text) + 2
+
+        if width <= room:
+            return QRectF(left, y - INFO_LINE_HEIGHT / 2, width, INFO_LINE_HEIGHT)
+
+        height = max(
+            INFO_LINE_HEIGHT,
+            metrics.boundingRect(QRectF(0, 0, room, 10000), INFO_FLAGS, self.info_text).height()
+        )
+
+        return QRectF(left, y - height / 2, room, height)
 
     def hold_panel_rect(self):
         corner = self.config.get("hold_panel_corner", "top_right")
@@ -311,18 +383,14 @@ class Overlay(QWidget):
             pass
         elif self.is_offscreen(self.offset):
             # The aim point is off-screen (very high angle shot):
-            # show an arrow on the edge pointing towards it.
-            top = y < self.EDGE_MARGIN
-
-            self.draw_edge_arrow(painter, color, x, top)
-
-            # Keep the label next to the arrow.
-            y = 50 if top else self.height() - 50
+            # show an arrow on the edge pointing towards it; the label
+            # stays next to it (see info_anchor).
+            self.draw_edge_arrow(painter, color, x, y < self.EDGE_MARGIN)
         else:
             paint_crosshair(painter, cfg, x, y)
 
         if cfg.get("info_enabled", True) and self.info_text:
-            self.draw_info(painter, color, x, y)
+            self.draw_info(painter, color)
 
         if self.hold_panel is not None:
             self.draw_hold_panel(painter, self.hold_panel)
@@ -379,33 +447,16 @@ class Overlay(QWidget):
         )
         text(90, 16, 9, False, "#80ff80" if panel.s_down or panel.w_down else "#9a9a9a", keys)
 
-    def draw_info(self, painter, color, x, y):
-        font = QFont("Segoe UI", 10)
-        font.setBold(True)
-        painter.setFont(font)
+    def draw_info(self, painter, color):
+        rect = self.info_rect()
 
-        reach = max(
-            self.config["circle_radius"] if self.config["circle_enabled"] else 0,
-            self.config["line_gap"] + self.config["line_length"]
-            if self.config["lines_enabled"] else 0,
-            self.config["dot_size"] + 6
-        )
-
-        rect = QRectF(x + reach + 10, y - 10, 400, 20)
+        painter.setFont(self.info_font())
 
         painter.setPen(QColor(0, 0, 0, 180))
-        painter.drawText(
-            rect.translated(1, 1),
-            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
-            self.info_text
-        )
+        painter.drawText(rect.translated(1, 1), INFO_FLAGS, self.info_text)
 
         painter.setPen(color)
-        painter.drawText(
-            rect,
-            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
-            self.info_text
-        )
+        painter.drawText(rect, INFO_FLAGS, self.info_text)
 
     def draw_edge_arrow(self, painter, color, x, top):
         size = 14
