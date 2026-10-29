@@ -17,8 +17,6 @@ STRINGS = {
     "arc_auto": "Auto",
     "arc_low": "Low",
     "arc_high": "High",
-    "view_plain": "No RMB",
-    "view_optic": "Sight (RMB)",
     "distance": "Distance, m",
     "height": "Height diff, m",
     "height_hint": "target higher +, lower −",
@@ -69,24 +67,14 @@ STRINGS = {
         "exactly {angle} above the line to the target."
     ),
     "how_overlay_optic": (
-        "Your in-game FOV must be {fov}°. The mark is for the sight's view (RMB, zoom ×{zoom}); "
-        "without RMB, switch the view."
+        "Your in-game FOV must be {fov}° (the game's setting, not the sight's). "
+        "The mark is for the sight's view, zoom ×{zoom}."
     ),
-    "how_overlay_levels": (
-        "Your in-game FOV must be {fov}°. The mark is for the sight's view at zoom ×{zoom}; "
-        "pick the zoom level with the view switch."
-    ),
-    "how_overlay_2": "Your in-game FOV must be {fov}°. Through a scope, enter the scope FOV.",
+    "how_overlay_2": "Your in-game FOV must be {fov}°.",
     "how_overlay_offscreen": (
         "The mark is off-screen: raise the barrel {angle} above the target "
         "using the sight scale, or move closer."
     ),
-    "how_overlay_other_view": (
-        "The mark is off-screen at {view}. Use {better} "
-        "(the mark is {px} px {side} the centre)."
-    ),
-    "below": "below",
-    "above": "above",
     "to_horizon": "{angle} to the horizon",
     "how_elevation_1": "Turn to the target bearing (map or SquadCalc).",
     "how_elevation_2": "Set the elevation to {angle}.",

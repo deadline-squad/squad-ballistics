@@ -50,7 +50,6 @@ DEFAULT_CONFIG = {
     "last_weapon": "",
     "recent_weapons": [],
     "arc": "auto",
-    "sight_view": "optic",
 
     "info_enabled": True,
 
@@ -94,8 +93,7 @@ DEFAULT_CONFIG = {
     "lay_rates": {},
 
     # Field correction of the overlay mark, in degrees added to the barrel
-    # elevation, per weapon and view: "<weapon name>|plain", "|optic" or
-    # "|optic2" (the views of CHOICES["sight_view"]).
+    # elevation, per weapon: {weapon name: degrees}.
     # Set from one real shot (see ballistics.trim_for_landing).
     "mark_trim": {},
 
@@ -111,7 +109,6 @@ DEFAULT_CONFIG = {
 # Allowed values. RANGES are also the limits of the sliders in the UI.
 CHOICES = {
     "arc": ("auto", "low", "high"),
-    "sight_view": ("plain", "optic", "optic2"),
     "unit_mode": ("auto", "deg", "mil"),
     "mark_style": MARK_STYLES,
     "color": tuple(MARK_COLORS),
@@ -170,24 +167,27 @@ def nearest_mark_color(rgb):
     )
 
 
-def trim_key(weapon_name, view):
-    """The `mark_trim` key of a weapon's view: a `CHOICES["sight_view"]` value."""
-    return f"{weapon_name}|{view}"
-
-
 def _valid_mark_trims(loaded):
-    """The usable entries of a saved `mark_trim`: a known view, a finite
-    number (clamped), not zero. Anything else is dropped."""
+    """The usable entries of a saved `mark_trim`: {weapon name: degrees},
+    a finite number (clamped), not zero. Anything else is dropped.
+
+    Versions with a view switch kept one trim per weapon and view, under
+    "<weapon name>|plain", "|optic" or "|optic2". The plain (unzoomed) one
+    becomes the weapon's trim; the others are dropped.
+    """
     trims = {}
 
     for key, trim in loaded.items():
-        if not isinstance(key, str) or "|" not in key:
+        if not isinstance(key, str) or not key:
             continue
 
-        name, _, view = key.rpartition("|")
+        name, bar, view = key.rpartition("|")
 
-        if view not in CHOICES["sight_view"] or not name:
-            continue
+        if bar:
+            if view != "plain" or not name:
+                continue
+        else:
+            name = key
 
         if not isinstance(trim, (int, float)) or isinstance(trim, bool):
             continue
@@ -203,7 +203,7 @@ def _valid_mark_trims(loaded):
         trim = clamp_trim(trim)
 
         if trim:
-            trims[trim_key(current_weapon_name(name), view)] = trim
+            trims[current_weapon_name(name)] = trim
 
     return trims
 

@@ -2,22 +2,31 @@
 
 Pure functions only (no Qt), so everything here can be unit-tested.
 
-Projectile model (same idea as the game and SquadCalc): no air drag, a
-per-weapon gravity scale and an optional phase right after launch during
-which the projectile speeds up (rocket motor, positive acceleration) or
-slows down (UB-32 rockets, negative acceleration).
+Projectile model, the game's own (Squad build 26005357, USQProjectileMovement
+and the weapon's barrel socket; same model as SquadCalc's squadBallistics.js):
 
-The changing speed is folded into an "equivalent velocity": the constant
-speed that covers the distance in the same time. For the low, flat shots
-these weapons are used for this gives the correct drop at the target.
+* no air drag; gravity is GRAVITY (DefaultGravityZ = -980 cm/s^2) times the
+  projectile's gravity scale;
+* the projectile leaves the muzzle, the barrel socket `Attach_Muzzle`, at
+  `velocity` along the barrel. The barrel pivots `launch_height` above the
+  ground; the muzzle is `muzzle_forward` along the barrel and `muzzle_up`
+  above its axis, so the launch point moves with the elevation;
+* for `acceleration_time` seconds a constant `acceleration` acts along the
+  barrel's axis as it was at launch (rocket motor: positive; UB-32 rockets:
+  negative). The game ends it at ConstantAccelerationTimeout or when the
+  speed reaches the projectile's MaxSpeed, whichever comes first;
+  weapons.json holds that time;
+* between those, the flight is two exact parabolas, so no integration step is
+  needed: the elevation that hits a target is found by root finding on the
+  closed form.
 """
 
 import json
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields, replace
 
-# Squad's world gravity in m/s^2 (same value SquadCalc uses).
-GRAVITY = 9.78
+# Squad's world gravity in m/s^2: DefaultGravityZ = -980 cm/s^2 in the game.
+GRAVITY = 9.80
 
 # Squad mortars use the 6400 mil circle.
 MILS_PER_DEGREE = 6400 / 360
@@ -25,9 +34,6 @@ MILS_PER_DEGREE = 6400 / 360
 ARCS = ("low", "high")
 UNITS = ("deg", "mil")
 AIMS = ("overlay", "elevation")
-
-# Most sight views a weapon has: a gunner cycles up to three zoom levels.
-MAX_VIEWS = 3
 
 
 # Weapons renamed when their data was checked against the game files (Squad build
@@ -67,10 +73,10 @@ class Weapon:
     min_distance: float = 0.0
     elevation_limits: tuple = (-90.0, 90.0)
     launch_height: float = 0.0
+    muzzle_forward: float = 0.0
+    muzzle_up: float = 0.0
     bore: float = 0.0
     zoom: float = 0.0
-    zoom_bore: float = 0.0
-    views: tuple = ()
     hold_rate: float = 0.0
     hold_elevation: tuple = ()
     category: str = "other"
@@ -78,8 +84,18 @@ class Weapon:
 
     @classmethod
     def from_dict(cls, name, data):
+        """Build a weapon from its weapons.json entry.
+
+        Raises WeaponDataError for a malformed entry, a missing `velocity`
+        or a key that is not a weapon field (a misspelt key would otherwise
+        silently fall back to its default).
+        """
         if not isinstance(data, dict):
             raise WeaponDataError(f"{name}: entry must be an object")
+
+        unknown = sorted(set(data) - WEAPON_KEYS)
+        if unknown:
+            raise WeaponDataError(f"{name}: unknown keys {', '.join(unknown)}")
 
         if "velocity" not in data:
             raise WeaponDataError(f"{name}: 'velocity' is required")
@@ -119,6 +135,14 @@ class Weapon:
                 f"{name}: deceleration would stop the projectile"
             )
 
+        launch_height = number("launch_height", 0.0)
+        muzzle_forward = number("muzzle_forward", 0.0)
+        muzzle_up = number("muzzle_up", 0.0)
+        if launch_height < 0:
+            raise WeaponDataError(f"{name}: 'launch_height' must be >= 0")
+        if muzzle_forward < 0:
+            raise WeaponDataError(f"{name}: 'muzzle_forward' must be >= 0")
+
         arc = data.get("arc", "low")
         if arc not in ARCS:
             raise WeaponDataError(f"{name}: 'arc' must be one of {ARCS}")
@@ -145,13 +169,15 @@ class Weapon:
         if zoom and zoom < 1:
             raise WeaponDataError(f"{name}: 'zoom' must be >= 1 (or 0: none)")
 
-        views = cls.parse_views(name, data)
-
         hold_rate = number("hold_rate", 0.0)
         if hold_rate < 0:
             raise WeaponDataError(f"{name}: 'hold_rate' must be >= 0")
 
         hold_elevation = ()
+        if hold_rate and acceleration:
+            raise WeaponDataError(
+                f"{name}: a weapon laid by holding a key cannot have a boost"
+            )
         if hold_rate:
             try:
                 lowest, top = (float(v) for v in data["hold_elevation"])
@@ -178,11 +204,11 @@ class Weapon:
             acceleration_time=acceleration_time,
             min_distance=number("min_distance", 0.0),
             elevation_limits=(low, high),
-            launch_height=number("launch_height", 0.0),
+            launch_height=launch_height,
+            muzzle_forward=muzzle_forward,
+            muzzle_up=muzzle_up,
             bore=number("bore", 0.0),
             zoom=zoom,
-            zoom_bore=number("zoom_bore", 0.0),
-            views=views,
             hold_rate=hold_rate,
             hold_elevation=hold_elevation,
             category=str(data.get("category", "other")),
@@ -191,99 +217,31 @@ class Weapon:
 
     @property
     def g(self):
+        """Gravity of the projectile in m/s^2."""
         return GRAVITY * self.gravity
 
     @property
     def has_boost(self):
+        """A phase right after launch with a constant acceleration."""
         return self.acceleration != 0 and self.acceleration_time > 0
 
     @property
     def boost_distance(self):
-        t = self.acceleration_time
+        """Distance covered along the barrel's axis while the boost acts."""
+        t = self.acceleration_time if self.has_boost else 0.0
         return self.velocity * t + 0.5 * self.acceleration * t * t
 
-    @staticmethod
-    def parse_views(name, data):
-        """The `views` list of an entry as ((zoom, bore), ...), or ().
+    def sight_view(self, fov):
+        """(field of view, bore) of the view the weapon is aimed through.
 
-        `views` lists the sight views of a vehicle gunner in the order the
-        game cycles them (at most three), each {"zoom": FOV divisor >= 1,
-        "bore": degrees}. It replaces `bore`, `zoom` and `zoom_bore`.
+        `fov` is the game's FOV setting; the game draws the weapon's sight
+        at fov / `zoom` (a scope, an optic or a gunner's sight; 0 = the
+        plain view). The bore (degrees) is how far above the screen centre
+        the shot leaves: the game fires along the barrel socket
+        (`Attach_Muzzle`), which can be tilted against the camera, so the
+        view is zeroed at some range.
         """
-        if "views" not in data:
-            return ()
-
-        if any(key in data for key in ("bore", "zoom", "zoom_bore")):
-            raise WeaponDataError(
-                f"{name}: 'views' replaces 'bore', 'zoom' and 'zoom_bore'"
-            )
-
-        raw = data["views"]
-        if not isinstance(raw, list) or not 1 <= len(raw) <= MAX_VIEWS:
-            raise WeaponDataError(
-                f"{name}: 'views' must be a list of 1 to {MAX_VIEWS} views"
-            )
-
-        views = []
-        for view in raw:
-            if not isinstance(view, dict):
-                raise WeaponDataError(f"{name}: a view must be an object")
-
-            zoom = view.get("zoom")
-            bore = view.get("bore", 0.0)
-            for label, value in (("zoom", zoom), ("bore", bore)):
-                if isinstance(value, bool) or not isinstance(value, (int, float)):
-                    raise WeaponDataError(
-                        f"{name}: a view's '{label}' must be a number"
-                    )
-                if not math.isfinite(value):
-                    raise WeaponDataError(
-                        f"{name}: a view's '{label}' must be finite"
-                    )
-
-            if zoom < 1:
-                raise WeaponDataError(f"{name}: a view's 'zoom' must be >= 1")
-
-            views.append((float(zoom), float(bore)))
-
-        return tuple(views)
-
-    @property
-    def sight_views(self):
-        """The views the player can aim from, as ((zoom, bore), ...).
-
-        From `views` when the entry has it (a vehicle gunner's zoom levels),
-        else the plain view (`bore`) and, with an RMB sight, its view
-        (`zoom`, `zoom_bore`).
-        """
-        if self.views:
-            return self.views
-
-        if self.zoom:
-            return ((1.0, self.bore), (self.zoom, self.zoom_bore))
-
-        return ((1.0, self.bore),)
-
-    @property
-    def has_views(self):
-        """More than one view to choose from."""
-        return len(self.sight_views) > 1
-
-    def sight_view(self, fov, zoomed):
-        """(field of view, bore) of the view the player aims from.
-
-        `fov` is the game's FOV setting; `zoomed` picks the view: False the
-        first (plain) one, True the second (the optic's, right mouse
-        button), a number the view of that index (the last one when the
-        weapon has fewer). The game draws a view at fov / its zoom. The bore
-        (degrees) is how far above the screen centre the shot leaves: the
-        game fires along the barrel socket (`Attach_Muzzle`), which can be
-        tilted against the camera, so the view is zeroed at some range.
-        """
-        views = self.sight_views
-        zoom, bore = views[min(int(zoomed), len(views) - 1)]
-
-        return fov / zoom, bore
+        return fov / (self.zoom or 1.0), self.bore
 
     @property
     def has_hold(self):
@@ -321,7 +279,8 @@ class Weapon:
         """Flat-ground range of the barrel after holding the key `held` s.
 
         The barrel stops at the lowest hold elevation. The shell leaves the
-        muzzle `launch_height` above the ground. NaN without hold.
+        muzzle (`launch_point`) with no boost: a parabola from there. NaN
+        without hold.
         """
         if not self.has_hold:
             return math.nan
@@ -330,21 +289,21 @@ class Weapon:
 
         rad = math.radians(max(lowest, top - self.hold_rate * max(0.0, held)))
 
-        v = self.velocity
-        vertical = v * math.sin(rad)
+        start_x, start_y = self.launch_point(rad)
+        vertical = self.velocity * math.sin(rad)
         flight = (
-            vertical
-            + math.sqrt(vertical ** 2 + 2 * self.g * self.launch_height)
+            vertical + math.sqrt(vertical ** 2 + 2 * self.g * start_y)
         ) / self.g
 
-        return v * math.cos(rad) * flight
+        return start_x + self.velocity * math.cos(rad) * flight
 
     @property
     def cruise_velocity(self):
+        """Speed along the barrel once the boost is over."""
         return self.velocity + self.acceleration * self.acceleration_time
 
     def time_to(self, distance):
-        """Time to cover `distance` metres along the flight path."""
+        """Time to cover `distance` metres along the barrel's axis."""
         if distance <= 0:
             return 0.0
 
@@ -352,11 +311,12 @@ class Weapon:
             return distance / self.velocity
 
         if distance <= self.boost_distance:
-            a = self.acceleration
-            root = math.sqrt(
-                max(0.0, self.velocity ** 2 + 2 * a * distance)
+            return 2 * distance / (
+                self.velocity
+                + math.sqrt(
+                    max(0.0, self.velocity ** 2 + 2 * self.acceleration * distance)
+                )
             )
-            return (root - self.velocity) / a
 
         return (
             self.acceleration_time
@@ -364,29 +324,181 @@ class Weapon:
         )
 
     def velocity_at(self, distance):
-        """Equivalent constant velocity over `distance`."""
+        """Equivalent constant velocity over `distance` along the axis."""
         if distance <= 0 or not self.has_boost:
             return self.velocity
 
         return distance / self.time_to(distance)
 
+    def launch_point(self, rad):
+        """(x, y) of the muzzle for a barrel elevation of `rad` radians:
+        metres ahead of the pivot and above the ground. The muzzle sits
+        `muzzle_forward` along the barrel and `muzzle_up` above its axis,
+        so it moves as the barrel is raised.
+        """
+        cos, sin = math.cos(rad), math.sin(rad)
+
+        return (
+            self.muzzle_forward * cos - self.muzzle_up * sin,
+            self.launch_height + self.muzzle_forward * sin + self.muzzle_up * cos,
+        )
+
+    @property
+    def is_parabola(self):
+        """The flight is one plain parabola (no boost, no muzzle offset)."""
+        return not (self.has_boost or self.muzzle_forward or self.muzzle_up)
+
+    def flight_height(self, rad, distance):
+        """Height above the ground of the projectile when it is `distance`
+        metres ahead of the pivot, fired at a barrel elevation of `rad`.
+
+        Closed form of the game's motion (see the module docstring), exact
+        for the model. A distance behind the muzzle extrapolates the same
+        equations backwards.
+        """
+        cos, sin = math.cos(rad), math.sin(rad)
+        v0, g, a = self.velocity, self.g, self.acceleration
+        boost = self.acceleration_time
+        start_x, start_y = self.launch_point(rad)
+        ahead = distance - start_x
+        reach = cos * (v0 * boost + 0.5 * a * boost * boost)
+
+        if boost == 0 or ahead <= reach:
+            along = ahead / cos
+            t = 2 * along / (v0 + math.sqrt(max(0.0, v0 * v0 + 2 * a * along)))
+            return start_y + sin * along - 0.5 * g * t * t
+
+        end_speed = v0 + a * boost
+        after = (ahead - reach) / (cos * end_speed)
+
+        return (
+            start_y
+            + sin * (v0 * boost + 0.5 * a * boost * boost)
+            - 0.5 * g * boost * boost
+            + (sin * end_speed - g * boost) * after
+            - 0.5 * g * after * after
+        )
+
+    def flight_time(self, rad, distance):
+        """Seconds after launch when the projectile is `distance` metres
+        ahead of the pivot, fired at a barrel elevation of `rad`."""
+        cos = math.cos(rad)
+        start_x, _ = self.launch_point(rad)
+        ahead = distance - start_x
+
+        if ahead <= 0:
+            return 0.0
+
+        return self.time_to(ahead / cos)
+
+    def flight_state(self, rad, t):
+        """(x, y, vx, vy) of the projectile `t` seconds after launch."""
+        cos, sin = math.cos(rad), math.sin(rad)
+        v0, g, a = self.velocity, self.g, self.acceleration
+        boost = self.acceleration_time
+        start_x, start_y = self.launch_point(rad)
+
+        if t <= boost:
+            along = v0 * t + 0.5 * a * t * t
+            speed = v0 + a * t
+            return (
+                start_x + cos * along,
+                start_y + sin * along - 0.5 * g * t * t,
+                cos * speed,
+                sin * speed - g * t,
+            )
+
+        after = t - boost
+        along = v0 * boost + 0.5 * a * boost * boost
+        end_speed = v0 + a * boost
+
+        return (
+            start_x + cos * (along + end_speed * after),
+            start_y + sin * along - 0.5 * g * boost * boost
+            + (sin * end_speed - g * boost) * after - 0.5 * g * after * after,
+            cos * end_speed,
+            sin * end_speed - g * t,
+        )
+
+    def elevations_to(self, distance, height):
+        """Barrel elevations (low, high) in radians that land the projectile
+        on a target `distance` metres away and `height` metres above the
+        ground of the pivot; (NaN, NaN) when it is out of range.
+
+        Pure parabolas use the closed form. Otherwise: the elevation that
+        sends the projectile highest at `distance` is found by a golden
+        section search (the height there rises to a single peak), the target
+        is out of range when even that misses, and each root is bracketed on
+        its side of the peak and narrowed with the Illinois method. Needs
+        gravity.
+        """
+        g, v = self.g, self.velocity
+
+        if self.is_parabola:
+            rise = height - self.launch_height
+            discriminant = v ** 4 - g * (g * distance ** 2 + 2 * rise * v ** 2)
+            if discriminant < 0:
+                return math.nan, math.nan
+            root = math.sqrt(discriminant)
+            return (
+                math.atan((v ** 2 - root) / (g * distance)),
+                math.atan((v ** 2 + root) / (g * distance)),
+            )
+
+        top = self.peak_elevation(distance)
+        if self.flight_height(top, distance) < height:
+            return math.nan, math.nan
+
+        def error(rad):
+            return self.flight_height(rad, distance) - height
+
+        return _find_root(error, top, -1), _find_root(error, top, 1)
+
+    def peak_elevation(self, distance):
+        """Elevation (radians) that sends the projectile highest when it is
+        `distance` metres ahead of the pivot (golden section search)."""
+        low, high = -ELEVATION_LIMIT, ELEVATION_LIMIT
+        left = high - _GOLDEN * (high - low)
+        right = low + _GOLDEN * (high - low)
+        left_height = self.flight_height(left, distance)
+        right_height = self.flight_height(right, distance)
+
+        for _ in range(MAX_ITERATIONS):
+            if high - low <= ANGLE_TOLERANCE:
+                break
+            if left_height < right_height:
+                low = left
+                left, left_height = right, right_height
+                right = low + _GOLDEN * (high - low)
+                right_height = self.flight_height(right, distance)
+            else:
+                high = right
+                right, right_height = left, left_height
+                left = high - _GOLDEN * (high - low)
+                left_height = self.flight_height(left, distance)
+
+        return (low + high) / 2
+
     def max_range(self):
-        """Maximum range on flat ground (45 degrees), inf without gravity."""
+        """Maximum range on flat ground (the ground of the pivot), inf
+        without gravity."""
         if self.g == 0:
             return math.inf
 
-        if not self.has_boost:
+        if self.is_parabola and not self.launch_height:
             return self.velocity ** 2 / self.g
 
-        # Range is reachable while v(d)^2 >= g * d.
-        def reachable(d):
-            return self.velocity_at(d) ** 2 >= self.g * d
+        def reachable(distance):
+            return self.flight_height(self.peak_elevation(distance), distance) >= 0
 
-        low, high = 0.0, max(self.velocity, self.cruise_velocity) ** 2 / self.g
+        low = 0.0
+        high = max(self.velocity, self.cruise_velocity) ** 2 / self.g
         while reachable(high):
-            high *= 2
+            low, high = high, high * 2
 
-        for _ in range(60):
+        for _ in range(MAX_ITERATIONS):
+            if high - low <= 1e-3:
+                break
             mid = (low + high) / 2
             if reachable(mid):
                 low = mid
@@ -394,6 +506,75 @@ class Weapon:
                 high = mid
 
         return low
+
+
+# Keys of a weapons.json entry: the Weapon fields, plus the older spelling of
+# a negative acceleration.
+WEAPON_KEYS = frozenset(
+    {field.name for field in fields(Weapon)} - {"name"}
+    | {"deceleration", "deceleration_time"}
+)
+
+# Elevations are searched within +-ELEVATION_LIMIT: the barrel is never
+# vertical.
+ELEVATION_LIMIT = math.pi / 2 - 1e-6
+
+# The searches stop when their bracket is narrower than this many radians
+# (1e-10 rad is 0.2 mm at 2 km) or the height error is below HEIGHT_TOLERANCE
+# metres.
+ANGLE_TOLERANCE = 1e-10
+HEIGHT_TOLERANCE = 1e-9
+
+# First half-width of the bracket around the highest elevation (radians),
+# doubled until it holds the root.
+BRACKET_STEP = 0.02
+
+# Safety cap of every search; the tolerances are reached long before.
+MAX_ITERATIONS = 200
+
+_GOLDEN = (math.sqrt(5) - 1) / 2
+
+
+def _find_root(error, top, direction):
+    """Root of `error` (metres, F(top) >= 0) on one side of `top`: towards
+    lower elevations for direction -1, higher for +1. The bracket is expanded
+    from `top` until F is negative, then narrowed with the Illinois method
+    (regula falsi that halves the stale end's F).
+    """
+    far = top
+    far_error = error(far)
+    step = BRACKET_STEP
+
+    while far_error >= 0:
+        far = min(max(top + direction * step, -ELEVATION_LIMIT), ELEVATION_LIMIT)
+        far_error = error(far)
+        if abs(far) == ELEVATION_LIMIT:
+            break
+        step *= 2
+
+    near, near_error = top, error(top)
+    kept = 0
+    root = far
+
+    for _ in range(MAX_ITERATIONS):
+        if abs(far - near) <= ANGLE_TOLERANCE:
+            break
+        root = (near * far_error - far * near_error) / (far_error - near_error)
+        root_error = error(root)
+        if abs(root_error) <= HEIGHT_TOLERANCE:
+            break
+        if root_error < 0:
+            far, far_error = root, root_error
+            if kept == -1:
+                near_error /= 2
+            kept = -1
+        else:
+            near, near_error = root, root_error
+            if kept == 1:
+                far_error /= 2
+            kept = 1
+
+    return root
 
 
 @dataclass
@@ -426,19 +607,13 @@ def resolve_arc(weapon, arc):
     return arc
 
 
-def _path(v, g, rad, x):
-    """Height of a parabolic path at horizontal distance x."""
-    if g == 0:
-        return x * math.tan(rad)
-    return x * math.tan(rad) - g * x * x / (2 * v * v * math.cos(rad) ** 2)
-
-
 def solve(weapon, distance, height_diff=0.0, arc=None):
     """Elevation needed to hit a target.
 
-    distance     -- horizontal distance to the target in metres
+    distance     -- horizontal distance to the target in metres, from the
+                    barrel's pivot
     height_diff  -- target ground height relative to the weapon ground
-                    (positive = higher); the muzzle is `launch_height` above
+                    (positive = higher); the pivot is `launch_height` above
     arc          -- "low", "high" or None/"auto" for the weapon default
 
     For hold weapons (AGS-17) the high arc is fired by holding a key, so it
@@ -465,24 +640,18 @@ def solve(weapon, distance, height_diff=0.0, arc=None):
         )
         return result
 
-    g = weapon.g
-
-    # Heights below are measured from the muzzle.
+    # The target's height above the pivot, for the line of sight.
     rise = height_diff - weapon.launch_height
 
-    if g == 0:
+    if weapon.g == 0:
         # No gravity: the projectile flies straight along the line of sight.
-        v = weapon.velocity_at(math.hypot(distance, rise))
+        result.velocity = weapon.velocity_at(math.hypot(distance, rise))
         rad = math.atan2(rise, distance)
         raw = {"low": rad, "high": rad}
     else:
-        v = weapon.velocity_at(distance)
+        low_rad, high_rad = weapon.elevations_to(distance, height_diff)
 
-        discriminant = (
-            v ** 4 - g * (g * distance ** 2 + 2 * rise * v ** 2)
-        )
-
-        if discriminant < 0:
+        if math.isnan(low_rad):
             result.reason_code = "out_of_range"
             result.reason = (
                 f"Out of range (max ~{weapon.max_range():.0f} m "
@@ -490,14 +659,7 @@ def solve(weapon, distance, height_diff=0.0, arc=None):
             )
             return result
 
-        root = math.sqrt(discriminant)
-
-        raw = {
-            "low": math.atan((v ** 2 - root) / (g * distance)),
-            "high": math.atan((v ** 2 + root) / (g * distance)),
-        }
-
-    result.velocity = v
+        raw = {"low": low_rad, "high": high_rad}
 
     low_limit, high_limit = weapon.elevation_limits
 
@@ -540,43 +702,68 @@ def solve(weapon, distance, height_diff=0.0, arc=None):
     result.reachable = True
     result.mils = angle * MILS_PER_DEGREE
 
-    # The eye is taken at the muzzle: the target is seen this far above the
+    # The eye is taken at the pivot: the target is seen this far above the
     # horizon, so aiming at it already raises the barrel by that much.
     result.sight_angle = angle - math.degrees(math.atan2(rise, distance))
-    result.time_of_flight = distance / (v * math.cos(rad))
 
-    if g == 0:
+    if weapon.g == 0:
+        result.time_of_flight = distance / (result.velocity * math.cos(rad))
         result.apex = max(0.0, rise) + weapon.launch_height
         result.impact_angle = -math.degrees(rad)
-    else:
-        top_x = v * v * math.sin(rad) * math.cos(rad) / g
-        top_x = min(max(top_x, 0.0), distance)
-        result.apex = (
-            max(0.0, _path(v, g, rad, top_x), rise) + weapon.launch_height
-        )
+        return result
 
-        slope = math.tan(rad) - g * distance / (v * v * math.cos(rad) ** 2)
-        result.impact_angle = -math.degrees(math.atan(slope))
+    flight = weapon.flight_time(rad, distance)
+    start_x, start_y = weapon.launch_point(rad)
+    _, _, impact_vx, impact_vy = weapon.flight_state(rad, flight)
+
+    result.time_of_flight = flight
+    result.velocity = (distance - start_x) / (math.cos(rad) * flight)
+    result.impact_angle = -math.degrees(math.atan2(impact_vy, impact_vx))
+    result.apex = max(
+        start_y, height_diff, _apex_height(weapon, rad, flight)
+    )
 
     return result
+
+
+def _apex_height(weapon, rad, until):
+    """Highest height of the flight before `until` seconds, NaN if it only
+    descends (the vertical speed is zero at most once, on the way up)."""
+    g, boost = weapon.g, weapon.acceleration_time
+    sin = math.sin(rad)
+
+    # Vertical speed: sin * (v0 + a t) - g t while boosting, then
+    # sin * end_speed - g t.
+    denominator = g - sin * weapon.acceleration
+    top = math.nan
+    if boost > 0 and denominator > 0:
+        top = sin * weapon.velocity / denominator
+    if not 0 < top <= boost:
+        top = sin * weapon.cruise_velocity / g
+
+    if not 0 < top < until:
+        return math.nan
+
+    return weapon.flight_state(rad, top)[1]
 
 
 def trajectory(weapon, solution, points=64):
     """Sample the flight path of a solved shot as (x, y) tuples.
 
-    y is relative to the weapon's ground, like `solution.height_diff`.
+    The path runs from the muzzle (where the projectile starts, which moves
+    with the elevation) to the target; y is relative to the weapon's ground,
+    like `solution.height_diff`.
     """
     if not math.isfinite(solution.raw_angle):
         return []
 
     rad = math.radians(solution.raw_angle)
-    v = solution.velocity
-    g = weapon.g
+    start_x = weapon.launch_point(rad)[0]
     d = solution.distance
 
     return [
-        (d * i / points, _path(v, g, rad, d * i / points) + weapon.launch_height)
-        for i in range(points + 1)
+        (x, weapon.flight_height(rad, x))
+        for x in (start_x + (d - start_x) * i / points for i in range(points + 1))
     ]
 
 
@@ -605,23 +792,18 @@ def first_obstacle(weapon, solution, profile, step):
     if not solution.reachable or not profile or not step:
         return None
 
-    muzzle = weapon.launch_height if weapon.launch_height > 0 else SHOULDER_HEIGHT
     shot = solution
 
-    if muzzle != weapon.launch_height:
+    if not weapon.launch_height:
+        weapon = replace(weapon, launch_height=SHOULDER_HEIGHT)
         shot = solve(
-            weapon,
-            solution.distance,
-            solution.height_diff - (muzzle - weapon.launch_height),
-            solution.arc
+            weapon, solution.distance, solution.height_diff, solution.arc
         )
 
         if not shot.reachable:
             return None
 
     rad = math.radians(shot.raw_angle)
-    v = shot.velocity
-    g = weapon.g
     last = solution.distance - TARGET_CLEARANCE
 
     for i in range(math.ceil(MUZZLE_CLEARANCE / step), len(profile)):
@@ -630,24 +812,21 @@ def first_obstacle(weapon, solution, profile, step):
         if x > last:
             break
 
-        if _path(v, g, rad, x) + muzzle < profile[i]:
+        if weapon.flight_height(rad, x) < profile[i]:
             return x, profile[i]
 
     return None
 
 
 def height_at(weapon, angle, distance):
-    """Height of the projectile after travelling `distance` metres.
+    """Height of the projectile when it is `distance` metres ahead of the
+    pivot.
 
     `angle` is the elevation as returned by `solve` (angle_offset applied);
     the height is relative to the weapon's ground, like `height_diff`.
     Used for verification and tests.
     """
-    rad = math.radians(angle + weapon.angle_offset)
-    return (
-        _path(weapon.velocity_at(distance), weapon.g, rad, distance)
-        + weapon.launch_height
-    )
+    return weapon.flight_height(math.radians(angle + weapon.angle_offset), distance)
 
 
 def screen_offset(angle, fov, screen_width, scale=1.0):
@@ -691,25 +870,25 @@ def clamp_trim(trim):
     return max(-TRIM_LIMIT, min(TRIM_LIMIT, trim))
 
 
-def mark_offset(weapon, sight_angle, fov, screen_width, scale=1.0, zoomed=False,
-                trim=0.0):
+def mark_offset(weapon, sight_angle, fov, screen_width, scale=1.0, trim=0.0):
     """Pixels below the screen centre to put the target on, for a shot
     `sight_angle` degrees over the line of sight (`Solution.sight_angle`)
     from the view `Weapon.sight_view` gives: the shot already leaves `bore`
     degrees above the centre, so the mark is that much higher.
 
     `trim` (degrees, limited to +-TRIM_LIMIT) is the player's field
-    correction of that view, added to the barrel elevation: positive raises
+    correction of the weapon, added to the barrel elevation: positive raises
     the barrel, so the shot goes farther and the mark moves down. It is an
     angle, so one value is right at every range.
 
-    A zoomed view narrower than 1 degree (a small FOV through a strong
-    optic) is held at 1 degree, the narrowest `screen_offset` takes.
+    A view narrower than 1 degree (a small FOV through a strong sight) is
+    held at 1 degree, the narrowest `screen_offset` takes; the mark is not
+    exact then.
     """
     if not 1 <= fov <= 179:
         raise ValueError("FOV must be between 1 and 179 degrees")
 
-    view_fov, bore = weapon.sight_view(fov, zoomed)
+    view_fov, bore = weapon.sight_view(fov)
 
     return screen_offset(
         sight_angle - bore + clamp_trim(trim),
@@ -766,7 +945,7 @@ def trim_for_landing(weapon, distance, height, landed, trim=0.0):
 
 
 def range_ladder(weapon, fov, screen_width, first, spacing, reach, scale=1.0,
-                 zoomed=False, trim=0.0):
+                 trim=0.0):
     """Range ticks of the overlay ladder: where to put a target at each
     range on flat ground, as [(distance m, pixels below the centre)].
 
@@ -778,9 +957,8 @@ def range_ladder(weapon, fov, screen_width, first, spacing, reach, scale=1.0,
     cannot reach, at `reach` pixels, after LADDER_MAX_TICKS or at
     LADDER_MAX_DISTANCE.
     The offsets are those of the overlay mark (`mark_offset` of the
-    low-arc `Solution.sight_angle`, from the view `zoomed` picks, with the
-    view's `trim`); ranges
-    above the centre (inside the view's zero) get no tick. Empty for
+    low-arc `Solution.sight_angle`, with the weapon's `trim`); ranges
+    above the centre (inside the sight's zero) get no tick. Empty for
     weapons laid by elevation and for weapons without gravity (every range
     is on the centre).
     """
@@ -794,7 +972,7 @@ def range_ladder(weapon, fov, screen_width, first, spacing, reach, scale=1.0,
             return None
 
         return mark_offset(
-            weapon, solution.sight_angle, fov, screen_width, scale, zoomed, trim
+            weapon, solution.sight_angle, fov, screen_width, scale, trim
         )
 
     ticks = []
