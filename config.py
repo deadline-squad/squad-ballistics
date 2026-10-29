@@ -2,26 +2,20 @@ import copy
 import json
 import os
 import re
-import sys
 
 from ballistics import current_weapon_name
 
 APP_NAME = "SquadBallistics"
+APP_VERSION = "1.6.0"
 
 # Versions up to 1.1.0 kept "configs/config.json" relative to the working
-# directory (normally the folder of the .exe). It is read once from there
-# and migrated to the per-user location below.
+# directory. It is read once from there and migrated to the per-user
+# location below.
 LEGACY_CONFIG_PATH = os.path.join("configs", "config.json")
 
 
 def legacy_config_paths():
-    paths = [LEGACY_CONFIG_PATH]
-
-    if getattr(sys, "frozen", False):
-        exe_dir = os.path.dirname(os.path.abspath(sys.executable))
-        paths.append(os.path.join(exe_dir, "configs", "config.json"))
-
-    return paths
+    return [LEGACY_CONFIG_PATH]
 
 DEFAULT_CONFIG = {
     "fov": 90,
@@ -152,28 +146,19 @@ _HEX_COLOR = re.compile(r"#[0-9a-fA-F]{6}")
 
 
 def config_dir():
-    if sys.platform == "win32":
-        base = os.environ.get("APPDATA") or os.path.expanduser("~")
-    else:
-        base = os.environ.get("XDG_CONFIG_HOME") or os.path.join(
-            os.path.expanduser("~"), ".config"
-        )
+    """Per-user settings folder ($XDG_CONFIG_HOME/SquadBallistics)."""
+    base = os.environ.get("XDG_CONFIG_HOME") or os.path.join(
+        os.path.expanduser("~"), ".config"
+    )
 
     return os.path.join(base, APP_NAME)
 
 
 def data_dir():
     """Per-user folder for caches (map tiles), separate from settings."""
-    if sys.platform == "win32":
-        base = (
-            os.environ.get("LOCALAPPDATA")
-            or os.environ.get("APPDATA")
-            or os.path.expanduser("~")
-        )
-    else:
-        base = os.environ.get("XDG_CACHE_HOME") or os.path.join(
-            os.path.expanduser("~"), ".cache"
-        )
+    base = os.environ.get("XDG_CACHE_HOME") or os.path.join(
+        os.path.expanduser("~"), ".cache"
+    )
 
     return os.path.join(base, APP_NAME)
 

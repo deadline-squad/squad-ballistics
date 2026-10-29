@@ -49,7 +49,7 @@ class SplashScreen(QWidget):
         layout.addWidget(title)
 
         self.status = QLabel(
-            tr("splash_checking")
+            tr("splash_loading")
         )
 
         self.status.setStyleSheet("""
@@ -59,11 +59,10 @@ class SplashScreen(QWidget):
 
         layout.addWidget(self.status)
 
+        # Busy indicator while the main window is built
         self.progress = QProgressBar()
 
-        self.progress.setRange(0, 100)
-
-        self.progress.setValue(0)
+        self.progress.setRange(0, 0)
 
         self.progress.setStyleSheet("""
             QProgressBar {

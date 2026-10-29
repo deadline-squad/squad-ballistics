@@ -50,6 +50,7 @@ from ballistics import (
 )
 
 from config import (
+    APP_VERSION,
     DEFAULT_CONFIG,
     DISTANCE_STEPS,
     RANGES,
@@ -59,8 +60,6 @@ from config import (
 )
 
 from holdtimer import (
-    VK_S,
-    VK_W,
     HoldTimer,
     beep
 )
@@ -82,7 +81,7 @@ from i18n import (
 
 from keyinject import AutoHold, system_key_injector
 
-from keystate import system_key_reader
+from keystate import KEY_S, KEY_W, system_key_reader
 
 from maplink import (
     RelayLink,
@@ -94,8 +93,6 @@ from overlay import HoldPanel, Overlay
 from sightlay import ScreenSight, SightLayer, read_sight
 
 from sightreader import LabelTemplates
-
-from updater import CURRENT_VERSION
 
 from utils import resource_path
 
@@ -261,7 +258,7 @@ class MainWindow(QMainWindow):
         self.sight_timer.timeout.connect(self.watch_sight)
 
         # Physical keys read system-wide (None where impossible): the hold
-        # timer and, off Windows, the in-game hotkeys use it.
+        # timer and the in-game hotkeys use it.
         self.key_reader = system_key_reader()
 
         self.hold_timer = HoldTimer(self.key_reader, self)
@@ -453,7 +450,7 @@ class MainWindow(QMainWindow):
 
         layout.addStretch()
 
-        version = label(f"v{CURRENT_VERSION}", "small")
+        version = label(f"v{APP_VERSION}", "small")
 
         version.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -1747,7 +1744,7 @@ class MainWindow(QMainWindow):
             return True
 
         try:
-            injector = system_key_injector(VK_S)
+            injector = system_key_injector(KEY_S)
         except OSError:
             injector = None
 
@@ -1757,7 +1754,7 @@ class MainWindow(QMainWindow):
 
         # W puts a mortar's barrel to its top before the hold (auto-lay)
         try:
-            reset_injector = system_key_injector(VK_W)
+            reset_injector = system_key_injector(KEY_W)
         except OSError:
             reset_injector = None
 
@@ -2397,7 +2394,7 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(label(tr("s_about"), "title"))
 
-        layout.addWidget(label(tr("s_version", v=CURRENT_VERSION), "muted"))
+        layout.addWidget(label(tr("s_version", v=APP_VERSION), "muted"))
 
         row = QHBoxLayout()
 
@@ -2699,11 +2696,8 @@ class MainWindow(QMainWindow):
 
     def restart(self):
         """Start a new instance and quit (Chromium flags need a restart)."""
-        if getattr(sys, "frozen", False):
-            program, arguments = sys.executable, sys.argv[1:]
-        else:
-            program = sys.executable
-            arguments = [os.path.abspath(sys.argv[0])] + sys.argv[1:]
+        program = sys.executable
+        arguments = [os.path.abspath(sys.argv[0])] + sys.argv[1:]
 
         self.close()
 

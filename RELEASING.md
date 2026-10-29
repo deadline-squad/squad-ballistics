@@ -1,45 +1,37 @@
 # Выпуск обновления / Releasing
 
-Программа — один файл `SquadBallistics.exe`. Автообновление работает так:
-
-1. При запуске `.exe` читает `version.txt` из ветки **main**.
-2. Если версия там **новее** `CURRENT_VERSION` в `updater.py`, скачивается
-   `SquadBallistics.exe` из **последнего релиза** на GitHub и подменяет
-   запущенный файл (после выхода программы), затем программа перезапускается.
-
-Версии до 1.1.0 включительно обновляются по-старому: скачивают
-`SquadBallistics.zip` и копируют из него папку `SquadBallistics`. Поэтому в
-релизе лежат **оба файла**: `SquadBallistics.exe` и `SquadBallistics.zip`
-(в нём та же программа в папке `SquadBallistics`). Оба собирает Actions.
-
-Порядок важен: **сначала релиз, потом `version.txt` в main.**
-Если сделать наоборот, программа скачает старый файл из прошлого релиза, и
-обновление будет запускаться при каждом старте.
-
-## Тестовая сборка (ничего не публикует)
-
-* Локально: `build.bat` → `dist\SquadBallistics.exe`.
-* Через GitHub: любой push в ветку запускает Actions → **build-windows**,
-  готовый exe лежит в разделе **Artifacts** этого запуска.
-  Релиз при этом не создаётся, пользователи ничего не получают.
+Программа работает только в Linux и запускается из исходников, поэтому
+выпуск — это тег на коммите в **main**: собирать и выкладывать файлы не нужно.
+Пользователи обновляются через `git pull` (и `pip install -r requirements.txt`,
+если поменялись зависимости).
 
 ## Публикация новой версии
 
-1. Поднять версию в двух местах (тест проверяет, что они совпадают):
-   * `version.txt` → например `1.3.0`
-   * `updater.py` → `CURRENT_VERSION = "1.3.0"`
-2. Обновить `RELEASE_NOTES.md` — это текст релиза на GitHub.
-3. Закоммитить и запушить в рабочую ветку, дождаться зелёного **build-windows**.
-4. Создать тег на этом коммите и запушить его:
+1. Поднять `APP_VERSION` в `config.py`, например `1.6.0`.
+2. Добавить запись в начало `RELEASE_NOTES.md` (по-русски и по-английски) —
+   это текст релиза на GitHub.
+3. Закоммитить в рабочую ветку, влить её в **dev**, дождаться зелёного
+   **tests** в Actions.
+4. Влить **dev** в **main**, поставить тег на этом коммите и запушить его:
    ```
-   git tag v1.3.0
-   git push origin v1.3.0
+   git tag v1.6.0
+   git push origin main v1.6.0
    ```
-   Actions соберёт exe и опубликует релиз `v1.3.0` с `SquadBallistics.exe`
-   и `SquadBallistics.zip`.
-   Если пушить теги нельзя: GitHub → Actions → **build-windows** →
-   *Run workflow*, выбрать ветку и включить **publish_release** — тег
-   `v<version.txt>` и релиз создаст сам Actions.
-5. Убедиться, что релиз появился и в нём оба файла.
-6. Только после этого влить ветку в **main** (Pull Request → Merge).
-   С этого момента пользователи начнут получать обновление.
+5. Создать релиз из тега с текстом новой записи `RELEASE_NOTES.md`:
+   ```
+   gh release create v1.6.0 --title "Squad Ballistics 1.6.0" --notes-file <запись>
+   ```
+
+---
+
+The app is Linux-only and runs from source, so a release is a tag on a commit
+in **main**: nothing is built or uploaded. Users update with `git pull` (and
+`pip install -r requirements.txt` when the dependencies changed).
+
+1. Bump `APP_VERSION` in `config.py`.
+2. Add an entry at the top of `RELEASE_NOTES.md` (Russian and English); it is
+   the GitHub release text.
+3. Commit on a working branch, merge it into **dev**, wait for a green
+   **tests** run.
+4. Merge **dev** into **main**, tag that commit and push the tag.
+5. Create the GitHub release from the tag with the new notes entry.

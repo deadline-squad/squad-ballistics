@@ -326,7 +326,6 @@ def test_selftest_does_not_touch_user_config(tmp_path):
 
     env = dict(os.environ)
     env["XDG_CONFIG_HOME"] = str(tmp_path / "cfg")
-    env["APPDATA"] = str(tmp_path / "cfg")
     env["QT_QPA_PLATFORM"] = "offscreen"
 
     result = subprocess.run(
@@ -414,7 +413,7 @@ AGS17 = "AGS-17 · emplacement"
 
 
 def test_ags17_lob_is_laid_by_holding_s(window):
-    window.hold_timer.key_reader = lambda vk: False
+    window.hold_timer.key_reader = lambda code: False
     window.select_weapon(AGS17)
     window.config["arc"] = "high"
 
@@ -696,7 +695,7 @@ def test_switching_map_source_reloads(window):
 
 
 def test_hold_timer_cleared_on_unreachable_error_and_reset(window):
-    window.hold_timer.key_reader = lambda vk: False
+    window.hold_timer.key_reader = lambda code: False
     window.select_weapon(AGS17)
     window.config["arc"] = "high"
 
@@ -722,7 +721,7 @@ def test_hold_timer_cleared_on_unreachable_error_and_reset(window):
 
 
 def test_hold_watch_follows_weapon_and_setting(window):
-    window.hold_timer.key_reader = lambda vk: False
+    window.hold_timer.key_reader = lambda code: False
 
     window.select_weapon(AGS17)
     assert window.hold_timer.active
@@ -737,7 +736,7 @@ def test_hold_watch_follows_weapon_and_setting(window):
 
 
 def test_hold_readout_survives_rebuild(window):
-    window.hold_timer.key_reader = lambda vk: False
+    window.hold_timer.key_reader = lambda code: False
     window.select_weapon(AGS17)
     window.config["arc"] = "high"
     window.distance_entry.setText("1000")
@@ -832,7 +831,7 @@ def test_reset_settings_reloads_map_and_drops_relay(window, monkeypatch):
 
 def test_close_drops_relay_and_key_watch(window, monkeypatch):
     monkeypatch.setattr(window.relay, "connect_relay", lambda: None)
-    window.hold_timer.key_reader = lambda vk: False
+    window.hold_timer.key_reader = lambda code: False
     window.select_weapon(AGS17)
     window.set_relay_code("ABCD-2345")
 
@@ -953,16 +952,12 @@ def test_embedded_bridge_reads_a_page_without_the_weapon(window, monkeypatch):
 
 
 def test_hotkeys_are_polled_when_keys_can_be_read(app, tmp_path, monkeypatch):
-    """Off Windows the bound keys are read like the hold timer's keys."""
-    import sys as real_sys
-
-    if real_sys.platform == "win32":
-        pytest.skip("Windows registers hotkeys instead")
-
+    """The bound keys are read like the hold timer's keys."""
     import crosshair
+    from hotkeys import KEYS
 
     pressed = set()
-    monkeypatch.setattr(crosshair, "system_key_reader", lambda: (lambda vk: vk in pressed))
+    monkeypatch.setattr(crosshair, "system_key_reader", lambda: (lambda code: code in pressed))
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(config, "CONFIG_PATH", str(tmp_path / "config.json"))
 
@@ -978,7 +973,7 @@ def test_hotkeys_are_polled_when_keys_can_be_read(app, tmp_path, monkeypatch):
         win.set_hotkey("toggle_overlay", "F8")
         poller = win._hotkey_poller
 
-        F8 = 0x77
+        F8 = KEYS["F8"]
         pressed.add(F8)
         poller.timeout.emit()
         poller.timeout.emit()  # held: fires once
@@ -995,7 +990,7 @@ def test_hotkeys_are_polled_when_keys_can_be_read(app, tmp_path, monkeypatch):
 
 
 def test_timer_panel_on_the_overlay(window):
-    window.hold_timer.key_reader = lambda vk: False
+    window.hold_timer.key_reader = lambda code: False
     window.select_weapon(AGS17)
     window.config["arc"] = "high"
 
@@ -1060,14 +1055,14 @@ def test_auto_hold_setting(window, monkeypatch):
             Injector.closed = True
 
     # Not possible on this system: the setting turns itself off.
-    monkeypatch.setattr(crosshair, "system_key_injector", lambda vk: None)
+    monkeypatch.setattr(crosshair, "system_key_injector", lambda code: None)
     window.controls["auto_hold"].setChecked(True)
     window.controls["auto_hold"].toggled.emit(True)
     assert window.config["auto_hold"] is False
     assert window.hold_timer.auto_hold is None
     assert window.auto_hold_status.text() == tr("auto_hold_unavailable")
 
-    monkeypatch.setattr(crosshair, "system_key_injector", lambda vk: Injector())
+    monkeypatch.setattr(crosshair, "system_key_injector", lambda code: Injector())
     window.controls["auto_hold"].toggled.emit(True)
     assert window.config["auto_hold"] is True
     assert window.hold_timer.auto_hold is not None
@@ -1076,7 +1071,7 @@ def test_auto_hold_setting(window, monkeypatch):
     from hotkeys import bindings
     assert ("F7", "auto_hold") in bindings(window)
 
-    window.hold_timer.key_reader = lambda vk: False
+    window.hold_timer.key_reader = lambda code: False
     window.select_weapon(AGS17)
     window.config["arc"] = "high"
     window.distance_entry.setText("1000")
@@ -1116,21 +1111,21 @@ def test_mortar_auto_lay_hotkey(window, monkeypatch):
     log = []
 
     class Injector:
-        def __init__(self, vk):
-            self.vk = vk
+        def __init__(self, code):
+            self.code = code
 
         def press(self):
-            log.append((self.vk, "press"))
+            log.append((self.code, "press"))
 
         def release(self):
-            log.append((self.vk, "release"))
+            log.append((self.code, "release"))
 
         def close(self):
             pass
 
     monkeypatch.setattr(crosshair, "system_key_injector", Injector)
     window.controls["auto_hold"].toggled.emit(True)
-    window.hold_timer.key_reader = lambda vk: False
+    window.hold_timer.key_reader = lambda code: False
     window.hold_timer.set_active(True)
 
     window.select_weapon(MORTAR)
@@ -1282,8 +1277,8 @@ def test_mortar_auto_lay_on_the_sight(window, monkeypatch):
     import crosshair
 
     class Injector:
-        def __init__(self, vk):
-            self.vk = vk
+        def __init__(self, code):
+            self.code = code
 
         def press(self):
             pass
@@ -1296,7 +1291,7 @@ def test_mortar_auto_lay_on_the_sight(window, monkeypatch):
 
     monkeypatch.setattr(crosshair, "system_key_injector", Injector)
     window.controls["auto_hold"].toggled.emit(True)
-    window.hold_timer.key_reader = lambda vk: False
+    window.hold_timer.key_reader = lambda code: False
     window.select_weapon(MORTAR)
     window.config["arc"] = "high"
     window.distance_entry.setText("1000")
@@ -1304,7 +1299,7 @@ def test_mortar_auto_lay_on_the_sight(window, monkeypatch):
 
     layer = window.sight_layer
     assert layer is not None
-    assert layer.raise_key.vk == crosshair.VK_W and layer.lower_key.vk == crosshair.VK_S
+    assert layer.raise_key.code == crosshair.KEY_W and layer.lower_key.code == crosshair.KEY_S
     assert window.sight_target() == pytest.approx(window.last_solution.angle * 6400 / 360)
 
     timed = []
@@ -1408,7 +1403,7 @@ def test_calculator_fits_the_minimum_window(window, language):
     window.calculate()
     assert calc_page_overflow(window) == 0, "calibration row"
 
-    window.lay_status.setText(tr("lay_no_sight", path="C:\\Users\\player\\AppData\\Roaming\\SquadBallistics\\sight-grab.png"))
+    window.lay_status.setText(tr("lay_no_sight", path="/home/player/.config/SquadBallistics/sight-grab.png"))
     assert calc_page_overflow(window) == 0, "calibration status"
 
     window.select_weapon(LONGEST_NAME)
@@ -1480,15 +1475,14 @@ def ink_box(overlay, left):
 
 
 def test_overlay_info_line_is_drawn_whole_on_a_wide_screen(window):
-    from PyQt6.QtGui import QFont, QFontMetricsF
+    from PyQt6.QtGui import QFontMetricsF
 
     overlay = window.overlay
     overlay.setGeometry(0, 0, 1920, 1080)
     overlay.set_offset(None)
     overlay.set_info(LONG_INFO)
 
-    font = QFont("Segoe UI", 10)
-    font.setBold(True)
+    font = overlay.info_font()
     width = QFontMetricsF(font, overlay).horizontalAdvance(LONG_INFO)
     assert width > 450
 
@@ -1526,7 +1520,7 @@ def test_hold_progress_repaints_only_the_info_line(window):
                 self.regions.append(event.region())
             return False
 
-    window.hold_timer.key_reader = lambda vk: False
+    window.hold_timer.key_reader = lambda code: False
     window.select_weapon(AGS17)
     window.distance_entry.setText("900")
     window.calculate()
@@ -1589,7 +1583,7 @@ def test_hold_progress_does_not_lay_out_the_window(window):
                 self.count += 1
             return False
 
-    window.hold_timer.key_reader = lambda vk: False
+    window.hold_timer.key_reader = lambda code: False
     show_at(window, 1180, 780)
     window.select_weapon(AGS17)
     window.distance_entry.setText("900")
@@ -1677,7 +1671,7 @@ def test_auto_hold_toggle_is_off_when_keys_cannot_be_sent(app, tmp_path, monkeyp
     import crosshair
 
     monkeypatch.setattr(config, "CONFIG_PATH", str(tmp_path / "config.json"))
-    monkeypatch.setattr(crosshair, "system_key_injector", lambda vk: None)
+    monkeypatch.setattr(crosshair, "system_key_injector", lambda code: None)
 
     saved = config.load_config()
     saved["auto_hold"] = True
@@ -1713,7 +1707,7 @@ def test_hotkey_hint_lists_only_bound_keys(window):
     import crosshair
 
     original = crosshair.system_key_injector
-    crosshair.system_key_injector = lambda vk: Injector()
+    crosshair.system_key_injector = lambda code: Injector()
 
     try:
         window.controls["auto_hold"].toggled.emit(True)

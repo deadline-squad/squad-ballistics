@@ -1,15 +1,14 @@
 """Physical key state, read system-wide (the game has the focus, not us).
 
-Keys are named by their Windows virtual-key codes (VK_*), which the rest of
-the app already uses. `system_key_reader()` returns `reader(vk) -> bool`
-for the current system, or None when keys cannot be read:
+Keys are named by their Linux input event codes (KEY_* of
+linux/input-event-codes.h); an X11 keycode is the code + 8.
+`system_key_reader()` returns `reader(code) -> bool`, or None when keys
+cannot be read:
 
-* Windows: GetAsyncKeyState. A game run as administrator is only visible
-  to an app run as administrator too.
-* Linux, evdev: the keyboards in /dev/input are queried with EVIOCGKEY.
+* evdev: the keyboards in /dev/input are queried with EVIOCGKEY.
   Works under X11 and Wayland alike, but the user must be allowed to read
   the devices (member of the `input` group).
-* Linux, X11: XQueryKeymap on $DISPLAY. Works on an X11 session, and on
+* X11: XQueryKeymap on $DISPLAY. Works on an X11 session, and on
   Wayland while an XWayland window has the focus — Squad under Proton is
   one.
 
@@ -18,32 +17,16 @@ Only plain ctypes/fcntl are used, nothing to install.
 
 import ctypes
 import ctypes.util
+import fcntl
 import glob
 import os
-import sys
 
-try:
-    import fcntl
-except ImportError:
-    # Windows: only the Linux readers and injectors (evdev, uinput) use it
-    fcntl = None
+# Linux input event codes (linux/input-event-codes.h)
+KEY_W = 17
+KEY_S = 31
 
-# Windows virtual-key code -> Linux input event code (linux/input-event-codes.h).
-# X11 keycodes on Linux are the evdev codes + 8.
-EVDEV_CODES = {
-    0x53: 31,   # S
-    0x57: 17,   # W
-    **{0x70 + i: 59 + i for i in range(10)},  # F1..F10
-    0x7A: 87,   # F11
-    0x7B: 88,   # F12
-    0x2D: 110,  # Insert
-    0x24: 102,  # Home
-    0x23: 107,  # End
-    0x21: 104,  # Page Up
-    0x22: 109,  # Page Down
-    0x13: 119,  # Pause
-    0x91: 70,   # Scroll Lock
-}
+# X11 keycodes are the input event codes + 8
+X11_KEYCODE_OFFSET = 8
 
 EV_KEY = 0x01
 KEY_MAX = 0x2FF
@@ -63,12 +46,6 @@ EVIOCGBIT_KEY = _ioc_read(0x20 + EV_KEY, KEY_BYTES)
 
 def _bit(buffer, code):
     return bool(buffer[code // 8] & (1 << (code % 8)))
-
-
-def windows_reader():
-    user32 = ctypes.windll.user32
-
-    return lambda vk: bool(user32.GetAsyncKeyState(vk) & 0x8000)
 
 
 def evdev_reader(paths=None):
@@ -95,8 +72,7 @@ def evdev_reader(paths=None):
             os.close(fd)
             continue
 
-        if _bit(capabilities, EVDEV_CODES[0x53]) \
-                and _bit(capabilities, EVDEV_CODES[0x57]):
+        if _bit(capabilities, KEY_S) and _bit(capabilities, KEY_W):
             keyboards.append(fd)
         else:
             os.close(fd)
@@ -106,12 +82,7 @@ def evdev_reader(paths=None):
 
     state = bytearray(KEY_BYTES)
 
-    def reader(vk):
-        code = EVDEV_CODES.get(vk)
-
-        if code is None:
-            return False
-
+    def reader(code):
         for fd in keyboards:
             try:
                 fcntl.ioctl(fd, EVIOCGKEY, state)
@@ -150,25 +121,14 @@ def x11_reader():
 
     keymap = (ctypes.c_char * 32)()
 
-    def reader(vk):
-        code = EVDEV_CODES.get(vk)
-
-        if code is None:
-            return False
-
+    def reader(code):
         xlib.XQueryKeymap(display, keymap)
 
-        return _bit(keymap.raw, code + 8)
+        return _bit(keymap.raw, code + X11_KEYCODE_OFFSET)
 
     return reader
 
 
 def system_key_reader():
-    """The best reader for this system, None if keys cannot be read."""
-    if sys.platform == "win32":
-        return windows_reader()
-
-    if sys.platform.startswith("linux"):
-        return evdev_reader() or x11_reader()
-
-    return None
+    """evdev, else X11; None if keys cannot be read."""
+    return evdev_reader() or x11_reader()

@@ -34,7 +34,6 @@ Main Features:
 * RGB customization
 * Glow / Bloom effects
 * Built-in SquadCalc browser
-* Auto-update system
 * Hotkeys support
 * Modern tactical interface
 * Transparent overlay technology
@@ -111,14 +110,14 @@ Squad Ballistics предоставляет:
 
 Pick **AGS-17 · emplacement**. / Выберите **AGS-17 · emplacement**.
 
-* **High arc / навесная:** the result is how long to hold **S**: press **W** (barrel back to the top), hold **S**, release on the beep. While AGS-17 is selected the app counts every S press since the last W, in any window, so always press W right before laying (Windows: run it as administrator if the game is; Linux: see below). / Результат — сколько держать **S**: нажмите **W** (ствол вверх), зажмите **S**, отпустите по сигналу. Пока выбран АГС-17, программа считает каждое нажатие S с последнего W в любом окне, поэтому всегда жмите W прямо перед наводкой (Windows: если игра запущена от администратора — запустите программу так же; Linux — см. ниже).
+* **High arc / навесная:** the result is how long to hold **S**: press **W** (barrel back to the top), hold **S**, release on the beep. While AGS-17 is selected the app counts every S press since the last W, in any window, so always press W right before laying (see *Linux* below). / Результат — сколько держать **S**: нажмите **W** (ствол вверх), зажмите **S**, отпустите по сигналу. Пока выбран АГС-17, программа считает каждое нажатие S с последнего W в любом окне, поэтому всегда жмите W прямо перед наводкой (см. *Linux* ниже).
 * **Low arc / настильная:** direct fire with the overlay mark, like other grenade launchers. / Прямая наводка меткой оверлея, как у других гранатомётов.
 * **Uphill and downhill / вверх и вниз по склону:** for weapons aimed with the overlay the angle shown is the one above the line to the target (the target is what you put on the mark), and the angle to the horizon is shown under it. / Для оружия с оверлеем показывается угол над линией на цель (с меткой совмещается цель), угол к горизонту — под ним.
 * **Both at once / оба сразу:** on the high arc the overlay mark shows the direct-fire aim at the same time (`S 2.31 s · direct fire 3.21°`), and a target too close to lob (under 280 m) is solved for direct fire. / На навесной метка оверлея одновременно показывает прямую наводку, а цель ближе 280 м считается прямой наводкой.
 * **Timer on the overlay / таймер на оверлее:** a panel in a corner of the screen (Settings → Overlay) shows the target and its hold time, where the barrel shoots right now (`~820 m`), the seconds S has been held with a progress bar that turns green when it is time to release, and whether the app sees S and W. / Панель в углу экрана (Настройки → Оверлей): цель и её время, куда бьёт ствол сейчас (`~820 м`), сколько секунд зажата S с полоской, которая зеленеет, когда пора отпускать, и видит ли программа S и W.
 * **Auto-hold / автозажатие** (off by default, Settings → Calculator): press **F7** and the app holds S itself for the time left to the target, then releases; F7 again or W cancels. Synthetic key presses may be treated as a macro by EasyAntiCheat or server rules — your risk. Linux needs write access to `/dev/uinput` (Steam's udev rules) or the game on X11/XWayland. / Выключено по умолчанию (Настройки → Калькулятор): **F7** — программа сама держит S оставшееся время и отпускает; повторное F7 или W отменяет. Нажатия от программы античит и правила сервера могут счесть макросом — на свой риск. В Linux нужен доступ к `/dev/uinput` (правила Steam) или игра в X11/XWayland.
 * **Mortar auto-lay / автонаводка миномёта** (with auto-hold on): in the mortar sight press **F7** — the app holds W until the barrel is at its top (1580 mil), then S for the shown time; the sight then shows the mils of the solution. The rate (9°/s) comes from the game files: keyboard pitch ×300 × input ×0.03, the rule that gives the AGS-17's measured 9.08°/s. To make it exact for your game, after a lay type the mils the sight shows into *Sight shows (mil)* and press *Calibrate*: the rate is fitted on the time S was held and kept for that weapon (*Reset* goes back to 9°/s). Set the bearing yourself. With *Read the mortar sight off the screen* on (default), F7 lays on the sight instead whenever it is on the screen: the app reads the mils off the sight's scale and holds W or S until it shows the solution within 0.5 mil (see below); the timed lay is the fallback. / С включённым автозажатием: в прицеле миномёта **F7** — программа держит W до упора (1580 мил), затем S показанное время; прицел покажет милы решения. Скорость (9°/с) — из файлов игры: клавиатура ×300 × ввод ×0.03, то же правило даёт измеренные у АГС-17 9.08°/с. Для точности под вашу игру после наводки введите милы с прицела в «Прицел показал (мил)» и нажмите «Уточнить»: скорость подгоняется по времени удержания S и запоминается (кнопка «Сброс» вернёт 9°/с). Азимут выставляйте сами. С включённым «Читать прицел миномёта с экрана» (по умолчанию) F7 наводит по самому прицелу, когда он на экране: программа читает милы с его шкалы и держит W или S, пока прицел не покажет решение с точностью до 0,5 мил (см. ниже); наводка по времени остаётся запасной.
-* **Mortar sight reading / чтение прицела миномёта:** while a mortar is selected the app reads the elevation off the sight's scale left of the screen centre (several times a second) and shows it on the overlay with what is left to the solution, e.g. `sight 1041.5 mil (+4.6)`. It finds the scale's edge line, the ticks (sub-pixel) and the labels every 10 mils, reads the labels' digits against Roboto Condensed and decodes all visible labels together (they go up by 10), then interpolates the pointer between the ticks: about 0.1 mil on 1080p, any resolution and aspect ratio, HUD scale ±25 %. A lay on the sight: two agreeing readings, then W or S held with the rate measured from the readings and released just before the target, then taps (the shortest tap that moves the barrel and its step are learnt); it stops within 0.5 mil or half the game's frame step, after 12 moves, or when the sight is lost (the key is always released). With an empty *Sight shows (mil)*, *Calibrate* reads the sight off the screen; when it cannot, it saves what it grabbed to `sight-grab.png` in the settings folder. Needs the game windowed or borderless (exclusive fullscreen grabs black; Wayland cannot be grabbed). / Пока выбран миномёт, программа несколько раз в секунду читает угол со шкалы прицела слева от центра экрана и пишет его на оверлее вместе с остатком до решения, например `прицел 1041.5 мил (+4.6)`. Она находит край шкалы, деления (с долями пикселя) и подписи через 10 мил, распознаёт цифры подписей по шрифту Roboto Condensed и расшифровывает все видимые подписи вместе (они растут на 10), затем интерполирует указатель между делениями: около 0,1 мил на 1080p, при любом разрешении и соотношении сторон, масштаб интерфейса ±25 %. Наводка по прицелу: два совпавших чтения, затем W или S с измеренной по чтениям скоростью и отпусканием перед целью, затем короткие нажатия (программа узнаёт самое короткое нажатие, которое двигает ствол, и его шаг); останавливается в пределах 0,5 мил или половины шага кадра игры, после 12 движений или если прицел пропал (клавиша всегда отпускается). С пустым полем «Прицел показал (мил)» кнопка «Уточнить» сама читает прицел с экрана, а если не может — сохраняет снимок в `sight-grab.png` в папке настроек. Игра должна быть в оконном режиме или «без рамки» (в эксклюзивном полноэкранном снимок чёрный, под Wayland экран не снимается).
+* **Mortar sight reading / чтение прицела миномёта:** while a mortar is selected the app reads the elevation off the sight's scale left of the screen centre (several times a second) and shows it on the overlay with what is left to the solution, e.g. `sight 1041.5 mil (+4.6)`. It finds the scale's edge line, the ticks (sub-pixel) and the labels every 10 mils, reads the labels' digits against Roboto Condensed and decodes all visible labels together (they go up by 10), then interpolates the pointer between the ticks: about 0.1 mil on 1080p, any resolution and aspect ratio, HUD scale ±25 %. A lay on the sight: two agreeing readings, then W or S held with the rate measured from the readings and released just before the target, then taps (the shortest tap that moves the barrel and its step are learnt); it stops within 0.5 mil or half the game's frame step, after 12 moves, or when the sight is lost (the key is always released). With an empty *Sight shows (mil)*, *Calibrate* reads the sight off the screen; when it cannot, it saves what it grabbed to `sight-grab.png` in the settings folder. The screen is grabbed under X11 and XWayland, not under pure Wayland. / Пока выбран миномёт, программа несколько раз в секунду читает угол со шкалы прицела слева от центра экрана и пишет его на оверлее вместе с остатком до решения, например `прицел 1041.5 мил (+4.6)`. Она находит край шкалы, деления (с долями пикселя) и подписи через 10 мил, распознаёт цифры подписей по шрифту Roboto Condensed и расшифровывает все видимые подписи вместе (они растут на 10), затем интерполирует указатель между делениями: около 0,1 мил на 1080p, при любом разрешении и соотношении сторон, масштаб интерфейса ±25 %. Наводка по прицелу: два совпавших чтения, затем W или S с измеренной по чтениям скоростью и отпусканием перед целью, затем короткие нажатия (программа узнаёт самое короткое нажатие, которое двигает ствол, и его шаг); останавливается в пределах 0,5 мил или половины шага кадра игры, после 12 движений или если прицел пропал (клавиша всегда отпускается). С пустым полем «Прицел показал (мил)» кнопка «Уточнить» сама читает прицел с экрана, а если не может — сохраняет снимок в `sight-grab.png` в папке настроек. Экран снимается под X11 и XWayland, под чистым Wayland — нет.
 * Hold range 280–1925 m on flat ground; the model is fitted on 67 in-game measurements (hold time → distance, 0.02 s RMS) and is the same as in the Deadline SquadCalc. / Зажатием S — от 280 до 1925 м по ровной земле; модель подобрана по 67 замерам в игре (ошибка 0.02 с) и совпадает с SquadCalc Deadline.
 
 Tips / Советы:
@@ -133,20 +132,20 @@ Tips / Советы:
 | — | Distance + / − (bind in Settings) — дистанция + / − (назначается в настройках) |
 | F7 | AGS-17 auto-hold / mortar auto-lay, when enabled — автозажатие S АГС-17 / автонаводка миномёта, если включено |
 
-Hotkeys can be changed in **Settings**. They are global, so they work while the game is focused: on Windows always, on Linux when the keys can be read (see *Linux* below). / Клавиши меняются в **Настройках**. Они глобальные и работают поверх игры: в Windows всегда, в Linux — когда программа видит клавиатуру (см. *Linux* ниже).
+Hotkeys can be changed in **Settings**. They are global, so they work while the game is focused, when the keys can be read (see *Linux* below). / Клавиши меняются в **Настройках**. Они глобальные и работают поверх игры, когда программа видит клавиатуру (см. *Linux* ниже).
 
 If the mark is slightly off in your setup, adjust **Offset calibration** in Settings. / Если метка немного не совпадает, подстройте **Калибровку смещения** в настройках.
 
 ### Linux
 
-Squad runs on Linux through Proton; the S timer, its beep and the in-game hotkeys work there too. The `.exe` is Windows-only: run from source with `pip install -r requirements.txt` and `python app.py`. On a Wayland session the app runs itself through XWayland so the overlay stays above the game (set `QT_QPA_PLATFORM` to override). / Squad запускается в Linux через Proton; таймер S, его сигнал и горячие клавиши в игре работают и там. `.exe` только для Windows: запуск из исходников — `pip install -r requirements.txt` и `python app.py`. В сессии Wayland программа сама запускается через XWayland, чтобы оверлей был поверх игры (`QT_QPA_PLATFORM` переопределяет).
+The app runs on Linux only, from source: `pip install -r requirements.txt` and `python app.py` (Squad itself runs through Proton). On a Wayland session the app runs itself through XWayland so the overlay stays above the game (set `QT_QPA_PLATFORM` to override). / Программа работает только в Linux, из исходников: `pip install -r requirements.txt` и `python app.py` (сам Squad — через Proton). В сессии Wayland программа сама запускается через XWayland, чтобы оверлей был поверх игры (`QT_QPA_PLATFORM` переопределяет).
 
 The app reads the keyboard in one of two ways: / Клавиатура читается одним из двух способов:
 
 * **input group / группа input** (any session, X11 or Wayland): `sudo usermod -aG input $USER`, then log out and in. / Любая сессия; после команды перезайдите в систему.
 * **X11 / XWayland** without extra rights, while the game window has the focus (Proton games run on XWayland). / Без прав, пока в фокусе окно игры (игры Proton работают через XWayland).
 
-The beep is played with `pw-play`, `paplay` or `aplay`, whichever is installed. Unlike Windows, the game still receives the hotkeys, so bind keys the game does not use. / Сигнал играет `pw-play`, `paplay` или `aplay` — что установлено. В отличие от Windows, игра тоже получает горячие клавиши: назначайте те, что игра не использует.
+The beep is played with `pw-play`, `paplay` or `aplay`, whichever is installed. The game still receives the hotkeys, so bind keys the game does not use. / Сигнал играет `pw-play`, `paplay` или `aplay` — что установлено. Игра тоже получает горячие клавиши: назначайте те, что игра не использует.
 
 ### Map / Карта
 
@@ -204,48 +203,20 @@ Weapons live in `weapons.json`. Only `velocity` is required:
 
 ## Development / Разработка
 
-Windows, quick start (downloads the project into `Desktop\Squad-Ballistics`
-and installs everything). Paste into PowerShell:
-
-Windows, быстрый старт (скачает проект в `Рабочий стол\Squad-Ballistics` и
-всё установит). Вставьте в PowerShell:
-
-```powershell
-irm https://raw.githubusercontent.com/DelineDelorian/Squad-Ballistics/refs/heads/claude/trusting-cray-6sbies/tools/get.ps1 | iex
-```
-
-| File | What it does / Что делает |
-|------|---------------------------|
-| `setup.bat` | Installs Python (if missing) and dependencies — установка |
-| `run.bat` | Runs the app from source — запуск без сборки |
-| `build.bat` | Builds and self-checks the single-file `dist\SquadBallistics.exe` — сборка exe |
-| `test.bat` | Runs the tests — тесты |
-
-Manual / вручную:
-
 ```bash
 pip install -r requirements-dev.txt
-python app.py                     # run from source
-pytest                            # tests (every weapon is checked)
-pyinstaller SquadBallistics.spec  # build dist/SquadBallistics
+python app.py              # run / запуск
+python app.py --selftest   # smoke test of every weapon through the UI / проверка всех оружий через интерфейс
+pytest                     # tests / тесты (every weapon is checked)
 ```
 
-Every push builds the exe on GitHub Actions (**build-windows**, see
-*Artifacts*) without publishing a release. How to publish an update:
-[RELEASING.md](RELEASING.md).
-
-Каждый push собирает exe в GitHub Actions (**build-windows**, раздел
-*Artifacts*) без публикации релиза. Как выпустить обновление:
-[RELEASING.md](RELEASING.md).
-
-The app is a single `SquadBallistics.exe` and writes nothing next to it. / Программа — один файл `SquadBallistics.exe`, рядом с ним ничего не создаётся:
+Every push runs the tests on GitHub Actions (**tests**). A release is a tag `v<version>` on the default branch with its entry in [RELEASE_NOTES.md](RELEASE_NOTES.md); the version is `APP_VERSION` in `config.py` ([RELEASING.md](RELEASING.md)). / Каждый push запускает тесты в GitHub Actions (**tests**). Выпуск — тег `v<версия>` на основной ветке и запись в RELEASE_NOTES.md; версия — `APP_VERSION` в `config.py`.
 
 | What / Что | Where / Где |
 |------------|-------------|
-| Settings / настройки, `crash.log`, `sight-grab.png` | `%APPDATA%\SquadBallistics` |
-| Map cache, SquadCalc settings / кэш карты | `%LOCALAPPDATA%\SquadBallistics\WebEngine` |
-| Update download / загрузка обновления | `%TEMP%\SquadBallisticsUpdate` |
+| Settings / настройки, `crash.log`, `sight-grab.png` | `~/.config/SquadBallistics` (`$XDG_CONFIG_HOME`) |
+| Map cache, SquadCalc settings / кэш карты | `~/.cache/SquadBallistics` (`$XDG_CACHE_HOME`) |
 
-The old `configs/config.json` of versions ≤ 1.1.0 is migrated automatically, and their leftover `_internal` folder is removed after updating.
+The old `configs/config.json` of versions ≤ 1.1.0 (relative to the working directory) is migrated automatically. / Старый `configs/config.json` версий ≤ 1.1.0 переносится автоматически.
 
 `assets/fonts/RobotoCondensed-Digits.ttf` is the digits of Roboto Condensed (© The Roboto Project Authors), used by the sight reader, under the SIL Open Font License 1.1 (`assets/fonts/RobotoCondensed-OFL.txt`). / Цифры шрифта Roboto Condensed для чтения прицела, лицензия SIL OFL 1.1.

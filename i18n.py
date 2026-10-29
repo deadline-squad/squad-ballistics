@@ -121,8 +121,8 @@ STRINGS = {
         "Type the mils the sight shows"
     ),
     "lay_no_grab": (
-        "Экран не снимается (полноэкранный режим или Wayland): введите милы с прицела",
-        "The screen cannot be grabbed (exclusive fullscreen or Wayland): type the mils the sight shows"
+        "Экран не снимается (Wayland без X11): введите милы с прицела",
+        "The screen cannot be grabbed (Wayland without X11): type the mils the sight shows"
     ),
     "lay_no_sight": (
         "Прицел не прочитан: войдите в прицел миномёта или введите милы. Снимок: {path}",
@@ -178,11 +178,9 @@ STRINGS = {
         "off-screen)."
     ),
     "how_hold_no_keys": (
-        "Программа не видит клавиши: отсчитайте время сами. На Linux "
-        "добавьте себя в группу input (sudo usermod -aG input $USER, затем "
+        "Программа не видит клавиши: отсчитайте время сами. Добавьте себя в группу input (sudo usermod -aG input $USER, затем "
         "перезайдите) или запустите игру через XWayland/X11.",
-        "The app cannot read the keys: count the time yourself. On Linux "
-        "add yourself to the input group (sudo usermod -aG input $USER, then "
+        "The app cannot read the keys: count the time yourself. Add yourself to the input group (sudo usermod -aG input $USER, then "
         "log in again) or run the game through XWayland/X11."
     ),
     "how_tof_moving": (
@@ -236,11 +234,8 @@ STRINGS = {
     "cat_mods": ("Моды", "Mods"),
     "cat_other": ("Другое", "Other"),
 
-    # Splash / updates
-    "splash_checking": ("Проверка обновлений…", "Checking for updates…"),
-    "splash_downloading": ("Загрузка {v}…", "Downloading {v}…"),
-    "splash_installing": ("Установка…", "Installing…"),
-    "splash_failed": ("Не удалось обновиться: {e}", "Update failed: {e}"),
+    # Splash
+    "splash_loading": ("Запуск…", "Starting…"),
     "error_title": ("Squad Ballistics — ошибка", "Squad Ballistics — error"),
     "error_saved": ("Подробности сохранены в:\n{path}", "Details saved to:\n{path}"),
 
@@ -296,10 +291,10 @@ STRINGS = {
     "s_calibration": ("Калибровка смещения, %", "Offset calibration, %"),
     "s_hotkeys": ("Горячие клавиши", "Hotkeys"),
     "s_hotkeys_hint": (
-        "Работают поверх игры. В Windows игра эти клавиши не получает; на Linux "
-        "получает (клавиши читаются, как для таймера АГС-17).",
-        "They work in game. On Windows the game no longer receives these keys; "
-        "on Linux it does (keys are read like for the AGS-17 timer)."
+        "Работают поверх игры, игра эти клавиши тоже получает (клавиши "
+        "читаются, как для таймера АГС-17).",
+        "They work in game, and the game receives these keys too (keys are "
+        "read like for the AGS-17 timer)."
     ),
     "hk_toggle_overlay": ("Оверлей вкл/выкл", "Overlay on/off"),
     "hk_reset_offset": ("Сбросить метку", "Reset mark"),
@@ -419,12 +414,10 @@ STRINGS = {
     ),
     "s_hold_timer_hint": (
         "Считает, сколько зажата S после W, и пищит, когда пора отпускать. "
-        "Windows: если игра запущена от администратора — запустите программу "
-        "так же. Linux: группа input (sudo usermod -aG input $USER) или игра "
+        "Нужна группа input (sudo usermod -aG input $USER) или игра "
         "в X11/XWayland (Proton).",
         "Counts how long S is held since W and beeps when to release. "
-        "Windows: if the game runs as administrator, run this app the same "
-        "way. Linux: the input group (sudo usermod -aG input $USER) or the "
+        "Needs the input group (sudo usermod -aG input $USER) or the "
         "game on X11/XWayland (Proton)."
     ),
     "s_hold_panel": ("Таймер на оверлее", "Timer on the overlay"),
@@ -443,14 +436,14 @@ STRINGS = {
         "сначала W до упора, затем S на всё время); повторное нажатие или W "
         "отменяет. Нажатия от программы "
         "античит (EAC) и правила сервера могут счесть макросом — включайте "
-        "на свой риск. Linux: нужен доступ к /dev/uinput (правила Steam) "
+        "на свой риск. Нужен доступ к /dev/uinput (правила Steam) "
         "или игра в X11/XWayland.",
         "On the key the app holds S for the time left to the target and "
         "releases it (mortars: on the sight on the screen, or if it cannot "
         "be read, W to the top first, then S for the whole time); the key "
         "again or W cancels. Synthetic key presses may "
         "be treated as a macro by the anti-cheat (EAC) or server rules — "
-        "enable at your own risk. Linux: needs access to /dev/uinput "
+        "enable at your own risk. Needs access to /dev/uinput "
         "(Steam rules) or the game on X11/XWayland."
     ),
     "s_sight_reader": (
@@ -461,15 +454,13 @@ STRINGS = {
         "Пока выбран миномёт, программа читает милы со шкалы его прицела "
         "(слева от центра экрана) и пишет их на оверлее рядом с нужными. "
         "Автонаводка тогда наводит по прицелу: держит W или S, пока он не "
-        "покажет цель с точностью до 0,5 мил. Игра должна быть в оконном "
-        "режиме или «без рамки»: в эксклюзивном полноэкранном режиме и под "
-        "Wayland экран не снимается.",
+        "покажет цель с точностью до 0,5 мил. Экран снимается под X11 и "
+        "XWayland, под чистым Wayland — нет.",
         "While a mortar is selected the app reads the mils off its sight's "
         "scale (left of the screen centre) and shows them on the overlay "
         "next to the target ones. The auto-lay then lays on the sight: it "
         "holds W or S until the sight shows the target within 0.5 mil. The "
-        "game must run windowed or borderless: the screen cannot be grabbed "
-        "in exclusive fullscreen or under Wayland."
+        "screen is grabbed under X11 and XWayland, not under pure Wayland."
     ),
     "auto_hold_unavailable": (
         "Не получилось: программа не может нажимать клавиши в этой системе.",

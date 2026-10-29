@@ -1,7 +1,6 @@
 import os
 import sys
 import tempfile
-import threading
 import traceback
 
 os.environ["QT_LOGGING_RULES"] = "*.debug=false"
@@ -28,18 +27,11 @@ from i18n import set_language, tr
 from utils import resource_path
 from splash import SplashScreen
 
-from updater import (
-    check_for_updates,
-    download_update,
-    apply_update,
-    remove_old_install_files
-)
-
 from webmap import configure_environment
 
 
-def prefer_x11(environ=None, platform=None):
-    """Run through XWayland on a Linux Wayland session.
+def prefer_x11(environ=None):
+    """Run through XWayland on a Wayland session.
 
     Wayland compositors ignore "stay on top" for ordinary windows, so the
     overlay would end up under a fullscreen game; through XWayland it stays
@@ -47,73 +39,19 @@ def prefer_x11(environ=None, platform=None):
     chose a Qt platform or there is no X server.
     """
     environ = os.environ if environ is None else environ
-    platform = sys.platform if platform is None else platform
 
-    if not platform.startswith("linux") or environ.get("QT_QPA_PLATFORM"):
+    if environ.get("QT_QPA_PLATFORM"):
         return
 
     if environ.get("WAYLAND_DISPLAY") and environ.get("DISPLAY"):
         environ["QT_QPA_PLATFORM"] = "xcb"
 
 
-def close_build_splash():
-    """Close the image PyInstaller shows while the .exe unpacks itself."""
-    try:
-        import pyi_splash
-    except ImportError:
-        return
-
-    try:
-        pyi_splash.close()
-    except Exception:
-        pass
-
-
-def run_update(app, splash):
-    update = check_for_updates()
-
-    if not update:
-        return
-
-    splash.status.setText(
-        tr("splash_downloading", v=update)
-    )
-
-    def progress(percent):
-        if percent is None:
-            # Unknown size: show a busy indicator.
-            splash.progress.setRange(0, 0)
-        else:
-            splash.progress.setValue(percent)
-
-        app.processEvents()
-
-    try:
-        download_update(progress)
-
-        splash.status.setText(
-            tr("splash_installing")
-        )
-
-        app.processEvents()
-
-        apply_update()
-
-    except Exception as e:
-        # A failed update must never prevent the app from starting.
-        splash.progress.setRange(0, 100)
-
-        splash.status.setText(
-            tr("splash_failed", e=e)
-        )
-
-        app.processEvents()
-
-
 def install_crash_handler():
     """Show and log unexpected errors instead of silently closing.
 
-    The .exe has no console, so without this a crash leaves no trace.
+    Started from a desktop launcher the app has no console, so without this
+    a crash leaves no trace.
     """
     log_path = os.path.join(config_dir(), "crash.log")
 
@@ -139,11 +77,11 @@ def install_crash_handler():
 
 
 def selftest():
-    """Smoke test of a build: SquadBallistics.exe --selftest
+    """Smoke test: python app.py --selftest
 
-    Loads the bundled data, opens the main window and runs a calculation
-    for every weapon through the UI. Exit code 0 means everything works;
-    otherwise the error is written to selftest.log next to the executable.
+    Loads the data, opens the main window and runs a calculation for every
+    weapon through the UI. Exit code 0 means everything works; otherwise the
+    error is written to selftest.log next to app.py.
     """
     log_path = os.path.join(
         os.path.dirname(os.path.abspath(sys.argv[0])),
@@ -160,8 +98,6 @@ def selftest():
         configure_environment("auto")
 
         app = QApplication(sys.argv)
-
-        close_build_splash()
 
         weapons = load_weapons(
             resource_path("weapons.json")
@@ -255,15 +191,7 @@ def main():
 
     splash.show()
 
-    close_build_splash()
-
     app.processEvents()
-
-    run_update(app, splash)
-
-    # Leftovers of the old folder version; in the background, it can take
-    # a moment.
-    threading.Thread(target=remove_old_install_files, daemon=True).start()
 
     from crosshair import MainWindow
 
