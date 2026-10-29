@@ -326,13 +326,6 @@ EMPLACED_GEOMETRY = {
     "SPG-9 · HEAT · scope": (2.34, 0.0, 4.0),
     "SPG-9 · FRAG · scope": (2.34, 0.0, 4.0),
     "ZiS-3": (0.4, 0.0, 4.0),
-    "M2A1 .50 · emplacement": (0.22, 0.0, None),
-    "M2A1 .50 · ACOG emplacement": (0.22, 0.0, 4.0),
-    "Kord · emplacement": (0.45, 0.0, None),
-    "Kord · SPP emplacement": (0.45, 0.0, 4.5),
-    "DShK-M · emplacement": (0.17, 0.0, None),
-    "QJZ-89 · emplacement": (0.17, 0.0, None),
-    "QJZ-89 · scope emplacement": (0.17, 0.0, 4.5),
 }
 
 
@@ -367,12 +360,6 @@ ROUND_ZEROS = [
     ("SPG-9 · FRAG · scope", True, 700),
     ("ZiS-3", True, 350),
     ("ZiS-3", False, 350),
-    ("M2A1 .50 · emplacement", False, 400),
-    ("M2A1 .50 · ACOG emplacement", True, 200),
-    ("Kord · emplacement", False, 800),
-    ("DShK-M · emplacement", False, 300),
-    ("QJZ-89 · emplacement", False, 300),
-    ("QJZ-89 · scope emplacement", True, 300),
 ]
 
 

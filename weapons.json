@@ -427,19 +427,9 @@
         "velocity": 890,
         "gravity": 3,
         "bore": 0.22,
-        "zoom": 4,
-        "zoom_bore": 0.22,
         "category": "hmg",
-        "note": "The tripod M2 with the ACOG or SUSAT fires a heavier-dropping round in game (gravity ×3, not ×1.5), 0.22° above the screen centre (zero ~200 m); the optic (RMB) zooms ×4. The mark accounts for both.",
-        "note_ru": "Станковый M2 с прицелом ACOG или SUSAT в игре стреляет пулей с большим падением (гравитация ×3, а не ×1.5) на 0,22° выше центра экрана (пристрелка ~200 м); оптика (ПКМ) приближает ×4. Метка учитывает и то, и другое."
-    },
-    "M2A1 .50 · emplacement": {
-        "velocity": 890,
-        "gravity": 1.5,
-        "bore": 0.22,
-        "category": "hmg",
-        "note": "The tripod M2 (and the M2HB with a shield) with open sights: the shot leaves 0.22° above the screen centre (zero ~400 m); the mark accounts for it.",
-        "note_ru": "Станковый M2 (и M2HB со щитом) с открытым прицелом: выстрел уходит на 0,22° выше центра экрана (пристрелка ~400 м); метка это учитывает."
+        "note": "The tripod M2 with the ACOG fires a heavier-dropping round in game (gravity ×3, not ×1.5), 0.22° above the screen centre (zero ~200 m); the mark accounts for it.",
+        "note_ru": "Станковый M2 с прицелом ACOG в игре стреляет пулей с большим падением (гравитация ×3, а не ×1.5) на 0,22° выше центра экрана (пристрелка ~200 м); метка это учитывает."
     },
     "NSV": {
         "velocity": 860,
@@ -456,44 +446,10 @@
         "note": "The tripod Kord with the SPP optic fires a heavier-dropping round in game (gravity ×3, not ×1.5), 0.45° above the screen centre (zero ~400 m); the optic (RMB) zooms ×4.5. The mark accounts for both.",
         "note_ru": "Станковый «Корд» с прицелом СПП в игре стреляет пулей с большим падением (гравитация ×3, а не ×1.5) на 0,45° выше центра экрана (пристрелка ~400 м); оптика (ПКМ) приближает ×4,5. Метка учитывает и то, и другое."
     },
-    "Kord · emplacement": {
-        "velocity": 860,
-        "gravity": 1.5,
-        "bore": 0.45,
-        "category": "hmg",
-        "note": "The tripod Kord with open sights: the shot leaves 0.45° above the screen centre (zero ~800 m); the mark accounts for it.",
-        "note_ru": "Станковый «Корд» с открытым прицелом: выстрел уходит на 0,45° выше центра экрана (пристрелка ~800 м); метка это учитывает."
-    },
     "DShK-M": {
         "velocity": 850,
         "gravity": 1.5,
         "category": "hmg"
-    },
-    "DShK-M · emplacement": {
-        "velocity": 850,
-        "gravity": 1.5,
-        "bore": 0.17,
-        "category": "hmg",
-        "note": "The tripod DShK-M (also with a shield): the shot leaves 0.17° above the screen centre (zero ~300 m); the mark accounts for it.",
-        "note_ru": "Станковый ДШК-М (в том числе со щитом): выстрел уходит на 0,17° выше центра экрана (пристрелка ~300 м); метка это учитывает."
-    },
-    "QJZ-89 · emplacement": {
-        "velocity": 850,
-        "gravity": 1.5,
-        "bore": 0.17,
-        "category": "hmg",
-        "note": "The tripod QJZ-89 with open sights: the shot leaves 0.17° above the screen centre (zero ~300 m); the mark accounts for it.",
-        "note_ru": "Станковый QJZ-89 с открытым прицелом: выстрел уходит на 0,17° выше центра экрана (пристрелка ~300 м); метка это учитывает."
-    },
-    "QJZ-89 · scope emplacement": {
-        "velocity": 850,
-        "gravity": 1.5,
-        "bore": 0.17,
-        "zoom": 4.5,
-        "zoom_bore": 0.17,
-        "category": "hmg",
-        "note": "The tripod QJZ-89 with the scope: the shot leaves 0.17° above the screen centre (zero ~300 m); the scope (RMB) zooms ×4.5. The mark accounts for both.",
-        "note_ru": "Станковый QJZ-89 с оптикой: выстрел уходит на 0,17° выше центра экрана (пристрелка ~300 м); оптика (ПКМ) приближает ×4,5. Метка учитывает и то, и другое."
     },
     "Mortar (M252 / 2B14 / L16 / Type 63)": {
         "velocity": 110,
