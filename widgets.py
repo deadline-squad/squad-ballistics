@@ -429,9 +429,15 @@ class _PickerPopup(QFrame):
 
 
 class WeaponPicker(QPushButton):
-    """Button showing the current weapon; opens a searchable list."""
+    """Button showing the current weapon; opens a searchable list.
+
+    A name too long for the button is elided ("…") while the button is
+    shown; the full name is in the tooltip and in `current`.
+    """
 
     changed = pyqtSignal(str)
+
+    ARROW = "   ▾"
 
     def __init__(self):
         super().__init__()
@@ -454,10 +460,36 @@ class WeaponPicker(QPushButton):
     def set_current(self, name, emit=True):
         self.current = name
 
-        self.setText(f"{name}   ▾")
+        self.setToolTip(name)
+
+        self.show_name()
 
         if emit:
             self.changed.emit(name)
+
+    def show_name(self):
+        """Show the current name and the arrow, elided to the button's
+        width (only once shown: a hidden button has no real width yet)."""
+        self.setText(f"{self.current}{self.ARROW}")
+
+        if not self.isVisible():
+            return
+
+        metrics = self.fontMetrics()
+
+        # Padding and border: what the button needs besides its text
+        overhead = self.sizeHint().width() - metrics.horizontalAdvance(self.text())
+        room = self.width() - overhead - metrics.horizontalAdvance(self.ARROW)
+
+        if metrics.horizontalAdvance(self.current) > room:
+            name = metrics.elidedText(self.current, Qt.TextElideMode.ElideRight, room)
+            self.setText(f"{name}{self.ARROW}")
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+
+        if self.current is not None:
+            self.show_name()
 
     def open_popup(self):
         self.popup.search.clear()
@@ -606,7 +638,12 @@ class StatTile(QFrame):
 
         layout.setSpacing(2)
 
-        layout.addWidget(label(caption, "small"))
+        # Wrapped: three tiles in a row must fit the smallest window.
+        caption_label = label(caption, "small")
+
+        caption_label.setWordWrap(True)
+
+        layout.addWidget(caption_label)
 
         self.value = label("—", "stat_value")
 

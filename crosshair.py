@@ -294,9 +294,22 @@ class MainWindow(QMainWindow):
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
 
-        self.resize(1180, 780)
-
         self.setMinimumSize(900, 600)
+
+        # Within the screen it opens on (1080p at 150 % is 1280×720), with
+        # room for the title bar, and centred on it.
+        available = self.screen().availableGeometry()
+        title_bar = 40
+
+        self.resize(
+            min(1180, available.width()),
+            min(780, available.height() - title_bar)
+        )
+
+        self.move(
+            available.x() + max(0, (available.width() - self.width()) // 2),
+            available.y() + max(0, (available.height() - title_bar - self.height()) // 2)
+        )
 
         if self.config["main_on_top"]:
             self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
@@ -634,15 +647,22 @@ class MainWindow(QMainWindow):
 
         header.addWidget(label(tr("solution"), "title"))
 
-        header.addStretch()
-
+        # Long texts here wrap: the card must fit the smallest window.
         self.solution_weapon = label("", "small")
 
-        header.addWidget(self.solution_weapon)
+        self.solution_weapon.setWordWrap(True)
+
+        self.solution_weapon.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+
+        header.addWidget(self.solution_weapon, 1)
 
         layout.addLayout(header)
 
         self.big_label = label(tr("ready"), "big")
+
+        self.big_label.setWordWrap(True)
 
         self.sub_label = label("", "sub")
 
@@ -1432,14 +1452,28 @@ class MainWindow(QMainWindow):
         self.update_sight_watch()
 
     def build_lay_calibration(self):
-        """Row of the mortar auto-lay calibration: the mils the sight shows."""
+        """Mortar auto-lay calibration: the mils the sight shows.
+
+        The caption, the field with its buttons and the status are on lines
+        of their own, so the card fits the smallest window.
+        """
         self.lay_row = QWidget()
 
-        row = QHBoxLayout(self.lay_row)
+        column = QVBoxLayout(self.lay_row)
 
-        row.setContentsMargins(0, 0, 0, 0)
+        column.setContentsMargins(0, 0, 0, 0)
 
-        row.addWidget(label(tr("lay_read"), "small"))
+        column.setSpacing(4)
+
+        caption = label(tr("lay_read"), "small")
+
+        caption.setWordWrap(True)
+
+        column.addWidget(caption)
+
+        row = QHBoxLayout()
+
+        column.addLayout(row)
 
         self.lay_entry = NumberEdit(allow_negative=False, step=1)
 
@@ -1461,11 +1495,13 @@ class MainWindow(QMainWindow):
 
         row.addWidget(reset)
 
+        row.addStretch()
+
         self.lay_status = label("", "small")
 
-        row.addWidget(self.lay_status)
+        self.lay_status.setWordWrap(True)
 
-        row.addStretch()
+        column.addWidget(self.lay_status)
 
         self.lay_row.hide()
 
@@ -1908,9 +1944,12 @@ class MainWindow(QMainWindow):
 
         side_layout.addWidget(label(tr("presets").upper(), "section"))
 
-        presets = QHBoxLayout()
+        # Three a row: five do not fit the smallest window.
+        presets = QGridLayout()
 
-        for key in PRESETS:
+        presets.setSpacing(8)
+
+        for index, key in enumerate(PRESETS):
             button = QPushButton(tr(f"preset_{key}"))
 
             button.setProperty("flat_style", True)
@@ -1919,7 +1958,7 @@ class MainWindow(QMainWindow):
                 lambda _checked, k=key: self.apply_preset(k)
             )
 
-            presets.addWidget(button)
+            presets.addWidget(button, index // 3, index % 3)
 
         side_layout.addLayout(presets)
 
@@ -1940,7 +1979,8 @@ class MainWindow(QMainWindow):
 
         self.add_slider(side_layout, tr("sl_opacity"), "opacity")
 
-        layout.addWidget(side, 1)
+        # Scrolls in a window too low for the preview and all the sliders.
+        layout.addWidget(scrolled(side), 1)
 
         return page
 
