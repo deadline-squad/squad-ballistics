@@ -41,25 +41,32 @@ from dataclasses import replace
 
 from ballistics import (
     MILS_PER_DEGREE,
+    TRIM_LIMIT,
+    clamp_trim,
     current_weapon_name,
     first_obstacle,
     solve,
     mark_offset,
     range_ladder,
     screen_offset,
-    trajectory
+    trajectory,
+    trim_for_landing
 )
 
 from beep import beep
 
 from config import (
     APP_VERSION,
+    CHOICES,
     DEFAULT_CONFIG,
     DISTANCE_STEPS,
+    MARK_COLORS,
+    MARK_STYLES,
     RANGES,
     config_dir,
     load_config,
-    save_config
+    save_config,
+    trim_key
 )
 
 from holdtimer import HoldTimer
@@ -125,40 +132,12 @@ SIGHT_GRAB_FILE = "sight-grab.png"
 NBSP = "\u00a0"
 HINT_SEPARATOR = NBSP * 3 + "·   "
 
-CROSSHAIR_COLORS = [
-    "#00ff00",
-    "#00ffff",
-    "#ffff00",
-    "#ff00ff",
-    "#ff3030",
-    "#ffffff",
-]
+# A mark of another view fits the screen when it is at most this share of the
+# screen height from the centre (the half height is the edge).
+FIT_SHARE = 0.45
 
-PRESETS = {
-    "classic": {
-        "dot_enabled": True, "lines_enabled": True, "t_style": False,
-        "circle_enabled": False, "dot_size": 3, "line_length": 14,
-        "line_gap": 6, "line_thickness": 2,
-    },
-    "dot": {
-        "dot_enabled": True, "lines_enabled": False,
-        "circle_enabled": False, "dot_size": 4,
-    },
-    "circle": {
-        "dot_enabled": True, "lines_enabled": False,
-        "circle_enabled": True, "dot_size": 2, "circle_radius": 16,
-    },
-    "t": {
-        "dot_enabled": False, "lines_enabled": True, "t_style": True,
-        "circle_enabled": False, "line_length": 12, "line_gap": 5,
-        "line_thickness": 2,
-    },
-    "cross": {
-        "dot_enabled": False, "lines_enabled": True, "t_style": False,
-        "circle_enabled": False, "line_length": 10, "line_gap": 0,
-        "line_thickness": 2,
-    },
-}
+# The settings that align the mark with the in-game sight.
+ALIGNMENT_KEYS = ("center_offset_x", "center_offset_y", "offset_scale")
 
 
 def scrolled(widget, width=None):
@@ -207,6 +186,13 @@ class MainWindow(QMainWindow):
         self.weapons = dict(weapons)
 
         self.config = load_config()
+
+        # Trims of weapons that weapons.json no longer has are dropped.
+        self.config["mark_trim"] = {
+            key: trim
+            for key, trim in self.config["mark_trim"].items()
+            if key.rpartition("|")[0] in self.weapons
+        }
 
         self.apply_lay_rates()
 
@@ -537,7 +523,8 @@ class MainWindow(QMainWindow):
         self.view_control = Segmented(
             [
                 ("plain", tr("view_plain")),
-                ("optic", tr("view_optic"))
+                ("optic", tr("view_optic")),
+                ("optic2", "")
             ],
             self.config["sight_view"]
         )
@@ -585,6 +572,8 @@ class MainWindow(QMainWindow):
 
         self.map_label.setWordWrap(True)
 
+        layout.addWidget(self.build_trim_box())
+
         layout.addWidget(self.map_label)
 
         buttons = QHBoxLayout()
@@ -618,6 +607,63 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.hotkey_hint)
 
         return frame
+
+    def build_trim_box(self):
+        """The field correction of the mark: the trim of the weapon and view,
+        and the landing that sets it. Shown for weapons aimed with the overlay."""
+        self.trim_box = QWidget()
+
+        column = QVBoxLayout(self.trim_box)
+
+        column.setContentsMargins(0, 0, 0, 0)
+
+        column.setSpacing(10)
+
+        self.trim_entry = NumberEdit(allow_negative=True, step=0.05)
+
+        self.trim_entry.setPlaceholderText(tr("trim_hint"))
+
+        self.trim_entry.textEdited.connect(self.on_trim_edited)
+
+        self.trim_entry.stepped.connect(self.on_trim_edited)
+
+        self.landed_entry = NumberEdit(allow_negative=False, step=self.config["distance_step"])
+
+        self.landed_entry.setPlaceholderText(tr("landed_hint"))
+
+        self.landed_entry.returnPressed.connect(self.apply_landing)
+
+        apply_button = QPushButton(tr("trim_apply"))
+
+        apply_button.clicked.connect(lambda: self.apply_landing())
+
+        reset_button = QPushButton(tr("trim_reset"))
+
+        reset_button.setProperty("flat_style", True)
+
+        reset_button.clicked.connect(lambda: self.reset_trim())
+
+        for caption, entry, button in (
+            (tr("trim"), self.trim_entry, reset_button),
+            (tr("landed"), self.landed_entry, apply_button)
+        ):
+            column.addWidget(label(caption.upper(), "section"))
+
+            row = QHBoxLayout()
+
+            row.addWidget(entry, 1)
+
+            row.addWidget(button)
+
+            column.addLayout(row)
+
+        self.trim_status = label("", "small")
+
+        self.trim_status.setWordWrap(True)
+
+        column.addWidget(self.trim_status)
+
+        return self.trim_box
 
     def update_hotkey_hint(self):
         """The keys that work now (auto-hold's only while it is on).
@@ -735,7 +781,9 @@ class MainWindow(QMainWindow):
 
         self.update_weapon_info(weapon)
 
-        self.view_control.setVisible(bool(weapon.zoom))
+        self.update_view_control(weapon)
+
+        self.show_trim()
 
         # The calibration status is about the previous weapon.
         self.lay_status.setText("")
@@ -776,14 +824,156 @@ class MainWindow(QMainWindow):
 
         self.weapon_info.setText("  ·  ".join(parts))
 
+    def update_view_control(self, weapon):
+        """Show the view buttons `weapon` needs: the plain and RMB views of
+        a weapon with an RMB sight, or one button per zoom level of a
+        vehicle gunner's sight (`views`)."""
+        views = weapon.sight_views
+
+        self.view_control.setVisible(weapon.has_views)
+
+        for index, (key, button) in enumerate(self.view_control.buttons.items()):
+            button.setVisible(index < len(views))
+
+            if index >= len(views):
+                continue
+
+            button.setText(self.view_name(weapon, index))
+
+            button.setChecked(index == self.view_index(weapon))
+
+    def view_index(self, weapon):
+        """Index in `weapon.sight_views` of the view the control is on (the
+        last view when the weapon has fewer than the control's choice)."""
+        chosen = CHOICES["sight_view"].index(self.config["sight_view"])
+
+        return min(chosen, len(weapon.sight_views) - 1)
+
     def on_view_changed(self, key):
         self.config["sight_view"] = key
 
+        weapon = self.current_weapon()
+
+        if weapon is not None:
+            self.update_view_control(weapon)
+
         self.schedule_save()
+
+        self.show_trim()
 
         self.update_ladder()
 
         self.recalculate_if_ready()
+
+    def trim_view(self, weapon, index=None):
+        """The view the trim of `weapon` belongs to: the `sight_view` value
+        of view `index` (the one aimed from by default)."""
+        if index is None:
+            index = self.view_index(weapon)
+
+        return CHOICES["sight_view"][index]
+
+    def current_trim(self, weapon, index=None):
+        """The trim (degrees) set for `weapon` in view `index` (the one
+        aimed from by default)."""
+        if weapon is None:
+            return 0.0
+
+        return self.config["mark_trim"].get(
+            trim_key(weapon.name, self.trim_view(weapon, index)), 0.0
+        )
+
+    def show_trim(self):
+        """Load the trim of the current weapon and view into the controls."""
+        weapon = self.current_weapon()
+
+        self.trim_box.setVisible(weapon is not None and weapon.aim == "overlay")
+
+        self.trim_entry.set_value(self.current_trim(weapon))
+
+        self.landed_entry.clear()
+
+        self.trim_status.setText("")
+
+    def set_trim(self, trim):
+        """Store `trim` (degrees, limited and rounded to 0.001) for the
+        current weapon and view; the mark and the ladder follow at once."""
+        weapon = self.current_weapon()
+
+        if weapon is None:
+            return
+
+        trim = round(clamp_trim(trim), 3) + 0.0
+
+        key = trim_key(weapon.name, self.trim_view(weapon))
+
+        if trim:
+            self.config["mark_trim"][key] = trim
+        else:
+            self.config["mark_trim"].pop(key, None)
+
+        self.schedule_save()
+
+        self.recalculate_if_ready()
+
+    def on_trim_edited(self, *_):
+        value = self.trim_entry.value(0.0)
+
+        self.set_trim(value)
+
+        if abs(value) > TRIM_LIMIT:
+            self.trim_entry.set_value(self.current_trim(self.current_weapon()))
+
+        self.trim_status.setText("")
+
+    def reset_trim(self):
+        """Remove the trim of the current weapon and view."""
+        self.set_trim(0.0)
+
+        self.show_trim()
+
+    def apply_landing(self):
+        """Set the trim from one real shot: fired at the typed distance (and
+        height difference), landed at the typed landed distance. The status
+        shows the new trim, or what is wrong with the numbers."""
+        weapon = self.current_weapon()
+
+        if weapon is None:
+            return
+
+        distance = self.distance_entry.value()
+        landed = self.landed_entry.value()
+
+        try:
+            if distance is None:
+                raise ValueError(tr("enter_distance"))
+
+            if landed is None:
+                raise ValueError(tr("enter_landed"))
+
+            trim = trim_for_landing(
+                weapon,
+                distance,
+                self.height_entry.value(0.0),
+                landed,
+                self.current_trim(weapon)
+            )
+        except ValueError as e:
+            self.trim_status.setText(str(e))
+            return
+        except ArithmeticError:
+            self.trim_status.setText(tr("bad_number"))
+            return
+
+        self.set_trim(trim)
+
+        trim = self.current_trim(weapon)
+
+        self.show_trim()
+
+        self.trim_status.setText(
+            tr("trim_set_limit" if abs(trim) >= TRIM_LIMIT else "trim_set", trim=f"{trim:+g}")
+        )
 
     def on_arc_changed(self, key):
         self.config["arc"] = key
@@ -1132,6 +1322,11 @@ class MainWindow(QMainWindow):
 
         info = f"{solution.distance:.0f} {m}  ·  {readout}"
 
+        trim = self.current_trim(weapon) if weapon.aim == "overlay" else 0.0
+
+        if trim:
+            info += "  ·  " + tr("info_trim", trim=f"{trim:+g}")
+
         if direct is not None:
             info += "  ·  " + tr(
                 "direct_short", angle=format_angle(direct.sight_angle, "deg")
@@ -1251,15 +1446,13 @@ class MainWindow(QMainWindow):
                 )
         elif weapon.aim == "overlay":
             if offscreen:
-                steps = [tr("how_overlay_offscreen", angle=angle_text)]
+                steps = [self.how_overlay_offscreen(weapon, angle_text)]
             else:
                 toggle_key = self.config["hotkeys"].get("toggle_overlay")
 
                 steps = [
                     tr("how_overlay_1", angle=angle_text),
-                    tr("how_overlay_optic", fov=f"{fov:g}", zoom=f"{weapon.zoom:g}")
-                    if self.optic_view(weapon)
-                    else tr("how_overlay_2", fov=f"{fov:g}")
+                    self.how_overlay_view(weapon, fov)
                 ]
 
                 if toggle_key:
@@ -1267,6 +1460,9 @@ class MainWindow(QMainWindow):
                         tr("how_overlay_on", hotkey=toggle_key)
                         + " " + steps[0]
                     )
+
+            if trim:
+                steps.append(tr("how_trim", trim=f"{trim:+g}"))
 
             steps.append(
                 tr(
@@ -1852,8 +2048,11 @@ class MainWindow(QMainWindow):
 
         self.update_hotkey_hint()
 
-    def current_offset(self):
+    def current_offset(self, view=None):
         """Pixels the overlay mark sits below the centre, None without a mark.
+
+        `view` is an index in `Weapon.sight_views`: the mark as that view
+        would show it (the one aimed from by default).
 
         Weapons laid by elevation (`aim` "elevation": mortars, rocket
         artillery) are set on their own sight, so they get no mark.
@@ -1893,13 +2092,77 @@ class MainWindow(QMainWindow):
             self.config["fov"],
             self.overlay.screen_width(),
             self.config["offset_scale"] / 100,
-            self.optic_view(weapon)
+            self.optic_view(weapon) if view is None else view,
+            trim=self.current_trim(weapon, view)
         )
 
     def optic_view(self, weapon):
-        """True when `weapon` is aimed through its zoomed optic (it has
-        one and the view control is on "optic")."""
-        return bool(weapon.zoom) and self.config["sight_view"] == "optic"
+        """Index of the view `weapon` is aimed from, as `Weapon.sight_view`
+        takes it: 0 the plain view, 1 the optic (RMB) or the second zoom
+        level, 2 the third."""
+        return self.view_index(weapon)
+
+    def how_overlay_offscreen(self, weapon, angle_text):
+        """The how-to step for a mark off the screen: another view of the
+        weapon where it fits, else raising the barrel by hand."""
+        fit = self.view_that_fits(weapon) if weapon.has_views else None
+
+        if fit is None:
+            return tr("how_overlay_offscreen", angle=angle_text)
+
+        index, offset = fit
+
+        return tr(
+            "how_overlay_other_view",
+            view=self.view_name(weapon, self.optic_view(weapon)),
+            better=self.view_name(weapon, index),
+            px=f"{abs(offset):.0f}",
+            side=tr("below" if offset >= 0 else "above")
+        )
+
+    def how_overlay_view(self, weapon, fov):
+        """The how-to step about the in-game FOV and the view the mark is
+        for."""
+        index = self.optic_view(weapon)
+        zoom = weapon.sight_views[index][0]
+
+        if weapon.views:
+            return tr("how_overlay_levels", fov=f"{fov:g}", zoom=f"{zoom:g}")
+
+        if index:
+            return tr("how_overlay_optic", fov=f"{fov:g}", zoom=f"{zoom:g}")
+
+        return tr("how_overlay_2", fov=f"{fov:g}")
+
+    def view_name(self, weapon, index):
+        """How the view control calls view `index` of `weapon`: its zoom for
+        a vehicle gunner's sight, else "No RMB" or "Sight (RMB)"."""
+        if weapon.views:
+            return f"×{weapon.views[index][0]:g}"
+
+        return tr("view_optic" if index else "view_plain")
+
+    def view_that_fits(self, weapon):
+        """(index, offset) of the highest zoom among the other views of
+        `weapon` whose mark for the current solution is within FIT_SHARE of
+        the screen height from the centre, or None when no view fits."""
+        current = self.optic_view(weapon)
+        by_zoom = sorted(
+            range(len(weapon.sight_views)),
+            key=lambda index: weapon.sight_views[index][0],
+            reverse=True
+        )
+
+        for index in by_zoom:
+            if index == current:
+                continue
+
+            offset = self.current_offset(index)
+
+            if abs(offset) <= FIT_SHARE * self.overlay.height():
+                return index, offset
+
+        return None
 
     def update_ladder(self):
         """Put the current weapon's range ladder on the overlay, or clear
@@ -1920,7 +2183,8 @@ class MainWindow(QMainWindow):
             spacing,
             reach,
             self.config["offset_scale"] / 100,
-            self.optic_view(weapon)
+            self.optic_view(weapon),
+            trim=self.current_trim(weapon)
         ))
 
     def reset_offset(self):
@@ -1964,118 +2228,93 @@ class MainWindow(QMainWindow):
 
         layout.setSpacing(18)
 
+        preview_card, preview_layout = card()
+
+        preview_layout.addWidget(label(tr("preview"), "title"))
+
+        self.preview = CrosshairPreview(self.config)
+
+        preview_layout.addWidget(self.preview, 1)
+
+        caption = label(tr("mark_caption"), "small")
+
+        caption.setWordWrap(True)
+
+        preview_layout.addWidget(caption)
+
+        preview_layout.addWidget(label(tr("align_title").upper(), "section"))
+
+        align_caption = label(tr("align_caption"), "small")
+
+        align_caption.setWordWrap(True)
+
+        preview_layout.addWidget(align_caption)
+
+        for text, key, suffix in [
+            ("align_x", "center_offset_x", f" {tr('unit_px')}"),
+            ("align_y", "center_offset_y", f" {tr('unit_px')}"),
+            ("align_scale", "offset_scale", "%"),
+        ]:
+            self.add_slider(
+                preview_layout, tr(text), key, suffix,
+                on_change=self.recalculate_if_ready
+            )
+
+        reset_alignment = QPushButton(tr("align_reset"))
+
+        reset_alignment.setProperty("flat_style", True)
+
+        reset_alignment.clicked.connect(self.reset_alignment)
+
+        reset_row = QHBoxLayout()
+
+        reset_row.addWidget(reset_alignment)
+
+        reset_row.addStretch()
+
+        preview_layout.addLayout(reset_row)
+
+        layout.addWidget(scrolled(preview_card), 1)
+
         settings, settings_layout = card()
 
         settings_layout.addWidget(label(tr("nav_crosshair"), "title"))
 
-        settings_layout.addWidget(label(tr("shape").upper(), "section"))
+        settings_layout.addWidget(label(tr("style").upper(), "section"))
 
-        for text, key in [
-            ("opt_dot", "dot_enabled"),
-            ("opt_lines", "lines_enabled"),
-            ("opt_t", "t_style"),
-            ("opt_circle", "circle_enabled"),
-        ]:
-            self.add_toggle(settings_layout, tr(text), key)
-
-        settings_layout.addWidget(label(tr("size").upper(), "section"))
-
-        for text, key in [
-            ("sl_dot", "dot_size"),
-            ("sl_length", "line_length"),
-            ("sl_gap", "line_gap"),
-            ("sl_thickness", "line_thickness"),
-            ("sl_circle", "circle_radius"),
-        ]:
-            self.add_slider(settings_layout, tr(text), key)
-
-        settings_layout.addWidget(label(tr("effects").upper(), "section"))
-
-        for text, key in [
-            ("opt_outline", "outline_enabled"),
-            ("opt_glow", "glow_enabled"),
-            ("opt_animated", "animated"),
-            ("opt_info", "info_enabled"),
-            ("opt_ladder", "range_ladder"),
-        ]:
-            self.add_toggle(settings_layout, tr(text), key)
-
-        self.add_slider(settings_layout, tr("sl_outline"), "outline_thickness")
-
-        outline_row = QHBoxLayout()
-
-        outline_row.addWidget(label(tr("outline_color")))
-
-        outline_row.addStretch()
-
-        outline_control = Segmented(
-            [("white", tr("white")), ("black", tr("black"))],
-            self.config["outline_color"]
+        style = Segmented(
+            [(key, tr(f"style_{key}")) for key in MARK_STYLES],
+            self.config["mark_style"]
         )
 
-        outline_control.changed.connect(
-            lambda value: self.set_setting("outline_color", value)
+        style.changed.connect(lambda key: self.set_setting("mark_style", key))
+
+        settings_layout.addWidget(style)
+
+        settings_layout.addWidget(label(tr("color").upper(), "section"))
+
+        self.color_swatches = Swatches(MARK_COLORS, self.config["color"])
+
+        self.color_swatches.picked.connect(
+            lambda name: self.set_setting("color", name)
         )
 
-        outline_row.addWidget(outline_control)
+        settings_layout.addWidget(self.color_swatches)
 
-        settings_layout.addLayout(outline_row)
+        self.add_slider(settings_layout, tr("size"), "mark_size", "%")
 
-        layout.addWidget(scrolled(settings, 380), 0)
+        self.add_toggle(settings_layout, tr("opt_ladder"), "range_ladder")
 
-        # Preview, presets and color
-        side, side_layout = card()
+        self.add_toggle(settings_layout, tr("opt_info"), "info_enabled")
 
-        side_layout.addWidget(label(tr("preview"), "title"))
+        settings_layout.addStretch()
 
-        self.preview = CrosshairPreview(self.config)
-
-        side_layout.addWidget(self.preview, 1)
-
-        side_layout.addWidget(label(tr("presets").upper(), "section"))
-
-        # Three a row: five do not fit the smallest window.
-        presets = QGridLayout()
-
-        presets.setSpacing(8)
-
-        for index, key in enumerate(PRESETS):
-            button = QPushButton(tr(f"preset_{key}"))
-
-            button.setProperty("flat_style", True)
-
-            button.clicked.connect(
-                lambda _checked, k=key: self.apply_preset(k)
-            )
-
-            presets.addWidget(button, index // 3, index % 3)
-
-        side_layout.addLayout(presets)
-
-        side_layout.addWidget(label(tr("color").upper(), "section"))
-
-        current_color = "#{:02x}{:02x}{:02x}".format(*self.config["color"])
-
-        self.color_swatches = Swatches(CROSSHAIR_COLORS, current_color)
-
-        self.color_swatches.picked.connect(self.pick_crosshair_color)
-
-        side_layout.addWidget(self.color_swatches)
-
-        for index, name in enumerate(("R", "G", "B")):
-            self.add_slider(
-                side_layout, name, ("color", index), limits=(0, 255)
-            )
-
-        self.add_slider(side_layout, tr("sl_opacity"), "opacity")
-
-        # Scrolls in a window too low for the preview and all the sliders.
-        layout.addWidget(scrolled(side), 1)
+        layout.addWidget(scrolled(settings, 400), 0)
 
         return page
 
     def add_toggle(self, layout, text, key, on_change=None):
-        toggle = Toggle(text, bool(self.get_setting(key)))
+        toggle = Toggle(text, bool(self.config[key]))
 
         def handle(checked):
             self.set_setting(key, checked)
@@ -2091,11 +2330,10 @@ class MainWindow(QMainWindow):
 
         return toggle
 
-    def add_slider(self, layout, text, key, limits=None, on_change=None,
-                   suffix=""):
-        low, high = limits or RANGES[key]
+    def add_slider(self, layout, text, key, suffix, on_change=None):
+        low, high = RANGES[key]
 
-        row = SliderRow(text, low, high, self.get_setting(key), suffix)
+        row = SliderRow(text, low, high, self.config[key], suffix)
 
         def handle(value):
             self.set_setting(key, value)
@@ -2111,53 +2349,13 @@ class MainWindow(QMainWindow):
 
         return row
 
-    def sync_controls(self):
-        for key, control in self.controls.items():
-            value = self.get_setting(key)
-
-            control.blockSignals(True)
-
-            if isinstance(control, Toggle):
-                control.setChecked(bool(value))
-                control.update()
-            elif isinstance(control, SliderRow):
-                control.slider.blockSignals(True)
-                control.slider.setValue(int(value))
-                control.update_label(control.slider.value())
-                control.slider.blockSignals(False)
-
-            control.blockSignals(False)
-
-    def apply_preset(self, key):
-        for name, value in PRESETS[key].items():
-            self.config[name] = value
-
-        self.sync_controls()
-
-        self.refresh_crosshair()
-
-    def pick_crosshair_color(self, color):
-        color = color.lstrip("#")
-
-        self.config["color"] = [int(color[i:i + 2], 16) for i in (0, 2, 4)]
-
-        self.sync_controls()
-
-        self.refresh_crosshair()
-
-    def get_setting(self, key):
-        if isinstance(key, tuple):
-            name, index = key
-            return self.config[name][index]
-
-        return self.config[key]
+    def reset_alignment(self):
+        """Put the mark back at the centre of the screen, unscaled."""
+        for key in ALIGNMENT_KEYS:
+            self.controls[key].slider.setValue(DEFAULT_CONFIG[key])
 
     def set_setting(self, key, value):
-        if isinstance(key, tuple):
-            name, index = key
-            self.config[name][index] = value
-        else:
-            self.config[key] = value
+        self.config[key] = value
 
         self.refresh_crosshair()
 
@@ -2169,9 +2367,7 @@ class MainWindow(QMainWindow):
 
         self.preview.update()
 
-        self.color_swatches.set_current(
-            "#{:02x}{:02x}{:02x}".format(*self.config["color"])
-        )
+        self.color_swatches.set_current(self.config["color"])
 
         self.schedule_save()
 
@@ -2190,7 +2386,10 @@ class MainWindow(QMainWindow):
 
         column.addWidget(self.build_interface_card())
         column.addWidget(self.build_calc_settings_card())
-        column.addWidget(self.build_overlay_card())
+
+        if len(QGuiApplication.screens()) > 1:
+            column.addWidget(self.build_overlay_card())
+
         column.addWidget(self.build_map_card())
         column.addWidget(self.build_hotkeys_card())
         column.addWidget(self.build_about_card())
@@ -2333,7 +2532,7 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(label(tr("s_overlay"), "title"))
 
-        screens = [
+        monitors = [
             (index, f"{index + 1}: {screen.name()} "
                     f"({screen.geometry().width()}×{screen.geometry().height()})")
             for index, screen in enumerate(QGuiApplication.screens())
@@ -2342,25 +2541,7 @@ class MainWindow(QMainWindow):
         self.setting_row(
             layout,
             tr("s_monitor"),
-            self.combo(screens, self.config["monitor"], self.set_monitor)
-        )
-
-        # Moving the center changes what counts as off-screen.
-        self.add_slider(
-            layout, tr("s_offset_x"), "center_offset_x",
-            on_change=self.recalculate_if_ready,
-            suffix=f" {tr('unit_px')}"
-        )
-
-        self.add_slider(
-            layout, tr("s_offset_y"), "center_offset_y",
-            on_change=self.recalculate_if_ready,
-            suffix=f" {tr('unit_px')}"
-        )
-
-        self.add_slider(
-            layout, tr("s_calibration"), "offset_scale",
-            on_change=self.recalculate_if_ready, suffix="%"
+            self.combo(monitors, self.config["monitor"], self.set_monitor)
         )
 
         return frame

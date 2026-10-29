@@ -24,6 +24,20 @@ STRINGS = {
     "height_hint": "target higher +, lower −",
     "fov": "FOV",
     "fov_hint": "horizontal FOV",
+    "trim": "Trim, deg",
+    "trim_hint": "+ farther, − nearer",
+    "landed": "Landed at, m",
+    "landed_hint": "where the shot landed",
+    "trim_apply": "Apply",
+    "trim_reset": "Reset trim",
+    "enter_landed": "Enter where the shot landed",
+    "trim_set": "Trim set to {trim} deg",
+    "trim_set_limit": "Trim set to {trim} deg (the limit)",
+    "info_trim": "trim {trim}",
+    "how_trim": (
+        "Your trim {trim}° is on for this weapon and view "
+        "(Reset trim removes it)."
+    ),
     "calculate": "Calculate",
     "reset_aim": "Reset",
     "ready": "Enter the distance",
@@ -58,11 +72,21 @@ STRINGS = {
         "Your in-game FOV must be {fov}°. The mark is for the sight's view (RMB, zoom ×{zoom}); "
         "without RMB, switch the view."
     ),
+    "how_overlay_levels": (
+        "Your in-game FOV must be {fov}°. The mark is for the sight's view at zoom ×{zoom}; "
+        "pick the zoom level with the view switch."
+    ),
     "how_overlay_2": "Your in-game FOV must be {fov}°. Through a scope, enter the scope FOV.",
     "how_overlay_offscreen": (
         "The mark is off-screen: raise the barrel {angle} above the target "
         "using the sight scale, or move closer."
     ),
+    "how_overlay_other_view": (
+        "The mark is off-screen at {view}. Use {better} "
+        "(the mark is {px} px {side} the centre)."
+    ),
+    "below": "below",
+    "above": "above",
     "to_horizon": "{angle} to the horizon",
     "how_elevation_1": "Turn to the target bearing (map or SquadCalc).",
     "how_elevation_2": "Set the elevation to {angle}.",
@@ -148,36 +172,24 @@ STRINGS = {
     "error_saved": "Details saved to:\n{path}",
 
     # Crosshair page
-    "presets": "Presets",
-    "preset_classic": "Classic",
-    "preset_dot": "Dot",
-    "preset_circle": "Circle",
-    "preset_t": "T-shape",
-    "preset_cross": "Cross",
-    "shape": "Shape",
-    "size": "Size",
-    "color": "Color",
-    "effects": "Effects",
     "preview": "Preview",
-    "opt_dot": "Center dot",
-    "opt_lines": "Lines",
-    "opt_t": "T-style (no bottom line)",
-    "opt_circle": "Circle",
-    "opt_outline": "Outline",
-    "opt_glow": "Glow",
-    "opt_animated": "Smooth motion",
-    "opt_info": "Label next to the mark",
+    "mark_caption": "The mark shows where to put the target: it moves down with the range.",
+    "align_title": "Align with the sight",
+    "align_caption": "Move and scale the mark onto the sight in the game. Arrow keys step by 1; F9 clears the target, not the alignment.",
+    "align_x": "Move left/right",
+    "align_y": "Move up/down",
+    "align_scale": "Scale",
+    "align_reset": "Reset",
+    "style": "Style",
+    "style_dot": "Dot",
+    "style_cross": "Cross",
+    "style_t": "T",
+    "style_circle": "Circle",
+    "style_cross_dot": "Cross + dot",
+    "color": "Color",
+    "size": "Size",
     "opt_ladder": "Range ladder",
-    "sl_dot": "Dot size",
-    "sl_length": "Line length",
-    "sl_gap": "Gap",
-    "sl_thickness": "Thickness",
-    "sl_outline": "Outline width",
-    "sl_circle": "Circle radius",
-    "sl_opacity": "Opacity",
-    "outline_color": "Outline color",
-    "white": "White",
-    "black": "Black",
+    "opt_info": "Info text",
 
     # Settings page
     "s_interface": "Interface",
@@ -191,9 +203,6 @@ STRINGS = {
     "s_step": "Distance step (wheel & keys)",
     "s_overlay": "Overlay",
     "s_monitor": "Monitor",
-    "s_offset_x": "Center offset X",
-    "s_offset_y": "Center offset Y",
-    "s_calibration": "Offset calibration, %",
     "s_hotkeys": "Hotkeys",
     "s_hotkeys_hint": (
         "They work in game, and the game receives these keys too (keys are "

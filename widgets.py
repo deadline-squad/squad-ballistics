@@ -525,11 +525,12 @@ class WeaponPicker(QPushButton):
 
 
 class Swatches(QWidget):
-    """Row of round color buttons."""
+    """Row of round color buttons, picked by name."""
 
     picked = pyqtSignal(str)
 
     def __init__(self, colors, current=None):
+        """`colors` maps a name to its (r, g, b); `current` is a name."""
         super().__init__()
 
         layout = QHBoxLayout(self)
@@ -542,41 +543,37 @@ class Swatches(QWidget):
 
         self.buttons = {}
 
-        for color in colors:
+        for name, (r, g, b) in colors.items():
             button = QPushButton()
 
             button.setObjectName("swatch")
 
             button.setCheckable(True)
 
-            button.setChecked(
-                current is not None and color.lower() == current.lower()
-            )
+            button.setChecked(name == current)
 
-            button.setStyleSheet(f"background: {color};")
+            button.setToolTip(name.capitalize())
+
+            button.setStyleSheet(f"background: rgb({r}, {g}, {b});")
 
             button.setCursor(Qt.CursorShape.PointingHandCursor)
 
             button.clicked.connect(
-                lambda _checked, c=color: self.picked.emit(c)
+                lambda _checked, n=name: self.picked.emit(n)
             )
 
             self.group.addButton(button)
 
             layout.addWidget(button)
 
-            self.buttons[color.lower()] = button
+            self.buttons[name] = button
 
         layout.addStretch()
 
-    def set_current(self, color):
-        """Check the matching swatch, or none for a custom color."""
-        self.group.setExclusive(False)
-
+    def set_current(self, name):
+        """Check the swatch called `name`."""
         for key, button in self.buttons.items():
-            button.setChecked(key == color.lower())
-
-        self.group.setExclusive(True)
+            button.setChecked(key == name)
 
 
 class SliderRow(QWidget):
