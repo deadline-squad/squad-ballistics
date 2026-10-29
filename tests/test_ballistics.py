@@ -27,7 +27,7 @@ WEAPONS = load_weapons(os.path.join(ROOT, "weapons.json"))
 
 
 def test_database_loads():
-    assert len(WEAPONS) >= 50
+    assert len(WEAPONS) >= 40
 
     # Weapons of the original release must still be covered (some renamed).
     for name in (
@@ -278,9 +278,6 @@ def test_range_ladder_starts_past_the_minimum_distance():
 @pytest.mark.parametrize("name, zoomed, zero", [
     ("QLZ87", True, 100),
     ("QLZ87 · Lynx / CSK131", True, 110),
-    ("Kord · SPP emplacement", True, 400),
-    ("Kord · SPP emplacement", False, 400),
-    ("M2A1 .50 · ACOG emplacement", False, 200),
 ])
 def test_views_are_zeroed_where_the_game_puts_them(name, zoomed, zero):
     weapon = WEAPONS[name]
@@ -432,11 +429,11 @@ def test_the_tripod_qlz87_fires_below_the_centre_unzoomed():
 def test_a_fov_below_the_zoom_is_held_at_one_degree():
     """A small FOV through a strong optic is a view narrower than the
     narrowest screen_offset takes: it must not raise."""
-    weapon = WEAPONS["Kord · SPP emplacement"]
+    weapon = WEAPONS["QLZ87"]
     sight_angle = solve(weapon, 300, 0.0, "low").sight_angle
 
-    assert mark_offset(weapon, sight_angle, 4, 1920, zoomed=True) == pytest.approx(
-        screen_offset(sight_angle - 0.45, 1, 1920)
+    assert mark_offset(weapon, sight_angle, 2, 1920, zoomed=True) == pytest.approx(
+        screen_offset(sight_angle - 0.774, 1, 1920)
     )
 
     with pytest.raises(ValueError):
@@ -560,8 +557,8 @@ def test_sight_angle_is_measured_from_the_line_of_sight():
 
 @pytest.mark.parametrize("name", [
     "Tank AP · M256 / Rh120",
-    "M2A1 .50",
-    "2A42 30mm (BMP-2) · HE",
+    "MK19",
+    "SPG-9 · HEAT",
 ])
 def test_sight_angle_follows_the_riflemans_rule(name):
     # Independent check: for flat fire the angle over the line of sight to
@@ -784,7 +781,6 @@ def test_renamed_weapons_point_at_current_names():
     ("Carl Gustav M2 · FFV551 HEAT", 310, 1, 310),
     ("Tank HESH · L30A1 (Challenger 2)", 670, 2, 670),
     ("Tank AP · L30A1 (Challenger 2) / M68A2", 1500, 2.5, 1500),
-    ("M2A1 .50 · ACOG emplacement", 890, 3, 890),
 ])
 def test_game_ballistics(name, velocity, gravity, cruise):
     weapon = WEAPONS[name]

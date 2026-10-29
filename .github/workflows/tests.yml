@@ -15,8 +15,7 @@ jobs:
       - name: Install system libraries for Qt
         run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3 xvfb xdotool
       - name: Install dependencies
-        # zxing-cpp: independent decoder for the QR code tests (tests/test_qr.py)
-        run: pip install PyQt6 qtawesome pytest zxing-cpp
+        run: pip install PyQt6 qtawesome pytest
       - name: Run tests
         env:
           QT_QPA_PLATFORM: offscreen

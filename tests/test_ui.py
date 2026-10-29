@@ -9,7 +9,8 @@ pytest.importorskip("qtawesome")
 from PyQt6.QtWidgets import QApplication, QPushButton
 
 import config
-from ballistics import load_weapons, screen_offset, solve
+import theme
+from ballistics import load_weapons, mark_offset, screen_offset, solve
 from i18n import tr
 from widgets import format_angle
 from conftest import ROOT
@@ -18,14 +19,6 @@ from conftest import ROOT
 @pytest.fixture
 def app(qapp):
     return qapp
-
-
-@pytest.fixture(autouse=True)
-def offline_relay(monkeypatch):
-    """The window joins the relay on start: tests stay off the live one."""
-    from maplink import RelayLink
-
-    monkeypatch.setattr(RelayLink, "connect_relay", lambda self: None)
 
 
 @pytest.fixture
@@ -70,7 +63,7 @@ def test_every_weapon_through_ui(window):
             assert window.status_text().startswith("S "), name
         else:
             assert any(
-                c in window.status_text() for c in ("°", "mil", "мил")
+                c in window.status_text() for c in ("°", "mil")
             )
 
         assert len(window.current_steps) >= 2, name
@@ -166,7 +159,7 @@ def test_unit_mode_and_arc(window):
     window.select_weapon("Mortar (M252 / 2B14 / L16 / Type 63)")
     window.distance_entry.setText("800")
     window.calculate()
-    assert "mil" in window.status_text() or "мил" in window.status_text()
+    assert "mil" in window.status_text()
 
     window.set_unit_mode("deg")
     assert "°" in window.status_text()
@@ -175,14 +168,39 @@ def test_unit_mode_and_arc(window):
     assert not window.last_solution.reachable
 
 
-def test_mods_hidden_by_default(window):
-    mods = [n for n, w in window.weapons.items() if w.mod]
-    assert mods
+REMOVED_WEAPONS = ("M109", "NSV", "M2A1 .50", "2A42 / 2A72 30mm · HE")
 
-    assert not any(n in window.visible_weapons() for n in mods)
 
-    window.config["show_mods"] = True
-    assert all(n in window.visible_weapons() for n in mods)
+def test_removed_weapons_are_gone_and_a_saved_one_falls_back(app, tmp_path, monkeypatch):
+    """Mods, machine guns and autocannons are no longer in the database; a
+    settings file naming one starts the app on the first weapon."""
+    import json
+
+    from crosshair import MainWindow
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(config, "CONFIG_PATH", str(tmp_path / "config.json"))
+
+    weapons = load_weapons(os.path.join(ROOT, "weapons.json"))
+
+    assert not any(name in weapons for name in REMOVED_WEAPONS)
+    assert {weapon.category for weapon in weapons.values()} == {
+        "grenade_launchers", "agl", "launchers", "guns", "tanks", "indirect"
+    }
+
+    for removed in REMOVED_WEAPONS:
+        (tmp_path / "config.json").write_text(json.dumps({
+            "last_weapon": removed,
+            "recent_weapons": [removed, "RPG-29"],
+            "show_mods": True
+        }))
+
+        win = MainWindow(weapons)
+        try:
+            assert win.picker.current == next(iter(weapons)), removed
+            assert win.recent_weapons() == ["RPG-29"]
+        finally:
+            win.close()
 
 
 def test_recent_weapons(window):
@@ -217,19 +235,15 @@ def test_presets_and_colors(window):
     window.overlay.repaint()
 
 
-def test_language_and_accent_rebuild(window):
+def test_rebuild_keeps_the_inputs(window):
     window.select_weapon("SPG-9 · HEAT")
     window.distance_entry.setText("400")
     window.calculate()
 
-    window.set_language("en")
+    window.rebuild()
+
     assert window.distance_entry.text() == "400"
     assert window.last_solution.reachable
-
-    window.set_language("ru")
-    window.set_accent("#22c55e")
-    assert window.config["accent"] == "#22c55e"
-    assert window.distance_entry.text() == "400"
 
 
 def test_hotkey_rebinding(window):
@@ -368,7 +382,7 @@ def test_map_page_survives_rebuild(window, monkeypatch):
     assert view.page().requestedUrl().host() == "calc.tk104.duckdns.org"
     assert window.pages.currentIndex() == 3
 
-    window.set_language("en")
+    window.rebuild()
 
     assert window.map_page is page
     assert window.map_page.view is view
@@ -457,11 +471,9 @@ def test_ags17_lob_is_laid_by_holding_s(window):
         "how_hold_direct", angle=f"{direct.sight_angle:.2f}°"
     )
 
-    # Holding S reaches the target and the readout says so.
+    # Holding S is counted towards the target.
     window.hold_timer.advance(solution.hold_time + 0.01, True, False)
-    assert window.hold_timer.is_reached
-    assert "✓" in window.hold_label.text()
-    assert "✓" in window.overlay.info_text
+    assert window.hold_timer.held == pytest.approx(solution.hold_time + 0.01)
 
     # The low arc of the same weapon is direct fire with the overlay mark.
     window.config["arc"] = "low"
@@ -503,7 +515,7 @@ def test_ags17_too_close_to_lob_fires_directly(window):
     assert window.overlay.offset == 0.0
 
 
-def test_hold_timer_setting_and_missing_keys(window):
+def test_hold_weapon_gets_its_target_without_key_reader(window):
     window.select_weapon(AGS17)
     window.config["arc"] = "high"
     window.distance_entry.setText("800")
@@ -514,11 +526,40 @@ def test_hold_timer_setting_and_missing_keys(window):
         window.last_solution.hold_time
     )
     assert not window.hold_timer.poll_timer.isActive()
-    assert window.hold_label.isHidden()
 
-    window.config["hold_timer"] = False
+
+def test_hold_weapon_gets_key_watch_and_target_without_any_setting(window):
+    window.hold_timer.key_reader = lambda code: False
+
+    window.select_weapon(AGS17)
+    window.config["arc"] = "high"
+    window.distance_entry.setText("800")
     window.calculate()
-    assert window.hold_timer.target is None
+
+    assert "hold_timer" not in window.config
+    assert "hold_timer" not in window.controls
+
+    assert window.hold_timer.active
+    assert window.hold_timer.target == pytest.approx(window.last_solution.hold_time)
+
+
+def test_ags17_card_shows_the_hold_seconds(window):
+    window.select_weapon(AGS17)
+    window.config["arc"] = "high"
+    window.distance_entry.setText("1000")
+    window.calculate()
+
+    hold = window.last_solution.hold_time
+    seconds = f"{hold:.2f}"
+
+    assert window.status_text() == f"S {seconds} {tr('unit_s')}"
+    assert tr("how_hold_2", t=seconds) in window.current_steps
+    assert window.overlay.info_text.startswith(window.info_base)
+    assert seconds in window.overlay.info_text
+
+    window.rebuild()
+
+    assert window.status_text() == f"S {seconds} {tr('unit_s')}"
 
 
 def test_map_target_fills_the_inputs(window):
@@ -594,32 +635,37 @@ def test_embedded_map_bridge_feeds_the_calculator(window):
     # The weapon selected in SquadCalc is selected here and solved.
     page.on_bridge_result({
         "targets": [{"distance": 420, "heightDiff": -6, "bearing": 90}],
-        "weapon": "M2A1 .50"
+        "weapon": "Tank AP · M256 / Rh120"
     })
-    assert window.picker.current == "M2A1 .50"
-    assert window.config["last_weapon"] == "M2A1 .50"
+    assert window.picker.current == "Tank AP · M256 / Rh120"
+    assert window.config["last_weapon"] == "Tank AP · M256 / Rh120"
     assert window.distance_entry.text() == "420"
     assert window.last_solution.distance == 420
-    expected = solve(window.weapons["M2A1 .50"], 420, -6, "low")
+    expected = solve(window.weapons["Tank AP · M256 / Rh120"], 420, -6, "low")
     assert window.last_solution.angle == pytest.approx(expected.angle)
     # The target is put on the mark: below the centre by the angle over the
-    # line of sight, not by the (here negative) angle to the horizon.
+    # line of sight, not by the (here negative) angle to the horizon, in the
+    # gunner's zoom level the view switch is on.
+    weapon = window.weapons["Tank AP · M256 / Rh120"]
     assert expected.angle < 0 < expected.sight_angle
     assert window.overlay.offset == pytest.approx(
-        screen_offset(
+        mark_offset(
+            weapon,
             expected.sight_angle,
             window.config["fov"],
             window.overlay.screen_width(),
-            window.config["offset_scale"] / 100
+            window.config["offset_scale"] / 100,
+            window.optic_view(weapon)
         )
     )
-    assert window.overlay.offset > 0
+    # 420 m is inside this gun's 635 m zero: the mark is above the centre.
+    assert window.overlay.offset < 0
 
     # A weapon picked here stays until the SquadCalc weapon changes.
     window.select_weapon("AT-4")
     page.on_bridge_result({
         "targets": [{"distance": 420, "heightDiff": -6, "bearing": 90}],
-        "weapon": "M2A1 .50"
+        "weapon": "Tank AP · M256 / Rh120"
     })
     assert window.picker.current == "AT-4"
 
@@ -628,7 +674,7 @@ def test_embedded_map_bridge_feeds_the_calculator(window):
 
     # A late answer after the map was shut down is ignored.
     page.shutdown()
-    page.on_bridge_result({"targets": [{"distance": 300}], "weapon": "NSV"})
+    page.on_bridge_result({"targets": [{"distance": 300}], "weapon": "RPG-29"})
     assert page.bridge_found is None
     assert window.distance_entry.text() == "420"
     assert window.picker.current == "AT-4"
@@ -641,140 +687,22 @@ def test_map_weapon_is_followed_only_when_known_and_enabled(window):
     assert window.picker.current == "AT-4"
 
     window.config["map_follow"] = False
-    window.on_map_weapon("NSV")
+    window.on_map_weapon("RPG-29")
     assert window.picker.current == "AT-4"
 
     window.config["map_follow"] = True
-    window.on_map_weapon("NSV")
-    assert window.picker.current == "NSV"
+    window.on_map_weapon("RPG-29")
+    assert window.picker.current == "RPG-29"
 
     # A SquadCalc page from before a rename sends the old name.
     window.on_map_weapon("BTR-4 AGS")
     assert window.picker.current == "AGS-30 / BTR-4 AGS"
-    window.on_map_weapon("NSV")
+    window.on_map_weapon("RPG-29")
 
-    # Mod weapons hidden by the filter are not selected behind the user's back.
-    mod_weapon = next(n for n, w in window.weapons.items() if w.mod)
-    window.config["show_mods"] = False
-    window.refresh_weapon_list()
-    window.on_map_weapon(mod_weapon)
-    assert window.picker.current == "NSV"
-
-
-def test_relay_weapon_line_selects_the_weapon(window):
-    import json
-
-    window.select_weapon("AT-4")
-    window.relay.on_message(json.dumps({
-        "type": "targets",
-        "text": "12.34 | 10.0° | 300m | +2m\nweapon: RPG-29"
-    }))
-    assert window.picker.current == "RPG-29"
-    assert window.distance_entry.text() == "300"
-    assert window.last_solution.angle == pytest.approx(
-        solve(window.weapons["RPG-29"], 300, 2, "low").angle
-    )
-
-
-def test_relay_code_setting(window, monkeypatch):
-    """A code typed in Settings (shown by a SquadCalc page) replaces the app's."""
-    connected = []
-    monkeypatch.setattr(window.relay, "connect_relay", lambda: connected.append(window.relay.code))
-    code = window.config["relay_code"]
-
-    for bad in ("bad!", ""):
-        window.set_relay_code(bad)
-        assert window.relay_status_label.text() == tr("relay_bad_code")
-        assert window.config["relay_code"] == code
-        assert window.relay.code == code
-
-    window.set_relay_code("abcd-2345")
-    assert window.config["relay_code"] == "ABCD2345"
-    assert connected == ["ABCD2345"]
-    assert window.relay_entry.text() == "ABCD-2345"
-    assert window.device_link_entry.text() == "https://calc.tk104.duckdns.org/#link=ABCD2345"
-    # Saved at once: a device paired with it must survive a crash.
-    assert config.load_config()["relay_code"] == "ABCD2345"
-
-
-def test_device_code_is_made_once_and_kept(window):
-    from crosshair import MainWindow
-    from maplink import CODE_ALPHABET, NEW_CODE_LENGTH, device_link
-
-    code = window.config["relay_code"]
-
-    assert len(code) == NEW_CODE_LENGTH and set(code) <= set(CODE_ALPHABET)
-    assert window.relay.code == code
-    assert window.device_link_entry.text() == device_link(code)
-    assert config.load_config()["relay_code"] == code
-
-    # The next start joins the same session: paired devices relink by themselves.
-    restarted = MainWindow(load_weapons(os.path.join(ROOT, "weapons.json")))
-    try:
-        assert restarted.config["relay_code"] == code
-        assert restarted.relay.code == code
-    finally:
-        restarted.close()
-
-
-def test_device_link_toggle(window):
-    code = window.config["relay_code"]
-    toggle = window.controls["relay_enabled"]
-
-    toggle.setChecked(False)
-    assert window.config["relay_enabled"] is False
-    assert window.relay.code is None
-    assert window.relay_status_label.text() == tr("relay_off")
-
-    toggle.setChecked(True)
-    assert window.relay.code == code
-    assert window.config["relay_code"] == code
-
-
-def test_new_device_code_needs_a_confirmation(window, monkeypatch):
-    from PyQt6.QtWidgets import QMessageBox
-
-    code = window.config["relay_code"]
-    answers = [QMessageBox.StandardButton.No, QMessageBox.StandardButton.Yes]
-    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: answers.pop(0))
-
-    window.renew_relay_code()
-    assert window.config["relay_code"] == code
-
-    window.renew_relay_code()
-    new_code = window.config["relay_code"]
-    assert new_code != code
-    assert window.relay.code == new_code
-    assert new_code in window.device_link_entry.text()
-    assert config.load_config()["relay_code"] == new_code
-
-
-def test_device_qr_code_scans_to_the_link(window):
-    """The QR code the card shows, read by an independent decoder."""
-    zxingcpp = pytest.importorskip("zxingcpp")
-    from PyQt6.QtGui import QImage
-
-    image = window.device_qr.pixmap().toImage().convertToFormat(QImage.Format.Format_Grayscale8)
-    width, height = image.width(), image.height()
-    rows = image.constBits().asstring(image.bytesPerLine() * height)
-    pixels = b"".join(
-        rows[y * image.bytesPerLine():y * image.bytesPerLine() + width] for y in range(height)
-    )
-
-    results = zxingcpp.read_barcodes(
-        zxingcpp.ImageView(pixels, width, height, zxingcpp.ImageFormat.Lum)
-    )
-
-    assert [result.text for result in results] == [window.device_link_entry.text()]
-
-
-def test_copy_device_link(window):
-    button = next(b for b in window.findChildren(QPushButton) if b.text() == tr("s_device_copy"))
-
-    button.click()
-
-    assert QApplication.clipboard().text() == window.device_link_entry.text()
-    assert button.text() == tr("s_device_copied")
+    # SquadCalc keeps weapons removed here (mods, machine guns): ignored.
+    for removed in REMOVED_WEAPONS:
+        window.on_map_weapon(removed)
+        assert window.picker.current == "RPG-29"
 
 
 def test_switching_map_source_reloads(window):
@@ -814,7 +742,7 @@ def test_hold_timer_cleared_on_unreachable_error_and_reset(window):
     assert window.hold_timer.target is None
 
 
-def test_hold_watch_follows_weapon_and_setting(window):
+def test_hold_watch_follows_the_weapon(window):
     window.hold_timer.key_reader = lambda code: False
 
     window.select_weapon(AGS17)
@@ -822,24 +750,6 @@ def test_hold_watch_follows_weapon_and_setting(window):
 
     window.select_weapon("RPG-29")
     assert not window.hold_timer.active
-
-    window.select_weapon(AGS17)
-    window.controls["hold_timer"].setChecked(False)
-    window.controls["hold_timer"].toggled.emit(False)
-    assert not window.hold_timer.active
-
-
-def test_hold_readout_survives_rebuild(window):
-    window.hold_timer.key_reader = lambda code: False
-    window.select_weapon(AGS17)
-    window.config["arc"] = "high"
-    window.distance_entry.setText("1000")
-    window.calculate()
-
-    window.set_language("en")
-
-    assert not window.hold_label.isHidden()
-    assert window.hold_label.text().startswith("S held 0.00 of")
 
 
 def test_typed_value_survives_redelivery_of_the_same_target(window):
@@ -898,10 +808,9 @@ def test_absurd_typed_distance_does_not_crash(window):
 
 def test_map_status_is_shown_on_start(window):
     assert window.map_label.text() == tr("map_follow_hint")
-    assert window.relay_status_label.text() == tr(f"relay_{window.relay.status}")
 
 
-def test_reset_settings_reloads_map_and_keeps_device_code(window, monkeypatch):
+def test_reset_settings_reloads_map(window, monkeypatch):
     pytest.importorskip("PyQt6.QtWebEngineWidgets")
     from PyQt6.QtWidgets import QMessageBox
 
@@ -912,28 +821,19 @@ def test_reset_settings_reloads_map_and_keeps_device_code(window, monkeypatch):
 
     window.set_page(3)
     window.set_map_source("squadcalc")
-    window.set_relay_code("ABCD-2345")
-    window.controls["relay_enabled"].setChecked(False)
-    assert window.relay.code is None
 
     window.reset_settings()
 
     assert window.config["map_source"] == "deadline"
     assert window.map_page.page.requestedUrl().host() == "calc.tk104.duckdns.org"
-    # The pairing survives the reset; the link is on again (the default).
-    assert window.config["relay_code"] == "ABCD2345"
-    assert window.config["relay_enabled"] is True
-    assert window.relay.code == "ABCD2345"
 
 
-def test_close_drops_relay_and_key_watch(window):
+def test_close_drops_the_key_watch(window):
     window.hold_timer.key_reader = lambda code: False
     window.select_weapon(AGS17)
-    window.set_relay_code("ABCD-2345")
 
     window.close()
 
-    assert window.relay.code is None
     assert not window.hold_timer.active
 
 
@@ -1012,13 +912,13 @@ def test_weapon_picked_here_is_selected_on_the_embedded_map(window, monkeypatch)
 
     # A weapon the page does not have: the page keeps its own and does not
     # switch the app back (no ping-pong).
-    window.select_weapon("NSV")
-    assert wait_for(lambda: "NSV" in page_value("calls.join(',')"))
+    window.select_weapon("RPG-29")
+    assert wait_for(lambda: "RPG-29" in page_value("calls.join(',')"))
     for _ in range(20):
         QCoreApplication.processEvents()
     page.poll_targets()
     assert wait_for(lambda: page_value("current") == "QLZ87")
-    assert window.picker.current == "NSV"
+    assert window.picker.current == "RPG-29"
 
 
 def test_embedded_bridge_reads_a_page_without_the_weapon(window, monkeypatch):
@@ -1085,54 +985,6 @@ def test_hotkeys_are_polled_when_keys_can_be_read(app, tmp_path, monkeypatch):
     assert win._hotkey_poller is None
 
 
-def test_timer_panel_on_the_overlay(window):
-    window.hold_timer.key_reader = lambda code: False
-    window.select_weapon(AGS17)
-    window.config["arc"] = "high"
-
-    panel = window.overlay.hold_panel
-    assert panel is not None
-    assert panel.target is None
-    assert panel.target_text == tr("panel_no_target")
-    assert panel.barrel_text.startswith("~280 ") or panel.barrel_text.startswith("~279 ")
-
-    window.distance_entry.setText("1000")
-    window.calculate()
-    panel = window.overlay.hold_panel
-    assert panel.target == pytest.approx(window.last_solution.hold_time)
-    assert "1000" in panel.target_text
-
-    window.hold_timer.advance(0.8, True, False)
-    panel = window.overlay.hold_panel
-    assert panel.held == pytest.approx(0.8)
-    assert panel.s_down
-    assert not panel.reached
-    assert panel.barrel_text != "~280 м"
-
-    window.hold_timer.advance(0.5, True, False)
-    assert window.overlay.hold_panel.reached
-
-    # Panel off, other weapon: hidden.
-    window.controls["hold_panel"].toggled.emit(False)
-    assert window.overlay.hold_panel is None
-    window.controls["hold_panel"].toggled.emit(True)
-    assert window.overlay.hold_panel is not None
-    window.select_weapon("RPG-29")
-    assert window.overlay.hold_panel is None
-
-
-@pytest.mark.parametrize("corner", ["top_left", "top_right", "bottom_left", "bottom_right"])
-def test_timer_panel_corner(window, corner):
-    window.set_hold_panel_corner(corner)
-
-    rect = window.overlay.hold_panel_rect()
-    overlay = window.overlay
-
-    assert (rect.left() < overlay.width() / 2) == corner.endswith("left")
-    assert (rect.top() < overlay.height() / 2) == corner.startswith("top")
-    assert window.config["hold_panel_corner"] == corner
-
-
 def test_auto_hold_setting(window, monkeypatch):
     import crosshair
 
@@ -1175,7 +1027,6 @@ def test_auto_hold_setting(window, monkeypatch):
 
     window.auto_hold()
     assert window.hold_timer.auto_holding
-    assert window.overlay.hold_panel is not None
 
     window.close()
     assert pressed == ["press", "release"]
@@ -1557,9 +1408,7 @@ def calc_page_overflow(window):
     return max(0, area.widget().width() - area.viewport().width())
 
 
-@pytest.mark.parametrize("language", ["en", "ru"])
-def test_calculator_fits_the_minimum_window(window, language):
-    window.set_language(language)
+def test_calculator_fits_the_minimum_window(window):
     show_at(window, 900, 600)
 
     window.select_weapon(AGS17)
@@ -1600,9 +1449,7 @@ def test_long_weapon_name_is_elided_in_the_picker(window):
     assert picker.text() == f"{AGS17}   ▾"
 
 
-@pytest.mark.parametrize("language", ["en", "ru"])
-def test_crosshair_page_fits_the_minimum_window(window, language):
-    window.set_language(language)
+def test_crosshair_page_fits_the_minimum_window(window):
     show_at(window, 900, 600)
     window.set_page(1)
     QApplication.processEvents()
@@ -1680,47 +1527,6 @@ def test_overlay_info_line_wraps_inside_a_narrow_screen(window):
     assert bottom - top > 25
 
 
-def test_hold_progress_repaints_only_the_info_line(window):
-    from PyQt6.QtCore import QEvent, QObject, QPoint
-
-    class Regions(QObject):
-        def __init__(self):
-            super().__init__()
-            self.regions = []
-
-        def eventFilter(self, watched, event):
-            if event.type() == QEvent.Type.Paint:
-                self.regions.append(event.region())
-            return False
-
-    window.hold_timer.key_reader = lambda code: False
-    window.select_weapon(AGS17)
-    window.distance_entry.setText("900")
-    window.calculate()
-    assert window.hold_timer.active
-
-    overlay = window.overlay
-    overlay.setGeometry(0, 0, 1920, 1080)
-    QApplication.processEvents()
-
-    regions = Regions()
-    overlay.installEventFilter(regions)
-
-    for _ in range(5):
-        window.hold_timer.advance(0.01, True, False)
-        QApplication.processEvents()
-
-    overlay.removeEventFilter(regions)
-
-    assert regions.regions
-    assert tr("hold_progress", held="0.05", t=f"{window.hold_timer.target:.2f}") in overlay.info_text
-
-    # Far from the label and the timer panel: never repainted
-    for region in regions.regions:
-        assert not region.contains(QPoint(5, 1075))
-        assert not region.contains(QPoint(5, 5))
-
-
 def test_unchanged_info_is_not_repainted(window):
     from PyQt6.QtCore import QEvent, QObject
 
@@ -1743,43 +1549,6 @@ def test_unchanged_info_is_not_repainted(window):
     overlay.removeEventFilter(count)
 
     assert count.paints == 0
-
-
-def test_hold_progress_does_not_lay_out_the_window(window):
-    from PyQt6.QtCore import QEvent, QObject
-
-    class Requests(QObject):
-        count = 0
-
-        def eventFilter(self, watched, event):
-            if event.type() == QEvent.Type.LayoutRequest:
-                self.count += 1
-            return False
-
-    window.hold_timer.key_reader = lambda code: False
-    show_at(window, 1180, 780)
-    window.select_weapon(AGS17)
-    window.distance_entry.setText("900")
-    window.calculate()
-    window.hold_timer.advance(0.01, True, False)
-
-    # Let the layout settle after the solution (a request per level)
-    for _ in range(10):
-        QApplication.processEvents()
-
-    assert window.hold_label.isVisible()
-
-    requests = Requests()
-    QApplication.instance().installEventFilter(requests)
-
-    for _ in range(5):
-        window.hold_timer.advance(0.01, True, False)
-        QApplication.processEvents()
-
-    QApplication.instance().removeEventFilter(requests)
-
-    assert window.hold_label.text() == tr("hold_progress", held="0.06", t=f"{window.hold_timer.target:.2f}")
-    assert requests.count == 0
 
 
 def test_close_stops_the_sight_watch(window):
@@ -1823,10 +1592,8 @@ def test_calibration_status_is_cleared_with_the_weapon(window):
     assert window.lay_status.text() == ""
 
 
-def test_map_progress_bar_follows_the_accent(window):
-    window.set_accent("#22c55e")
-
-    assert "#22c55e" in window.map_page.progress.styleSheet()
+def test_map_progress_bar_uses_the_accent(window):
+    assert theme.ACCENT in window.map_page.progress.styleSheet()
 
 
 def test_map_failed_panel_names_the_map_site(window):
@@ -2015,7 +1782,7 @@ def test_small_fov_through_the_optic_neither_raises_nor_stops_the_app(window):
     window.fov_entry.setText("1")
     window.calculate()
     window.view_control.changed.emit("plain")
-    window.select_weapon("Kord · SPP emplacement")
+    window.select_weapon("QLZ87")
     window.view_control.changed.emit("optic")
 
 
@@ -2162,16 +1929,15 @@ def test_message_boxes_are_readable(window, app):
         box.close()
 
 
-@pytest.mark.parametrize("accent", __import__("theme").ACCENTS)
-def test_text_on_the_accent_is_readable(accent):
+def test_the_accent_is_blue_with_readable_text():
     import theme
 
-    text = theme.on_accent(accent)
-
-    assert theme.contrast(text, accent) >= theme.MIN_TEXT_CONTRAST
+    assert theme.ACCENT == "#3b82f6"
+    assert theme.ACCENT_TEXT == theme.on_accent(theme.ACCENT)
+    assert theme.contrast(theme.ACCENT_TEXT, theme.ACCENT) >= theme.MIN_TEXT_CONTRAST
     # Buttons, checked segments and selected rows all use it
-    assert theme.stylesheet(accent).count(f"color: {text};") >= 3
-    assert "color: white" not in theme.stylesheet(accent)
+    assert theme.stylesheet().count(f"color: {theme.ACCENT_TEXT};") >= 3
+    assert "color: white" not in theme.stylesheet()
 
 
 def test_light_accents_get_dark_text():

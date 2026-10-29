@@ -18,14 +18,6 @@ def app(qapp):
     return qapp
 
 
-@pytest.fixture(autouse=True)
-def offline_relay(monkeypatch):
-    """The window joins the relay on start: tests stay off the live one."""
-    from maplink import RelayLink
-
-    monkeypatch.setattr(RelayLink, "connect_relay", lambda self: None)
-
-
 @pytest.fixture
 def window(app, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)

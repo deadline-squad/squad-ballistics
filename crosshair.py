@@ -26,7 +26,6 @@ from PyQt6.QtWidgets import (
     QFrame,
     QGridLayout,
     QHBoxLayout,
-    QLineEdit,
     QMainWindow,
     QMessageBox,
     QPushButton,
@@ -51,6 +50,8 @@ from ballistics import (
     trajectory
 )
 
+from beep import beep
+
 from config import (
     APP_VERSION,
     CHOICES,
@@ -62,11 +63,7 @@ from config import (
     save_config
 )
 
-from holdtimer import (
-    DEFAULT_LEAD,
-    HoldTimer,
-    beep
-)
+from holdtimer import HoldTimer
 
 from hotkeys import (
     ACTIONS,
@@ -76,26 +73,13 @@ from hotkeys import (
     teardown_hotkeys
 )
 
-from i18n import (
-    LANGUAGES,
-    set_language,
-    tr,
-    weapon_note
-)
+from i18n import tr
 
 from keyinject import AutoHold, system_key_injector
 
 from keystate import KEY_A, KEY_D, KEY_S, KEY_W, system_key_reader
 
-from maplink import (
-    RelayLink,
-    device_link,
-    format_code,
-    new_session_code,
-    normalize_code
-)
-
-from overlay import HoldPanel, Overlay
+from overlay import Overlay
 
 from compassreader import DigitReader
 from sightlay import BEARING, CompassReader, ScreenSight, SightLayer, read_sight
@@ -108,7 +92,6 @@ from webmap import MapPage, map_url, open_external
 
 from widgets import (
     CrosshairPreview,
-    LiveLabel,
     NumberEdit,
     Segmented,
     SliderRow,
@@ -120,7 +103,6 @@ from widgets import (
     card,
     format_angle,
     label,
-    qr_pixmap,
     repolish
 )
 
@@ -229,8 +211,6 @@ class MainWindow(QMainWindow):
 
         self.apply_lay_rates()
 
-        set_language(self.config["language"])
-
         self.last_solution = None
 
         # Direct-fire (low arc) solution of a hold weapon while it lobs,
@@ -240,7 +220,7 @@ class MainWindow(QMainWindow):
         self.current_steps = []
 
         # Created once and kept across UI rebuilds, so the map is not
-        # reloaded when the language or accent changes.
+        # reloaded when the UI is rebuilt.
         self.map_page = None
 
         self.overlay = Overlay(
@@ -255,10 +235,9 @@ class MainWindow(QMainWindow):
         # re-delivery of the same target does not overwrite typed values.
         self.last_map_target = None
 
-        # Text of the overlay label for the current solution; hold weapons
-        # append the live hold progress to it, mortars the sight reading.
+        # Text of the overlay label for the current solution; mortars append
+        # the bearing and the sight reading to it.
         self.info_base = ""
-        self.hold_info = ""
         self.sight_info = ""
 
         # Mortar sight on the screen: digit pictures (made on first use),
@@ -282,17 +261,6 @@ class MainWindow(QMainWindow):
         self.key_reader = system_key_reader()
 
         self.hold_timer = HoldTimer(self.key_reader, self)
-        self.hold_timer.changed.connect(self.update_hold_readout)
-        self.hold_timer.reached.connect(self.on_hold_reached)
-        self.hold_timer.lead_learned.connect(self.on_hold_lead_learned)
-        self.apply_hold_lead()
-
-        self.relay = RelayLink(parent=self)
-        self.relay.targets_received.connect(self.on_map_targets)
-        self.relay.weapon_received.connect(self.on_map_weapon)
-        self.relay.status_changed.connect(
-            lambda _status: self.update_map_status()
-        )
 
         self.save_timer = QTimer(self)
         self.save_timer.setSingleShot(True)
@@ -339,26 +307,17 @@ class MainWindow(QMainWindow):
         # first, so the settings toggle shows it off.
         self.apply_auto_hold()
 
-        # Before the UI, which shows the code and its device link.
-        self.ensure_relay_code()
-
         self.build_ui()
 
         # Only after the UI exists: a hotkey may fire right away.
         setup_hotkeys(self)
 
-        self.apply_relay()
-
     # =========================
     # LAYOUT
     # =========================
 
-    @property
-    def accent(self):
-        return self.config.get("accent") or theme.ACCENTS[0]
-
     def build_ui(self):
-        self.setStyleSheet(theme.stylesheet(self.accent))
+        self.setStyleSheet(theme.stylesheet())
 
         root = QWidget()
 
@@ -389,7 +348,7 @@ class MainWindow(QMainWindow):
         self.update_map_status()
 
     def rebuild(self):
-        """Recreate the UI (language / accent change), keeping the inputs."""
+        """Recreate the UI (texts and bindings), keeping the inputs."""
         page = self.pages.currentIndex()
 
         texts = (
@@ -503,32 +462,18 @@ class MainWindow(QMainWindow):
     # CALCULATOR PAGE
     # =========================
 
-    def visible_weapons(self):
-        show_mods = self.config["show_mods"]
-
-        visible = {
-            name: weapon
-            for name, weapon in self.weapons.items()
-            if show_mods or not weapon.mod
-        }
-
-        # A database with only mod weapons still has to show something.
-        return visible or dict(self.weapons)
-
     def weapon_groups(self):
         groups = {}
 
-        for name, weapon in self.visible_weapons().items():
+        for name, weapon in self.weapons.items():
             groups.setdefault(weapon.category, []).append(name)
 
         return list(groups.items())
 
     def recent_weapons(self):
-        visible = self.visible_weapons()
-
         return [
             name for name in self.config["recent_weapons"]
-            if name in visible
+            if name in self.weapons
         ]
 
     def build_calc_page(self):
@@ -558,12 +503,11 @@ class MainWindow(QMainWindow):
 
         self.picker.set_data(self.weapon_groups(), self.recent_weapons())
 
-        visible = self.visible_weapons()
-
+        # A saved weapon that weapons.json no longer has falls back to the first.
         current = self.config["last_weapon"]
 
-        if current not in visible:
-            current = next(iter(visible))
+        if current not in self.weapons:
+            current = next(iter(self.weapons))
 
         self.picker.set_current(current, emit=False)
 
@@ -718,15 +662,8 @@ class MainWindow(QMainWindow):
 
         self.sub_label.setWordWrap(True)
 
-        # Live hold progress of hold weapons (AGS-17 high arc), redrawn at
-        # every poll of the hold timer.
-        self.hold_label = LiveLabel("sub")
-
-        self.hold_label.hide()
-
         layout.addWidget(self.big_label)
         layout.addWidget(self.sub_label)
-        layout.addWidget(self.hold_label)
         layout.addWidget(self.build_lay_calibration())
 
         grid = QGridLayout()
@@ -751,7 +688,7 @@ class MainWindow(QMainWindow):
 
         layout.addLayout(grid)
 
-        self.trajectory_view = TrajectoryView(self.accent)
+        self.trajectory_view = TrajectoryView()
 
         layout.addWidget(self.trajectory_view, 1)
 
@@ -839,9 +776,6 @@ class MainWindow(QMainWindow):
         if weapon.min_distance:
             parts.append(tr("chip_min", m=f"{weapon.min_distance:g}"))
 
-        if weapon.mod:
-            parts.append(tr("chip_mod", mod=weapon.mod))
-
         self.weapon_info.setText("  ·  ".join(parts))
 
     def update_view_control(self, weapon):
@@ -907,8 +841,7 @@ class MainWindow(QMainWindow):
     def on_map_targets(self, targets):
         """Put the newest SquadCalc target into the inputs and solve it.
 
-        `targets` comes from the embedded map or the relay (see maplink);
-        the last one is the most recently placed marker. An empty list, or
+        `targets` comes from the embedded map (see maplink); the last one is the most recently placed marker. An empty list, or
         the same newest target delivered again (even after the inputs were
         edited by hand), keeps the current inputs.
         """
@@ -944,7 +877,7 @@ class MainWindow(QMainWindow):
 
         `name` is a weapons.json name sent by the Deadline SquadCalc build
         when its weapon changes; a weapon picked here afterwards stays until
-        the next change there. Names hidden by the mod filter are ignored;
+        the next change there. Names this app does not have are ignored;
         names from before a rename (an older SquadCalc page) are mapped to
         the current ones.
         """
@@ -953,7 +886,7 @@ class MainWindow(QMainWindow):
         if not self.config["map_follow"] or name == self.picker.current:
             return
 
-        if name not in self.visible_weapons():
+        if name not in self.weapons:
             return
 
         self.select_weapon(name)
@@ -983,11 +916,6 @@ class MainWindow(QMainWindow):
             text = tr("map_target", t="  ·  ".join(parts))
 
         self.map_label.setText(text)
-
-        relay_status = getattr(self, "relay_status_label", None)
-
-        if relay_status is not None:
-            relay_status.setText(tr(f"relay_{self.relay.status}"))
 
     def recalculate_if_ready(self):
         # The FOV, the calibration or the centre may have changed.
@@ -1286,11 +1214,7 @@ class MainWindow(QMainWindow):
 
             self.sub_label.setText(sub)
 
-        self.hold_timer.set_target(
-            hold if holding and self.config["hold_timer"] else None
-        )
-
-        self.update_hold_readout()
+        self.hold_timer.set_target(hold if holding else None)
 
         self.stats["stat_tof"].set(f"{solution.time_of_flight:.1f} {s}")
         self.stats["stat_apex"].set(f"{solution.apex:.0f} {m}")
@@ -1348,17 +1272,9 @@ class MainWindow(QMainWindow):
         if holding and not laid_by_angle:
             steps = [
                 tr("how_hold_1"),
-                tr(
-                    "how_hold_2_beep"
-                    if self.hold_timer.target is not None
-                    else "how_hold_2",
-                    t=f"{hold:.2f}"
-                ),
+                tr("how_hold_2", t=f"{hold:.2f}"),
                 tr("how_tof_adjust", tof=tof)
             ]
-
-            if not self.hold_timer.available and self.config["hold_timer"]:
-                steps.append(tr("how_hold_no_keys"))
 
             if direct is not None:
                 steps.append(
@@ -1416,7 +1332,7 @@ class MainWindow(QMainWindow):
 
         self.set_steps(steps)
 
-        self.note_label.setText(weapon_note(weapon))
+        self.note_label.setText(weapon.note)
 
     def obstacle_steps(self, weapon, solution, obstacle, alt_solution,
                        profile, step, unit):
@@ -1482,92 +1398,20 @@ class MainWindow(QMainWindow):
         self.show_overlay_info()
 
     def show_overlay_info(self):
-        """The overlay label: the solution, the hold progress, the sight."""
-        parts = (self.info_base, self.hold_info, self.bearing_info, self.sight_info)
+        """The overlay label: the solution, the bearing, the sight."""
+        parts = (self.info_base, self.bearing_info, self.sight_info)
 
         self.overlay.set_info("  ·  ".join(part for part in parts if part))
 
-    def update_hold_readout(self):
-        """Show how long S has been held against the target hold time."""
-        timer = self.hold_timer
-
-        self.update_hold_panel()
-
-        if timer.target is None or not timer.available:
-            self.hold_label.hide()
-            self.hold_info = ""
-            self.show_overlay_info()
-            return
-
-        progress = tr(
-            "hold_progress",
-            held=f"{min(timer.held, 99.99):.2f}",
-            t=f"{timer.target:.2f}"
-        )
-
-        if timer.is_reached:
-            progress += "  ✓"
-
-        self.hold_label.setText(progress)
-
-        self.hold_label.show()
-
-        self.hold_info = progress
-        self.show_overlay_info()
-
-    def update_hold_panel(self):
-        """The timer panel on the overlay, while S/W are being watched."""
-        timer = self.hold_timer
-        weapon = self.current_weapon()
-
-        if not (
-            timer.active
-            and self.config["hold_panel"]
-            and weapon is not None
-            and weapon.has_hold
-        ):
-            self.overlay.set_hold_panel(None)
-            return
-
-        m = tr("unit_m")
-        s = tr("unit_s")
-
-        solution = self.last_solution
-
-        if timer.target is None or solution is None:
-            target_text = tr("panel_no_target")
-        else:
-            target_text = tr(
-                "panel_target",
-                t=f"{solution.distance:.0f} {m} · S {timer.target:.2f} {s}"
-            )
-
-        self.overlay.set_hold_panel(HoldPanel(
-            target_text=target_text,
-            barrel_text=f"~{weapon.hold_distance(timer.held):.0f} {m}",
-            held=timer.held,
-            target=timer.target,
-            reached=timer.is_reached,
-            s_down=timer.s_down,
-            w_down=timer.w_down,
-            auto_text=tr("panel_auto") if timer.auto_holding else ""
-        ))
-
     def update_hold_watch(self):
-        """Watch S/W only while a hold weapon is selected and enabled."""
+        """Watch S/W only while a hold weapon is selected."""
         weapon = self.current_weapon()
 
         self.lay_row.setVisible(
             weapon is not None and weapon.has_hold and weapon.aim == "elevation"
         )
 
-        self.hold_timer.set_active(
-            weapon is not None
-            and weapon.has_hold
-            and self.config["hold_timer"]
-        )
-
-        self.update_hold_panel()
+        self.hold_timer.set_active(weapon is not None and weapon.has_hold)
 
         self.update_sight_watch()
 
@@ -2041,21 +1885,6 @@ class MainWindow(QMainWindow):
 
         self.update_hotkey_hint()
 
-    def apply_hold_lead(self):
-        """The beep lead learnt in earlier sessions, else the default."""
-        lead = self.config["hold_lead"]
-
-        self.hold_timer.lead = DEFAULT_LEAD if lead is None else lead
-
-    def on_hold_lead_learned(self, lead):
-        self.config["hold_lead"] = lead
-        self.schedule_save()
-
-    def on_hold_reached(self):
-        beep()
-
-        self.update_hold_readout()
-
     def current_offset(self):
         """Pixels the overlay mark sits below the centre, None without a mark.
 
@@ -2294,7 +2123,7 @@ class MainWindow(QMainWindow):
         return page
 
     def add_toggle(self, layout, text, key, on_change=None):
-        toggle = Toggle(text, self.accent, bool(self.get_setting(key)))
+        toggle = Toggle(text, bool(self.get_setting(key)))
 
         def handle(checked):
             self.set_setting(key, checked)
@@ -2411,7 +2240,6 @@ class MainWindow(QMainWindow):
         column.addWidget(self.build_calc_settings_card())
         column.addWidget(self.build_overlay_card())
         column.addWidget(self.build_map_card())
-        column.addWidget(self.build_device_card())
         column.addWidget(self.build_hotkeys_card())
         column.addWidget(self.build_about_card())
 
@@ -2467,28 +2295,6 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(label(tr("s_interface"), "title"))
 
-        languages = [("auto", tr("s_lang_auto"))] + list(LANGUAGES.items())
-
-        self.setting_row(
-            layout,
-            tr("s_language"),
-            self.combo(languages, self.config["language"], self.set_language)
-        )
-
-        accent_row = QHBoxLayout()
-
-        accent_row.addWidget(label(tr("s_accent")))
-
-        accent_row.addStretch()
-
-        swatches = Swatches(theme.ACCENTS, self.accent)
-
-        swatches.picked.connect(self.set_accent)
-
-        accent_row.addWidget(swatches)
-
-        layout.addLayout(accent_row)
-
         self.add_toggle(
             layout,
             tr("s_on_top"),
@@ -2532,30 +2338,6 @@ class MainWindow(QMainWindow):
             "auto_calc",
             lambda checked: self.calc_button.setVisible(not checked)
         )
-
-        self.add_toggle(
-            layout,
-            tr("s_mods"),
-            "show_mods",
-            lambda _checked: self.refresh_weapon_list()
-        )
-
-        def on_hold_timer_toggled(_checked):
-            self.update_hold_watch()
-            self.recalculate_if_ready()
-
-        self.add_toggle(
-            layout,
-            tr("s_hold_timer"),
-            "hold_timer",
-            on_hold_timer_toggled
-        )
-
-        hold_hint = label(tr("s_hold_timer_hint"), "small")
-
-        hold_hint.setWordWrap(True)
-
-        layout.addWidget(hold_hint)
 
         self.add_toggle(
             layout,
@@ -2629,36 +2411,7 @@ class MainWindow(QMainWindow):
             on_change=self.recalculate_if_ready, suffix="%"
         )
 
-        self.add_toggle(
-            layout,
-            tr("s_hold_panel"),
-            "hold_panel",
-            lambda _checked: self.update_hold_panel()
-        )
-
-        corner = Segmented(
-            [
-                (key, tr(f"corner_{key}"))
-                for key in ("top_left", "top_right", "bottom_left", "bottom_right")
-            ],
-            self.config["hold_panel_corner"]
-        )
-
-        corner.changed.connect(self.set_hold_panel_corner)
-
-        self.setting_row(layout, tr("s_hold_panel_corner"), corner)
-
         return frame
-
-    def set_hold_panel_corner(self, corner):
-        # Repaint the old and the new place of the panel.
-        self.overlay.set_hold_panel(None)
-
-        self.config["hold_panel_corner"] = corner
-
-        self.schedule_save()
-
-        self.update_hold_panel()
 
     def build_hotkeys_card(self):
         frame, layout = card()
@@ -2742,22 +2495,6 @@ class MainWindow(QMainWindow):
 
         self.open_status.show()
 
-    def set_language(self, code):
-        self.config["language"] = code
-
-        set_language(code)
-
-        self.schedule_save()
-
-        self.rebuild()
-
-    def set_accent(self, color):
-        self.config["accent"] = color
-
-        self.schedule_save()
-
-        self.rebuild()
-
     def set_on_top(self, checked):
         self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, checked)
 
@@ -2802,14 +2539,6 @@ class MainWindow(QMainWindow):
 
         self.rebuild()
 
-    def refresh_weapon_list(self):
-        visible = self.visible_weapons()
-
-        self.picker.set_data(self.weapon_groups(), self.recent_weapons())
-
-        if self.picker.current not in visible:
-            self.picker.set_current(next(iter(visible)))
-
     def reset_settings(self):
         answer = QMessageBox.question(
             self,
@@ -2824,18 +2553,10 @@ class MainWindow(QMainWindow):
 
         old_map_url = map_url(self.config)
 
-        # The session code is the pairing with other devices, not a
-        # preference: a reset keeps it, so they stay linked.
-        relay_code = self.config["relay_code"]
-
         # The overlay keeps a reference to this dict, so update it in place.
         self.config.clear()
 
         self.config.update(copy.deepcopy(DEFAULT_CONFIG))
-
-        self.config["relay_code"] = relay_code
-
-        set_language(self.config["language"])
 
         setup_hotkeys(self)
 
@@ -2843,13 +2564,9 @@ class MainWindow(QMainWindow):
 
         self.set_on_top(False)
 
-        self.apply_relay()
-
         self.apply_auto_hold()
 
         self.apply_lay_rates()
-
-        self.apply_hold_lead()
 
         # rebuild() keeps the typed inputs; the FOV is a setting.
         self.fov_entry.set_value(self.config["fov"])
@@ -2884,7 +2601,6 @@ class MainWindow(QMainWindow):
             self.map_page.weapon_received.connect(self.on_map_weapon)
         else:
             self.map_page.retranslate()
-            self.map_page.restyle()
 
         return self.map_page
 
@@ -2966,163 +2682,6 @@ class MainWindow(QMainWindow):
 
         self.map_page.load_source()
 
-    def build_device_card(self):
-        """Settings card pairing SquadCalc on another device: link, QR code, code."""
-        frame, layout = card()
-
-        layout.addWidget(label(tr("s_device"), "title"))
-
-        hint = label(tr("s_device_hint"), "small")
-
-        hint.setWordWrap(True)
-
-        layout.addWidget(hint)
-
-        self.add_toggle(
-            layout,
-            tr("s_relay_enabled"),
-            "relay_enabled",
-            lambda _checked: self.on_relay_toggled()
-        )
-
-        self.device_qr = label("")
-
-        self.device_qr.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        layout.addWidget(self.device_qr)
-
-        self.device_link_entry = QLineEdit()
-
-        self.device_link_entry.setReadOnly(True)
-
-        layout.addWidget(self.device_link_entry)
-
-        copy_button = QPushButton(tr("s_device_copy"))
-
-        copy_button.setProperty("flat_style", True)
-
-        def copy_link():
-            QGuiApplication.clipboard().setText(self.device_link_entry.text())
-
-            copy_button.setText(tr("s_device_copied"))
-
-        copy_button.clicked.connect(copy_link)
-
-        new_button = QPushButton(tr("s_device_new"))
-
-        new_button.setProperty("flat_style", True)
-
-        new_button.clicked.connect(self.renew_relay_code)
-
-        buttons = QHBoxLayout()
-
-        buttons.addWidget(copy_button)
-
-        buttons.addWidget(new_button)
-
-        buttons.addStretch()
-
-        layout.addLayout(buttons)
-
-        self.relay_entry = QLineEdit()
-
-        self.relay_entry.setPlaceholderText("ABCD-EFGH-JKLM")
-
-        self.relay_entry.setMaximumWidth(180)
-
-        self.relay_entry.editingFinished.connect(
-            lambda: self.set_relay_code(self.relay_entry.text())
-        )
-
-        self.setting_row(layout, tr("s_relay_code"), self.relay_entry)
-
-        self.relay_status_label = label("", "small")
-
-        self.relay_status_label.setWordWrap(True)
-
-        layout.addWidget(self.relay_status_label)
-
-        self.show_device_link()
-
-        return frame
-
-    def show_device_link(self):
-        """Show the current session code, its device link and QR code."""
-        code = self.config["relay_code"]
-        link = device_link(code)
-
-        self.relay_entry.setText(format_code(code))
-
-        self.device_link_entry.setText(link)
-
-        self.device_link_entry.setCursorPosition(0)
-
-        self.device_qr.setPixmap(qr_pixmap(link))
-
-    def ensure_relay_code(self):
-        """Give the app its session code once; it is kept from then on."""
-        if normalize_code(self.config["relay_code"]) is not None:
-            return
-
-        self.config["relay_code"] = new_session_code()
-
-        # At once: a device paired before the next save would be lost.
-        save_config(self.config)
-
-    def apply_relay(self):
-        """Join the relay with the app's code, or leave it when the link is off."""
-        enabled = self.config["relay_enabled"]
-
-        self.relay.set_code(
-            normalize_code(self.config["relay_code"]) if enabled else None
-        )
-
-        self.update_map_status()
-
-    def on_relay_toggled(self):
-        self.schedule_save()
-
-        self.apply_relay()
-
-    def set_relay_code(self, text):
-        """Use the code typed in Settings (a code shown by a SquadCalc page).
-
-        An invalid code is refused with a hint and the current one stays.
-        """
-        code = normalize_code(text)
-
-        if code is None:
-            self.relay_status_label.setText(tr("relay_bad_code"))
-            return
-
-        if code == self.config["relay_code"]:
-            self.show_device_link()
-            return
-
-        self.change_relay_code(code)
-
-    def renew_relay_code(self):
-        """Make a new code after a confirmation: every paired device is unlinked."""
-        answer = QMessageBox.question(
-            self,
-            "Squad Ballistics",
-            tr("s_device_new_confirm")
-        )
-
-        if answer != QMessageBox.StandardButton.Yes:
-            return
-
-        self.change_relay_code(new_session_code())
-
-    def change_relay_code(self, code):
-        self.config["relay_code"] = code
-
-        save_config(self.config)
-
-        self.show_device_link()
-
-        self.apply_relay()
-
     def set_map_render(self, mode):
         if mode == self.config["map_render"]:
             return
@@ -3169,8 +2728,6 @@ class MainWindow(QMainWindow):
 
         # Release a held S and remove the virtual keyboard.
         self.drop_auto_hold()
-
-        self.relay.set_code(None)
 
         if self.map_page is not None:
             self.map_page.shutdown()

@@ -1,8 +1,6 @@
 import copy
 import json
-import math
 import os
-import re
 
 from ballistics import current_weapon_name
 
@@ -69,14 +67,11 @@ DEFAULT_CONFIG = {
     "center_offset_y": 0,
 
     # Interface
-    "language": "auto",
-    "accent": "#3b82f6",
     "main_on_top": False,
 
     # Calculator
     "unit_mode": "auto",
     "auto_calc": True,
-    "show_mods": False,
     "distance_step": 25,
 
     # Map page: "software" rendering fixes a black map on some GPUs/drivers;
@@ -86,27 +81,14 @@ DEFAULT_CONFIG = {
 
     # Map source: "deadline" (SquadCalc build with AGS-17 and the target
     # bridge) or "squadcalc" (squadcalc.app). map_follow puts the newest
-    # map target into the calculator. relay_code is the session that joins
-    # SquadCalc pages open elsewhere through the relay: made once by the app
-    # when empty (maplink.new_session_code) and kept, so paired devices stay
-    # paired; relay_enabled turns the link off without losing the code.
+    # map target into the calculator.
     "map_source": "deadline",
     "map_follow": True,
-    "relay_code": "",
-    "relay_enabled": True,
 
-    # Beep when S has been held for the AGS-17 hold time; hold_panel shows
-    # the timer on the overlay in a corner of the screen. auto_hold lets the
-    # app hold S itself (hotkey "auto_hold"); synthetic input may be treated
-    # as a macro by the anti-cheat or server rules, so it is off by default.
-    "hold_timer": True,
-    "hold_panel": True,
-    "hold_panel_corner": "top_right",
+    # auto_hold lets the app hold S itself (hotkey "auto_hold"); synthetic
+    # input may be treated as a macro by the anti-cheat or server rules, so
+    # it is off by default.
     "auto_hold": False,
-
-    # How early the hold beep comes (s): learnt from the player's releases
-    # after it (holdtimer.HoldTimer.lead); None until the first one.
-    "hold_lead": None,
 
     # Mortars: read the elevation off the sight on the screen (shown on the
     # overlay; the auto-lay then lays on it, see sightlay).
@@ -127,20 +109,16 @@ DEFAULT_CONFIG = {
 
 # Allowed values. RANGES are also the limits of the sliders in the UI.
 CHOICES = {
-    "language": ("auto", "ru", "en"),
     "arc": ("auto", "low", "high"),
     "sight_view": ("plain", "optic", "optic2"),
     "unit_mode": ("auto", "deg", "mil"),
     "outline_color": ("white", "black"),
     "map_render": ("auto", "software"),
     "map_source": ("deadline", "squadcalc"),
-    "hold_panel_corner": ("top_left", "top_right", "bottom_left", "bottom_right"),
 }
 
 RANGES = {
     "fov": (1, 179),
-    # holdtimer.MAX_LEAD
-    "hold_lead": (0.0, 0.6),
     "fps": (10, 240),
     "opacity": (20, 255),
     "dot_size": (1, 20),
@@ -157,8 +135,6 @@ RANGES = {
 }
 
 DISTANCE_STEPS = (1, 5, 10, 25, 50, 100)
-
-_HEX_COLOR = re.compile(r"#[0-9a-fA-F]{6}")
 
 
 def config_dir():
@@ -233,17 +209,6 @@ def _merge(loaded):
                 config[key] = current_weapon_name(value)
             continue
 
-        if key == "hold_lead":
-            # The AGS-17 beep's lead (s), learnt from the player's releases
-            if (
-                isinstance(value, (int, float))
-                and not isinstance(value, bool)
-                and math.isfinite(value)
-            ):
-                low, high = RANGES[key]
-                config[key] = max(low, min(high, float(value)))
-            continue
-
         if isinstance(default, bool):
             if isinstance(value, bool):
                 config[key] = value
@@ -253,9 +218,6 @@ def _merge(loaded):
                 config[key] = max(low, min(high, value))
         elif key in CHOICES:
             if value in CHOICES[key]:
-                config[key] = value
-        elif key == "accent":
-            if isinstance(value, str) and _HEX_COLOR.fullmatch(value):
                 config[key] = value
         elif isinstance(value, type(default)):
             config[key] = value
@@ -295,14 +257,25 @@ def load_config(path=None):
 
 
 def save_config(config, path=None):
+    """Write `config` as JSON, readable by the owner only.
+
+    The folder is created with mode 0700 and the file written to a 0600 temp
+    file that replaces the old one, so a settings file saved world-readable
+    by an older version is replaced by a private one.
+    """
     path = path or CONFIG_PATH
 
     try:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
 
         tmp = path + ".tmp"
 
-        with open(tmp, "w", encoding="utf-8") as f:
+        descriptor = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+
+        # A leftover temp file keeps its old mode through O_CREAT.
+        os.fchmod(descriptor, 0o600)
+
+        with os.fdopen(descriptor, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=4)
 
         os.replace(tmp, path)

@@ -23,7 +23,7 @@ from ballistics import (
 
 import config
 from config import config_dir, load_config
-from i18n import set_language, tr
+from i18n import tr
 from utils import resource_path
 from splash import SplashScreen
 
@@ -170,8 +170,6 @@ def main():
     prefer_x11()
 
     app = QApplication(sys.argv)
-
-    set_language(settings["language"])
 
     install_crash_handler()
 

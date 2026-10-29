@@ -16,12 +16,10 @@ from PyQt6.QtGui import (
     QColor,
     QFont,
     QGuiApplication,
-    QImage,
     QLinearGradient,
     QPainter,
     QPainterPath,
     QPen,
-    QPixmap,
     QValidator
 )
 
@@ -35,7 +33,6 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QPushButton,
-    QSizePolicy,
     QSlider,
     QVBoxLayout,
     QWidget
@@ -45,10 +42,6 @@ import theme
 from ballistics import MILS_PER_DEGREE
 from i18n import tr, category_name
 from overlay import paint_crosshair
-from qr import qr_matrix
-
-# Light modules around a QR code, as the standard requires for scanning.
-QR_QUIET_ZONE = 4
 
 
 def label(text, role=None):
@@ -58,32 +51,6 @@ def label(text, role=None):
         widget.setProperty("role", role)
 
     return widget
-
-
-def qr_pixmap(text, module=4):
-    """QR code of `text`: black on white (in any theme), quiet zone included.
-
-    `module` is the side of one module in pixels; nearest-neighbour scaling
-    keeps the edges sharp for the camera.
-    """
-    matrix = qr_matrix(text)
-    side = len(matrix) + 2 * QR_QUIET_ZONE
-
-    image = QImage(side, side, QImage.Format.Format_Grayscale8)
-
-    image.fill(Qt.GlobalColor.white)
-
-    for row, modules in enumerate(matrix):
-        for column, dark in enumerate(modules):
-            if dark:
-                image.setPixel(column + QR_QUIET_ZONE, row + QR_QUIET_ZONE, 0xFF000000)
-
-    return QPixmap.fromImage(image.scaled(
-        side * module,
-        side * module,
-        Qt.AspectRatioMode.IgnoreAspectRatio,
-        Qt.TransformationMode.FastTransformation
-    ))
 
 
 def repolish(widget):
@@ -108,7 +75,7 @@ def card():
 class Toggle(QAbstractButton):
     """Minimal on/off switch with a text label."""
 
-    def __init__(self, text, accent, checked=False):
+    def __init__(self, text, checked=False):
         super().__init__()
 
         self.setText(text)
@@ -116,8 +83,6 @@ class Toggle(QAbstractButton):
         self.setCheckable(True)
 
         self.setChecked(checked)
-
-        self.accent = QColor(accent)
 
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
@@ -135,7 +100,7 @@ class Toggle(QAbstractButton):
         painter.setPen(Qt.PenStyle.NoPen)
 
         painter.setBrush(
-            self.accent if self.isChecked() else QColor(theme.BORDER)
+            QColor(theme.ACCENT) if self.isChecked() else QColor(theme.BORDER)
         )
 
         painter.drawRoundedRect(track, 9, 9)
@@ -659,61 +624,6 @@ class SliderRow(QWidget):
         self.changed.emit(value)
 
 
-class LiveLabel(QLabel):
-    """One line of text that changes many times a second (the hold timer).
-
-    QLabel's own setText re-lays out the whole window on every change,
-    2-3 ms with the calculator page, at every 10 ms poll of the hold timer.
-    Here `setText` only repaints the label: its size is one line of its
-    font, as wide as the layout makes it; longer text is cut.
-    """
-
-    def __init__(self, role=None):
-        super().__init__()
-
-        self._text = ""
-
-        if role:
-            self.setProperty("role", role)
-
-        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
-
-    def setText(self, text):
-        if text == self._text:
-            return
-
-        self._text = text
-
-        self.update()
-
-    def text(self):
-        return self._text
-
-    def sizeHint(self):
-        # The stylesheet font (role) is known once polished.
-        self.ensurePolished()
-
-        margins = self.contentsMargins()
-
-        return QSize(0, self.fontMetrics().height() + margins.top() + margins.bottom())
-
-    def minimumSizeHint(self):
-        return self.sizeHint()
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-
-        self.style().drawItemText(
-            painter,
-            self.contentsRect(),
-            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
-            self.palette(),
-            self.isEnabled(),
-            self._text,
-            self.foregroundRole()
-        )
-
-
 class StatTile(QFrame):
     def __init__(self, caption):
         super().__init__()
@@ -794,10 +704,10 @@ class TrajectoryView(QWidget):
     terrain and buildings in between when the map gives them, with the
     point where the shown arc hits them first."""
 
-    def __init__(self, accent):
+    def __init__(self):
         super().__init__()
 
-        self.accent = QColor(accent)
+        self.accent = QColor(theme.ACCENT)
 
         self.main = []
         self.alt = []

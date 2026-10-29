@@ -1,5 +1,4 @@
 import math
-from dataclasses import dataclass
 
 from PyQt6.QtCore import (
     Qt,
@@ -122,29 +121,6 @@ def paint_crosshair(painter, cfg, x, y):
         painter.drawEllipse(QPointF(x, y), dot_size, dot_size)
 
 
-@dataclass(frozen=True)
-class HoldPanel:
-    """What the AGS-17 timer panel shows (see Overlay.set_hold_panel).
-
-    target_text  -- first line, e.g. "TARGET 1000 m · S 1.25 s"
-    barrel_text  -- big line: where the barrel shoots now, e.g. "~820 m"
-    held/target  -- seconds S held since W and the hold time (None: none)
-    """
-
-    target_text: str
-    barrel_text: str
-    held: float
-    target: float = None
-    reached: bool = False
-    s_down: bool = False
-    w_down: bool = False
-    auto_text: str = ""
-
-
-PANEL_WIDTH = 230
-PANEL_HEIGHT = 112
-PANEL_MARGIN = 24
-
 # The info label: gap right of the crosshair, height of one line, the
 # narrowest it wraps to and its distance from the screen's right edge (px).
 INFO_GAP = 10
@@ -172,8 +148,6 @@ class Overlay(QWidget):
         self.config = config
 
         self.info_text = ""
-
-        self.hold_panel = None
 
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint
@@ -342,28 +316,6 @@ class Overlay(QWidget):
 
         return QRectF(left, y - height / 2, room, height)
 
-    def hold_panel_rect(self):
-        corner = self.config.get("hold_panel_corner", "top_right")
-
-        x = PANEL_MARGIN if corner.endswith("left") \
-            else self.width() - PANEL_WIDTH - PANEL_MARGIN
-        y = PANEL_MARGIN if corner.startswith("top") \
-            else self.height() - PANEL_HEIGHT - PANEL_MARGIN
-
-        return QRectF(x, y, PANEL_WIDTH, PANEL_HEIGHT)
-
-    def set_hold_panel(self, panel):
-        """Show the timer panel (a HoldPanel) or hide it (None).
-
-        Only the panel area is repainted: this runs on every key poll.
-        """
-        if panel == self.hold_panel:
-            return
-
-        self.hold_panel = panel
-
-        self.update(self.hold_panel_rect().toAlignedRect().adjusted(-2, -2, 2, 2))
-
     def set_offset(self, value):
         """Move the aim mark `value` pixels below the centre; None hides it.
 
@@ -447,60 +399,7 @@ class Overlay(QWidget):
         if cfg.get("info_enabled", True) and self.info_text:
             self.draw_info(painter, color)
 
-        if self.hold_panel is not None:
-            self.draw_hold_panel(painter, self.hold_panel)
-
         painter.end()
-
-    def draw_hold_panel(self, painter, panel):
-        rect = self.hold_panel_rect()
-
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor(0, 0, 0, 170))
-        painter.drawRoundedRect(rect, 8, 8)
-
-        left = rect.x() + 12
-        width = rect.width() - 24
-
-        def text(y, height, size, bold, color, value, align=Qt.AlignmentFlag.AlignLeft):
-            font = overlay_font(size)
-            font.setBold(bold)
-            painter.setFont(font)
-            painter.setPen(QColor(color))
-            painter.drawText(
-                QRectF(left, rect.y() + y, width, height),
-                align | Qt.AlignmentFlag.AlignVCenter,
-                value
-            )
-
-        text(6, 18, 9, True, "#ffa040", panel.target_text)
-        text(24, 34, 20, True, "#40e0ff" if panel.target is not None else "#9a9a9a", panel.barrel_text)
-
-        held = f"{min(panel.held, 99.99):.2f}"
-        timing = held if panel.target is None else f"{held} / {panel.target:.2f}"
-        text(58, 18, 11, True, "#ffffff", timing)
-
-        if panel.auto_text:
-            text(58, 18, 9, True, "#ff5050", panel.auto_text, Qt.AlignmentFlag.AlignRight)
-
-        # Progress to the hold time: green once it is time to release.
-        bar = QRectF(left, rect.y() + 80, width, 6)
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor(255, 255, 255, 50))
-        painter.drawRoundedRect(bar, 3, 3)
-
-        if panel.target:
-            share = max(0.0, min(1.0, panel.held / panel.target))
-            painter.setBrush(QColor("#40d060" if panel.reached else "#40e0ff"))
-            painter.drawRoundedRect(
-                QRectF(bar.x(), bar.y(), bar.width() * share, bar.height()), 3, 3
-            )
-
-        keys = "   ".join(
-            f"{name} {'●' if down else '○'}"
-            for name, down in (("S", panel.s_down), ("W", panel.w_down))
-        )
-        text(90, 16, 9, False, "#80ff80" if panel.s_down or panel.w_down else "#9a9a9a", keys)
 
     def draw_ladder(self, painter, color):
         """Range ticks left of the centre line, labelled with the range:

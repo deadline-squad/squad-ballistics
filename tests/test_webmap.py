@@ -114,7 +114,7 @@ def test_profile_cache_lives_in_user_data_dir():
 def test_shutdown_is_safe_and_idempotent():
     pytest.importorskip("PyQt6.QtWebEngineWidgets")
 
-    page = webmap.MapPage({"accent": "#3b82f6", "map_render": "auto"})
+    page = webmap.MapPage({"map_render": "auto"})
     page.ensure_loaded()
     assert page.view is not None
 
@@ -124,3 +124,98 @@ def test_shutdown_is_safe_and_idempotent():
 
     # The shared profile is reused, never recreated.
     assert webmap.shared_profile() is webmap.shared_profile()
+
+
+@pytest.fixture
+def opened(monkeypatch):
+    """The addresses handed to the system browser."""
+    urls = []
+
+    monkeypatch.setattr(
+        webmap.QDesktopServices, "openUrl",
+        lambda url: urls.append(url.toString()) or True
+    )
+
+    return urls
+
+
+@pytest.mark.parametrize("url", [
+    "file:///etc/passwd",
+    "ssh://host",
+    "smb://host/share",
+    "javascript:alert(1)",
+    "steam://run/1",
+    "mailto:a@b.c",
+    "no scheme",
+    "",
+])
+def test_only_web_addresses_go_to_the_system(opened, url):
+    assert webmap.open_external(url) is False
+    assert opened == []
+
+
+@pytest.mark.parametrize("url", ["https://squadcalc.app/", "http://localhost:3000/x", "HTTPS://Example.org"])
+def test_web_addresses_go_to_the_system(opened, url):
+    assert webmap.open_external(url) is True
+    assert len(opened) == 1
+
+
+def map_page(qapp):
+    from PyQt6.QtCore import QUrl
+    from PyQt6.QtWebEngineCore import QWebEnginePage
+
+    page = webmap._make_page_classes()(webmap.shared_profile())
+
+    Navigation = QWebEnginePage.NavigationType
+
+    def navigate(url, nav_type=Navigation.NavigationTypeLinkClicked, main=True):
+        return page.acceptNavigationRequest(QUrl(url), nav_type, main)
+
+    return page, navigate, Navigation
+
+
+def test_map_page_does_not_leave_the_map_host(qapp, opened):
+    pytest.importorskip("PyQt6.QtWebEngineWidgets")
+
+    page, navigate, Navigation = map_page(qapp)
+
+    # The app's own load sets the host.
+    assert navigate("https://calc.example/", Navigation.NavigationTypeTyped)
+
+    # Same host: links, redirects, form posts and reloads stay in the view.
+    assert navigate("https://calc.example/other")
+    assert navigate("https://calc.example/", Navigation.NavigationTypeRedirect)
+    assert navigate("https://calc.example/", Navigation.NavigationTypeReload)
+
+    # Frames of other hosts (map tiles, embeds) are not navigations away.
+    assert navigate("https://tiles.example/", main=False)
+    assert opened == []
+
+    # Another host: refused, and sent to the system browser.
+    assert not navigate("https://evil.example/")
+    assert not navigate("https://evil.example/", Navigation.NavigationTypeRedirect)
+    assert opened == ["https://evil.example/", "https://evil.example/"]
+
+    # Other schemes are refused and never reach the system.
+    assert not navigate("file:///etc/passwd")
+    assert not navigate("steam://run/1")
+    assert len(opened) == 2
+
+    # Choosing another map source (the app loads it) moves the host.
+    assert navigate("https://squadcalc.app/", Navigation.NavigationTypeTyped)
+    assert navigate("https://squadcalc.app/map")
+    assert not navigate("https://calc.example/")
+
+
+def test_new_window_links_open_externally_over_http_only(qapp, opened):
+    pytest.importorskip("PyQt6.QtWebEngineWidgets")
+    from PyQt6.QtCore import QUrl
+    from PyQt6.QtWebEngineCore import QWebEnginePage
+
+    page = webmap._make_page_classes()(webmap.shared_profile())
+    popup = page.createWindow(QWebEnginePage.WebWindowType.WebBrowserTab)
+
+    assert not popup.acceptNavigationRequest(
+        QUrl("file:///etc/passwd"), QWebEnginePage.NavigationType.NavigationTypeLinkClicked, True
+    )
+    assert opened == []
