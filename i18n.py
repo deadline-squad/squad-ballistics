@@ -72,6 +72,10 @@ STRINGS = {
         "Your in-game FOV must be {fov}°. The mark is for the sight's view (RMB, zoom ×{zoom}); "
         "without RMB, switch the view."
     ),
+    "how_overlay_levels": (
+        "Your in-game FOV must be {fov}°. The mark is for the sight's view at zoom ×{zoom}; "
+        "pick the zoom level with the view switch."
+    ),
     "how_overlay_2": "Your in-game FOV must be {fov}°. Through a scope, enter the scope FOV.",
     "how_overlay_offscreen": (
         "The mark is off-screen: raise the barrel {angle} above the target "
