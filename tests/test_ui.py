@@ -1333,6 +1333,83 @@ def test_mortar_auto_lay_on_the_sight(window, monkeypatch):
     assert window.sight_layer is None
 
 
+def compass_at(degrees):
+    """A grab of the compass strip showing `degrees` (grab_compass)."""
+    from compassimage import draw_compass
+    from sightlay import Sight
+    from sightreader import GrayImage
+
+    strip = draw_compass(degrees, 1280, 720).copy(0, 640, 1280, 80)
+
+    return Sight(GrayImage.from_qimage(strip), 640.0, 0, 720 / 1080)
+
+
+def test_mortar_auto_lay_turns_to_the_map_bearing_first(window, monkeypatch):
+    """A SquadCalc target: F7 turns the mortar on the compass (D/A), then
+    lays the elevation on the sight; the bearing left shows on the overlay."""
+    import crosshair
+    from maplink import MapTarget
+
+    class Injector:
+        def __init__(self, code):
+            self.code = code
+
+        def press(self):
+            pass
+
+        def release(self):
+            pass
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(crosshair, "system_key_injector", Injector)
+    window.controls["auto_hold"].toggled.emit(True)
+    window.hold_timer.key_reader = lambda code: False
+    window.select_weapon(MORTAR)
+    window.config["arc"] = "high"
+    window.on_map_targets([MapTarget(900, 4.0, 123.4)])
+
+    turning = window.bearing_layer
+    assert turning is not None
+    assert turning.raise_key.code == crosshair.KEY_D and turning.lower_key.code == crosshair.KEY_A
+    assert window.bearing_target() == pytest.approx(123.4)
+
+    monkeypatch.setattr(window.screen_sight, "grab_compass", lambda: compass_at(120.0))
+    monkeypatch.setattr(window.screen_sight, "grab", lambda: sight_at(1100.0))
+
+    window.watch_sight()
+    assert "+3.4" in window.overlay.info_text
+
+    window.auto_hold()
+    assert turning.active and not window.sight_layer.active
+
+    # The key again stops the whole lay, the elevation is not laid
+    window.auto_hold()
+    assert not turning.active and not window.sight_layer.active
+    assert window.sight_timer.isActive()
+
+    # Turned (the lay ended by itself): the elevation is laid next
+    window.auto_hold()
+    assert turning.active
+    turning.finish(True)
+    assert window.sight_layer.active
+
+    window.auto_hold()
+    assert not window.sight_layer.active
+
+    # A typed target has no bearing: straight to the elevation
+    window.distance_entry.setText("1000")
+    window.forget_map_target()
+    assert window.bearing_target() is None
+    window.auto_hold()
+    assert not turning.active and window.sight_layer.active
+    window.auto_hold()
+
+    window.close()
+    assert window.bearing_layer is None
+
+
 def test_mortar_calibration_reads_the_sight(window, monkeypatch, tmp_path):
     import crosshair
 

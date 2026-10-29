@@ -29,6 +29,7 @@ def test_ioctl_numbers_match_linux_input_h():
 
 def test_key_codes_match_linux_input_event_codes_h():
     assert (KEY_S, KEY_W, KEY_F8) == (31, 17, 66)
+    assert (keystate.KEY_A, keystate.KEY_D) == (30, 32)
     assert (KEYS["F1"], KEYS["F10"], KEYS["F11"], KEYS["F12"]) == (59, 68, 87, 88)
     assert len(set(KEYS.values())) == len(KEYS)
     assert all(0 < code <= KEY_MAX for code in KEYS.values())
