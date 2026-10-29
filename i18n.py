@@ -24,6 +24,8 @@ STRINGS = {
     "arc_auto": ("Авто", "Auto"),
     "arc_low": ("Настильная", "Low"),
     "arc_high": ("Навесная", "High"),
+    "view_plain": ("Без приближения", "Unzoomed"),
+    "view_optic": ("Оптика (ПКМ)", "Optic (RMB)"),
     "distance": ("Дистанция, м", "Distance, m"),
     "height": ("Перепад высот, м", "Height diff, m"),
     "height_hint": ("цель выше +, ниже −", "target higher +, lower −"),
@@ -60,6 +62,12 @@ STRINGS = {
         "на {angle} над линией на цель.",
         "Put the overlay mark on the target — the barrel is then raised "
         "exactly {angle} above the line to the target."
+    ),
+    "how_overlay_optic": (
+        "FOV в игре должен быть {fov}°. Метка — для вида через оптику (ПКМ, приближение ×{zoom}); "
+        "без приближения переключите вид.",
+        "Your in-game FOV must be {fov}°. The mark is for the optic's view (RMB, zoom ×{zoom}); "
+        "unzoomed, switch the view."
     ),
     "how_overlay_2": (
         "FOV в игре должен быть {fov}°. Через оптику — укажите FOV прицела.",

@@ -53,6 +53,7 @@ DEFAULT_CONFIG = {
     "last_weapon": "",
     "recent_weapons": [],
     "arc": "auto",
+    "sight_view": "optic",
 
     "outline_color": "white",
     "info_enabled": True,
@@ -127,6 +128,7 @@ DEFAULT_CONFIG = {
 CHOICES = {
     "language": ("auto", "ru", "en"),
     "arc": ("auto", "low", "high"),
+    "sight_view": ("plain", "optic"),
     "unit_mode": ("auto", "deg", "mil"),
     "outline_color": ("white", "black"),
     "map_render": ("auto", "software"),

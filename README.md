@@ -93,14 +93,14 @@ Squad Ballistics предоставляет:
 # Usage / Использование
 
 1. Pick a weapon (searchable list, recent weapons on top), enter the distance and, optionally, the height difference: target higher `+`, lower `-`.
-2. Enter your horizontal FOV: the in-game setting, or the zoomed FOV when aiming through a scope.
+2. Enter your horizontal FOV: the in-game setting, or the zoomed FOV when aiming through a scope. Tripod weapons whose optic zooms the whole screen (QLZ87, Kord SPP) show a *view* switch instead: keep the game's FOV and pick *Optic (RMB)* or *Unzoomed*; the mark follows that view's zoom and zero.
 3. The result updates while you type. The **How to fire** block tells you exactly what to do for the selected weapon.
 4. Direct fire (launchers, grenade launchers, guns): put the overlay mark on the target and fire. Without a distance typed, the *range ladder* under the mark shows where a target at 100, 200, 300 m… goes (flat ground, the weapon's own ballistics); turn it off on the crosshair page.
 5. Indirect fire (mortars, Hell Cannon, rockets): set the shown elevation (mils or degrees) on the weapon. These weapons are laid on their own sight, so the overlay shows only the info line, no aim mark.
 6. Or skip typing: place your weapon and a target on the SquadCalc map (tab **SquadCalc**) — distance, height difference and bearing go to the calculator by themselves.
 
 1. Выберите оружие (поиск по списку, недавние сверху), введите дистанцию и при необходимости перепад высот: цель выше `+`, ниже `-`.
-2. Укажите горизонтальный FOV: значение из настроек игры или FOV прицела при стрельбе через оптику.
+2. Укажите горизонтальный FOV: значение из настроек игры или FOV прицела при стрельбе через оптику. У станкового оружия, чья оптика приближает весь экран (QLZ87, «Корд» СПП), вместо этого есть переключатель вида: оставьте FOV игры и выберите «Оптика (ПКМ)» или «Без приближения» — метка учтёт приближение и пристрелку этого вида.
 3. Результат пересчитывается при вводе. Блок **«Как стрелять»** говорит, что делать для выбранного оружия.
 4. Прямая наводка (гранатомёты, пушки): совместите метку оверлея с целью и стреляйте.
 5. Навесной огонь (миномёты, Hell Cannon, ракеты): выставьте показанный угол (милы или градусы) на орудии. Они наводятся своим прицелом, поэтому оверлей показывает только строку с данными, без метки.
@@ -174,7 +174,7 @@ The map tab embeds SquadCalc: by default the Deadline build (`calc.tk104.duckdns
 * No air drag, gravity `9.78 m/s² × gravity scale` of the weapon. Rocket boost/slow-down is folded into the equivalent velocity over the distance.
 * Elevation: `θ = atan((v² ∓ √(v⁴ − g(g·d² + 2·h·v²))) / (g·d))`, low or high arc; `h` is measured from the muzzle (`launch_height` above the ground).
 * Hold weapons (AGS-17): `hold = (top − θ) / rate` seconds of S after W, within `hold_elevation`.
-* Screen offset: rectilinear projection, `offset = (screen_width / 2) / tan(FOV / 2) × tan(θ)`, so it works on any resolution.
+* Screen offset: rectilinear projection, `offset = (screen_width / 2) / tan(FOV / 2) × tan(θ − bore)`, so it works on any resolution. The game fires along the barrel socket `Attach_Muzzle`, which can be tilted against the camera: `bore` is how far above the screen centre the shot leaves, so each view is zeroed at some range (QLZ87 tripod: −0.9° unzoomed, +0.774° = 100 m in its optic; Kord SPP +0.45° ≈ 400 m; M2 ACOG +0.22° ≈ 200 m). An optic that zooms the screen narrows the FOV by its `zoom` (the game sets FOV / 3 on the QLZ87, FOV / 4.5 on the Kord SPP). / Игра стреляет вдоль гнезда ствола `Attach_Muzzle`, повёрнутого относительно камеры: `bore` — насколько выше центра экрана уходит выстрел, так что каждый вид пристрелян на свою дальность; оптика, приближающая экран, делит FOV на `zoom`.
 * Data: velocity, gravity scale and rocket boost are read from the game files (Squad build 26005357): the weapon's `WeaponConfig.MuzzleVelocity`, the projectile's `ProjectileGravityScale` and its `ConstantAcceleration` for `ConstantAccelerationTimeout`, stopped at `MaxSpeed` (raised to the muzzle velocity when that is higher). Elevation limits, arcs and the AGS-17 hold model come from in-game measurements, the [official Squad wiki](https://squad.fandom.com/wiki/Weapons) and [SquadCalc](https://github.com/sh4rkman/SquadCalc). After a game patch, check `weapons.json` against the game files again and edit it; a renamed weapon goes to `RENAMED_WEAPONS` in `ballistics.py` so saved settings and older SquadCalc pages follow.
 
 ## Weapons database / База оружия
