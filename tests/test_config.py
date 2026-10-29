@@ -178,19 +178,22 @@ def test_device_link_settings_from_older_versions(tmp_path):
     assert cfg["relay_enabled"] is True
 
 
-def test_learnt_hold_lead_survives_a_restart(tmp_path):
-    from holdtimer import MAX_LEAD
-
+def test_settings_of_the_removed_hold_timer_are_ignored(tmp_path):
+    """Files saved by 1.6.0 builds with the AGS-17 beep still load."""
     path = tmp_path / "config.json"
+    path.write_text(json.dumps({
+        "hold_timer": False,
+        "hold_panel": False,
+        "hold_panel_corner": "bottom_left",
+        "hold_lead": 0.31,
+        "fov": 60
+    }))
+
     cfg = config.load_config(str(path))
-    assert cfg["hold_lead"] is None
 
-    cfg["hold_lead"] = 0.31
+    assert cfg["fov"] == 60
+    for key in ("hold_timer", "hold_panel", "hold_panel_corner", "hold_lead"):
+        assert key not in cfg
+
     config.save_config(cfg, str(path))
-    assert config.load_config(str(path))["hold_lead"] == 0.31
-
-    assert config.RANGES["hold_lead"] == (0.0, MAX_LEAD)
-
-    for stored, loaded in ((9.0, MAX_LEAD), (-1, 0.0), (True, None), ("0.3", None), (float("nan"), None)):
-        path.write_text(json.dumps({"hold_lead": stored}))
-        assert config.load_config(str(path))["hold_lead"] == loaded
+    assert "hold_lead" not in json.loads(path.read_text())

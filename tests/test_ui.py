@@ -456,11 +456,9 @@ def test_ags17_lob_is_laid_by_holding_s(window):
         "how_hold_direct", angle=f"{direct.sight_angle:.2f}°"
     )
 
-    # Holding S reaches the target and the readout says so.
+    # Holding S is counted towards the target.
     window.hold_timer.advance(solution.hold_time + 0.01, True, False)
-    assert window.hold_timer.is_reached
-    assert "✓" in window.hold_label.text()
-    assert "✓" in window.overlay.info_text
+    assert window.hold_timer.held == pytest.approx(solution.hold_time + 0.01)
 
     # The low arc of the same weapon is direct fire with the overlay mark.
     window.config["arc"] = "low"
@@ -502,7 +500,7 @@ def test_ags17_too_close_to_lob_fires_directly(window):
     assert window.overlay.offset == 0.0
 
 
-def test_hold_timer_setting_and_missing_keys(window):
+def test_hold_weapon_gets_its_target_without_key_reader(window):
     window.select_weapon(AGS17)
     window.config["arc"] = "high"
     window.distance_entry.setText("800")
@@ -513,11 +511,40 @@ def test_hold_timer_setting_and_missing_keys(window):
         window.last_solution.hold_time
     )
     assert not window.hold_timer.poll_timer.isActive()
-    assert window.hold_label.isHidden()
 
-    window.config["hold_timer"] = False
+
+def test_hold_weapon_gets_key_watch_and_target_without_any_setting(window):
+    window.hold_timer.key_reader = lambda code: False
+
+    window.select_weapon(AGS17)
+    window.config["arc"] = "high"
+    window.distance_entry.setText("800")
     window.calculate()
-    assert window.hold_timer.target is None
+
+    assert "hold_timer" not in window.config
+    assert "hold_timer" not in window.controls
+
+    assert window.hold_timer.active
+    assert window.hold_timer.target == pytest.approx(window.last_solution.hold_time)
+
+
+def test_ags17_card_shows_the_hold_seconds(window):
+    window.select_weapon(AGS17)
+    window.config["arc"] = "high"
+    window.distance_entry.setText("1000")
+    window.calculate()
+
+    hold = window.last_solution.hold_time
+    seconds = f"{hold:.2f}"
+
+    assert window.status_text() == f"S {seconds} {tr('unit_s')}"
+    assert tr("how_hold_2", t=seconds) in window.current_steps
+    assert window.overlay.info_text.startswith(window.info_base)
+    assert seconds in window.overlay.info_text
+
+    window.set_language("en")
+
+    assert window.status_text() == f"S {seconds} {tr('unit_s')}"
 
 
 def test_map_target_fills_the_inputs(window):
@@ -813,7 +840,7 @@ def test_hold_timer_cleared_on_unreachable_error_and_reset(window):
     assert window.hold_timer.target is None
 
 
-def test_hold_watch_follows_weapon_and_setting(window):
+def test_hold_watch_follows_the_weapon(window):
     window.hold_timer.key_reader = lambda code: False
 
     window.select_weapon(AGS17)
@@ -821,24 +848,6 @@ def test_hold_watch_follows_weapon_and_setting(window):
 
     window.select_weapon("RPG-29")
     assert not window.hold_timer.active
-
-    window.select_weapon(AGS17)
-    window.controls["hold_timer"].setChecked(False)
-    window.controls["hold_timer"].toggled.emit(False)
-    assert not window.hold_timer.active
-
-
-def test_hold_readout_survives_rebuild(window):
-    window.hold_timer.key_reader = lambda code: False
-    window.select_weapon(AGS17)
-    window.config["arc"] = "high"
-    window.distance_entry.setText("1000")
-    window.calculate()
-
-    window.set_language("en")
-
-    assert not window.hold_label.isHidden()
-    assert window.hold_label.text().startswith("S held 0.00 of")
 
 
 def test_typed_value_survives_redelivery_of_the_same_target(window):
@@ -1084,54 +1093,6 @@ def test_hotkeys_are_polled_when_keys_can_be_read(app, tmp_path, monkeypatch):
     assert win._hotkey_poller is None
 
 
-def test_timer_panel_on_the_overlay(window):
-    window.hold_timer.key_reader = lambda code: False
-    window.select_weapon(AGS17)
-    window.config["arc"] = "high"
-
-    panel = window.overlay.hold_panel
-    assert panel is not None
-    assert panel.target is None
-    assert panel.target_text == tr("panel_no_target")
-    assert panel.barrel_text.startswith("~280 ") or panel.barrel_text.startswith("~279 ")
-
-    window.distance_entry.setText("1000")
-    window.calculate()
-    panel = window.overlay.hold_panel
-    assert panel.target == pytest.approx(window.last_solution.hold_time)
-    assert "1000" in panel.target_text
-
-    window.hold_timer.advance(0.8, True, False)
-    panel = window.overlay.hold_panel
-    assert panel.held == pytest.approx(0.8)
-    assert panel.s_down
-    assert not panel.reached
-    assert panel.barrel_text != "~280 м"
-
-    window.hold_timer.advance(0.5, True, False)
-    assert window.overlay.hold_panel.reached
-
-    # Panel off, other weapon: hidden.
-    window.controls["hold_panel"].toggled.emit(False)
-    assert window.overlay.hold_panel is None
-    window.controls["hold_panel"].toggled.emit(True)
-    assert window.overlay.hold_panel is not None
-    window.select_weapon("RPG-29")
-    assert window.overlay.hold_panel is None
-
-
-@pytest.mark.parametrize("corner", ["top_left", "top_right", "bottom_left", "bottom_right"])
-def test_timer_panel_corner(window, corner):
-    window.set_hold_panel_corner(corner)
-
-    rect = window.overlay.hold_panel_rect()
-    overlay = window.overlay
-
-    assert (rect.left() < overlay.width() / 2) == corner.endswith("left")
-    assert (rect.top() < overlay.height() / 2) == corner.startswith("top")
-    assert window.config["hold_panel_corner"] == corner
-
-
 def test_auto_hold_setting(window, monkeypatch):
     import crosshair
 
@@ -1174,7 +1135,6 @@ def test_auto_hold_setting(window, monkeypatch):
 
     window.auto_hold()
     assert window.hold_timer.auto_holding
-    assert window.overlay.hold_panel is not None
 
     window.close()
     assert pressed == ["press", "release"]
@@ -1679,47 +1639,6 @@ def test_overlay_info_line_wraps_inside_a_narrow_screen(window):
     assert bottom - top > 25
 
 
-def test_hold_progress_repaints_only_the_info_line(window):
-    from PyQt6.QtCore import QEvent, QObject, QPoint
-
-    class Regions(QObject):
-        def __init__(self):
-            super().__init__()
-            self.regions = []
-
-        def eventFilter(self, watched, event):
-            if event.type() == QEvent.Type.Paint:
-                self.regions.append(event.region())
-            return False
-
-    window.hold_timer.key_reader = lambda code: False
-    window.select_weapon(AGS17)
-    window.distance_entry.setText("900")
-    window.calculate()
-    assert window.hold_timer.active
-
-    overlay = window.overlay
-    overlay.setGeometry(0, 0, 1920, 1080)
-    QApplication.processEvents()
-
-    regions = Regions()
-    overlay.installEventFilter(regions)
-
-    for _ in range(5):
-        window.hold_timer.advance(0.01, True, False)
-        QApplication.processEvents()
-
-    overlay.removeEventFilter(regions)
-
-    assert regions.regions
-    assert tr("hold_progress", held="0.05", t=f"{window.hold_timer.target:.2f}") in overlay.info_text
-
-    # Far from the label and the timer panel: never repainted
-    for region in regions.regions:
-        assert not region.contains(QPoint(5, 1075))
-        assert not region.contains(QPoint(5, 5))
-
-
 def test_unchanged_info_is_not_repainted(window):
     from PyQt6.QtCore import QEvent, QObject
 
@@ -1742,43 +1661,6 @@ def test_unchanged_info_is_not_repainted(window):
     overlay.removeEventFilter(count)
 
     assert count.paints == 0
-
-
-def test_hold_progress_does_not_lay_out_the_window(window):
-    from PyQt6.QtCore import QEvent, QObject
-
-    class Requests(QObject):
-        count = 0
-
-        def eventFilter(self, watched, event):
-            if event.type() == QEvent.Type.LayoutRequest:
-                self.count += 1
-            return False
-
-    window.hold_timer.key_reader = lambda code: False
-    show_at(window, 1180, 780)
-    window.select_weapon(AGS17)
-    window.distance_entry.setText("900")
-    window.calculate()
-    window.hold_timer.advance(0.01, True, False)
-
-    # Let the layout settle after the solution (a request per level)
-    for _ in range(10):
-        QApplication.processEvents()
-
-    assert window.hold_label.isVisible()
-
-    requests = Requests()
-    QApplication.instance().installEventFilter(requests)
-
-    for _ in range(5):
-        window.hold_timer.advance(0.01, True, False)
-        QApplication.processEvents()
-
-    QApplication.instance().removeEventFilter(requests)
-
-    assert window.hold_label.text() == tr("hold_progress", held="0.06", t=f"{window.hold_timer.target:.2f}")
-    assert requests.count == 0
 
 
 def test_close_stops_the_sight_watch(window):

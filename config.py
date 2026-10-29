@@ -1,6 +1,5 @@
 import copy
 import json
-import math
 import os
 import re
 
@@ -95,18 +94,10 @@ DEFAULT_CONFIG = {
     "relay_code": "",
     "relay_enabled": True,
 
-    # Beep when S has been held for the AGS-17 hold time; hold_panel shows
-    # the timer on the overlay in a corner of the screen. auto_hold lets the
-    # app hold S itself (hotkey "auto_hold"); synthetic input may be treated
-    # as a macro by the anti-cheat or server rules, so it is off by default.
-    "hold_timer": True,
-    "hold_panel": True,
-    "hold_panel_corner": "top_right",
+    # auto_hold lets the app hold S itself (hotkey "auto_hold"); synthetic
+    # input may be treated as a macro by the anti-cheat or server rules, so
+    # it is off by default.
     "auto_hold": False,
-
-    # How early the hold beep comes (s): learnt from the player's releases
-    # after it (holdtimer.HoldTimer.lead); None until the first one.
-    "hold_lead": None,
 
     # Mortars: read the elevation off the sight on the screen (shown on the
     # overlay; the auto-lay then lays on it, see sightlay).
@@ -134,13 +125,10 @@ CHOICES = {
     "outline_color": ("white", "black"),
     "map_render": ("auto", "software"),
     "map_source": ("deadline", "squadcalc"),
-    "hold_panel_corner": ("top_left", "top_right", "bottom_left", "bottom_right"),
 }
 
 RANGES = {
     "fov": (1, 179),
-    # holdtimer.MAX_LEAD
-    "hold_lead": (0.0, 0.6),
     "fps": (10, 240),
     "opacity": (20, 255),
     "dot_size": (1, 20),
@@ -231,17 +219,6 @@ def _merge(loaded):
         if key == "last_weapon":
             if isinstance(value, str):
                 config[key] = current_weapon_name(value)
-            continue
-
-        if key == "hold_lead":
-            # The AGS-17 beep's lead (s), learnt from the player's releases
-            if (
-                isinstance(value, (int, float))
-                and not isinstance(value, bool)
-                and math.isfinite(value)
-            ):
-                low, high = RANGES[key]
-                config[key] = max(low, min(high, float(value)))
             continue
 
         if isinstance(default, bool):

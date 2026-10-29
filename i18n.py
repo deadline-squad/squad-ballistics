@@ -144,7 +144,6 @@ STRINGS = {
         "Автонаводка (S {t} с) включается в настройках: «Автозажатие S».",
         "Auto-lay (S {t} s) can be turned on in the settings: \"Auto-hold S\"."
     ),
-    "hold_progress": ("S зажата {held} из {t} с", "S held {held} of {t} s"),
     "how_hold_1": (
         "Нажмите W — ствол встанет в верхнее положение.",
         "Press W — the barrel goes back to the top."
@@ -152,10 +151,6 @@ STRINGS = {
     "how_hold_2": (
         "Зажмите S на {t} с и отпустите.",
         "Hold S for {t} s, then release."
-    ),
-    "how_hold_2_beep": (
-        "Зажмите S и отпустите по сигналу — через {t} с. W сбрасывает отсчёт.",
-        "Hold S and release on the beep — after {t} s. W restarts the count."
     ),
     "direct_short": ("прямой наводкой {angle}", "direct fire {angle}"),
     "blocked_short": ("⛔ {d} м", "⛔ {d} m"),
@@ -188,12 +183,6 @@ STRINGS = {
         "пределами экрана).",
         "Or direct fire: barrel {angle} above the target (the mark is "
         "off-screen)."
-    ),
-    "how_hold_no_keys": (
-        "Программа не видит клавиши: отсчитайте время сами. Добавьте себя в группу input (sudo usermod -aG input $USER, затем "
-        "перезайдите) или запустите игру через XWayland/X11.",
-        "The app cannot read the keys: count the time yourself. Add yourself to the input group (sudo usermod -aG input $USER, then "
-        "log in again) or run the game through XWayland/X11."
     ),
     "how_tof_moving": (
         "Снаряд летит {tof} с: по цели, идущей 10 м/с, упреждение ≈ {lead} м.",
@@ -436,24 +425,6 @@ STRINGS = {
     "s_map_external": ("Открывать карту в обычном браузере", "Open the map in the regular browser"),
     "s_map_clear": ("Очистить кэш карты", "Clear map cache"),
     "s_map_cleared": ("Кэш очищен", "Cache cleared"),
-    "s_hold_timer": (
-        "Сигнал при зажатии S (АГС-17)",
-        "Beep while holding S (AGS-17)"
-    ),
-    "s_hold_timer_hint": (
-        "Считает, сколько зажата S после W, и пищит, когда пора отпускать. "
-        "Нужна группа input (sudo usermod -aG input $USER) или игра "
-        "в X11/XWayland (Proton).",
-        "Counts how long S is held since W and beeps when to release. "
-        "Needs the input group (sudo usermod -aG input $USER) or the "
-        "game on X11/XWayland (Proton)."
-    ),
-    "s_hold_panel": ("Таймер на оверлее", "Timer on the overlay"),
-    "s_hold_panel_corner": ("Угол экрана", "Screen corner"),
-    "corner_top_left": ("↖", "↖"),
-    "corner_top_right": ("↗", "↗"),
-    "corner_bottom_left": ("↙", "↙"),
-    "corner_bottom_right": ("↘", "↘"),
     "s_auto_hold": (
         "Автозажатие S (клавиша {key})",
         "Auto-hold S (key {key})"
@@ -501,9 +472,6 @@ STRINGS = {
         "Не получилось: программа не может нажимать клавиши в этой системе.",
         "Not possible: the app cannot send key presses on this system."
     ),
-    "panel_target": ("ЦЕЛЬ {t}", "TARGET {t}"),
-    "panel_no_target": ("ЦЕЛЬ —", "TARGET —"),
-    "panel_auto": ("АВТО", "AUTO"),
     "restart_title": ("Перезапуск", "Restart"),
     "restart_text": (
         "Перезапустить программу сейчас, чтобы применить изменения?",

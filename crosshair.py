@@ -51,6 +51,8 @@ from ballistics import (
     trajectory
 )
 
+from beep import beep
+
 from config import (
     APP_VERSION,
     DEFAULT_CONFIG,
@@ -61,11 +63,7 @@ from config import (
     save_config
 )
 
-from holdtimer import (
-    DEFAULT_LEAD,
-    HoldTimer,
-    beep
-)
+from holdtimer import HoldTimer
 
 from hotkeys import (
     ACTIONS,
@@ -94,7 +92,7 @@ from maplink import (
     normalize_code
 )
 
-from overlay import HoldPanel, Overlay
+from overlay import Overlay
 
 from compassreader import DigitReader
 from sightlay import BEARING, CompassReader, ScreenSight, SightLayer, read_sight
@@ -107,7 +105,6 @@ from webmap import MapPage, map_url, open_external
 
 from widgets import (
     CrosshairPreview,
-    LiveLabel,
     NumberEdit,
     Segmented,
     SliderRow,
@@ -254,10 +251,9 @@ class MainWindow(QMainWindow):
         # re-delivery of the same target does not overwrite typed values.
         self.last_map_target = None
 
-        # Text of the overlay label for the current solution; hold weapons
-        # append the live hold progress to it, mortars the sight reading.
+        # Text of the overlay label for the current solution; mortars append
+        # the bearing and the sight reading to it.
         self.info_base = ""
-        self.hold_info = ""
         self.sight_info = ""
 
         # Mortar sight on the screen: digit pictures (made on first use),
@@ -281,10 +277,6 @@ class MainWindow(QMainWindow):
         self.key_reader = system_key_reader()
 
         self.hold_timer = HoldTimer(self.key_reader, self)
-        self.hold_timer.changed.connect(self.update_hold_readout)
-        self.hold_timer.reached.connect(self.on_hold_reached)
-        self.hold_timer.lead_learned.connect(self.on_hold_lead_learned)
-        self.apply_hold_lead()
 
         self.relay = RelayLink(parent=self)
         self.relay.targets_received.connect(self.on_map_targets)
@@ -716,15 +708,8 @@ class MainWindow(QMainWindow):
 
         self.sub_label.setWordWrap(True)
 
-        # Live hold progress of hold weapons (AGS-17 high arc), redrawn at
-        # every poll of the hold timer.
-        self.hold_label = LiveLabel("sub")
-
-        self.hold_label.hide()
-
         layout.addWidget(self.big_label)
         layout.addWidget(self.sub_label)
-        layout.addWidget(self.hold_label)
         layout.addWidget(self.build_lay_calibration())
 
         grid = QGridLayout()
@@ -1251,11 +1236,7 @@ class MainWindow(QMainWindow):
 
             self.sub_label.setText(sub)
 
-        self.hold_timer.set_target(
-            hold if holding and self.config["hold_timer"] else None
-        )
-
-        self.update_hold_readout()
+        self.hold_timer.set_target(hold if holding else None)
 
         self.stats["stat_tof"].set(f"{solution.time_of_flight:.1f} {s}")
         self.stats["stat_apex"].set(f"{solution.apex:.0f} {m}")
@@ -1313,17 +1294,9 @@ class MainWindow(QMainWindow):
         if holding and not laid_by_angle:
             steps = [
                 tr("how_hold_1"),
-                tr(
-                    "how_hold_2_beep"
-                    if self.hold_timer.target is not None
-                    else "how_hold_2",
-                    t=f"{hold:.2f}"
-                ),
+                tr("how_hold_2", t=f"{hold:.2f}"),
                 tr("how_tof_adjust", tof=tof)
             ]
-
-            if not self.hold_timer.available and self.config["hold_timer"]:
-                steps.append(tr("how_hold_no_keys"))
 
             if direct is not None:
                 steps.append(
@@ -1449,92 +1422,20 @@ class MainWindow(QMainWindow):
         self.show_overlay_info()
 
     def show_overlay_info(self):
-        """The overlay label: the solution, the hold progress, the sight."""
-        parts = (self.info_base, self.hold_info, self.bearing_info, self.sight_info)
+        """The overlay label: the solution, the bearing, the sight."""
+        parts = (self.info_base, self.bearing_info, self.sight_info)
 
         self.overlay.set_info("  ·  ".join(part for part in parts if part))
 
-    def update_hold_readout(self):
-        """Show how long S has been held against the target hold time."""
-        timer = self.hold_timer
-
-        self.update_hold_panel()
-
-        if timer.target is None or not timer.available:
-            self.hold_label.hide()
-            self.hold_info = ""
-            self.show_overlay_info()
-            return
-
-        progress = tr(
-            "hold_progress",
-            held=f"{min(timer.held, 99.99):.2f}",
-            t=f"{timer.target:.2f}"
-        )
-
-        if timer.is_reached:
-            progress += "  ✓"
-
-        self.hold_label.setText(progress)
-
-        self.hold_label.show()
-
-        self.hold_info = progress
-        self.show_overlay_info()
-
-    def update_hold_panel(self):
-        """The timer panel on the overlay, while S/W are being watched."""
-        timer = self.hold_timer
-        weapon = self.current_weapon()
-
-        if not (
-            timer.active
-            and self.config["hold_panel"]
-            and weapon is not None
-            and weapon.has_hold
-        ):
-            self.overlay.set_hold_panel(None)
-            return
-
-        m = tr("unit_m")
-        s = tr("unit_s")
-
-        solution = self.last_solution
-
-        if timer.target is None or solution is None:
-            target_text = tr("panel_no_target")
-        else:
-            target_text = tr(
-                "panel_target",
-                t=f"{solution.distance:.0f} {m} · S {timer.target:.2f} {s}"
-            )
-
-        self.overlay.set_hold_panel(HoldPanel(
-            target_text=target_text,
-            barrel_text=f"~{weapon.hold_distance(timer.held):.0f} {m}",
-            held=timer.held,
-            target=timer.target,
-            reached=timer.is_reached,
-            s_down=timer.s_down,
-            w_down=timer.w_down,
-            auto_text=tr("panel_auto") if timer.auto_holding else ""
-        ))
-
     def update_hold_watch(self):
-        """Watch S/W only while a hold weapon is selected and enabled."""
+        """Watch S/W only while a hold weapon is selected."""
         weapon = self.current_weapon()
 
         self.lay_row.setVisible(
             weapon is not None and weapon.has_hold and weapon.aim == "elevation"
         )
 
-        self.hold_timer.set_active(
-            weapon is not None
-            and weapon.has_hold
-            and self.config["hold_timer"]
-        )
-
-        self.update_hold_panel()
+        self.hold_timer.set_active(weapon is not None and weapon.has_hold)
 
         self.update_sight_watch()
 
@@ -2008,21 +1909,6 @@ class MainWindow(QMainWindow):
 
         self.update_hotkey_hint()
 
-    def apply_hold_lead(self):
-        """The beep lead learnt in earlier sessions, else the default."""
-        lead = self.config["hold_lead"]
-
-        self.hold_timer.lead = DEFAULT_LEAD if lead is None else lead
-
-    def on_hold_lead_learned(self, lead):
-        self.config["hold_lead"] = lead
-        self.schedule_save()
-
-    def on_hold_reached(self):
-        beep()
-
-        self.update_hold_readout()
-
     def current_offset(self):
         """Pixels the overlay mark sits below the centre, None without a mark.
 
@@ -2492,23 +2378,6 @@ class MainWindow(QMainWindow):
             lambda _checked: self.refresh_weapon_list()
         )
 
-        def on_hold_timer_toggled(_checked):
-            self.update_hold_watch()
-            self.recalculate_if_ready()
-
-        self.add_toggle(
-            layout,
-            tr("s_hold_timer"),
-            "hold_timer",
-            on_hold_timer_toggled
-        )
-
-        hold_hint = label(tr("s_hold_timer_hint"), "small")
-
-        hold_hint.setWordWrap(True)
-
-        layout.addWidget(hold_hint)
-
         self.add_toggle(
             layout,
             tr(
@@ -2581,36 +2450,7 @@ class MainWindow(QMainWindow):
             on_change=self.recalculate_if_ready, suffix="%"
         )
 
-        self.add_toggle(
-            layout,
-            tr("s_hold_panel"),
-            "hold_panel",
-            lambda _checked: self.update_hold_panel()
-        )
-
-        corner = Segmented(
-            [
-                (key, tr(f"corner_{key}"))
-                for key in ("top_left", "top_right", "bottom_left", "bottom_right")
-            ],
-            self.config["hold_panel_corner"]
-        )
-
-        corner.changed.connect(self.set_hold_panel_corner)
-
-        self.setting_row(layout, tr("s_hold_panel_corner"), corner)
-
         return frame
-
-    def set_hold_panel_corner(self, corner):
-        # Repaint the old and the new place of the panel.
-        self.overlay.set_hold_panel(None)
-
-        self.config["hold_panel_corner"] = corner
-
-        self.schedule_save()
-
-        self.update_hold_panel()
 
     def build_hotkeys_card(self):
         frame, layout = card()
@@ -2800,8 +2640,6 @@ class MainWindow(QMainWindow):
         self.apply_auto_hold()
 
         self.apply_lay_rates()
-
-        self.apply_hold_lead()
 
         # rebuild() keeps the typed inputs; the FOV is a setting.
         self.fov_entry.set_value(self.config["fov"])
