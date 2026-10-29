@@ -1,8 +1,9 @@
 import copy
 import json
+import math
 import os
 
-from ballistics import current_weapon_name
+from ballistics import clamp_trim, current_weapon_name
 
 APP_NAME = "SquadBallistics"
 APP_VERSION = "1.6.0"
@@ -98,6 +99,11 @@ DEFAULT_CONFIG = {
     # the mils the sight showed after a lay; replaces weapons.json's.
     "lay_rates": {},
 
+    # Field correction of the overlay mark, in degrees added to the barrel
+    # elevation, per weapon and view: "<weapon name>|plain" or "|optic".
+    # Set from one real shot (see ballistics.trim_for_landing).
+    "mark_trim": {},
+
     "hotkeys": {
         "toggle_overlay": "F8",
         "reset_offset": "F9",
@@ -158,6 +164,47 @@ def data_dir():
 CONFIG_PATH = os.path.join(config_dir(), "config.json")
 
 
+TRIM_VIEWS = ("plain", "optic")
+
+
+def trim_key(weapon_name, view):
+    """The `mark_trim` key of a weapon's view ("plain" or "optic")."""
+    return f"{weapon_name}|{view}"
+
+
+def _valid_mark_trims(loaded):
+    """The usable entries of a saved `mark_trim`: a known view, a finite
+    number (clamped), not zero. Anything else is dropped."""
+    trims = {}
+
+    for key, trim in loaded.items():
+        if not isinstance(key, str) or "|" not in key:
+            continue
+
+        name, _, view = key.rpartition("|")
+
+        if view not in TRIM_VIEWS or not name:
+            continue
+
+        if not isinstance(trim, (int, float)) or isinstance(trim, bool):
+            continue
+
+        try:
+            trim = float(trim)
+        except OverflowError:
+            continue
+
+        if not math.isfinite(trim):
+            continue
+
+        trim = clamp_trim(trim)
+
+        if trim:
+            trims[trim_key(current_weapon_name(name), view)] = trim
+
+    return trims
+
+
 def _merge(loaded):
     """Fill missing keys with defaults and drop values of the wrong type."""
     config = copy.deepcopy(DEFAULT_CONFIG)
@@ -202,6 +249,11 @@ def _merge(loaded):
                     and not isinstance(rate, bool)
                     and rate > 0
                 }
+            continue
+
+        if key == "mark_trim":
+            if isinstance(value, dict):
+                config[key] = _valid_mark_trims(value)
             continue
 
         if key == "last_weapon":
