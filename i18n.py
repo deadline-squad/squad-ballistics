@@ -24,8 +24,8 @@ STRINGS = {
     "arc_auto": ("Авто", "Auto"),
     "arc_low": ("Настильная", "Low"),
     "arc_high": ("Навесная", "High"),
-    "view_plain": ("Без приближения", "Unzoomed"),
-    "view_optic": ("Оптика (ПКМ)", "Optic (RMB)"),
+    "view_plain": ("Без ПКМ", "No RMB"),
+    "view_optic": ("Прицел (ПКМ)", "Sight (RMB)"),
     "distance": ("Дистанция, м", "Distance, m"),
     "height": ("Перепад высот, м", "Height diff, m"),
     "height_hint": ("цель выше +, ниже −", "target higher +, lower −"),
@@ -64,10 +64,10 @@ STRINGS = {
         "exactly {angle} above the line to the target."
     ),
     "how_overlay_optic": (
-        "FOV в игре должен быть {fov}°. Метка — для вида через оптику (ПКМ, приближение ×{zoom}); "
-        "без приближения переключите вид.",
-        "Your in-game FOV must be {fov}°. The mark is for the optic's view (RMB, zoom ×{zoom}); "
-        "unzoomed, switch the view."
+        "FOV в игре должен быть {fov}°. Метка — для вида через прицел (ПКМ, приближение ×{zoom}); "
+        "без ПКМ переключите вид.",
+        "Your in-game FOV must be {fov}°. The mark is for the sight's view (RMB, zoom ×{zoom}); "
+        "without RMB, switch the view."
     ),
     "how_overlay_levels": (
         "FOV в игре должен быть {fov}°. Метка — для вида прицела с приближением ×{zoom}; "
