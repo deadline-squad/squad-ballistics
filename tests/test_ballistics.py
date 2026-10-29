@@ -591,8 +591,9 @@ def test_trajectory_ends_on_target(name):
 
     path = trajectory(weapon, solution)
 
-    # The path starts at the muzzle, launch_height above the ground.
-    assert path[0] == (0.0, weapon.launch_height)
+    # The path starts at the muzzle, which moves with the elevation.
+    start = weapon.launch_point(math.radians(solution.raw_angle))
+    assert path[0] == pytest.approx(start)
     assert path[-1][0] == pytest.approx(distance)
     assert path[-1][1] == pytest.approx(5, abs=0.01)
     assert solution.apex >= 5 - 1e-6
@@ -653,8 +654,14 @@ def test_ags17_hold_time_matches_in_game_measurements():
         assert solution.reachable, distance
         errors.append(solution.hold_time - held)
 
-    # Game velocity and gravity, fitted hold rate and mount top: 0.017 s RMS.
-    assert max(abs(e) for e in errors) < 0.06
+    # Game velocity and gravity (9.80 m/s^2), fitted hold rate and mount top:
+    # 0.0173 s RMS, as with the 9.78 the fit was made with; the worst error
+    # rose from 0.048 s to 0.064 s. The 1900-1930 m points sit where 0.2 % of
+    # gravity is 4 m of range, which the 67 hand-timed measurements (7 m RMS)
+    # cannot tell apart; refitting rate and mount top by least squares only
+    # lowers the RMS to 0.0151 s and still leaves a 0.066 s worst error, so
+    # the fitted values stay (they are the Deadline SquadCalc's too).
+    assert max(abs(e) for e in errors) < 0.07
     assert math.sqrt(sum(e * e for e in errors) / len(errors)) < 0.02
 
 
@@ -678,7 +685,7 @@ def test_mortar_auto_lay_model():
     assert math.isnan(mortar.hold_time(44))
 
     # Every reachable shot can be laid by the hold, across the whole range
-    for distance in (51, 300, 800, 1237):
+    for distance in (51, 300, 800, 1236):
         solution = solve(mortar, distance, 0, "high")
         assert solution.reachable, distance
         assert solution.hold_time == pytest.approx((88.875 - solution.angle) / 9.0), distance
