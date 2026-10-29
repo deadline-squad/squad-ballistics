@@ -30,9 +30,7 @@ Main Features:
 
 * Real-time ballistic calculations
 * Dynamic crosshair overlay
-* True Crosshair Editor
-* RGB customization
-* Glow / Bloom effects
+* Simple mark setup: style, colour, size
 * Built-in SquadCalc browser
 * Hotkeys support
 * Modern tactical interface
@@ -75,9 +73,7 @@ Squad Ballistics предоставляет:
 
 * Баллистические расчёты в реальном времени
 * Overlay-прицел
-* True Crosshair Editor
-* RGB кастомизация
-* Glow / Bloom эффекты
+* Простая настройка метки: вид, цвет, размер
 * Встроенный браузер SquadCalc
 * Система автообновлений
 * Поддержка hotkeys
@@ -97,7 +93,7 @@ Squad Ballistics предоставляет:
 3. The result updates while you type. The **How to fire** block tells you exactly what to do for the selected weapon.
 4. Direct fire (launchers, grenade launchers, guns): put the overlay mark on the target and fire. Without a distance typed, the *range ladder* under the mark shows where a target at each round range (every 25–1000 m, finer near the weapon) goes (flat ground, the weapon's own ballistics); turn it off on the crosshair page.
    *Vehicle guns:* a gunner's sight zooms in steps (×3 / ×6 / ×12 on an M1A2, ×4 / ×12 on a T-72, ...). Keep the game's FOV in the FOV field and pick the zoom you are looking through with the view switch (up to three buttons, one per level); the mark and the ladder follow that level's zoom and the gun's zero. Entries are split per vehicle where the zoom levels or the gun's tilt differ (*Tank AP · T-62 (2A20)*, *MK19 · M1151 / RHIB open turret* ...). Open-turret guns with RMB sights (the MK19 on the M113, M1151, RHIB: sights 1.6-1.73° under the barrel, zero 300-325 m) use the *No RMB / Sight (RMB)* switch.
-   *If the mark is off:* the mark comes from the game files, and a weapon or sight can still sit a little differently in the game. Fire once at a known distance (say 300 m: type 300 in *Distance*), find where the shot landed (the map, a rangefinder or a marker) and type that in *Landed at, m*, then press **Apply**. The app works out the correction and shows it in *Trim, deg*; the mark and the range ladder move at once, and the overlay line reads "trim +0.35" while it is on. The trim is an angle, so one shot fixes every range. It is kept per weapon and per view (*No RMB*, *Sight (RMB)*, each zoom level), survives restarts, can be typed or stepped by hand (the mouse wheel moves it 0.05°) and **Reset trim** removes it. It is not the same as the *Offset calibration* and *Center offset* settings: those stretch and shift the mark on the screen to line it up with an opened sight, while the trim corrects where the shot actually goes.
+   *If the mark is off:* the mark comes from the game files, and a weapon or sight can still sit a little differently in the game. Fire once at a known distance (say 300 m: type 300 in *Distance*), find where the shot landed (the map, a rangefinder or a marker) and type that in *Landed at, m*, then press **Apply**. The app works out the correction and shows it in *Trim, deg*; the mark and the range ladder move at once, and the overlay line reads "trim +0.35" while it is on. The trim is an angle, so one shot fixes every range. It is kept per weapon and per view (*No RMB*, *Sight (RMB)*, each zoom level), survives restarts, can be typed or stepped by hand (the mouse wheel moves it 0.05°) and **Reset trim** removes it. It is not the same as *Align with the sight* on the crosshair page: that stretches and shift the mark on the screen to line it up with an opened sight, while the trim corrects where the shot actually goes.
 5. Indirect fire (mortars, Hell Cannon, rockets): set the shown elevation (mils or degrees) on the weapon. These weapons are laid on their own sight, so the overlay shows only the info line, no aim mark.
 6. Or skip typing: place your weapon and a target on the SquadCalc map (tab **SquadCalc**) — distance, height difference and bearing go to the calculator by themselves.
 
@@ -136,7 +132,13 @@ Tips / Советы:
 
 Hotkeys can be changed in **Settings**. They are global, so they work while the game is focused, when the keys can be read (see *Linux* below). / Клавиши меняются в **Настройках**. Они глобальные и работают поверх игры, когда программа видит клавиатуру (см. *Linux* ниже).
 
-If the mark is slightly off in your setup, adjust **Offset calibration** in Settings. / Если метка немного не совпадает, подстройте **Калибровку смещения** в настройках.
+### The mark / Метка
+
+The **Crosshair** page has everything about the mark: the live preview, *Align with the sight*, *Style* (dot, cross, T, circle, cross + dot), *Color* (8 swatches), *Size* (one slider, 50–200 %) and two switches, *Range ladder* and *Info text*. The outline is always on and the mark jumps straight to its place.
+
+*Align with the sight* is for when the mark does not sit on the game's sight (for example when you open the MK19's sight): *Move left/right* and *Move up/down* shift the mark and the range ladder (±300 px), *Scale* stretches them (50–150 %), the arrow keys step by 1 and *Reset* puts them back. The F9 hotkey does not touch the alignment: it clears the target. With several monitors, pick the one with the overlay in **Settings → Overlay**. Settings files of older versions load as before: their colour becomes the nearest swatch, the removed options are dropped. / На странице **Crosshair** есть всё про метку: предпросмотр, *Align with the sight*, *Style* (точка, крест, T, круг, крест с точкой), *Color* (8 цветов), *Size* (один ползунок, 50–200 %) и два переключателя, *Range ladder* и *Info text*. Обводка всегда включена, метка сразу встаёт на место.
+
+*Align with the sight* нужен, когда метка не совпадает с прицелом в игре (например, при открытом прицеле MK19): *Move left/right* и *Move up/down* сдвигают метку и шкалу дальности (±300 px), *Scale* растягивает их (50–150 %), стрелки двигают на 1, *Reset* возвращает всё назад. Клавиша F9 выравнивание не трогает: она сбрасывает цель. При нескольких мониторах монитор с оверлеем выбирается в **Settings → Overlay**. Файлы настроек старых версий загружаются как раньше: цвет становится ближайшим из восьми, убранные пункты отбрасываются.
 
 ### Linux
 
@@ -166,8 +168,8 @@ The map tab embeds SquadCalc: by default the Deadline build (`calc.tk104.duckdns
 * 50 weapons in 6 groups: grenade launchers, automatic grenade launchers, anti-tank launchers, recoilless and field guns, tank guns, indirect fire. / 50 видов оружия в 6 группах: гранатомёты, автоматические гранатомёты, противотанковые, безоткатные и полевые орудия, танковые пушки, миномёты и РСЗО.
 * Rocket boost and slow-down phases (RPG-7, Carl Gustav, NLAW, UB-32). / Учёт разгона и торможения ракет.
 * Trajectory view, flight time, apex, impact angle, lead for moving targets. / График траектории, время полёта, высота подъёма, угол падения, упреждение.
-* Crosshair page with live preview, presets, color swatches, outline and glow. / Прицел с живым предпросмотром, пресетами, палитрой, обводкой и свечением.
-* Monitor choice, overlay center offset, label next to the mark. The interface is in English. / Выбор монитора, смещение центра, подпись у метки. Интерфейс на английском.
+* Crosshair page with live preview, five styles, eight colours and one size slider. / Прицел с живым предпросмотром, пятью видами, восемью цветами и одним ползунком размера.
+* Aligning the mark with the in-game sight, monitor choice (with several monitors), label next to the mark. The interface is in English. / Выравнивание метки по прицелу игры, выбор монитора (если их несколько), подпись у метки. Интерфейс на английском.
 
 ## How it works / Как считается
 

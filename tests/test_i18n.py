@@ -9,8 +9,8 @@ from string import Formatter
 from conftest import ROOT
 from i18n import STRINGS, category_name, tr
 
-# Texts picked by a computed id: f"hk_{action}", f"preset_{key}", ...
-COMPUTED_PREFIXES = ("arc_", "cat_", "hk_", "preset_", "map_")
+# Texts picked by a computed id: f"hk_{action}", f"style_{key}", ...
+COMPUTED_PREFIXES = ("arc_", "cat_", "hk_", "style_", "map_")
 
 
 def placeholders(text):
