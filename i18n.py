@@ -361,25 +361,40 @@ STRINGS = {
         "Брать цель и оружие с карты в калькулятор",
         "Put the map target and weapon into the calculator"
     ),
-    "s_relay_code": ("Код сессии SquadCalc", "SquadCalc session code"),
-    "s_relay_hint": (
-        "Для SquadCalc на другом устройстве: в SquadCalc Deadline включите "
-        "«Связать оверлей-таймер» в настройках и введите сюда показанный код. "
-        "Пустое поле — без связи.",
-        "For SquadCalc on another device: in the Deadline SquadCalc enable "
-        "the overlay link in its settings and enter the code shown there. "
-        "Empty — no link."
+    "s_device": ("Подключить устройство", "Connect a device"),
+    "s_device_hint": (
+        "SquadCalc на телефоне или втором мониторе: отсканируйте QR-код или "
+        "откройте ссылку в его браузере — цели, поставленные там, придут "
+        "сюда. Устройство запоминает связь, повторять после перезапуска не "
+        "нужно. Код не показывайте посторонним: по нему видны и подменяются "
+        "цели.",
+        "SquadCalc on a phone or a second monitor: scan the QR code or open "
+        "the link in its browser, and the targets placed there come here. "
+        "The device remembers the link, so there is nothing to repeat after "
+        "a restart. Keep the code to yourself: it lets anyone read and "
+        "replace the targets."
     ),
-    "relay_off": ("Связь по коду выключена", "Code link is off"),
-    "relay_connecting": ("Подключение к SquadCalc…", "Connecting to SquadCalc…"),
+    "s_relay_enabled": ("Связь с устройствами", "Link with devices"),
+    "s_device_copy": ("Копировать ссылку", "Copy link"),
+    "s_device_copied": ("Скопировано", "Copied"),
+    "s_device_new": ("Новый код", "New code"),
+    "s_device_new_confirm": (
+        "Новый код отвяжет все подключённые устройства: их нужно будет "
+        "подключить заново по новой ссылке. Продолжить?",
+        "A new code unlinks every connected device: they will need the new "
+        "link. Continue?"
+    ),
+    "s_relay_code": ("Код сессии", "Session code"),
+    "relay_off": ("Связь с устройствами выключена", "Device link is off"),
+    "relay_connecting": ("Подключение к серверу связи…", "Connecting to the link server…"),
     "relay_waiting": (
-        "Подключено, ждём страницу SquadCalc с этим кодом",
-        "Connected, waiting for a SquadCalc page with this code"
+        "Ждём устройство: откройте ссылку или отсканируйте QR-код",
+        "Waiting for a device: open the link or scan the QR code"
     ),
-    "relay_connected": ("SquadCalc на связи", "SquadCalc connected"),
+    "relay_connected": ("Устройство на связи", "Device connected"),
     "relay_bad_code": (
-        "Код — 6–16 латинских букв и цифр, например ABCD-2345",
-        "The code is 6–16 letters and digits, e.g. ABCD-2345"
+        "Код — 6–16 латинских букв и цифр, например ABCD-EFGH-JKLM",
+        "The code is 6–16 letters and digits, e.g. ABCD-EFGH-JKLM"
     ),
     "map_target": ("С карты: {t}", "From the map: {t}"),
     "map_follow_hint": (

@@ -20,6 +20,14 @@ def app(qapp):
     return qapp
 
 
+@pytest.fixture(autouse=True)
+def offline_relay(monkeypatch):
+    """The window joins the relay on start: tests stay off the live one."""
+    from maplink import RelayLink
+
+    monkeypatch.setattr(RelayLink, "connect_relay", lambda self: None)
+
+
 @pytest.fixture
 def window(app, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
@@ -666,21 +674,104 @@ def test_relay_weapon_line_selects_the_weapon(window):
 
 
 def test_relay_code_setting(window, monkeypatch):
+    """A code typed in Settings (shown by a SquadCalc page) replaces the app's."""
     connected = []
     monkeypatch.setattr(window.relay, "connect_relay", lambda: connected.append(window.relay.code))
+    code = window.config["relay_code"]
 
-    window.set_relay_code("bad!")
-    assert window.relay_status_label.text() == tr("relay_bad_code")
-    assert window.config["relay_code"] == ""
+    for bad in ("bad!", ""):
+        window.set_relay_code(bad)
+        assert window.relay_status_label.text() == tr("relay_bad_code")
+        assert window.config["relay_code"] == code
+        assert window.relay.code == code
 
     window.set_relay_code("abcd-2345")
     assert window.config["relay_code"] == "ABCD2345"
     assert connected == ["ABCD2345"]
+    assert window.relay_entry.text() == "ABCD-2345"
+    assert window.device_link_entry.text() == "https://calc.tk104.duckdns.org/#link=ABCD2345"
+    # Saved at once: a device paired with it must survive a crash.
+    assert config.load_config()["relay_code"] == "ABCD2345"
 
-    window.set_relay_code("")
-    assert window.config["relay_code"] == ""
+
+def test_device_code_is_made_once_and_kept(window):
+    from crosshair import MainWindow
+    from maplink import CODE_ALPHABET, NEW_CODE_LENGTH, device_link
+
+    code = window.config["relay_code"]
+
+    assert len(code) == NEW_CODE_LENGTH and set(code) <= set(CODE_ALPHABET)
+    assert window.relay.code == code
+    assert window.device_link_entry.text() == device_link(code)
+    assert config.load_config()["relay_code"] == code
+
+    # The next start joins the same session: paired devices relink by themselves.
+    restarted = MainWindow(load_weapons(os.path.join(ROOT, "weapons.json")))
+    try:
+        assert restarted.config["relay_code"] == code
+        assert restarted.relay.code == code
+    finally:
+        restarted.close()
+
+
+def test_device_link_toggle(window):
+    code = window.config["relay_code"]
+    toggle = window.controls["relay_enabled"]
+
+    toggle.setChecked(False)
+    assert window.config["relay_enabled"] is False
     assert window.relay.code is None
     assert window.relay_status_label.text() == tr("relay_off")
+
+    toggle.setChecked(True)
+    assert window.relay.code == code
+    assert window.config["relay_code"] == code
+
+
+def test_new_device_code_needs_a_confirmation(window, monkeypatch):
+    from PyQt6.QtWidgets import QMessageBox
+
+    code = window.config["relay_code"]
+    answers = [QMessageBox.StandardButton.No, QMessageBox.StandardButton.Yes]
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: answers.pop(0))
+
+    window.renew_relay_code()
+    assert window.config["relay_code"] == code
+
+    window.renew_relay_code()
+    new_code = window.config["relay_code"]
+    assert new_code != code
+    assert window.relay.code == new_code
+    assert new_code in window.device_link_entry.text()
+    assert config.load_config()["relay_code"] == new_code
+
+
+def test_device_qr_code_scans_to_the_link(window):
+    """The QR code the card shows, read by an independent decoder."""
+    zxingcpp = pytest.importorskip("zxingcpp")
+    from PyQt6.QtGui import QImage
+
+    image = window.device_qr.pixmap().toImage().convertToFormat(QImage.Format.Format_Grayscale8)
+    width, height = image.width(), image.height()
+    rows = image.constBits().asstring(image.bytesPerLine() * height)
+    pixels = b"".join(
+        rows[y * image.bytesPerLine():y * image.bytesPerLine() + width] for y in range(height)
+    )
+
+    results = zxingcpp.read_barcodes(
+        zxingcpp.ImageView(pixels, width, height, zxingcpp.ImageFormat.Lum)
+    )
+
+    assert [result.text for result in results] == [window.device_link_entry.text()]
+
+
+def test_copy_device_link(window):
+    button = next(b for b in window.findChildren(QPushButton) if b.text() == tr("s_device_copy"))
+
+    button.click()
+
+    assert QApplication.clipboard().text() == window.device_link_entry.text()
+    assert button.text() == tr("s_device_copied")
 
 
 def test_switching_map_source_reloads(window):
@@ -804,14 +895,13 @@ def test_absurd_typed_distance_does_not_crash(window):
 
 def test_map_status_is_shown_on_start(window):
     assert window.map_label.text() == tr("map_follow_hint")
-    assert window.relay_status_label.text() == tr("relay_off")
+    assert window.relay_status_label.text() == tr(f"relay_{window.relay.status}")
 
 
-def test_reset_settings_reloads_map_and_drops_relay(window, monkeypatch):
+def test_reset_settings_reloads_map_and_keeps_device_code(window, monkeypatch):
     pytest.importorskip("PyQt6.QtWebEngineWidgets")
     from PyQt6.QtWidgets import QMessageBox
 
-    monkeypatch.setattr(window.relay, "connect_relay", lambda: None)
     monkeypatch.setattr(
         QMessageBox, "question",
         lambda *a, **k: QMessageBox.StandardButton.Yes
@@ -820,17 +910,20 @@ def test_reset_settings_reloads_map_and_drops_relay(window, monkeypatch):
     window.set_page(3)
     window.set_map_source("squadcalc")
     window.set_relay_code("ABCD-2345")
-    assert window.relay.code == "ABCD2345"
+    window.controls["relay_enabled"].setChecked(False)
+    assert window.relay.code is None
 
     window.reset_settings()
 
     assert window.config["map_source"] == "deadline"
     assert window.map_page.page.requestedUrl().host() == "calc.tk104.duckdns.org"
-    assert window.relay.code is None
+    # The pairing survives the reset; the link is on again (the default).
+    assert window.config["relay_code"] == "ABCD2345"
+    assert window.config["relay_enabled"] is True
+    assert window.relay.code == "ABCD2345"
 
 
-def test_close_drops_relay_and_key_watch(window, monkeypatch):
-    monkeypatch.setattr(window.relay, "connect_relay", lambda: None)
+def test_close_drops_relay_and_key_watch(window):
     window.hold_timer.key_reader = lambda code: False
     window.select_weapon(AGS17)
     window.set_relay_code("ABCD-2345")
