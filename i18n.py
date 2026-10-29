@@ -116,6 +116,14 @@ STRINGS = {
     ),
     "sight_reading": ("прицел {mils} мил", "sight {mils} mil"),
     "sight_reading_left": ("прицел {mils} мил ({left})", "sight {mils} mil ({left})"),
+    "lay_need_mils": (
+        "Введите милы, которые показывает прицел",
+        "Type the mils the sight shows"
+    ),
+    "lay_no_grab": (
+        "Экран не снимается (полноэкранный режим или Wayland): введите милы с прицела",
+        "The screen cannot be grabbed (exclusive fullscreen or Wayland): type the mils the sight shows"
+    ),
     "lay_no_sight": (
         "Прицел не прочитан: войдите в прицел миномёта или введите милы. Снимок: {path}",
         "The sight was not read: look through the mortar sight or type the mils. Grab: {path}"
