@@ -1,471 +1,280 @@
-"""Tiny translation layer: tr("key", **values)."""
-
-from PyQt6.QtCore import QLocale
-
-LANGUAGES = {
-    "ru": "Русский",
-    "en": "English",
-}
+"""The interface texts: tr("key", **values) formats the English string of `key`."""
 
 STRINGS = {
     # Navigation
-    "nav_calc": ("Калькулятор", "Calculator"),
-    "nav_crosshair": ("Прицел", "Crosshair"),
-    "nav_settings": ("Настройки", "Settings"),
-    "nav_web": ("SquadCalc", "SquadCalc"),
+    "nav_calc": "Calculator",
+    "nav_crosshair": "Crosshair",
+    "nav_settings": "Settings",
+    "nav_web": "SquadCalc",
 
     # Calculator
-    "target": ("Цель", "Target"),
-    "solution": ("Решение", "Solution"),
-    "weapon": ("Оружие", "Weapon"),
-    "search": ("Поиск оружия…", "Search weapons…"),
-    "recent": ("Недавние", "Recent"),
-    "nothing_found": ("Ничего не найдено", "Nothing found"),
-    "arc_auto": ("Авто", "Auto"),
-    "arc_low": ("Настильная", "Low"),
-    "arc_high": ("Навесная", "High"),
-    "view_plain": ("Без приближения", "Unzoomed"),
-    "view_optic": ("Оптика (ПКМ)", "Optic (RMB)"),
-    "distance": ("Дистанция, м", "Distance, m"),
-    "height": ("Перепад высот, м", "Height diff, m"),
-    "height_hint": ("цель выше +, ниже −", "target higher +, lower −"),
-    "fov": ("FOV", "FOV"),
-    "fov_hint": ("горизонтальный FOV", "horizontal FOV"),
-    "calculate": ("Рассчитать", "Calculate"),
-    "reset_aim": ("Сбросить", "Reset"),
-    "ready": ("Введите дистанцию", "Enter the distance"),
-    "unreachable": ("Недостижимо", "Unreachable"),
-    "enter_distance": ("Введите дистанцию", "Enter the distance"),
-    "bad_fov": ("FOV должен быть от 1 до 179", "FOV must be between 1 and 179"),
-    "bad_number": ("Слишком большое число", "The number is too large"),
-    "bad_distance": ("Дистанция должна быть больше 0", "Distance must be greater than 0"),
+    "target": "Target",
+    "solution": "Solution",
+    "weapon": "Weapon",
+    "search": "Search weapons…",
+    "recent": "Recent",
+    "nothing_found": "Nothing found",
+    "arc_auto": "Auto",
+    "arc_low": "Low",
+    "arc_high": "High",
+    "view_plain": "No RMB",
+    "view_optic": "Sight (RMB)",
+    "distance": "Distance, m",
+    "height": "Height diff, m",
+    "height_hint": "target higher +, lower −",
+    "fov": "FOV",
+    "fov_hint": "horizontal FOV",
+    "trim": "Trim, deg",
+    "trim_hint": "+ farther, − nearer",
+    "landed": "Landed at, m",
+    "landed_hint": "where the shot landed",
+    "trim_apply": "Apply",
+    "trim_reset": "Reset trim",
+    "enter_landed": "Enter where the shot landed",
+    "trim_set": "Trim set to {trim} deg",
+    "trim_set_limit": "Trim set to {trim} deg (the limit)",
+    "info_trim": "trim {trim}",
+    "how_trim": (
+        "Your trim {trim}° is on for this weapon and view "
+        "(Reset trim removes it)."
+    ),
+    "calculate": "Calculate",
+    "reset_aim": "Reset",
+    "ready": "Enter the distance",
+    "unreachable": "Unreachable",
+    "enter_distance": "Enter the distance",
+    "bad_fov": "FOV must be between 1 and 179",
+    "bad_number": "The number is too large",
+    "bad_distance": "Distance must be greater than 0",
 
-    "stat_tof": ("Время полёта", "Flight time"),
-    "stat_apex": ("Высота подъёма", "Apex"),
-    "stat_offset": ("Смещение метки", "Mark offset"),
-    "stat_impact": ("Угол падения", "Impact angle"),
-    "stat_velocity": ("Средняя скорость", "Avg. velocity"),
-    "stat_alt": ("Другая траектория", "Other arc"),
-    "off_screen": ("за экраном", "off-screen"),
-    "unit_s": ("с", "s"),
-    "unit_m": ("м", "m"),
-    "unit_px": ("пикс", "px"),
-    "unit_mps": ("м/с", "m/s"),
-    "mil": ("мил", "mil"),
+    "stat_tof": "Flight time",
+    "stat_apex": "Apex",
+    "stat_offset": "Mark offset",
+    "stat_impact": "Impact angle",
+    "stat_velocity": "Avg. velocity",
+    "stat_alt": "Other arc",
+    "off_screen": "off-screen",
+    "unit_s": "s",
+    "unit_m": "m",
+    "unit_px": "px",
+    "unit_mps": "m/s",
+    "mil": "mil",
 
-    "open_failed": ("Не удалось открыть: {target}", "Could not open: {target}"),
+    "open_failed": "Could not open: {target}",
 
-    "how_to": ("Как стрелять", "How to fire"),
-    "how_overlay_on": ("Включите оверлей ({hotkey}).", "Turn the overlay on ({hotkey})."),
+    "how_to": "How to fire",
+    "how_overlay_on": "Turn the overlay on ({hotkey}).",
     "how_overlay_1": (
-        "Совместите метку оверлея с целью — ствол окажется поднят ровно "
-        "на {angle} над линией на цель.",
         "Put the overlay mark on the target — the barrel is then raised "
         "exactly {angle} above the line to the target."
     ),
     "how_overlay_optic": (
-        "FOV в игре должен быть {fov}°. Метка — для вида через оптику (ПКМ, приближение ×{zoom}); "
-        "без приближения переключите вид.",
-        "Your in-game FOV must be {fov}°. The mark is for the optic's view (RMB, zoom ×{zoom}); "
-        "unzoomed, switch the view."
+        "Your in-game FOV must be {fov}°. The mark is for the sight's view (RMB, zoom ×{zoom}); "
+        "without RMB, switch the view."
     ),
-    "how_overlay_2": (
-        "FOV в игре должен быть {fov}°. Через оптику — укажите FOV прицела.",
-        "Your in-game FOV must be {fov}°. Through a scope, enter the scope FOV."
+    "how_overlay_levels": (
+        "Your in-game FOV must be {fov}°. The mark is for the sight's view at zoom ×{zoom}; "
+        "pick the zoom level with the view switch."
     ),
+    "how_overlay_2": "Your in-game FOV must be {fov}°. Through a scope, enter the scope FOV.",
     "how_overlay_offscreen": (
-        "Метка за пределами экрана: поднимите ствол на {angle} над целью "
-        "по шкале прицела или подойдите ближе.",
         "The mark is off-screen: raise the barrel {angle} above the target "
         "using the sight scale, or move closer."
     ),
-    "to_horizon": ("к горизонту {angle}", "{angle} to the horizon"),
-    "how_elevation_1": (
-        "Развернитесь на цель по азимуту (карта или SquadCalc).",
-        "Turn to the target bearing (map or SquadCalc)."
+    "how_overlay_other_view": (
+        "The mark is off-screen at {view}. Use {better} "
+        "(the mark is {px} px {side} the centre)."
     ),
-    "how_elevation_2": (
-        "Выставьте угол возвышения {angle}.",
-        "Set the elevation to {angle}."
-    ),
-    "how_bearing": (
-        "Развернитесь на азимут {b}° (с карты SquadCalc).",
-        "Turn to bearing {b}° (from the SquadCalc map)."
-    ),
-    "hold_big": ("S {t} с", "S {t} s"),
-    "lay_short": ("автонаводка: S {t} с", "auto-lay: S {t} s"),
-    "lay_read": ("Прицел показал (мил):", "Sight shows (mil):"),
-    "lay_calibrate": ("Уточнить", "Calibrate"),
-    "lay_reset": ("Сброс", "Reset"),
-    "lay_done": (
-        "Скорость автонаводки: {rate}°/с (по файлам игры {base}°/с)",
-        "Auto-lay rate: {rate}°/s (game files: {base}°/s)"
-    ),
-    "lay_reset_done": (
-        "Скорость автонаводки по файлам игры: {base}°/с",
-        "Auto-lay rate from the game files: {base}°/s"
-    ),
-    "lay_need_hold": (
-        "Сначала наведите (автонаводка или W, затем S дольше {t} с)",
-        "Lay first (auto-lay, or W then S for over {t} s)"
-    ),
-    "lay_out_of_range": (
-        "Не похоже на правду: {rate}°/с при {base}°/с по файлам игры — проверьте милы",
-        "Unlikely: {rate}°/s against {base}°/s in the game files — check the mils"
-    ),
+    "below": "below",
+    "above": "above",
+    "to_horizon": "{angle} to the horizon",
+    "how_elevation_1": "Turn to the target bearing (map or SquadCalc).",
+    "how_elevation_2": "Set the elevation to {angle}.",
+    "how_bearing": "Turn to bearing {b}° (from the SquadCalc map).",
+    "hold_big": "S {t} s",
+    "lay_short": "auto-lay: S {t} s",
+    "lay_read": "Sight shows (mil):",
+    "lay_calibrate": "Calibrate",
+    "lay_reset": "Reset",
+    "lay_done": "Auto-lay rate: {rate}°/s (game files: {base}°/s)",
+    "lay_reset_done": "Auto-lay rate from the game files: {base}°/s",
+    "lay_need_hold": "Lay first (auto-lay, or W then S for over {t} s)",
+    "lay_out_of_range": "Unlikely: {rate}°/s against {base}°/s in the game files — check the mils",
     "how_lay": (
-        "Или автонаводка: в прицеле миномёта нажмите {hotkey} — программа "
-        "читает милы с прицела на экране и держит W или S, пока он не "
-        "покажет нужное. Если прицел не читается, она поднимет ствол до "
-        "упора (W) и опустит его, держа S {t} с. Повторное нажатие отменяет.",
         "Or auto-lay: in the mortar sight press {hotkey} — the app reads the "
         "mils off the sight on the screen and holds W or S until it shows "
         "the target. If the sight cannot be read, it raises the barrel to "
         "its top (W) and lowers it by holding S for {t} s. The key again "
         "cancels."
     ),
-    "sight_reading": ("прицел {mils} мил", "sight {mils} mil"),
-    "sight_reading_left": ("прицел {mils} мил ({left})", "sight {mils} mil ({left})"),
-    "compass_reading": ("азимут {deg}°", "bearing {deg}°"),
-    "compass_reading_left": ("азимут {deg}° ({left})", "bearing {deg}° ({left})"),
-    "lay_need_mils": (
-        "Введите милы, которые показывает прицел",
-        "Type the mils the sight shows"
-    ),
-    "lay_no_grab": (
-        "Экран не снимается (Wayland без X11): введите милы с прицела",
-        "The screen cannot be grabbed (Wayland without X11): type the mils the sight shows"
-    ),
-    "lay_no_sight": (
-        "Прицел не прочитан: войдите в прицел миномёта или введите милы. Снимок: {path}",
-        "The sight was not read: look through the mortar sight or type the mils. Grab: {path}"
-    ),
-    "how_lay_off": (
-        "Автонаводка (S {t} с) включается в настройках: «Автозажатие S».",
-        "Auto-lay (S {t} s) can be turned on in the settings: \"Auto-hold S\"."
-    ),
-    "hold_progress": ("S зажата {held} из {t} с", "S held {held} of {t} s"),
-    "how_hold_1": (
-        "Нажмите W — ствол встанет в верхнее положение.",
-        "Press W — the barrel goes back to the top."
-    ),
-    "how_hold_2": (
-        "Зажмите S на {t} с и отпустите.",
-        "Hold S for {t} s, then release."
-    ),
-    "how_hold_2_beep": (
-        "Зажмите S и отпустите по сигналу — через {t} с. W сбрасывает отсчёт.",
-        "Hold S and release on the beep — after {t} s. W restarts the count."
-    ),
-    "direct_short": ("прямой наводкой {angle}", "direct fire {angle}"),
-    "blocked_short": ("⛔ {d} м", "⛔ {d} m"),
+    "sight_reading": "sight {mils} mil",
+    "sight_reading_left": "sight {mils} mil ({left})",
+    "compass_reading": "bearing {deg}°",
+    "compass_reading_left": "bearing {deg}° ({left})",
+    "lay_need_mils": "Type the mils the sight shows",
+    "lay_no_grab": "The screen cannot be grabbed (Wayland without X11): type the mils the sight shows",
+    "lay_no_sight": "The sight was not read: look through the mortar sight or type the mils. Grab: {path}",
+    "how_lay_off": "Auto-lay (S {t} s) can be turned on in the settings: \"Auto-hold S\".",
+    "how_hold_1": "Press W — the barrel goes back to the top.",
+    "how_hold_2": "Hold S for {t} s, then release.",
+    "direct_short": "direct fire {angle}",
+    "blocked_short": "⛔ {d} m",
     "how_blocked": (
-        "⛔ {arc} траектория упрётся в препятствие через {d} м "
-        "(рельеф или здание, {h} м от вас по высоте)",
         "⛔ {arc} trajectory hits an obstacle after {d} m "
         "(terrain or a building, {h} m from you in height)"
     ),
-    "how_blocked_use": (
-        "{arc} траектория проходит: стреляйте ей ({angle})",
-        "{arc} trajectory clears it: fire that one ({angle})"
-    ),
-    "how_blocked_all": (
-        "Обе траектории перекрыты: смените позицию",
-        "Both trajectories are blocked: move to another position"
-    ),
-    "how_direct_blocked": (
-        "Прямая наводка перекрыта препятствием через {d} м: только навесом",
-        "Direct fire is blocked after {d} m: lob only"
-    ),
+    "how_blocked_use": "{arc} trajectory clears it: fire that one ({angle})",
+    "how_blocked_all": "Both trajectories are blocked: move to another position",
+    "how_direct_blocked": "Direct fire is blocked after {d} m: lob only",
     "how_hold_direct": (
-        "Или прямой наводкой: совместите метку оверлея с целью — ствол "
-        "окажется поднят на {angle} над линией на цель.",
         "Or direct fire: put the overlay mark on the target — the barrel is "
         "then raised {angle} above the line to the target."
     ),
     "how_hold_direct_offscreen": (
-        "Или прямой наводкой: ствол на {angle} над целью (метка за "
-        "пределами экрана).",
         "Or direct fire: barrel {angle} above the target (the mark is "
         "off-screen)."
     ),
-    "how_hold_no_keys": (
-        "Программа не видит клавиши: отсчитайте время сами. Добавьте себя в группу input (sudo usermod -aG input $USER, затем "
-        "перезайдите) или запустите игру через XWayland/X11.",
-        "The app cannot read the keys: count the time yourself. Add yourself to the input group (sudo usermod -aG input $USER, then "
-        "log in again) or run the game through XWayland/X11."
-    ),
-    "how_tof_moving": (
-        "Снаряд летит {tof} с: по цели, идущей 10 м/с, упреждение ≈ {lead} м.",
-        "Flight time {tof} s: lead a target moving at 10 m/s by ≈ {lead} m."
-    ),
-    "how_tof_adjust": (
-        "Разрыв через {tof} с. Недолёт — увеличьте дистанцию, перелёт — уменьшите.",
-        "Impact after {tof} s. Short — add distance, long — reduce it."
-    ),
+    "how_tof_moving": "Flight time {tof} s: lead a target moving at 10 m/s by ≈ {lead} m.",
+    "how_tof_adjust": "Impact after {tof} s. Short — add distance, long — reduce it.",
     "how_unreachable_range": (
-        "Цель дальше максимальной дальности (~{max} м). Подойдите ближе "
-        "или выберите другое оружие.",
         "The target is beyond maximum range (~{max} m). Move closer or "
         "pick another weapon."
     ),
-    "how_unreachable_close": (
-        "Слишком близко: минимальная дистанция {min} м.",
-        "Too close: minimum distance is {min} m."
-    ),
+    "how_unreachable_close": "Too close: minimum distance is {min} m.",
     "how_unreachable_hold": (
-        "Навесом нужен угол {angle}°, а зажатием S ствол ходит только от "
-        "{low}° до {high}°. Попробуйте настильную траекторию.",
         "The high arc needs {angle}°, but holding S only moves the barrel "
         "from {low}° to {high}°. Try the low arc."
     ),
     "how_unreachable_limit": (
-        "Нужен угол {angle}°, а орудие наводится только от {low}° до {high}°. "
-        "Попробуйте другую траекторию.",
         "Needs {angle}°, but the weapon only elevates from {low}° to {high}°. "
         "Try the other arc."
     ),
 
-    "chip_velocity": ("{v} м/с", "{v} m/s"),
-    "chip_gravity": ("гравитация ×{g}", "gravity ×{g}"),
-    "chip_range": ("до {r} м", "up to {r} m"),
-    "chip_range_inf": ("без падения", "no drop"),
-    "chip_boost": ("разгон {a:+g} м/с² · {t:g} с", "boost {a:+g} m/s² · {t:g} s"),
-    "chip_min": ("от {m} м", "from {m} m"),
-    "chip_mod": ("мод: {mod}", "mod: {mod}"),
+    "chip_velocity": "{v} m/s",
+    "chip_gravity": "gravity ×{g}",
+    "chip_range": "up to {r} m",
+    "chip_range_inf": "no drop",
+    "chip_boost": "boost {a:+g} m/s² · {t:g} s",
+    "chip_min": "from {m} m",
 
     # Categories
-    "cat_grenade_launchers": ("Подствольные гранатомёты", "Grenade launchers"),
-    "cat_agl": ("Автоматические гранатомёты", "Automatic grenade launchers"),
-    "cat_launchers": ("Противотанковые гранатомёты", "Anti-tank launchers"),
-    "cat_guns": ("Безоткатные и полевые орудия", "Recoilless & field guns"),
-    "cat_tanks": ("Танковые пушки", "Tank guns"),
-    "cat_autocannons": ("Автоматические пушки", "Autocannons"),
-    "cat_hmg": ("Крупнокалиберные пулемёты", "Heavy machine guns"),
-    "cat_indirect": ("Непрямой огонь", "Indirect fire"),
-    "cat_mods": ("Моды", "Mods"),
-    "cat_other": ("Другое", "Other"),
+    "cat_grenade_launchers": "Grenade launchers",
+    "cat_agl": "Automatic grenade launchers",
+    "cat_launchers": "Anti-tank launchers",
+    "cat_guns": "Recoilless & field guns",
+    "cat_tanks": "Tank guns",
+    "cat_indirect": "Indirect fire",
+    "cat_other": "Other",
 
     # Splash
-    "splash_loading": ("Запуск…", "Starting…"),
-    "error_title": ("Squad Ballistics — ошибка", "Squad Ballistics — error"),
-    "error_saved": ("Подробности сохранены в:\n{path}", "Details saved to:\n{path}"),
+    "splash_loading": "Starting…",
+    "error_title": "Squad Ballistics — error",
+    "error_saved": "Details saved to:\n{path}",
 
     # Crosshair page
-    "presets": ("Пресеты", "Presets"),
-    "preset_classic": ("Классика", "Classic"),
-    "preset_dot": ("Точка", "Dot"),
-    "preset_circle": ("Круг", "Circle"),
-    "preset_t": ("T-образный", "T-shape"),
-    "preset_cross": ("Крест", "Cross"),
-    "shape": ("Форма", "Shape"),
-    "size": ("Размеры", "Size"),
-    "color": ("Цвет", "Color"),
-    "effects": ("Эффекты", "Effects"),
-    "preview": ("Предпросмотр", "Preview"),
-    "opt_dot": ("Точка", "Center dot"),
-    "opt_lines": ("Линии", "Lines"),
-    "opt_t": ("T-образный (без нижней)", "T-style (no bottom line)"),
-    "opt_circle": ("Круг", "Circle"),
-    "opt_outline": ("Обводка", "Outline"),
-    "opt_glow": ("Свечение", "Glow"),
-    "opt_animated": ("Плавное движение", "Smooth motion"),
-    "opt_info": ("Подпись у метки", "Label next to the mark"),
-    "opt_ladder": ("Шкала дальности", "Range ladder"),
-    "sl_dot": ("Точка", "Dot size"),
-    "sl_length": ("Длина линий", "Line length"),
-    "sl_gap": ("Зазор", "Gap"),
-    "sl_thickness": ("Толщина", "Thickness"),
-    "sl_outline": ("Толщина обводки", "Outline width"),
-    "sl_circle": ("Радиус круга", "Circle radius"),
-    "sl_opacity": ("Непрозрачность", "Opacity"),
-    "outline_color": ("Цвет обводки", "Outline color"),
-    "white": ("Белый", "White"),
-    "black": ("Чёрный", "Black"),
+    "preview": "Preview",
+    "mark_caption": "The mark shows where to put the target: it moves down with the range.",
+    "align_title": "Align with the sight",
+    "align_caption": "Move and scale the mark onto the sight in the game. Arrow keys step by 1; F9 clears the target, not the alignment.",
+    "align_x": "Move left/right",
+    "align_y": "Move up/down",
+    "align_scale": "Scale",
+    "align_reset": "Reset",
+    "style": "Style",
+    "style_dot": "Dot",
+    "style_cross": "Cross",
+    "style_t": "T",
+    "style_circle": "Circle",
+    "style_cross_dot": "Cross + dot",
+    "color": "Color",
+    "size": "Size",
+    "opt_ladder": "Range ladder",
+    "opt_info": "Info text",
 
     # Settings page
-    "s_interface": ("Интерфейс", "Interface"),
-    "s_language": ("Язык", "Language"),
-    "s_lang_auto": ("Как в системе", "System"),
-    "s_accent": ("Акцент", "Accent"),
-    "s_on_top": ("Окно поверх всех", "Keep window on top"),
-    "s_calc": ("Калькулятор", "Calculator"),
-    "s_units": ("Главная единица угла", "Primary angle unit"),
-    "s_units_auto": ("По оружию", "Per weapon"),
-    "s_units_deg": ("Градусы", "Degrees"),
-    "s_units_mil": ("Милы", "Mils"),
-    "s_auto_calc": ("Считать при вводе", "Calculate while typing"),
-    "s_mods": ("Показывать оружие из модов", "Show mod weapons"),
-    "s_step": ("Шаг дистанции (колесо и клавиши)", "Distance step (wheel & keys)"),
-    "s_overlay": ("Оверлей", "Overlay"),
-    "s_monitor": ("Монитор", "Monitor"),
-    "s_offset_x": ("Центр: смещение X", "Center offset X"),
-    "s_offset_y": ("Центр: смещение Y", "Center offset Y"),
-    "s_calibration": ("Калибровка смещения, %", "Offset calibration, %"),
-    "s_hotkeys": ("Горячие клавиши", "Hotkeys"),
+    "s_interface": "Interface",
+    "s_on_top": "Keep window on top",
+    "s_calc": "Calculator",
+    "s_units": "Primary angle unit",
+    "s_units_auto": "Per weapon",
+    "s_units_deg": "Degrees",
+    "s_units_mil": "Mils",
+    "s_auto_calc": "Calculate while typing",
+    "s_step": "Distance step (wheel & keys)",
+    "s_overlay": "Overlay",
+    "s_monitor": "Monitor",
+    "s_hotkeys": "Hotkeys",
     "s_hotkeys_hint": (
-        "Работают поверх игры, игра эти клавиши тоже получает (клавиши "
-        "читаются, как для таймера АГС-17).",
         "They work in game, and the game receives these keys too (keys are "
         "read like for the AGS-17 timer)."
     ),
-    "hk_toggle_overlay": ("Оверлей вкл/выкл", "Overlay on/off"),
-    "hk_reset_offset": ("Сбросить метку", "Reset mark"),
-    "hk_distance_up": ("Дистанция +", "Distance +"),
-    "hk_distance_down": ("Дистанция −", "Distance −"),
-    "hk_auto_hold": ("Автозажатие S / автонаводка миномёта", "Auto-hold S / mortar auto-lay"),
-    "hk_none": ("Нет", "None"),
-    "s_about": ("О программе", "About"),
-    "s_version": ("Версия {v}", "Version {v}"),
-    "s_open_config": ("Папка настроек", "Settings folder"),
-    "s_reset": ("Сбросить настройки", "Reset settings"),
-    "s_reset_confirm": (
-        "Сбросить все настройки прицела и программы?",
-        "Reset all crosshair and app settings?"
-    ),
+    "hk_toggle_overlay": "Overlay on/off",
+    "hk_reset_offset": "Reset mark",
+    "hk_distance_up": "Distance +",
+    "hk_distance_down": "Distance −",
+    "hk_auto_hold": "Auto-hold S / mortar auto-lay",
+    "hk_none": "None",
+    "s_about": "About",
+    "s_version": "Version {v}",
+    "s_open_config": "Settings folder",
+    "s_reset": "Reset settings",
+    "s_reset_confirm": "Reset all crosshair and app settings?",
     # Map page
-    "map_loading": ("Загрузка карты…", "Loading the map…"),
-    "map_reload": ("Обновить", "Reload"),
-    "map_retry": ("Повторить", "Retry"),
-    "map_compat_button": ("Режим совместимости", "Compatibility mode"),
-    "map_compat_on": ("режим совместимости", "compatibility mode"),
-    "map_failed_title": ("Карта не загрузилась", "The map did not load"),
+    "map_loading": "Loading the map…",
+    "map_reload": "Reload",
+    "map_retry": "Retry",
+    "map_compat_button": "Compatibility mode",
+    "map_compat_on": "compatibility mode",
+    "map_failed_title": "The map did not load",
     "map_failed_text": (
-        "Нет связи с {host}. Проверьте интернет и нажмите «Повторить». "
-        "Если в обычном браузере сайт открывается — откройте карту там.",
         "Could not reach {host}. Check your connection and press "
         "Retry. If the site opens in your regular browser, use it there."
     ),
-    "map_slow_title": ("Карта грузится слишком долго", "The map takes too long"),
+    "map_slow_title": "The map takes too long",
     "map_slow_text": (
-        "Сайт отвечает очень медленно или соединение блокируется. Подождите, "
-        "нажмите «Повторить» или откройте карту в обычном браузере.",
         "The site responds very slowly or the connection is blocked. Wait, "
         "press Retry or open the map in your regular browser."
     ),
-    "map_crashed_title": ("Карта перестала отвечать", "The map stopped responding"),
+    "map_crashed_title": "The map stopped responding",
     "map_crashed_text": (
-        "Встроенный браузер закрылся с ошибкой. Нажмите «Повторить». Если это "
-        "повторяется — включите режим совместимости.",
         "The embedded browser crashed. Press Retry. If it keeps happening, "
         "turn on compatibility mode."
     ),
-    "map_black_title": ("Карта чёрная?", "Is the map black?"),
+    "map_black_title": "Is the map black?",
     "map_black_text": (
-        "Похоже, видеокарта не рисует встроенный браузер. Режим совместимости "
-        "рисует карту без видеокарты (программа перезапустится).",
         "Your graphics driver does not seem to draw the embedded browser. "
         "Compatibility mode draws the map without the GPU (the app restarts)."
     ),
-    "map_missing_title": ("Встроенная карта недоступна", "Embedded map unavailable"),
+    "map_missing_title": "Embedded map unavailable",
     "map_missing_text": (
-        "В этой сборке нет встроенного браузера. Откройте карту в обычном "
-        "браузере.",
         "This build has no embedded browser. Open the map in your regular "
         "browser."
     ),
-    "s_map": ("Карта", "Map"),
-    "s_map_source": ("SquadCalc", "SquadCalc"),
-    "s_map_source_deadline": (
-        "Deadline (прямая наводка, АГС-17)",
-        "Deadline (direct fire, AGS-17)"
-    ),
-    "s_map_follow": (
-        "Брать цель и оружие с карты в калькулятор",
-        "Put the map target and weapon into the calculator"
-    ),
-    "s_device": ("Подключить устройство", "Connect a device"),
-    "s_device_hint": (
-        "SquadCalc на телефоне или втором мониторе: отсканируйте QR-код или "
-        "откройте ссылку в его браузере — цели, поставленные там, придут "
-        "сюда. Устройство запоминает связь, повторять после перезапуска не "
-        "нужно. Код не показывайте посторонним: по нему видны и подменяются "
-        "цели.",
-        "SquadCalc on a phone or a second monitor: scan the QR code or open "
-        "the link in its browser, and the targets placed there come here. "
-        "The device remembers the link, so there is nothing to repeat after "
-        "a restart. Keep the code to yourself: it lets anyone read and "
-        "replace the targets."
-    ),
-    "s_relay_enabled": ("Связь с устройствами", "Link with devices"),
-    "s_device_copy": ("Копировать ссылку", "Copy link"),
-    "s_device_copied": ("Скопировано", "Copied"),
-    "s_device_new": ("Новый код", "New code"),
-    "s_device_new_confirm": (
-        "Новый код отвяжет все подключённые устройства: их нужно будет "
-        "подключить заново по новой ссылке. Продолжить?",
-        "A new code unlinks every connected device: they will need the new "
-        "link. Continue?"
-    ),
-    "s_relay_code": ("Код сессии", "Session code"),
-    "relay_off": ("Связь с устройствами выключена", "Device link is off"),
-    "relay_connecting": ("Подключение к серверу связи…", "Connecting to the link server…"),
-    "relay_waiting": (
-        "Ждём устройство: откройте ссылку или отсканируйте QR-код",
-        "Waiting for a device: open the link or scan the QR code"
-    ),
-    "relay_connected": ("Устройство на связи", "Device connected"),
-    "relay_bad_code": (
-        "Код — 6–16 латинских букв и цифр, например ABCD-EFGH-JKLM",
-        "The code is 6–16 letters and digits, e.g. ABCD-EFGH-JKLM"
-    ),
-    "map_target": ("С карты: {t}", "From the map: {t}"),
+    "s_map": "Map",
+    "s_map_source": "SquadCalc",
+    "s_map_source_deadline": "Deadline (direct fire, AGS-17)",
+    "s_map_follow": "Put the map target and weapon into the calculator",
+    "map_target": "From the map: {t}",
     "map_follow_hint": (
-        "Поставьте оружие и цель на карте SquadCalc — дистанция и перепад "
-        "высот подставятся сами, а оружие, выбранное в SquadCalc Deadline, "
-        "выберется и здесь.",
         "Place the weapon and a target on the SquadCalc map — distance and "
         "height fill in by themselves, and the weapon selected in the "
         "Deadline SquadCalc is selected here too."
     ),
-    "bearing_short": ("азимут {b}°", "bearing {b}°"),
-    "map_bridge_on": ("цели передаются в калькулятор", "targets go to the calculator"),
-    "map_bridge_off": (
-        "эта карта не передаёт цели (нужен SquadCalc Deadline)",
-        "this map does not share targets (use the Deadline SquadCalc)"
-    ),
-    "s_map_render": ("Отрисовка карты", "Map rendering"),
-    "s_map_render_auto": ("Обычная", "Normal"),
-    "s_map_render_software": ("Совместимая", "Compatible"),
+    "bearing_short": "bearing {b}°",
+    "map_bridge_on": "targets go to the calculator",
+    "map_bridge_off": "this map does not share targets (use the Deadline SquadCalc)",
+    "s_map_render": "Map rendering",
+    "s_map_render_auto": "Normal",
+    "s_map_render_software": "Compatible",
     "s_map_render_hint": (
-        "Совместимая — если карта чёрная или мерцает: рисует без видеокарты, "
-        "чуть медленнее. Изменение применяется после перезапуска.",
         "Compatible — if the map is black or flickers: draws without the GPU, "
         "a bit slower. Applied after a restart."
     ),
-    "s_map_external": ("Открывать карту в обычном браузере", "Open the map in the regular browser"),
-    "s_map_clear": ("Очистить кэш карты", "Clear map cache"),
-    "s_map_cleared": ("Кэш очищен", "Cache cleared"),
-    "s_hold_timer": (
-        "Сигнал при зажатии S (АГС-17)",
-        "Beep while holding S (AGS-17)"
-    ),
-    "s_hold_timer_hint": (
-        "Считает, сколько зажата S после W, и пищит, когда пора отпускать. "
-        "Нужна группа input (sudo usermod -aG input $USER) или игра "
-        "в X11/XWayland (Proton).",
-        "Counts how long S is held since W and beeps when to release. "
-        "Needs the input group (sudo usermod -aG input $USER) or the "
-        "game on X11/XWayland (Proton)."
-    ),
-    "s_hold_panel": ("Таймер на оверлее", "Timer on the overlay"),
-    "s_hold_panel_corner": ("Угол экрана", "Screen corner"),
-    "corner_top_left": ("↖", "↖"),
-    "corner_top_right": ("↗", "↗"),
-    "corner_bottom_left": ("↙", "↙"),
-    "corner_bottom_right": ("↘", "↘"),
-    "s_auto_hold": (
-        "Автозажатие S (клавиша {key})",
-        "Auto-hold S (key {key})"
-    ),
+    "s_map_external": "Open the map in the regular browser",
+    "s_map_clear": "Clear map cache",
+    "s_map_cleared": "Cache cleared",
+    "s_auto_hold": "Auto-hold S (key {key})",
     "s_auto_hold_hint": (
-        "По клавише программа сама держит S оставшееся до цели время и "
-        "отпускает (миномёт: по прицелу на экране, а если он не читается — "
-        "сначала W до упора, затем S на всё время); повторное нажатие или W "
-        "отменяет. Нажатия от программы "
-        "античит (EAC) и правила сервера могут счесть макросом — включайте "
-        "на свой риск. Нужен доступ к /dev/uinput (правила Steam) "
-        "или игра в X11/XWayland.",
         "On the key the app holds S for the time left to the target and "
         "releases it (mortars: on the sight on the screen, or if it cannot "
         "be read, W to the top first, then S for the whole time); the key "
@@ -474,19 +283,8 @@ STRINGS = {
         "enable at your own risk. Needs access to /dev/uinput "
         "(Steam rules) or the game on X11/XWayland."
     ),
-    "s_sight_reader": (
-        "Читать прицел миномёта с экрана",
-        "Read the mortar sight off the screen"
-    ),
+    "s_sight_reader": "Read the mortar sight off the screen",
     "s_sight_reader_hint": (
-        "Пока выбран миномёт, программа читает милы со шкалы его прицела "
-        "(слева от центра экрана) и пишет их на оверлее рядом с нужными. "
-        "Автонаводка тогда наводит по прицелу: для цели с карты SquadCalc "
-        "сначала поворачивает миномёт (D/A) по компасу внизу экрана, затем "
-        "держит W или S, пока прицел не покажет цель с точностью до 0,5 мил. "
-        "Наводите в обычном виде миномёта, без приближения (правая кнопка): "
-        "там видны и шкала, и компас. Экран снимается под X11 и XWayland, "
-        "под чистым Wayland — нет.",
         "While a mortar is selected the app reads the mils off its sight's "
         "scale (left of the screen centre) and shows them on the overlay "
         "next to the target ones. The auto-lay then lays on the screen: for "
@@ -497,62 +295,25 @@ STRINGS = {
         "and the compass. The screen is grabbed under X11 and XWayland, not "
         "under pure Wayland."
     ),
-    "auto_hold_unavailable": (
-        "Не получилось: программа не может нажимать клавиши в этой системе.",
-        "Not possible: the app cannot send key presses on this system."
-    ),
-    "panel_target": ("ЦЕЛЬ {t}", "TARGET {t}"),
-    "panel_no_target": ("ЦЕЛЬ —", "TARGET —"),
-    "panel_auto": ("АВТО", "AUTO"),
-    "restart_title": ("Перезапуск", "Restart"),
-    "restart_text": (
-        "Перезапустить программу сейчас, чтобы применить изменения?",
-        "Restart the app now to apply the change?"
-    ),
+    "auto_hold_unavailable": "Not possible: the app cannot send key presses on this system.",
+    "restart_title": "Restart",
+    "restart_text": "Restart the app now to apply the change?",
 
-    "web_open": ("Открыть в браузере", "Open in browser"),
+    "web_open": "Open in browser",
 }
-
-_language = "en"
-
-
-def system_language():
-    if QLocale.system().language() in (
-        QLocale.Language.Russian,
-        QLocale.Language.Ukrainian,
-        QLocale.Language.Belarusian,
-        QLocale.Language.Kazakh
-    ):
-        return "ru"
-    return "en"
-
-
-def set_language(code):
-    global _language
-    _language = code if code in LANGUAGES else system_language()
-
-
-def language():
-    return _language
 
 
 def tr(string_id, /, **values):
-    pair = STRINGS.get(string_id)
+    """The text of `string_id` with `values` put into its {placeholders}.
 
-    if pair is None:
-        text = string_id
-    else:
-        text = pair[0] if _language == "ru" else pair[1]
+    An id with no entry is returned as it is, so a typo shows up on screen.
+    """
+    text = STRINGS.get(string_id, string_id)
 
     return text.format(**values) if values else text
 
 
 def category_name(category):
+    """The group title of a weapons.json `category` (the id if it has none)."""
     key = f"cat_{category}"
     return tr(key) if key in STRINGS else category
-
-
-def weapon_note(weapon):
-    if _language == "ru" and weapon.note_ru:
-        return weapon.note_ru
-    return weapon.note

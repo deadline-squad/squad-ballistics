@@ -2,9 +2,8 @@ import copy
 import json
 import math
 import os
-import re
 
-from ballistics import current_weapon_name
+from ballistics import clamp_trim, current_weapon_name
 
 APP_NAME = "SquadBallistics"
 APP_VERSION = "1.6.0"
@@ -18,37 +17,34 @@ LEGACY_CONFIG_PATH = os.path.join("configs", "config.json")
 def legacy_config_paths():
     return [LEGACY_CONFIG_PATH]
 
+# The mark's colours (RGB), in the order of the swatches on the Crosshair page.
+MARK_COLORS = {
+    "white": (255, 255, 255),
+    "red": (255, 48, 48),
+    "orange": (255, 154, 31),
+    "yellow": (255, 255, 0),
+    "green": (0, 255, 0),
+    "cyan": (0, 255, 255),
+    "blue": (48, 112, 255),
+    "magenta": (255, 0, 255),
+}
+
+# The shapes the mark can take; overlay.PRESETS gives each one its geometry.
+MARK_STYLES = ("dot", "cross", "t", "circle", "cross_dot")
+
 DEFAULT_CONFIG = {
     "fov": 90,
 
-    "fps": 60,
+    # The mark: shape, colour (a MARK_COLORS name) and size in percent.
+    "mark_style": "cross_dot",
+    "color": "green",
+    "mark_size": 100,
 
-    "opacity": 255,
-
-    "color": [0, 255, 0],
-
-    "dot_enabled": True,
-    "dot_size": 4,
-
-    "lines_enabled": True,
-    "line_length": 14,
-    "line_thickness": 2,
-    "line_gap": 6,
-
-    "outline_enabled": True,
-    "outline_thickness": 1,
-
-    "glow_enabled": True,
-
-    "t_style": False,
-
-    "circle_enabled": False,
-    "circle_radius": 20,
-
-    "animated": True,
-
-    # Multiplier for the pixel offset, to fine-tune the overlay if it does
-    # not line up perfectly with the game (100 = no correction).
+    # Aligning the mark with the in-game sight: the mark's centre moves by
+    # the offsets (px) and its distance from the centre is multiplied by
+    # offset_scale (100 = no correction).
+    "center_offset_x": 0,
+    "center_offset_y": 0,
     "offset_scale": 100,
 
     "last_weapon": "",
@@ -56,7 +52,6 @@ DEFAULT_CONFIG = {
     "arc": "auto",
     "sight_view": "optic",
 
-    "outline_color": "white",
     "info_enabled": True,
 
     # Range ticks under the mark for direct-fire weapons: where a target at
@@ -65,18 +60,13 @@ DEFAULT_CONFIG = {
 
     # Overlay placement
     "monitor": 0,
-    "center_offset_x": 0,
-    "center_offset_y": 0,
 
     # Interface
-    "language": "auto",
-    "accent": "#3b82f6",
     "main_on_top": False,
 
     # Calculator
     "unit_mode": "auto",
     "auto_calc": True,
-    "show_mods": False,
     "distance_step": 25,
 
     # Map page: "software" rendering fixes a black map on some GPUs/drivers;
@@ -86,27 +76,14 @@ DEFAULT_CONFIG = {
 
     # Map source: "deadline" (SquadCalc build with AGS-17 and the target
     # bridge) or "squadcalc" (squadcalc.app). map_follow puts the newest
-    # map target into the calculator. relay_code is the session that joins
-    # SquadCalc pages open elsewhere through the relay: made once by the app
-    # when empty (maplink.new_session_code) and kept, so paired devices stay
-    # paired; relay_enabled turns the link off without losing the code.
+    # map target into the calculator.
     "map_source": "deadline",
     "map_follow": True,
-    "relay_code": "",
-    "relay_enabled": True,
 
-    # Beep when S has been held for the AGS-17 hold time; hold_panel shows
-    # the timer on the overlay in a corner of the screen. auto_hold lets the
-    # app hold S itself (hotkey "auto_hold"); synthetic input may be treated
-    # as a macro by the anti-cheat or server rules, so it is off by default.
-    "hold_timer": True,
-    "hold_panel": True,
-    "hold_panel_corner": "top_right",
+    # auto_hold lets the app hold S itself (hotkey "auto_hold"); synthetic
+    # input may be treated as a macro by the anti-cheat or server rules, so
+    # it is off by default.
     "auto_hold": False,
-
-    # How early the hold beep comes (s): learnt from the player's releases
-    # after it (holdtimer.HoldTimer.lead); None until the first one.
-    "hold_lead": None,
 
     # Mortars: read the elevation off the sight on the screen (shown on the
     # overlay; the auto-lay then lays on it, see sightlay).
@@ -115,6 +92,12 @@ DEFAULT_CONFIG = {
     # Mortar auto-lay: hold rate (degrees per second) per weapon, fitted on
     # the mils the sight showed after a lay; replaces weapons.json's.
     "lay_rates": {},
+
+    # Field correction of the overlay mark, in degrees added to the barrel
+    # elevation, per weapon and view: "<weapon name>|plain", "|optic" or
+    # "|optic2" (the views of CHOICES["sight_view"]).
+    # Set from one real shot (see ballistics.trim_for_landing).
+    "mark_trim": {},
 
     "hotkeys": {
         "toggle_overlay": "F8",
@@ -127,38 +110,26 @@ DEFAULT_CONFIG = {
 
 # Allowed values. RANGES are also the limits of the sliders in the UI.
 CHOICES = {
-    "language": ("auto", "ru", "en"),
     "arc": ("auto", "low", "high"),
-    "sight_view": ("plain", "optic"),
+    "sight_view": ("plain", "optic", "optic2"),
     "unit_mode": ("auto", "deg", "mil"),
-    "outline_color": ("white", "black"),
+    "mark_style": MARK_STYLES,
+    "color": tuple(MARK_COLORS),
     "map_render": ("auto", "software"),
     "map_source": ("deadline", "squadcalc"),
-    "hold_panel_corner": ("top_left", "top_right", "bottom_left", "bottom_right"),
 }
 
 RANGES = {
     "fov": (1, 179),
-    # holdtimer.MAX_LEAD
-    "hold_lead": (0.0, 0.6),
-    "fps": (10, 240),
-    "opacity": (20, 255),
-    "dot_size": (1, 20),
-    "line_length": (1, 40),
-    "line_gap": (0, 30),
-    "line_thickness": (1, 10),
-    "outline_thickness": (1, 5),
-    "circle_radius": (5, 80),
+    "mark_size": (50, 200),
     "offset_scale": (50, 150),
-    "monitor": (0, 15),
     "center_offset_x": (-300, 300),
     "center_offset_y": (-300, 300),
+    "monitor": (0, 15),
     "distance_step": (1, 100),
 }
 
 DISTANCE_STEPS = (1, 5, 10, 25, 50, 100)
-
-_HEX_COLOR = re.compile(r"#[0-9a-fA-F]{6}")
 
 
 def config_dir():
@@ -182,6 +153,61 @@ def data_dir():
 CONFIG_PATH = os.path.join(config_dir(), "config.json")
 
 
+def is_rgb(value):
+    """Whether `value` is a colour as older versions stored it: [r, g, b]."""
+    return (
+        isinstance(value, list)
+        and len(value) == 3
+        and all(isinstance(c, (int, float)) and not isinstance(c, bool) for c in value)
+    )
+
+
+def nearest_mark_color(rgb):
+    """The name of the MARK_COLORS entry closest to `rgb`, by RGB distance."""
+    return min(
+        MARK_COLORS,
+        key=lambda name: sum((a - b) ** 2 for a, b in zip(MARK_COLORS[name], rgb))
+    )
+
+
+def trim_key(weapon_name, view):
+    """The `mark_trim` key of a weapon's view: a `CHOICES["sight_view"]` value."""
+    return f"{weapon_name}|{view}"
+
+
+def _valid_mark_trims(loaded):
+    """The usable entries of a saved `mark_trim`: a known view, a finite
+    number (clamped), not zero. Anything else is dropped."""
+    trims = {}
+
+    for key, trim in loaded.items():
+        if not isinstance(key, str) or "|" not in key:
+            continue
+
+        name, _, view = key.rpartition("|")
+
+        if view not in CHOICES["sight_view"] or not name:
+            continue
+
+        if not isinstance(trim, (int, float)) or isinstance(trim, bool):
+            continue
+
+        try:
+            trim = float(trim)
+        except OverflowError:
+            continue
+
+        if not math.isfinite(trim):
+            continue
+
+        trim = clamp_trim(trim)
+
+        if trim:
+            trims[trim_key(current_weapon_name(name), view)] = trim
+
+    return trims
+
+
 def _merge(loaded):
     """Fill missing keys with defaults and drop values of the wrong type."""
     config = copy.deepcopy(DEFAULT_CONFIG)
@@ -195,13 +221,8 @@ def _merge(loaded):
 
         value = loaded[key]
 
-        if key == "color":
-            if (
-                isinstance(value, list)
-                and len(value) == 3
-                and all(isinstance(c, (int, float)) for c in value)
-            ):
-                config[key] = [max(0, min(255, int(c))) for c in value]
+        if key == "color" and is_rgb(value):
+            config[key] = nearest_mark_color(value)
             continue
 
         if key == "hotkeys":
@@ -228,20 +249,14 @@ def _merge(loaded):
                 }
             continue
 
+        if key == "mark_trim":
+            if isinstance(value, dict):
+                config[key] = _valid_mark_trims(value)
+            continue
+
         if key == "last_weapon":
             if isinstance(value, str):
                 config[key] = current_weapon_name(value)
-            continue
-
-        if key == "hold_lead":
-            # The AGS-17 beep's lead (s), learnt from the player's releases
-            if (
-                isinstance(value, (int, float))
-                and not isinstance(value, bool)
-                and math.isfinite(value)
-            ):
-                low, high = RANGES[key]
-                config[key] = max(low, min(high, float(value)))
             continue
 
         if isinstance(default, bool):
@@ -253,9 +268,6 @@ def _merge(loaded):
                 config[key] = max(low, min(high, value))
         elif key in CHOICES:
             if value in CHOICES[key]:
-                config[key] = value
-        elif key == "accent":
-            if isinstance(value, str) and _HEX_COLOR.fullmatch(value):
                 config[key] = value
         elif isinstance(value, type(default)):
             config[key] = value
@@ -295,14 +307,25 @@ def load_config(path=None):
 
 
 def save_config(config, path=None):
+    """Write `config` as JSON, readable by the owner only.
+
+    The folder is created with mode 0700 and the file written to a 0600 temp
+    file that replaces the old one, so a settings file saved world-readable
+    by an older version is replaced by a private one.
+    """
     path = path or CONFIG_PATH
 
     try:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
 
         tmp = path + ".tmp"
 
-        with open(tmp, "w", encoding="utf-8") as f:
+        descriptor = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+
+        # A leftover temp file keeps its old mode through O_CREAT.
+        os.fchmod(descriptor, 0o600)
+
+        with os.fdopen(descriptor, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=4)
 
         os.replace(tmp, path)

@@ -160,10 +160,20 @@ def map_url(config):
     return MAP_SOURCES.get(config.get("map_source"), DEADLINE_SQUADCALC_URL)
 
 
+# Schemes handed to the system: anything else (file:, ssh:, custom handlers)
+# would let a web page start local programs through xdg-open.
+EXTERNAL_SCHEMES = ("http", "https")
+
+
 def open_external(url=SQUADCALC_URL):
-    """Open `url` in the regular browser; False when there is none to open
-    it (no xdg-open handler)."""
-    return QDesktopServices.openUrl(QUrl(url))
+    """Open `url` in the regular browser; False when it is not an http(s)
+    address or there is nothing to open it with (no xdg-open handler)."""
+    target = QUrl(url)
+
+    if target.scheme().lower() not in EXTERNAL_SCHEMES:
+        return False
+
+    return QDesktopServices.openUrl(target)
 
 
 def _make_page_classes():
@@ -179,6 +189,35 @@ def _make_page_classes():
             return False
 
     class MapWebPage(QWebEnginePage):
+        """The map page: it stays on the host the app loaded it from.
+
+        The page is not trusted and has no address bar to get back with, so
+        a main-frame navigation to another host (a link, a script, a
+        redirect) is refused and the address goes to the system browser
+        instead (http and https only, see `open_external`). The app's own
+        loads (`page.load`) are always accepted and set the host.
+        """
+
+        def __init__(self, *args):
+            super().__init__(*args)
+
+            self.map_host = None
+
+        def acceptNavigationRequest(self, url, nav_type, is_main_frame):
+            if not is_main_frame:
+                return True
+
+            if nav_type == QWebEnginePage.NavigationType.NavigationTypeTyped:
+                self.map_host = url.host()
+                return True
+
+            if url.host() == self.map_host:
+                return True
+
+            open_external(url.toString())
+
+            return False
+
         def createWindow(self, window_type):
             return ExternalLinkPage(self.profile(), self)
 
@@ -290,7 +329,10 @@ class MapPage(QWidget):
 
         self.progress.setRange(0, 100)
 
-        self.restyle()
+        self.progress.setStyleSheet(
+            f"QProgressBar {{ background: transparent; border: none; }}"
+            f"QProgressBar::chunk {{ background: {theme.ACCENT}; }}"
+        )
 
         self.progress.hide()
 
@@ -373,13 +415,6 @@ class MapPage(QWidget):
         self.retranslate()
 
     # ---------- texts and colours ----------
-
-    def restyle(self):
-        """Colour the loading bar with the current accent."""
-        self.progress.setStyleSheet(
-            f"QProgressBar {{ background: transparent; border: none; }}"
-            f"QProgressBar::chunk {{ background: {self.config['accent']}; }}"
-        )
 
     def retranslate(self):
         self.reload_button.setText(tr("map_reload"))

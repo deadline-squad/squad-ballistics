@@ -1,14 +1,5 @@
 """Colors and the application stylesheet."""
 
-ACCENTS = [
-    "#3b82f6",  # blue
-    "#22c55e",  # green
-    "#f59e0b",  # amber
-    "#ef4444",  # red
-    "#a855f7",  # purple
-    "#c8b98f",  # sand
-]
-
 BG = "#0b0f16"
 SURFACE = "#121824"
 SURFACE_2 = "#1a2130"
@@ -67,9 +58,18 @@ def on_accent(accent):
     return TEXT if contrast(TEXT, accent) >= MIN_TEXT_CONTRAST else BG
 
 
-def stylesheet(accent):
-    hover = shade(accent, 0.85)
-    accent_text = on_accent(accent)
+# The one accent colour of the interface (blue), the colour of a button under
+# the mouse and the text on an accent background, computed once.
+ACCENT = "#3b82f6"
+ACCENT_HOVER = shade(ACCENT, 0.85)
+ACCENT_TEXT = on_accent(ACCENT)
+
+
+def stylesheet():
+    """The application stylesheet."""
+    accent = ACCENT
+    hover = ACCENT_HOVER
+    accent_text = ACCENT_TEXT
 
     return f"""
     QMainWindow, QWidget#root {{

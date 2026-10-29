@@ -1,9 +1,8 @@
 import math
-from dataclasses import dataclass
+from typing import NamedTuple
 
 from PyQt6.QtCore import (
     Qt,
-    QTimer,
     QPointF,
     QRectF
 )
@@ -21,6 +20,8 @@ from PyQt6.QtGui import (
 
 from PyQt6.QtWidgets import QWidget
 
+from config import MARK_COLORS
+
 
 # Fonts of the overlay text, the first one installed is used.
 OVERLAY_FONTS = ["Inter", "Noto Sans", "DejaVu Sans"]
@@ -34,34 +35,79 @@ def overlay_font(size):
     return font
 
 
+class MarkShape(NamedTuple):
+    """What a mark style draws at size 100 %, in pixels; 0 leaves a part out.
+
+    `no_bottom` drops the lower line (the T).
+    """
+
+    dot_radius: float = 0
+    line_length: float = 0
+    line_gap: float = 0
+    line_thickness: float = 0
+    circle_radius: float = 0
+    no_bottom: bool = False
+
+
+# The shapes of config.MARK_STYLES.
+PRESETS = {
+    "dot": MarkShape(dot_radius=4),
+    "cross": MarkShape(line_length=10, line_gap=0, line_thickness=2),
+    "t": MarkShape(line_length=12, line_gap=5, line_thickness=2, no_bottom=True),
+    "circle": MarkShape(dot_radius=2, circle_radius=16),
+    "cross_dot": MarkShape(dot_radius=3, line_length=14, line_gap=6, line_thickness=2),
+}
+
+# The outline around every part of the mark (px) and the circle's stroke.
+OUTLINE_WIDTH = 1
+CIRCLE_THICKNESS = 2
+
+
+def mark_shape(cfg):
+    """The shape of `cfg["mark_style"]` scaled by `cfg["mark_size"]` percent."""
+    base = PRESETS[cfg["mark_style"]]
+    factor = cfg["mark_size"] / 100
+
+    return MarkShape(
+        dot_radius=base.dot_radius * factor,
+        line_length=base.line_length * factor,
+        line_gap=base.line_gap * factor,
+        line_thickness=base.line_thickness * factor,
+        circle_radius=base.circle_radius * factor,
+        no_bottom=base.no_bottom
+    )
+
+
+def mark_color(cfg):
+    """The configured mark colour as a QColor."""
+    return QColor(*MARK_COLORS[cfg["color"]])
+
+
+def mark_reach(cfg):
+    """How far the mark reaches from its centre (px)."""
+    shape = mark_shape(cfg)
+
+    return max(
+        shape.circle_radius,
+        shape.line_gap + shape.line_length,
+        shape.dot_radius + 6
+    )
+
+
 def paint_crosshair(painter, cfg, x, y):
-    """Draw the configured crosshair centred on (x, y).
+    """Draw the configured mark centred on (x, y).
 
     Shared by the overlay and the preview on the crosshair page.
     """
-    r, g, b = cfg["color"]
+    shape = mark_shape(cfg)
 
-    color = QColor(r, g, b, cfg["opacity"])
+    color = mark_color(cfg)
 
-    outline = QColor(
-        "black" if cfg.get("outline_color") == "black" else "white"
-    )
-    outline.setAlpha(cfg["opacity"])
+    outline = QColor("white")
 
-    outline_width = cfg["outline_thickness"]
-
-    dot_size = cfg["dot_size"]
-
-    if cfg["glow_enabled"]:
-        painter.setPen(Qt.PenStyle.NoPen)
-
-        for spread, alpha in ((dot_size + 9, 25), (dot_size + 5, 55)):
-            painter.setBrush(QBrush(QColor(r, g, b, min(alpha, cfg["opacity"]))))
-            painter.drawEllipse(QPointF(x, y), spread, spread)
-
-    if cfg["lines_enabled"]:
-        length = cfg["line_length"]
-        gap = cfg["line_gap"]
+    if shape.line_length:
+        length = shape.line_length
+        gap = shape.line_gap
 
         lines = [
             (x, y - gap, x, y - gap - length),
@@ -69,81 +115,39 @@ def paint_crosshair(painter, cfg, x, y):
             (x + gap, y, x + gap + length, y),
         ]
 
-        if not cfg["t_style"]:
+        if not shape.no_bottom:
             lines.append((x, y + gap, x, y + gap + length))
 
-        passes = []
-
-        if cfg["outline_enabled"]:
-            passes.append(
+        for pen_color, width in (
+            (outline, shape.line_thickness + OUTLINE_WIDTH * 2),
+            (color, shape.line_thickness),
+        ):
+            painter.setPen(
                 QPen(
-                    outline,
-                    cfg["line_thickness"] + outline_width * 2,
+                    pen_color,
+                    width,
                     Qt.PenStyle.SolidLine,
                     Qt.PenCapStyle.FlatCap
                 )
             )
 
-        passes.append(
-            QPen(
-                color,
-                cfg["line_thickness"],
-                Qt.PenStyle.SolidLine,
-                Qt.PenCapStyle.FlatCap
-            )
-        )
-
-        for pen in passes:
-            painter.setPen(pen)
-
             for x1, y1, x2, y2 in lines:
                 painter.drawLine(QPointF(x1, y1), QPointF(x2, y2))
 
-    if cfg["circle_enabled"]:
+    if shape.circle_radius:
         painter.setBrush(Qt.BrushStyle.NoBrush)
 
-        radius = cfg["circle_radius"]
+        painter.setPen(QPen(outline, CIRCLE_THICKNESS + OUTLINE_WIDTH * 2))
+        painter.drawEllipse(QPointF(x, y), shape.circle_radius, shape.circle_radius)
 
-        if cfg["outline_enabled"]:
-            painter.setPen(QPen(outline, 2 + outline_width * 2))
-            painter.drawEllipse(QPointF(x, y), radius, radius)
+        painter.setPen(QPen(color, CIRCLE_THICKNESS))
+        painter.drawEllipse(QPointF(x, y), shape.circle_radius, shape.circle_radius)
 
-        painter.setPen(QPen(color, 2))
-        painter.drawEllipse(QPointF(x, y), radius, radius)
-
-    if cfg["dot_enabled"]:
+    if shape.dot_radius:
         painter.setBrush(QBrush(color))
+        painter.setPen(QPen(outline, OUTLINE_WIDTH))
+        painter.drawEllipse(QPointF(x, y), shape.dot_radius, shape.dot_radius)
 
-        if cfg["outline_enabled"]:
-            painter.setPen(QPen(outline, outline_width))
-        else:
-            painter.setPen(Qt.PenStyle.NoPen)
-
-        painter.drawEllipse(QPointF(x, y), dot_size, dot_size)
-
-
-@dataclass(frozen=True)
-class HoldPanel:
-    """What the AGS-17 timer panel shows (see Overlay.set_hold_panel).
-
-    target_text  -- first line, e.g. "TARGET 1000 m · S 1.25 s"
-    barrel_text  -- big line: where the barrel shoots now, e.g. "~820 m"
-    held/target  -- seconds S held since W and the hold time (None: none)
-    """
-
-    target_text: str
-    barrel_text: str
-    held: float
-    target: float = None
-    reached: bool = False
-    s_down: bool = False
-    w_down: bool = False
-    auto_text: str = ""
-
-
-PANEL_WIDTH = 230
-PANEL_HEIGHT = 112
-PANEL_MARGIN = 24
 
 # The info label: gap right of the crosshair, height of one line, the
 # narrowest it wraps to and its distance from the screen's right edge (px).
@@ -173,8 +177,6 @@ class Overlay(QWidget):
 
         self.info_text = ""
 
-        self.hold_panel = None
-
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint
             | Qt.WindowType.WindowStaysOnTopHint
@@ -196,20 +198,11 @@ class Overlay(QWidget):
 
         self.offset = 0.0
 
-        self.target_offset = 0.0
-
         # False for weapons laid by elevation: no aim mark, only the info line.
         self.mark_visible = True
 
         # Range ticks under the centre: [(distance m, pixels below)].
         self.ladder = []
-
-        # The animation timer only runs while the aim point is moving.
-        self.animation_timer = QTimer(self)
-
-        self.animation_timer.timeout.connect(
-            self.animate_offset
-        )
 
         self.move_to_screen()
 
@@ -269,13 +262,7 @@ class Overlay(QWidget):
 
     def crosshair_reach(self):
         """How far the crosshair reaches from its centre (px)."""
-        cfg = self.config
-
-        return max(
-            cfg["circle_radius"] if cfg["circle_enabled"] else 0,
-            cfg["line_gap"] + cfg["line_length"] if cfg["lines_enabled"] else 0,
-            cfg["dot_size"] + 6
-        )
+        return mark_reach(self.config)
 
     def ladder_bounds(self):
         """(first, spacing, reach) of the range ladder in px, as
@@ -342,28 +329,6 @@ class Overlay(QWidget):
 
         return QRectF(left, y - height / 2, room, height)
 
-    def hold_panel_rect(self):
-        corner = self.config.get("hold_panel_corner", "top_right")
-
-        x = PANEL_MARGIN if corner.endswith("left") \
-            else self.width() - PANEL_WIDTH - PANEL_MARGIN
-        y = PANEL_MARGIN if corner.startswith("top") \
-            else self.height() - PANEL_HEIGHT - PANEL_MARGIN
-
-        return QRectF(x, y, PANEL_WIDTH, PANEL_HEIGHT)
-
-    def set_hold_panel(self, panel):
-        """Show the timer panel (a HoldPanel) or hide it (None).
-
-        Only the panel area is repainted: this runs on every key poll.
-        """
-        if panel == self.hold_panel:
-            return
-
-        self.hold_panel = panel
-
-        self.update(self.hold_panel_rect().toAlignedRect().adjusted(-2, -2, 2, 2))
-
     def set_offset(self, value):
         """Move the aim mark `value` pixels below the centre; None hides it.
 
@@ -372,8 +337,7 @@ class Overlay(QWidget):
         """
         if value is None:
             self.mark_visible = False
-            self.offset = self.target_offset = 0.0
-            self.animation_timer.stop()
+            self.offset = 0.0
             self.update()
             return
 
@@ -385,34 +349,7 @@ class Overlay(QWidget):
 
         # Off-screen offsets only need to keep their direction.
         limit = self.height() * 2
-        self.target_offset = max(-limit, min(limit, value))
-
-        if not self.config.get("animated", True):
-            self.offset = self.target_offset
-            self.animation_timer.stop()
-            self.update()
-            return
-
-        fps = max(10, min(240, int(self.config.get("fps", 60))))
-
-        self.animation_timer.start(int(1000 / fps))
-
-    def reset_offset(self):
-        self.set_offset(0)
-
-    def animate_offset(self):
-        self.offset += (
-            self.target_offset - self.offset
-        ) * 0.12
-
-        if abs(
-            self.target_offset - self.offset
-        ) < 0.01:
-
-            self.offset = self.target_offset
-
-            self.animation_timer.stop()
-
+        self.offset = max(-limit, min(limit, value))
         self.update()
 
     def paintEvent(self, event):
@@ -424,9 +361,7 @@ class Overlay(QWidget):
 
         cfg = self.config
 
-        r, g, b = cfg["color"]
-
-        color = QColor(r, g, b, cfg["opacity"])
+        color = mark_color(cfg)
 
         x = self.center_x
         y = self.center_y + self.offset
@@ -447,60 +382,7 @@ class Overlay(QWidget):
         if cfg.get("info_enabled", True) and self.info_text:
             self.draw_info(painter, color)
 
-        if self.hold_panel is not None:
-            self.draw_hold_panel(painter, self.hold_panel)
-
         painter.end()
-
-    def draw_hold_panel(self, painter, panel):
-        rect = self.hold_panel_rect()
-
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor(0, 0, 0, 170))
-        painter.drawRoundedRect(rect, 8, 8)
-
-        left = rect.x() + 12
-        width = rect.width() - 24
-
-        def text(y, height, size, bold, color, value, align=Qt.AlignmentFlag.AlignLeft):
-            font = overlay_font(size)
-            font.setBold(bold)
-            painter.setFont(font)
-            painter.setPen(QColor(color))
-            painter.drawText(
-                QRectF(left, rect.y() + y, width, height),
-                align | Qt.AlignmentFlag.AlignVCenter,
-                value
-            )
-
-        text(6, 18, 9, True, "#ffa040", panel.target_text)
-        text(24, 34, 20, True, "#40e0ff" if panel.target is not None else "#9a9a9a", panel.barrel_text)
-
-        held = f"{min(panel.held, 99.99):.2f}"
-        timing = held if panel.target is None else f"{held} / {panel.target:.2f}"
-        text(58, 18, 11, True, "#ffffff", timing)
-
-        if panel.auto_text:
-            text(58, 18, 9, True, "#ff5050", panel.auto_text, Qt.AlignmentFlag.AlignRight)
-
-        # Progress to the hold time: green once it is time to release.
-        bar = QRectF(left, rect.y() + 80, width, 6)
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor(255, 255, 255, 50))
-        painter.drawRoundedRect(bar, 3, 3)
-
-        if panel.target:
-            share = max(0.0, min(1.0, panel.held / panel.target))
-            painter.setBrush(QColor("#40d060" if panel.reached else "#40e0ff"))
-            painter.drawRoundedRect(
-                QRectF(bar.x(), bar.y(), bar.width() * share, bar.height()), 3, 3
-            )
-
-        keys = "   ".join(
-            f"{name} {'●' if down else '○'}"
-            for name, down in (("S", panel.s_down), ("W", panel.w_down))
-        )
-        text(90, 16, 9, False, "#80ff80" if panel.s_down or panel.w_down else "#9a9a9a", keys)
 
     def draw_ladder(self, painter, color):
         """Range ticks left of the centre line, labelled with the range:
