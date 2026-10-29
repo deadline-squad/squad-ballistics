@@ -160,7 +160,7 @@ The map tab embeds SquadCalc: by default the Deadline build (`calc.tk104.duckdns
 
 ## Features / Возможности
 
-* 51 standard weapons in 8 groups plus 9 popular mod weapons (hidden by default). / 51 стандартный вид оружия в 8 группах и 9 модовых (по умолчанию скрыты).
+* 65 standard weapons in 8 groups plus 9 popular mod weapons (hidden by default). / 65 стандартных видов оружия в 8 группах и 9 модовых (по умолчанию скрыты).
 * Rocket boost and slow-down phases (RPG-7, Carl Gustav, NLAW, UB-32). / Учёт разгона и торможения ракет.
 * Trajectory view, flight time, apex, impact angle, lead for moving targets. / График траектории, время полёта, высота подъёма, угол падения, упреждение.
 * Crosshair page with live preview, presets, color swatches, outline and glow. / Прицел с живым предпросмотром, пресетами, палитрой, обводкой и свечением.
@@ -172,7 +172,7 @@ The map tab embeds SquadCalc: by default the Deadline build (`calc.tk104.duckdns
 * Elevation: `θ = atan((v² ∓ √(v⁴ − g(g·d² + 2·h·v²))) / (g·d))`, low or high arc; `h` is measured from the muzzle (`launch_height` above the ground).
 * Hold weapons (AGS-17): `hold = (top − θ) / rate` seconds of S after W, within `hold_elevation`.
 * Screen offset: rectilinear projection, `offset = (screen_width / 2) / tan(FOV / 2) × tan(θ)`, so it works on any resolution.
-* Data: in-game values from the [official Squad wiki](https://squad.fandom.com/wiki/Weapons) and [SquadCalc](https://github.com/sh4rkman/SquadCalc). After a game patch, edit `weapons.json`.
+* Data: velocity, gravity scale and rocket boost are read from the game files (Squad build 26005357): the weapon's `WeaponConfig.MuzzleVelocity`, the projectile's `ProjectileGravityScale` and its `ConstantAcceleration` for `ConstantAccelerationTimeout`, stopped at `MaxSpeed` (raised to the muzzle velocity when that is higher). Elevation limits, arcs and the AGS-17 hold model come from in-game measurements, the [official Squad wiki](https://squad.fandom.com/wiki/Weapons) and [SquadCalc](https://github.com/sh4rkman/SquadCalc). After a game patch, check `weapons.json` against the game files again and edit it; a renamed weapon goes to `RENAMED_WEAPONS` in `ballistics.py` so saved settings and older SquadCalc pages follow.
 
 ## Weapons database / База оружия
 
@@ -182,7 +182,7 @@ Weapons live in `weapons.json`. Only `velocity` is required:
 "RPG-7 · PG-7V HEAT / OG-7V": {
     "velocity": 117,
     "gravity": 1,
-    "acceleration": 187.5,
+    "acceleration": 150,
     "acceleration_time": 0.8,
     "category": "launchers",
     "note": "English tip",

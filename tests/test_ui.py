@@ -598,6 +598,11 @@ def test_map_weapon_is_followed_only_when_known_and_enabled(window):
     window.on_map_weapon("NSV")
     assert window.picker.current == "NSV"
 
+    # A SquadCalc page from before a rename sends the old name.
+    window.on_map_weapon("BTR-4 AGS")
+    assert window.picker.current == "AGS-30 / BTR-4 AGS"
+    window.on_map_weapon("NSV")
+
     # Mod weapons hidden by the filter are not selected behind the user's back.
     mod_weapon = next(n for n, w in window.weapons.items() if w.mod)
     window.config["show_mods"] = False

@@ -83,6 +83,20 @@ def test_hotkeys_merged(tmp_path, monkeypatch):
     assert cfg["recent_weapons"] == ["a", "b"]
 
 
+def test_renamed_weapons_are_migrated(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({
+        "last_weapon": "Carl Gustav / M3 MAAWS · HEAT",
+        "recent_weapons": ["MK19 / AGS-17 / AGS-30", "RPG-29"],
+    }))
+
+    cfg = config.load_config(str(path))
+
+    assert cfg["last_weapon"] == "M3 MAAWS · HEAT / Smoke"
+    assert cfg["recent_weapons"] == ["MK19", "RPG-29"]
+
+
 def test_values_are_validated(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     path = tmp_path / "config.json"

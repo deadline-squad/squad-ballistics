@@ -4,6 +4,8 @@ import os
 import re
 import sys
 
+from ballistics import current_weapon_name
+
 APP_NAME = "SquadBallistics"
 
 # Versions up to 1.1.0 kept "configs/config.json" relative to the working
@@ -202,7 +204,12 @@ def _merge(loaded):
 
         if key == "recent_weapons":
             if isinstance(value, list):
-                config[key] = [v for v in value if isinstance(v, str)][:5]
+                config[key] = [current_weapon_name(v) for v in value if isinstance(v, str)][:5]
+            continue
+
+        if key == "last_weapon":
+            if isinstance(value, str):
+                config[key] = current_weapon_name(value)
             continue
 
         if isinstance(default, bool):

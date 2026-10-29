@@ -1,3 +1,15 @@
+## Unreleased
+
+### Что нового
+- **Баллистика из файлов игры (сборка 26005357):** скорость, гравитация и разгон ракет сверены с самой игрой. Исправлено: АГС-17 — 185 м/с и гравитация ×1.8 (модель удержания S переподобрана по тем же 67 замерам), РПГ-7 — разгон 150 м/с² (PG-7VR — 45 м/с² за 0.6 с), M3 MAAWS — 63 м/с с разгоном до 230 м/с, Carl Gustav M2 — отдельные FFV551 (310 м/с), FFV441D и FFV751 (255 м/с), HESH Challenger 2 — 670 м/с, винтовочная граната — 76 м/с.
+- **Новые позиции:** MGL / M32 (75 м/с), AK-40GL (70 м/с), станковый MK19 / C16 / L134A1 (235 м/с), РПГ-7 TBG-7V, ZTD-05 (105 мм), 2A72 БМД-4М и БМП-3М, ZPT99 ЗБЛ-08 / ЗБД-05, станковые M2 с ACOG и «Корд» с СПП (у них гравитация пули ×3).
+- **Переименованы** позиции, объединявшие оружие с разной баллистикой (например «MK19 / AGS-17 / AGS-30» → «MK19»). Сохранённый выбор и оружие со старой страницы SquadCalc переводятся на новые названия сами.
+
+### What's new
+- **Ballistics read from the game files (build 26005357):** velocity, gravity and rocket boost checked against the game itself. Fixed: AGS-17 185 m/s with gravity ×1.8 (S hold model refitted on the same 67 measurements), RPG-7 boost 150 m/s² (PG-7VR 45 m/s² for 0.6 s), M3 MAAWS 63 m/s boosted to 230 m/s, Carl Gustav M2 split into FFV551 (310 m/s), FFV441D and FFV751 (255 m/s), Challenger 2 HESH 670 m/s, rifle grenade 76 m/s.
+- **New entries:** MGL / M32 (75 m/s), AK-40GL (70 m/s), tripod MK19 / C16 / L134A1 (235 m/s), RPG-7 TBG-7V, ZTD-05 (105 mm), 2A72 BMD-4M and BMP-3M, ZPT99 ZBL-08 / ZBD-05, tripod M2 ACOG and Kord SPP (bullet gravity ×3).
+- **Renamed** entries that mixed weapons with different ballistics (e.g. "MK19 / AGS-17 / AGS-30" → "MK19"). Saved selections and weapons sent by an older SquadCalc page follow the new names.
+
 ## Squad Ballistics 1.3.1
 
 ### Что нового

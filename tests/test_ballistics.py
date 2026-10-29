@@ -6,8 +6,10 @@ import pytest
 from ballistics import (
     GRAVITY,
     MILS_PER_DEGREE,
+    RENAMED_WEAPONS,
     Weapon,
     WeaponDataError,
+    current_weapon_name,
     height_at,
     load_weapons,
     parse_weapons,
@@ -24,7 +26,7 @@ WEAPONS = load_weapons(os.path.join(ROOT, "weapons.json"))
 def test_database_loads():
     assert len(WEAPONS) >= 50
 
-    # Weapons of the original release must still be covered.
+    # Weapons of the original release must still be covered (some renamed).
     for name in (
         "MK19 / AGS-17 / AGS-30",
         "RPG-29",
@@ -33,7 +35,7 @@ def test_database_loads():
         "Rifle grenade",
         "M203 / M320 / GP-25 / HK79 / MKE MGL",
     ):
-        assert name in WEAPONS
+        assert current_weapon_name(name) in WEAPONS
 
     # Original values are kept.
     assert WEAPONS["SPG-9 · HEAT"].gravity == 1.2
@@ -124,7 +126,7 @@ def test_high_arc_is_higher():
 
 
 def test_out_of_range():
-    weapon = WEAPONS["M203 / M320 / GP-25 / HK79 / MKE MGL"]
+    weapon = WEAPONS["M203 / M320 / GP-25 / HK79 / SL40"]
 
     solution = solve(weapon, weapon.max_range() + 50)
 
@@ -224,7 +226,7 @@ def test_rocket_boost_speeds_up():
     assert weapon.velocity_at(1) == pytest.approx(117, abs=1)
     assert weapon.velocity_at(300) > 117
     assert weapon.velocity_at(5000) < weapon.cruise_velocity
-    assert weapon.cruise_velocity == pytest.approx(117 + 187.5 * 0.8)
+    assert weapon.cruise_velocity == pytest.approx(117 + 150 * 0.8)
 
     # Boosted rocket needs less elevation than one without the motor.
     plain = Weapon("plain", velocity=117)
@@ -232,7 +234,7 @@ def test_rocket_boost_speeds_up():
 
 
 def test_boost_max_range_matches_reachability():
-    weapon = WEAPONS["Carl Gustav / M3 MAAWS · HEAT"]
+    weapon = WEAPONS["M3 MAAWS · HEAT / Smoke"]
     limit = weapon.max_range()
 
     assert solve(weapon, limit * 0.99).reachable
@@ -279,7 +281,7 @@ def test_sight_angle_is_measured_from_the_line_of_sight():
 @pytest.mark.parametrize("name", [
     "Tank AP · M256 / Rh120",
     "M2A1 .50",
-    "2A42 / 2A72 30mm · HE",
+    "2A42 30mm (BMP-2) · HE",
 ])
 def test_sight_angle_follows_the_riflemans_rule(name):
     # Independent check: for flat fire the angle over the line of sight to
@@ -371,17 +373,12 @@ def test_ags17_hold_time_matches_in_game_measurements():
     for held, distance in AGS17_HOLD_TABLE:
         solution = solve(AGS17, distance, 0, "high")
 
-        if distance > 1925:
-            # Past the lowest elevation of the mount in the model.
-            assert not solution.reachable
-            continue
-
         assert solution.reachable, distance
         errors.append(solution.hold_time - held)
 
-    assert len(errors) == len(AGS17_HOLD_TABLE) - 1
-    assert max(abs(e) for e in errors) < 0.1
-    assert math.sqrt(sum(e * e for e in errors) / len(errors)) < 0.03
+    # Game velocity and gravity, fitted hold rate and mount top: 0.017 s RMS.
+    assert max(abs(e) for e in errors) < 0.06
+    assert math.sqrt(sum(e * e for e in errors) / len(errors)) < 0.02
 
 
 def test_ags17_hold_time_follows_height():
@@ -399,7 +396,7 @@ def test_ags17_arcs_and_limits():
     direct = solve(AGS17, 1000, 0, "low")
 
     assert lob.hold_time == pytest.approx(
-        (85.84 - lob.angle) / 9.17
+        (85.87 - lob.angle) / 9.08
     )
     assert direct.reachable
     assert math.isnan(direct.hold_time)
@@ -411,17 +408,17 @@ def test_ags17_arcs_and_limits():
     assert solve(AGS17, 200, 0, "low").reachable
 
     # Between 45° and the lowest hold elevation: the key cannot get there.
-    edge = solve(AGS17, 1930, 0, "high")
+    edge = solve(AGS17, 1940, 0, "high")
     assert edge.reason_code == "hold_limit"
     assert "limited" in edge.reason
 
     # ...so it is not offered as the other arc of a direct shot either.
-    direct_edge = solve(AGS17, 1928, 0, "low")
+    direct_edge = solve(AGS17, 1938, 0, "low")
     assert direct_edge.reachable
     assert "high" not in direct_edge.alternatives
     assert "high" in solve(AGS17, 1000, 0, "low").alternatives
 
-    assert AGS17.max_hold_time() == pytest.approx((85.84 - 47.4) / 9.17)
+    assert AGS17.max_hold_time() == pytest.approx((85.87 - 47.81) / 9.08)
     assert math.isnan(AGS17.hold_time(90))
     assert math.isnan(
         WEAPONS["Mortar (M252 / 2B14 / L16 / Type 63)"].hold_time(60)
@@ -458,9 +455,45 @@ def test_ags17_hold_distance_matches_in_game_measurements():
         for held, distance in AGS17_HOLD_TABLE
     ]
 
-    # Same model as the hold time: ~6.4 m RMS over the 67 measurements.
+    # Same model as the hold time: ~7 m RMS over the 67 measurements.
     assert math.sqrt(sum(e * e for e in errors) / len(errors)) < 8
     assert AGS17.hold_distance(0) == pytest.approx(279.5, abs=1)
     assert AGS17.hold_distance(99) == AGS17.hold_distance(AGS17.max_hold_time())
     assert AGS17.hold_distance(-1) == AGS17.hold_distance(0)
     assert math.isnan(WEAPONS["RPG-29"].hold_distance(1))
+
+
+def test_renamed_weapons_point_at_current_names():
+    for old, new in RENAMED_WEAPONS.items():
+        assert old not in WEAPONS
+        assert new in WEAPONS
+        assert current_weapon_name(old) == new
+
+    assert current_weapon_name("RPG-29") == "RPG-29"
+
+
+# Values read from the game files (Squad build 26005357): WeaponConfig.MuzzleVelocity,
+# the projectile's ProjectileGravityScale, and its ConstantAcceleration for
+# ConstantAccelerationTimeout, stopped at MaxSpeed.
+@pytest.mark.parametrize("name, velocity, gravity, cruise", [
+    ("AGS-17 · emplacement", 185, 1.8, 185),
+    ("MK19", 230, 1, 230),
+    ("MK19 · emplacement / C16 / L134A1", 235, 1, 235),
+    ("MGL / M32", 75, 1, 75),
+    ("AK-40GL (MPT-76)", 70, 1, 70),
+    ("Rifle grenade", 76, 1, 76),
+    ("RPG-7 · PG-7V HEAT / OG-7V", 117, 1, 117 + 150 * 0.8),
+    ("RPG-7 · PG-7VR Tandem", 63, 1, 63 + 45 * 0.6),
+    ("M3 MAAWS · HEAT / Smoke", 63, 1, 230),
+    ("M3 MAAWS · Tandem", 63, 1, 230),
+    ("Carl Gustav M2 · FFV551 HEAT", 310, 1, 310),
+    ("Tank HESH · L30A1 (Challenger 2)", 670, 2, 670),
+    ("Tank AP · L30A1 (Challenger 2) / M68A2", 1500, 2.5, 1500),
+    ("M2A1 .50 · ACOG emplacement", 890, 3, 890),
+])
+def test_game_ballistics(name, velocity, gravity, cruise):
+    weapon = WEAPONS[name]
+
+    assert weapon.velocity == velocity
+    assert weapon.gravity == gravity
+    assert weapon.cruise_velocity == pytest.approx(cruise, abs=0.05)

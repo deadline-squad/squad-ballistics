@@ -39,6 +39,7 @@ from PyQt6.QtWidgets import (
 import theme
 
 from ballistics import (
+    current_weapon_name,
     solve,
     screen_offset,
     trajectory
@@ -779,8 +780,12 @@ class MainWindow(QMainWindow):
 
         `name` is a weapons.json name sent by the Deadline SquadCalc build
         when its weapon changes; a weapon picked here afterwards stays until
-        the next change there. Names hidden by the mod filter are ignored.
+        the next change there. Names hidden by the mod filter are ignored;
+        names from before a rename (an older SquadCalc page) are mapped to
+        the current ones.
         """
+        name = current_weapon_name(name)
+
         if not self.config["map_follow"] or name == self.picker.current:
             return
 

@@ -1,7 +1,21 @@
 {
-    "_comment": "velocity m/s, gravity = projectile gravity scale. Optional: acceleration (m/s^2, negative = slows down) + acceleration_time (s), arc low/high, aim overlay/elevation, unit deg/mil, angle_offset, min_distance, elevation_limits [min,max], category, note, note_ru, mod. Sources: in-game values from the official Squad wiki (squad.fandom.com) and SquadCalc (github.com/sh4rkman/SquadCalc).",
-    "M203 / M320 / GP-25 / HK79 / MKE MGL": {
+    "_comment": "velocity m/s, gravity = projectile gravity scale. Optional: acceleration (m/s^2, negative = slows down) + acceleration_time (s), arc low/high, aim overlay/elevation, unit deg/mil, angle_offset, min_distance, elevation_limits [min,max], category, note, note_ru, mod. Sources: velocity, gravity and rocket boost read from the game files (Squad build 26005357: WeaponConfig.MuzzleVelocity, projectile ProjectileGravityScale, ConstantAcceleration/Timeout capped at MaxSpeed); elevation limits, arcs and the AGS-17 hold model from in-game measurements, the official Squad wiki (squad.fandom.com) and SquadCalc (github.com/sh4rkman/SquadCalc).",
+    "M203 / M320 / GP-25 / HK79 / SL40": {
         "velocity": 76,
+        "gravity": 1,
+        "category": "grenade_launchers",
+        "note": "Under-barrel grenade: arms after ~10 m, a slow and high arc — always enter the height difference.",
+        "note_ru": "Подствольная граната: взводится через ~10 м, медленная и крутая траектория — обязательно указывайте перепад высот."
+    },
+    "MGL / M32": {
+        "velocity": 75,
+        "gravity": 1,
+        "category": "grenade_launchers",
+        "note": "Under-barrel grenade: arms after ~10 m, a slow and high arc — always enter the height difference.",
+        "note_ru": "Подствольная граната: взводится через ~10 м, медленная и крутая траектория — обязательно указывайте перепад высот."
+    },
+    "AK-40GL (MPT-76)": {
+        "velocity": 70,
         "gravity": 1,
         "category": "grenade_launchers",
         "note": "Under-barrel grenade: arms after ~10 m, a slow and high arc — always enter the height difference.",
@@ -15,31 +29,44 @@
         "note_ru": "Подствольная граната: взводится через ~10 м, медленная и крутая траектория — обязательно указывайте перепад высот."
     },
     "Rifle grenade": {
-        "velocity": 75,
+        "velocity": 76,
         "gravity": 1,
         "category": "grenade_launchers",
         "note": "Under-barrel grenade: arms after ~10 m, a slow and high arc — always enter the height difference.",
         "note_ru": "Подствольная граната: взводится через ~10 м, медленная и крутая траектория — обязательно указывайте перепад высот."
     },
-    "MK19 / AGS-17 / AGS-30": {
+    "MK19": {
         "velocity": 230,
         "gravity": 1,
         "category": "agl",
-        "note": "Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m. For the AGS-17 emplacement pick \"AGS-17 · emplacement\": it is fitted on in-game measurements and drops ~2.8 times faster.",
-        "note_ru": "Стреляйте короткими очередями и подводите разрывы к цели; взведение ~30 м. Для станкового АГС-17 выберите «AGS-17 · emplacement»: он подобран по замерам в игре, и граната падает примерно в 2.8 раза быстрее."
+        "note": "Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m. The tripod MK19 (and C16 / L134A1) fires faster: pick \"MK19 · emplacement / C16 / L134A1\"; for the AGS-17 pick \"AGS-17 · emplacement\".",
+        "note_ru": "Стреляйте короткими очередями и подводите разрывы к цели; взведение ~30 м. Станковый MK19 (и C16 / L134A1) стреляет быстрее: выберите «MK19 · emplacement / C16 / L134A1»; для АГС-17 выберите «AGS-17 · emplacement»."
+    },
+    "MK19 · emplacement / C16 / L134A1": {
+        "velocity": 235,
+        "gravity": 1,
+        "category": "agl",
+        "note": "Tripod MK19, C16 and L134A1: 235 m/s against 230 m/s on vehicles. Fire short bursts; minimum arming range ~30 m.",
+        "note_ru": "Станковые MK19, C16 и L134A1: 235 м/с против 230 м/с на технике. Стреляйте короткими очередями; взведение ~30 м."
     },
     "AGS-17 · emplacement": {
-        "velocity": 230,
-        "gravity": 2.801,
+        "velocity": 185,
+        "gravity": 1.8,
         "launch_height": 1,
         "arc": "high",
         "aim": "overlay",
-        "hold_rate": 9.17,
-        "hold_elevation": [47.4, 85.84],
-        "elevation_limits": [-90, 85.84],
+        "hold_rate": 9.08,
+        "hold_elevation": [
+            47.81,
+            85.87
+        ],
+        "elevation_limits": [
+            -90,
+            85.87
+        ],
         "category": "agl",
-        "note": "High arc: W puts the barrel up, hold S for the shown time (the app beeps). Low arc: aim with the overlay mark. Model fitted on 67 in-game hold-time measurements (280–1930 m, 6.4 m error), the same as the Deadline SquadCalc.",
-        "note_ru": "Навесная: W поднимает ствол вверх, держите S указанное время (программа пискнет). Прямая: наводитесь меткой оверлея. Модель подобрана по 67 замерам в игре (280–1930 м, ошибка 6.4 м), та же, что в SquadCalc Deadline."
+        "note": "High arc: W puts the barrel up, hold S for the shown time (the app beeps). Low arc: aim with the overlay mark. Velocity 185 m/s and gravity ×1.8 come from the game files; the hold rate and the top of the mount are fitted on 67 in-game hold-time measurements (280–1930 m, 7 m RMS error), the same as the Deadline SquadCalc.",
+        "note_ru": "Навесная: W поднимает ствол вверх, держите S указанное время (программа пискнет). Прямая: наводитесь меткой оверлея. Скорость 185 м/с и гравитация ×1.8 взяты из файлов игры; скорость опускания и верхний упор подобраны по 67 замерам в игре (280–1930 м, ошибка 7 м), та же модель, что в SquadCalc Deadline."
     },
     "QLZ87": {
         "velocity": 190,
@@ -48,7 +75,7 @@
         "note": "Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m.",
         "note_ru": "Стреляйте короткими очередями и подводите разрывы к цели; взведение ~30 м."
     },
-    "BTR-4 AGS": {
+    "AGS-30 / BTR-4 AGS": {
         "velocity": 190,
         "gravity": 1,
         "category": "agl",
@@ -89,7 +116,7 @@
         "velocity": 117,
         "gravity": 1,
         "category": "launchers",
-        "acceleration": 187.5,
+        "acceleration": 150,
         "acceleration_time": 0.8,
         "note": "The rocket motor speeds the projectile up after launch; the booster is included in the calculation.",
         "note_ru": "После выстрела ракета разгоняется двигателем — разгон учтён в расчёте."
@@ -98,8 +125,17 @@
         "velocity": 63,
         "gravity": 1,
         "category": "launchers",
-        "acceleration": 87.5,
-        "acceleration_time": 0.8,
+        "acceleration": 45,
+        "acceleration_time": 0.6,
+        "note": "The rocket motor speeds the projectile up after launch; the booster is included in the calculation.",
+        "note_ru": "После выстрела ракета разгоняется двигателем — разгон учтён в расчёте."
+    },
+    "RPG-7 · TBG-7V Thermobaric": {
+        "velocity": 63,
+        "gravity": 1,
+        "category": "launchers",
+        "acceleration": 150,
+        "acceleration_time": 0.6,
         "note": "The rocket motor speeds the projectile up after launch; the booster is included in the calculation.",
         "note_ru": "После выстрела ракета разгоняется двигателем — разгон учтён в расчёте."
     },
@@ -107,28 +143,49 @@
         "velocity": 117,
         "gravity": 1,
         "category": "launchers",
-        "acceleration": 120,
-        "acceleration_time": 1.5,
-        "note": "The rocket motor speeds the projectile up after launch; the booster is included in the calculation.",
-        "note_ru": "После выстрела ракета разгоняется двигателем — разгон учтён в расчёте."
-    },
-    "Carl Gustav / M3 MAAWS · HEAT": {
-        "velocity": 110,
-        "gravity": 1,
-        "category": "launchers",
-        "acceleration": 187.5,
+        "acceleration": 150,
         "acceleration_time": 0.8,
         "note": "The rocket motor speeds the projectile up after launch; the booster is included in the calculation.",
         "note_ru": "После выстрела ракета разгоняется двигателем — разгон учтён в расчёте."
     },
-    "Carl Gustav / M3 MAAWS · Tandem": {
+    "M3 MAAWS · HEAT / Smoke": {
         "velocity": 63,
         "gravity": 1,
         "category": "launchers",
-        "acceleration": 214,
-        "acceleration_time": 0.7,
+        "acceleration": 230,
+        "acceleration_time": 0.7261,
         "note": "The rocket motor speeds the projectile up after launch; the booster is included in the calculation.",
         "note_ru": "После выстрела ракета разгоняется двигателем — разгон учтён в расчёте."
+    },
+    "M3 MAAWS · Tandem": {
+        "velocity": 63,
+        "gravity": 1,
+        "category": "launchers",
+        "acceleration": 230,
+        "acceleration_time": 0.7261,
+        "note": "The rocket motor speeds the projectile up after launch; the booster is included in the calculation.",
+        "note_ru": "После выстрела ракета разгоняется двигателем — разгон учтён в расчёте."
+    },
+    "Carl Gustav M2 · FFV551 HEAT": {
+        "velocity": 310,
+        "gravity": 1,
+        "category": "launchers",
+        "note": "Leaves the barrel at full speed: no booster phase in the calculation.",
+        "note_ru": "Вылетает сразу на полной скорости: без фазы разгона в расчёте."
+    },
+    "Carl Gustav M2 · FFV441D HE": {
+        "velocity": 255,
+        "gravity": 1,
+        "category": "launchers",
+        "note": "Leaves the barrel at full speed: no booster phase in the calculation.",
+        "note_ru": "Вылетает сразу на полной скорости: без фазы разгона в расчёте."
+    },
+    "Carl Gustav M2 · FFV751 Tandem": {
+        "velocity": 255,
+        "gravity": 1,
+        "category": "launchers",
+        "note": "Leaves the barrel at full speed: no booster phase in the calculation.",
+        "note_ru": "Вылетает сразу на полной скорости: без фазы разгона в расчёте."
     },
     "NLAW": {
         "velocity": 40,
@@ -177,7 +234,7 @@
         "gravity": 2,
         "category": "guns"
     },
-    "Tank AP · 2A46 / ZPT98 / 2A20 / M68A2": {
+    "Tank AP · 2A46 / ZPT98 / 2A20 / 2A45 / KBA3": {
         "velocity": 1300,
         "gravity": 2.5,
         "category": "tanks",
@@ -191,7 +248,7 @@
         "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m.",
         "note_ru": "Быстрый снаряд, малое падение: поправка важна в основном дальше ~800 м."
     },
-    "Tank AP · L30A1 (Challenger 2)": {
+    "Tank AP · L30A1 (Challenger 2) / M68A2": {
         "velocity": 1500,
         "gravity": 2.5,
         "category": "tanks",
@@ -206,7 +263,21 @@
         "note_ru": "Быстрый снаряд, малое падение: поправка важна в основном дальше ~800 м."
     },
     "Tank HESH · L30A1 (Challenger 2)": {
-        "velocity": 1000,
+        "velocity": 670,
+        "gravity": 2,
+        "category": "tanks",
+        "note": "Slow shell (670 m/s, the L30A1 smoke too): it drops noticeably, enter the distance precisely.",
+        "note_ru": "Медленный снаряд (670 м/с, дымовой L30A1 тоже): заметно падает, вводите дистанцию точно."
+    },
+    "ZPL-98A 105mm (ZTD-05) · AP": {
+        "velocity": 1110,
+        "gravity": 2.5,
+        "category": "tanks",
+        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m.",
+        "note_ru": "Быстрый снаряд, малое падение: поправка важна в основном дальше ~800 м."
+    },
+    "ZPL-98A 105mm (ZTD-05) · HEAT / HE": {
+        "velocity": 730,
         "gravity": 2,
         "category": "tanks",
         "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m.",
@@ -227,8 +298,18 @@
         "gravity": 2,
         "category": "autocannons"
     },
-    "2A42 / 2A72 30mm · HE": {
+    "2A42 30mm (BMP-2) · HE": {
         "velocity": 900,
+        "gravity": 2,
+        "category": "autocannons"
+    },
+    "2A72 30mm (BMD-4M) · HE": {
+        "velocity": 1004,
+        "gravity": 2,
+        "category": "autocannons"
+    },
+    "2A72 30mm (BMP-3M) · AP / HE": {
+        "velocity": 970,
         "gravity": 2,
         "category": "autocannons"
     },
@@ -252,13 +333,18 @@
         "gravity": 2,
         "category": "autocannons"
     },
-    "ZPT99 30mm · AP": {
+    "ZPT99 30mm (ZBL-08) · APFSDS": {
         "velocity": 1360,
         "gravity": 2,
         "category": "autocannons"
     },
-    "ZPT99 30mm · HE": {
+    "ZPT99 30mm (ZBD-04A) · AP / HE": {
         "velocity": 970,
+        "gravity": 2,
+        "category": "autocannons"
+    },
+    "ZPT99 30mm (ZBL-08 / ZBD-05) · AP / HE": {
+        "velocity": 950,
         "gravity": 2,
         "category": "autocannons"
     },
@@ -272,10 +358,24 @@
         "gravity": 1.5,
         "category": "hmg"
     },
+    "M2A1 .50 · ACOG emplacement": {
+        "velocity": 890,
+        "gravity": 3,
+        "category": "hmg",
+        "note": "The tripod M2 with the ACOG fires a heavier-dropping round in game (gravity ×3, not ×1.5).",
+        "note_ru": "Станковый M2 с прицелом ACOG в игре стреляет пулей с большим падением (гравитация ×3, а не ×1.5)."
+    },
     "NSV": {
         "velocity": 860,
         "gravity": 1.5,
         "category": "hmg"
+    },
+    "Kord · SPP emplacement": {
+        "velocity": 860,
+        "gravity": 3,
+        "category": "hmg",
+        "note": "The tripod Kord with the SPP optic fires a heavier-dropping round in game (gravity ×3, not ×1.5).",
+        "note_ru": "Станковый «Корд» с прицелом СПП в игре стреляет пулей с большим падением (гравитация ×3, а не ×1.5)."
     },
     "DShK-M": {
         "velocity": 850,
