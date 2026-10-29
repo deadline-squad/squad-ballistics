@@ -40,6 +40,7 @@ import theme
 
 from ballistics import (
     current_weapon_name,
+    first_obstacle,
     solve,
     screen_offset,
     trajectory
@@ -1021,6 +1022,15 @@ class MainWindow(QMainWindow):
         holding = math.isfinite(hold)
         direct = self.direct_solution if holding else None
 
+        # Terrain and buildings on the line to the SquadCalc target: where the
+        # shown trajectories hit them first (None: clear, or no profile).
+        profile, step = self.map_profile()
+        obstacle = first_obstacle(weapon, solution, profile, step)
+        direct_obstacle = (
+            first_obstacle(weapon, direct, profile, step)
+            if direct is not None else None
+        )
+
         offset = self.current_offset()
 
         offscreen = self.overlay.is_offscreen(offset)
@@ -1042,6 +1052,12 @@ class MainWindow(QMainWindow):
             info += "  ·  " + tr(
                 "direct_short", angle=format_angle(direct.sight_angle, "deg")
             )
+
+            if direct_obstacle is not None:
+                info += " ⛔"
+
+        if obstacle is not None:
+            info += "  ·  " + tr("blocked_short", d=f"{obstacle[0]:.0f}")
 
         bearing = self.map_bearing()
 
@@ -1110,21 +1126,25 @@ class MainWindow(QMainWindow):
                 alt = None
 
         alt_path = []
+        alt_solution = None
 
         if alt is None:
             self.stats["stat_alt"].set("—")
         else:
             self.stats["stat_alt"].set(format_angle(alt, unit))
 
-            alt_path = trajectory(
-                weapon,
-                solve(weapon, solution.distance, solution.height_diff, other_arc)
+            alt_solution = solve(
+                weapon, solution.distance, solution.height_diff, other_arc
             )
+
+            alt_path = trajectory(weapon, alt_solution)
 
         self.trajectory_view.set_data(
             trajectory(weapon, solution),
             alt_path,
-            (solution.distance, solution.height_diff)
+            (solution.distance, solution.height_diff),
+            [(i * step, h) for i, h in enumerate(profile)] if profile else None,
+            obstacle
         )
 
         angle_text = format_angle(aimed, unit)
@@ -1185,12 +1205,72 @@ class MainWindow(QMainWindow):
                 tr("how_tof_adjust", tof=tof)
             ]
 
+        steps = self.obstacle_steps(
+            weapon, solution, obstacle, alt_solution, profile, step, unit
+        ) + steps
+
+        if direct_obstacle is not None:
+            steps.append(
+                tr("how_direct_blocked", d=f"{direct_obstacle[0]:.0f}")
+            )
+
         if bearing is not None:
             steps.insert(0, tr("how_bearing", b=f"{bearing:.1f}"))
 
         self.set_steps(steps)
 
         self.note_label.setText(weapon_note(weapon))
+
+    def obstacle_steps(self, weapon, solution, obstacle, alt_solution,
+                       profile, step, unit):
+        """What to do when the shown trajectory hits the terrain first.
+
+        Names the obstacle, then the other arc when it is fireable and
+        clears the profile, or says that both are blocked. Empty when the
+        shown trajectory is clear.
+        """
+        if obstacle is None:
+            return []
+
+        steps = [
+            tr(
+                "how_blocked",
+                arc=tr(f"arc_{solution.arc}"),
+                d=f"{obstacle[0]:.0f}",
+                h=f"{obstacle[1]:+.0f}"
+            )
+        ]
+
+        if alt_solution is None or not alt_solution.reachable:
+            return steps
+
+        if first_obstacle(weapon, alt_solution, profile, step) is not None:
+            steps.append(tr("how_blocked_all"))
+            return steps
+
+        if weapon.has_hold and alt_solution.arc == "high":
+            aim = f"S {alt_solution.hold_time:.2f} {tr('unit_s')}"
+        elif weapon.aim == "overlay" or weapon.has_hold:
+            aim = format_angle(alt_solution.sight_angle, unit)
+        else:
+            aim = format_angle(alt_solution.angle, unit)
+
+        steps.append(
+            tr("how_blocked_use", arc=tr(f"arc_{alt_solution.arc}"), angle=aim)
+        )
+
+        return steps
+
+    def map_profile(self):
+        """(heights, step) of the SquadCalc target in the inputs: terrain
+        and buildings from the weapon to it. (None, None) if typed or the
+        page sent none."""
+        target = self.map_target
+
+        if target is None or not target.profile:
+            return None, None
+
+        return target.profile, target.profile_step
 
     def map_bearing(self):
         """Bearing of the SquadCalc target in the inputs, None if typed."""

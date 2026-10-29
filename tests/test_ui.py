@@ -1056,3 +1056,44 @@ def test_auto_hold_key_is_free_while_disabled(window):
 
     assert window.config["auto_hold"] is False
     assert all(action != "auto_hold" for _key, action in bindings(window))
+
+
+def test_map_target_profile_warns_about_the_obstacle(window):
+    from maplink import MapTarget
+
+    window.select_weapon("Tank AP · M256 / Rh120")
+    profile = [0.0] * 301
+    profile[150] = profile[151] = 10.0
+
+    window.on_map_targets([MapTarget(300, 0, 10.0, tuple(profile), 1)])
+
+    assert window.trajectory_view.obstacle == (150, 10.0)
+    assert len(window.trajectory_view.terrain) == 301
+    assert tr("blocked_short", d="150") in window.overlay.info_text
+    assert tr("how_blocked", arc=tr("arc_low"), d="150", h="+10") in window.current_steps
+
+    # A clear profile gives no warning.
+    window.on_map_targets([MapTarget(301, 0, 10.0, tuple([0.0] * 302), 1)])
+    assert window.trajectory_view.obstacle is None
+    assert not any("⛔" in step for step in window.current_steps)
+
+
+def test_blocked_direct_fire_suggests_the_lob(window):
+    from maplink import MapTarget
+
+    window.select_weapon(AGS17)
+    window.config["arc"] = "low"
+    profile = [0.0] * 601
+    profile[300] = 40.0
+
+    window.on_map_targets([MapTarget(600, 0, 10.0, tuple(profile), 1)])
+
+    assert window.last_solution.arc == "low"
+    assert window.trajectory_view.obstacle == (300, 40.0)
+    hold = solve(window.current_weapon(), 600, 0, "high").hold_time
+    assert tr("how_blocked_use", arc=tr("arc_high"), angle=f"S {hold:.2f} {tr('unit_s')}") in window.current_steps
+
+    # Typed inputs have no profile: no warning.
+    window.distance_entry.textEdited.emit("600")
+    window.calculate()
+    assert window.trajectory_view.obstacle is None

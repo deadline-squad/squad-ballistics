@@ -487,6 +487,41 @@ def trajectory(weapon, solution, points=64):
     ]
 
 
+# The profile this close to the muzzle is the weapon's own spot, and this
+# close to the target the target's own spot (same as SquadCalc's coverage).
+MUZZLE_CLEARANCE = 3.0
+TARGET_CLEARANCE = 3.0
+
+
+def first_obstacle(weapon, solution, profile, step):
+    """First point where a solved shot passes under the terrain profile.
+
+    `profile` holds the heights of the terrain and the buildings every `step`
+    metres from the weapon (index 0) towards the target, relative to the
+    weapon's ground like `solution.height_diff` (SquadCalc's map, see
+    maplink.MapTarget.profile). Returns (distance, height) of the obstacle
+    in metres, or None when the path clears it or the shot is unsolved.
+    """
+    if not solution.reachable or not profile or not step:
+        return None
+
+    rad = math.radians(solution.raw_angle)
+    v = solution.velocity
+    g = weapon.g
+    last = solution.distance - TARGET_CLEARANCE
+
+    for i in range(math.ceil(MUZZLE_CLEARANCE / step), len(profile)):
+        x = i * step
+
+        if x > last:
+            break
+
+        if _path(v, g, rad, x) + weapon.launch_height < profile[i]:
+            return x, profile[i]
+
+    return None
+
+
 def height_at(weapon, angle, distance):
     """Height of the projectile after travelling `distance` metres.
 
