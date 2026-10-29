@@ -6,7 +6,7 @@ import pytest
 pytest.importorskip("PyQt6.QtWidgets")
 pytest.importorskip("qtawesome")
 
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication, QPushButton
 
 import config
 from ballistics import load_weapons, screen_offset, solve
@@ -1363,3 +1363,99 @@ def test_mortar_calibration_reads_the_sight(window, monkeypatch, tmp_path):
     monkeypatch.setattr(window.screen_sight, "grab", lambda: sight_at(shown))
     assert window.calibrate_lay()
     assert window.config["lay_rates"][MORTAR] == pytest.approx(8.5, abs=0.01)
+
+
+LONGEST_NAME = "Tank HEAT/HE · M256 / Rh120 / 2A46 / ZPT98 / 2A20 / M68A2"
+
+
+def show_at(window, width, height):
+    """Show the window at a size and let the layouts settle."""
+    from PyQt6.QtCore import QEvent
+
+    window.show()
+    window.resize(width, height)
+
+    for _ in range(3):
+        QApplication.processEvents()
+        QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete.value)
+
+
+def calc_page_overflow(window):
+    """Pixels the calculator page is wider than its scroll area (0: fits)."""
+    window.set_page(0)
+    area = window.pages.currentWidget()
+    QApplication.processEvents()
+
+    return max(0, area.widget().width() - area.viewport().width())
+
+
+@pytest.mark.parametrize("language", ["en", "ru"])
+def test_calculator_fits_the_minimum_window(window, language):
+    window.set_language(language)
+    show_at(window, 900, 600)
+
+    window.select_weapon(AGS17)
+    window.distance_entry.setText("600")
+    window.calculate()
+    assert calc_page_overflow(window) == 0, "stat tiles"
+
+    window.distance_entry.setText("0")
+    window.calculate()
+    assert calc_page_overflow(window) == 0, "error readout"
+
+    window.select_weapon(MORTAR)
+    window.distance_entry.setText("800")
+    window.calculate()
+    assert calc_page_overflow(window) == 0, "calibration row"
+
+    window.lay_status.setText(tr("lay_no_sight", path="C:\\Users\\player\\AppData\\Roaming\\SquadBallistics\\sight-grab.png"))
+    assert calc_page_overflow(window) == 0, "calibration status"
+
+    window.select_weapon(LONGEST_NAME)
+    window.distance_entry.setText("300")
+    window.calculate()
+    assert calc_page_overflow(window) == 0, "weapon name"
+
+
+def test_long_weapon_name_is_elided_in_the_picker(window):
+    show_at(window, 1180, 780)
+    window.select_weapon(LONGEST_NAME)
+    QApplication.processEvents()
+
+    picker = window.picker
+    assert picker.current == LONGEST_NAME
+    assert picker.toolTip() == LONGEST_NAME
+    assert "…" in picker.text()
+    assert picker.sizeHint().width() <= picker.width()
+
+    window.select_weapon(AGS17)
+    assert picker.text() == f"{AGS17}   ▾"
+
+
+@pytest.mark.parametrize("language", ["en", "ru"])
+def test_crosshair_page_fits_the_minimum_window(window, language):
+    window.set_language(language)
+    show_at(window, 900, 600)
+    window.set_page(1)
+    QApplication.processEvents()
+
+    from crosshair import PRESETS
+
+    names = {tr(f"preset_{key}") for key in PRESETS}
+    buttons = [b for b in window.pages.currentWidget().findChildren(QPushButton) if b.text() in names]
+
+    assert len(buttons) == len(PRESETS)
+
+    for button in buttons:
+        assert button.width() >= button.sizeHint().width(), button.text()
+        # Nothing laid over the preview
+        assert button.mapTo(window, button.rect().topLeft()).y() > \
+            window.preview.mapTo(window, window.preview.rect().bottomLeft()).y()
+
+
+def test_window_fits_the_screen(window):
+    available = window.screen().availableGeometry()
+
+    assert window.width() == max(900, min(1180, available.width()))
+    assert window.height() <= max(600, available.height())
+    assert window.height() == max(600, min(780, available.height() - 40))
