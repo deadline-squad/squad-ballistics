@@ -229,6 +229,7 @@ def test_mark_trim_ignores_what_is_malformed():
     merged = config._merge({"mark_trim": {
         f"{M203}|plain": 9,
         f"{QLZ87}|optic": -9,
+        f"{QLZ87}|optic2": 0.5,
         f"{RPG7}|plain": 0,
         f"{AGS}|plain": "far",
         f"{AGS}|optic": True,
@@ -244,6 +245,7 @@ def test_mark_trim_ignores_what_is_malformed():
     assert merged["mark_trim"] == {
         f"{M203}|plain": TRIM_LIMIT,
         f"{QLZ87}|optic": -TRIM_LIMIT,
+        f"{QLZ87}|optic2": 0.5,
     }
 
     for junk in ([1, 2], "x", 5, None):
@@ -412,6 +414,28 @@ def test_each_weapon_and_view_keeps_its_own_trim(window):
 
     window.select_weapon(QLZ87)
     assert window.trim_entry.value() == 0.4
+
+
+def test_every_zoom_level_of_a_vehicle_sight_keeps_its_own_trim(window):
+    tank = "Tank AP · M256 / Rh120"
+
+    fire_at(window, tank, 800)
+    weapon = window.current_weapon()
+    sight = window.last_solution.sight_angle
+    trims = {"plain": 0.1, "optic": -0.2, "optic2": 0.3}
+
+    for index, (view, trim) in enumerate(trims.items()):
+        window.view_control.changed.emit(view)
+        window.trim_entry.setText(str(trim))
+        window.trim_entry.textEdited.emit(str(trim))
+        assert window.overlay.offset == pytest.approx(
+            expected_pixels(weapon, sight, 90, index, trim)
+        )
+
+    assert window.config["mark_trim"] == {f"{tank}|{view}": trim for view, trim in trims.items()}
+
+    window.view_control.changed.emit("optic")
+    assert window.trim_entry.value() == -0.2
 
 
 def test_a_weapon_without_a_zoom_uses_the_plain_view_whatever_the_view_setting(window):

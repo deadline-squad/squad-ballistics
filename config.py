@@ -100,7 +100,8 @@ DEFAULT_CONFIG = {
     "lay_rates": {},
 
     # Field correction of the overlay mark, in degrees added to the barrel
-    # elevation, per weapon and view: "<weapon name>|plain" or "|optic".
+    # elevation, per weapon and view: "<weapon name>|plain", "|optic" or
+    # "|optic2" (the views of CHOICES["sight_view"]).
     # Set from one real shot (see ballistics.trim_for_landing).
     "mark_trim": {},
 
@@ -164,11 +165,8 @@ def data_dir():
 CONFIG_PATH = os.path.join(config_dir(), "config.json")
 
 
-TRIM_VIEWS = ("plain", "optic")
-
-
 def trim_key(weapon_name, view):
-    """The `mark_trim` key of a weapon's view ("plain" or "optic")."""
+    """The `mark_trim` key of a weapon's view: a `CHOICES["sight_view"]` value."""
     return f"{weapon_name}|{view}"
 
 
@@ -183,7 +181,7 @@ def _valid_mark_trims(loaded):
 
         name, _, view = key.rpartition("|")
 
-        if view not in TRIM_VIEWS or not name:
+        if view not in CHOICES["sight_view"] or not name:
             continue
 
         if not isinstance(trim, (int, float)) or isinstance(trim, bool):

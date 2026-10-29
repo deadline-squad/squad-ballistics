@@ -895,9 +895,9 @@ class MainWindow(QMainWindow):
         self.recalculate_if_ready()
 
     def trim_view(self, weapon):
-        """The view the trim of `weapon` belongs to: "optic" while aimed
-        through its zoomed optic, "plain" otherwise."""
-        return "optic" if self.optic_view(weapon) else "plain"
+        """The view the trim of `weapon` belongs to: the `sight_view` value
+        of the view aimed from ("plain" when the weapon has no other)."""
+        return CHOICES["sight_view"][self.view_index(weapon)]
 
     def current_trim(self, weapon):
         """The trim (degrees) set for `weapon` in the view aimed from."""
