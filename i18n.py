@@ -24,6 +24,20 @@ STRINGS = {
     "height_hint": "target higher +, lower −",
     "fov": "FOV",
     "fov_hint": "horizontal FOV",
+    "trim": "Trim, deg",
+    "trim_hint": "+ farther, − nearer",
+    "landed": "Landed at, m",
+    "landed_hint": "where the shot landed",
+    "trim_apply": "Apply",
+    "trim_reset": "Reset trim",
+    "enter_landed": "Enter where the shot landed",
+    "trim_set": "Trim set to {trim} deg",
+    "trim_set_limit": "Trim set to {trim} deg (the limit)",
+    "info_trim": "trim {trim}",
+    "how_trim": (
+        "Your trim {trim}° is on for this weapon and view "
+        "(Reset trim removes it)."
+    ),
     "calculate": "Calculate",
     "reset_aim": "Reset",
     "ready": "Enter the distance",
@@ -57,6 +71,10 @@ STRINGS = {
     "how_overlay_optic": (
         "Your in-game FOV must be {fov}°. The mark is for the sight's view (RMB, zoom ×{zoom}); "
         "without RMB, switch the view."
+    ),
+    "how_overlay_levels": (
+        "Your in-game FOV must be {fov}°. The mark is for the sight's view at zoom ×{zoom}; "
+        "pick the zoom level with the view switch."
     ),
     "how_overlay_2": "Your in-game FOV must be {fov}°. Through a scope, enter the scope FOV.",
     "how_overlay_offscreen": (

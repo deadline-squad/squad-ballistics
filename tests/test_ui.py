@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import QApplication, QLabel, QPushButton
 
 import config
 import theme
-from ballistics import load_weapons, screen_offset, solve
+from ballistics import load_weapons, mark_offset, screen_offset, solve
 from i18n import tr
 from widgets import format_angle
 from conftest import ROOT
@@ -624,17 +624,22 @@ def test_embedded_map_bridge_feeds_the_calculator(window):
     expected = solve(window.weapons["Tank AP · M256 / Rh120"], 420, -6, "low")
     assert window.last_solution.angle == pytest.approx(expected.angle)
     # The target is put on the mark: below the centre by the angle over the
-    # line of sight, not by the (here negative) angle to the horizon.
+    # line of sight, not by the (here negative) angle to the horizon, in the
+    # gunner's zoom level the view switch is on.
+    weapon = window.weapons["Tank AP · M256 / Rh120"]
     assert expected.angle < 0 < expected.sight_angle
     assert window.overlay.offset == pytest.approx(
-        screen_offset(
+        mark_offset(
+            weapon,
             expected.sight_angle,
             window.config["fov"],
             window.overlay.screen_width(),
-            window.config["offset_scale"] / 100
+            window.config["offset_scale"] / 100,
+            window.optic_view(weapon)
         )
     )
-    assert window.overlay.offset > 0
+    # 420 m is inside this gun's 635 m zero: the mark is above the centre.
+    assert window.overlay.offset < 0
 
     # A weapon picked here stays until the SquadCalc weapon changes.
     window.select_weapon("AT-4")
