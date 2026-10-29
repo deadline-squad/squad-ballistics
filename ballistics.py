@@ -35,9 +35,6 @@ ARCS = ("low", "high")
 UNITS = ("deg", "mil")
 AIMS = ("overlay", "elevation")
 
-# Most sight views a weapon has: a gunner cycles up to three zoom levels.
-MAX_VIEWS = 3
-
 
 # Weapons renamed when their data was checked against the game files (Squad build
 # 26005357): old weapons.json name -> current name. Settings saved by older
@@ -80,8 +77,6 @@ class Weapon:
     muzzle_up: float = 0.0
     bore: float = 0.0
     zoom: float = 0.0
-    zoom_bore: float = 0.0
-    views: tuple = ()
     hold_rate: float = 0.0
     hold_elevation: tuple = ()
     category: str = "other"
@@ -174,8 +169,6 @@ class Weapon:
         if zoom and zoom < 1:
             raise WeaponDataError(f"{name}: 'zoom' must be >= 1 (or 0: none)")
 
-        views = cls.parse_views(name, data)
-
         hold_rate = number("hold_rate", 0.0)
         if hold_rate < 0:
             raise WeaponDataError(f"{name}: 'hold_rate' must be >= 0")
@@ -216,8 +209,6 @@ class Weapon:
             muzzle_up=muzzle_up,
             bore=number("bore", 0.0),
             zoom=zoom,
-            zoom_bore=number("zoom_bore", 0.0),
-            views=views,
             hold_rate=hold_rate,
             hold_elevation=hold_elevation,
             category=str(data.get("category", "other")),
@@ -240,88 +231,17 @@ class Weapon:
         t = self.acceleration_time if self.has_boost else 0.0
         return self.velocity * t + 0.5 * self.acceleration * t * t
 
-    @staticmethod
-    def parse_views(name, data):
-        """The `views` list of an entry as ((zoom, bore), ...), or ().
+    def sight_view(self, fov):
+        """(field of view, bore) of the view the weapon is aimed through.
 
-        `views` lists the sight views of a vehicle gunner in the order the
-        game cycles them (at most three), each {"zoom": FOV divisor >= 1,
-        "bore": degrees}. It replaces `bore`, `zoom` and `zoom_bore`.
+        `fov` is the game's FOV setting; the game draws the weapon's sight
+        at fov / `zoom` (a scope, an optic or a gunner's sight; 0 = the
+        plain view). The bore (degrees) is how far above the screen centre
+        the shot leaves: the game fires along the barrel socket
+        (`Attach_Muzzle`), which can be tilted against the camera, so the
+        view is zeroed at some range.
         """
-        if "views" not in data:
-            return ()
-
-        if any(key in data for key in ("bore", "zoom", "zoom_bore")):
-            raise WeaponDataError(
-                f"{name}: 'views' replaces 'bore', 'zoom' and 'zoom_bore'"
-            )
-
-        raw = data["views"]
-        if not isinstance(raw, list) or not 1 <= len(raw) <= MAX_VIEWS:
-            raise WeaponDataError(
-                f"{name}: 'views' must be a list of 1 to {MAX_VIEWS} views"
-            )
-
-        views = []
-        for view in raw:
-            if not isinstance(view, dict):
-                raise WeaponDataError(f"{name}: a view must be an object")
-
-            zoom = view.get("zoom")
-            bore = view.get("bore", 0.0)
-            for label, value in (("zoom", zoom), ("bore", bore)):
-                if isinstance(value, bool) or not isinstance(value, (int, float)):
-                    raise WeaponDataError(
-                        f"{name}: a view's '{label}' must be a number"
-                    )
-                if not math.isfinite(value):
-                    raise WeaponDataError(
-                        f"{name}: a view's '{label}' must be finite"
-                    )
-
-            if zoom < 1:
-                raise WeaponDataError(f"{name}: a view's 'zoom' must be >= 1")
-
-            views.append((float(zoom), float(bore)))
-
-        return tuple(views)
-
-    @property
-    def sight_views(self):
-        """The views the player can aim from, as ((zoom, bore), ...).
-
-        From `views` when the entry has it (a vehicle gunner's zoom levels),
-        else the plain view (`bore`) and, with an RMB sight, its view
-        (`zoom`, `zoom_bore`).
-        """
-        if self.views:
-            return self.views
-
-        if self.zoom:
-            return ((1.0, self.bore), (self.zoom, self.zoom_bore))
-
-        return ((1.0, self.bore),)
-
-    @property
-    def has_views(self):
-        """More than one view to choose from."""
-        return len(self.sight_views) > 1
-
-    def sight_view(self, fov, zoomed):
-        """(field of view, bore) of the view the player aims from.
-
-        `fov` is the game's FOV setting; `zoomed` picks the view: False the
-        first (plain) one, True the second (the optic's, right mouse
-        button), a number the view of that index (the last one when the
-        weapon has fewer). The game draws a view at fov / its zoom. The bore
-        (degrees) is how far above the screen centre the shot leaves: the
-        game fires along the barrel socket (`Attach_Muzzle`), which can be
-        tilted against the camera, so the view is zeroed at some range.
-        """
-        views = self.sight_views
-        zoom, bore = views[min(int(zoomed), len(views) - 1)]
-
-        return fov / zoom, bore
+        return fov / (self.zoom or 1.0), self.bore
 
     @property
     def has_hold(self):
@@ -950,25 +870,25 @@ def clamp_trim(trim):
     return max(-TRIM_LIMIT, min(TRIM_LIMIT, trim))
 
 
-def mark_offset(weapon, sight_angle, fov, screen_width, scale=1.0, zoomed=False,
-                trim=0.0):
+def mark_offset(weapon, sight_angle, fov, screen_width, scale=1.0, trim=0.0):
     """Pixels below the screen centre to put the target on, for a shot
     `sight_angle` degrees over the line of sight (`Solution.sight_angle`)
     from the view `Weapon.sight_view` gives: the shot already leaves `bore`
     degrees above the centre, so the mark is that much higher.
 
     `trim` (degrees, limited to +-TRIM_LIMIT) is the player's field
-    correction of that view, added to the barrel elevation: positive raises
+    correction of the weapon, added to the barrel elevation: positive raises
     the barrel, so the shot goes farther and the mark moves down. It is an
     angle, so one value is right at every range.
 
-    A zoomed view narrower than 1 degree (a small FOV through a strong
-    optic) is held at 1 degree, the narrowest `screen_offset` takes.
+    A view narrower than 1 degree (a small FOV through a strong sight) is
+    held at 1 degree, the narrowest `screen_offset` takes; the mark is not
+    exact then.
     """
     if not 1 <= fov <= 179:
         raise ValueError("FOV must be between 1 and 179 degrees")
 
-    view_fov, bore = weapon.sight_view(fov, zoomed)
+    view_fov, bore = weapon.sight_view(fov)
 
     return screen_offset(
         sight_angle - bore + clamp_trim(trim),
@@ -1025,7 +945,7 @@ def trim_for_landing(weapon, distance, height, landed, trim=0.0):
 
 
 def range_ladder(weapon, fov, screen_width, first, spacing, reach, scale=1.0,
-                 zoomed=False, trim=0.0):
+                 trim=0.0):
     """Range ticks of the overlay ladder: where to put a target at each
     range on flat ground, as [(distance m, pixels below the centre)].
 
@@ -1037,9 +957,8 @@ def range_ladder(weapon, fov, screen_width, first, spacing, reach, scale=1.0,
     cannot reach, at `reach` pixels, after LADDER_MAX_TICKS or at
     LADDER_MAX_DISTANCE.
     The offsets are those of the overlay mark (`mark_offset` of the
-    low-arc `Solution.sight_angle`, from the view `zoomed` picks, with the
-    view's `trim`); ranges
-    above the centre (inside the view's zero) get no tick. Empty for
+    low-arc `Solution.sight_angle`, with the weapon's `trim`); ranges
+    above the centre (inside the sight's zero) get no tick. Empty for
     weapons laid by elevation and for weapons without gravity (every range
     is on the centre).
     """
@@ -1053,7 +972,7 @@ def range_ladder(weapon, fov, screen_width, first, spacing, reach, scale=1.0,
             return None
 
         return mark_offset(
-            weapon, solution.sight_angle, fov, screen_width, scale, zoomed, trim
+            weapon, solution.sight_angle, fov, screen_width, scale, trim
         )
 
     ticks = []

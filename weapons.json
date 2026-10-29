@@ -1,5 +1,5 @@
 {
-    "_comment": "velocity m/s, gravity = projectile gravity scale. Optional: acceleration (m/s^2, negative = slows down) + acceleration_time (s), arc low/high, aim overlay/elevation, unit deg/mil, angle_offset, min_distance, elevation_limits [min,max], bore (deg: how far above the screen centre the shot leaves; the game fires along the barrel socket Attach_Muzzle, tilted against the camera), zoom (FOV divisor of the RMB view; 1 = the sights, no zoom) + zoom_bore (bore in that view), category, note. Sources: velocity, gravity and rocket boost read from the game files (Squad build 26005357: WeaponConfig.MuzzleVelocity, projectile ProjectileGravityScale, ConstantAcceleration/Timeout capped at MaxSpeed); elevation limits, arcs and the AGS-17 hold model from in-game measurements, the official Squad wiki (squad.fandom.com) and SquadCalc (github.com/sh4rkman/SquadCalc).",
+    "_comment": "velocity m/s, gravity = projectile gravity scale. Optional: acceleration (m/s^2, negative = slows down) + acceleration_time (s), arc low/high, aim overlay/elevation, unit deg/mil, angle_offset, min_distance, elevation_limits [min,max], bore (deg: how far above the screen centre the shot leaves in the view the weapon is aimed through; the game fires along the barrel socket Attach_Muzzle, tilted against the camera), zoom (FOV divisor of that view: a scope, an optic or the gunner's sight; omitted = ×1), launch_height + muzzle_forward + muzzle_up (m: the barrel pivot above the ground and the barrel socket along and above the barrel), hold_rate + hold_elevation (a barrel laid by holding a key), category, note. Sources: velocity, gravity and rocket boost read from the game files (Squad build 26005357: WeaponConfig.MuzzleVelocity, projectile ProjectileGravityScale, ConstantAcceleration/Timeout capped at MaxSpeed); elevation limits, arcs and the AGS-17 hold model from in-game measurements, the official Squad wiki (squad.fandom.com) and SquadCalc (github.com/sh4rkman/SquadCalc).",
     "M203 / M320 / GP-25 / HK79 / SL40": {
         "velocity": 76,
         "gravity": 1,
@@ -33,82 +33,44 @@
     "MK19": {
         "velocity": 230,
         "gravity": 1,
-        "views": [
-            {
-                "zoom": 1.0,
-                "bore": 0.0
-            },
-            {
-                "zoom": 4.5,
-                "bore": 0.0
-            }
-        ],
         "category": "agl",
-        "note": "Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m. The tripod MK19 (and C16 / L134A1) fires faster: pick \"MK19 · emplacement / C16 / L134A1\"; for the AGS-17 pick \"AGS-17 · emplacement\". M1117 and AAVP-7A1: the gunner's sight at ×1, ×4.5 (the zoom key cycles the levels, pick yours with the view switch); the barrel and the camera are aligned (the shot leaves through the screen centre). For the other vehicles pick their own entry."
+        "note": "Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m. The tripod MK19 (and C16 / L134A1) fires faster: pick \"MK19 · emplacement / C16 / L134A1\"; for the AGS-17 pick \"AGS-17 · emplacement\". M1117 and AAVP-7A1: the gunner's sight at ×1; the barrel and the camera are aligned (the shot leaves through the screen centre). For the other vehicles pick their own entry.",
+        "bore": 0.0
     },
     "MK19 · PARS III RWS": {
         "velocity": 230,
         "gravity": 1,
-        "views": [
-            {
-                "zoom": 1.0,
-                "bore": 0.95
-            },
-            {
-                "zoom": 3.0,
-                "bore": 0.95
-            },
-            {
-                "zoom": 9.0,
-                "bore": 0.95
-            }
-        ],
         "category": "agl",
-        "note": "PARS III remote turret: the gunner's sight at ×1, ×3, ×9 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 0.95° above the screen centre (zero ~180 m)."
+        "note": "PARS III remote turret: the gunner's sight at ×1; the shot leaves 0.95° above the screen centre (zero ~180 m).",
+        "bore": 0.95
     },
     "MK19 · TAPV C16 RWS": {
         "velocity": 230,
         "gravity": 1,
-        "views": [
-            {
-                "zoom": 1.0,
-                "bore": 1.55
-            },
-            {
-                "zoom": 5.0,
-                "bore": 1.55
-            },
-            {
-                "zoom": 12.0,
-                "bore": 1.55
-            }
-        ],
         "category": "agl",
-        "note": "TAPV C16 remote turret: the gunner's sight at ×1, ×5, ×12 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 1.55° above the screen centre (zero ~295 m)."
+        "note": "TAPV C16 remote turret: the gunner's sight at ×1; the shot leaves 1.55° above the screen centre (zero ~295 m).",
+        "bore": 1.55
     },
     "MK19 · M113 open turret": {
         "velocity": 230,
         "gravity": 1,
-        "zoom": 1,
-        "zoom_bore": 1.6,
         "category": "agl",
-        "note": "M113A3 / M113A2T open turret: the camera and the barrel are aligned without RMB; aiming with RMB moves the camera to the sights, which look 1.6° below the barrel (zero ~300 m, no zoom) - pick the view you aim from."
+        "note": "M113A3 / M113A2T open turret, aimed through the sights (RMB, no zoom): they look 1.6° below the barrel, so the shot leaves 1.6° above the screen centre (zero ~300 m).",
+        "bore": 1.6
     },
     "MK19 · M1151 / RHIB open turret": {
         "velocity": 230,
         "gravity": 1,
-        "zoom": 1,
-        "zoom_bore": 1.72,
         "category": "agl",
-        "note": "M1151 / RHIB open turret: the camera and the barrel are aligned without RMB; aiming with RMB moves the camera to the sights, which look 1.72° below the barrel (zero ~325 m, no zoom) - pick the view you aim from."
+        "note": "M1151 / RHIB open turret, aimed through the sights (RMB, no zoom): they look 1.72° below the barrel, so the shot leaves 1.72° above the screen centre (zero ~325 m).",
+        "bore": 1.72
     },
     "MK19 · emplacement / C16 / L134A1": {
         "velocity": 235,
         "gravity": 1,
-        "zoom": 1,
-        "zoom_bore": 1.674,
         "category": "agl",
-        "note": "Tripod MK19, C16 and L134A1: 235 m/s against 230 m/s on vehicles. Without RMB the shot leaves through the screen centre; aiming with RMB moves the camera to the sights, which look 1.674° below the barrel (zero ~330 m, no zoom) — pick the view you aim from. Fire short bursts; minimum arming range ~30 m."
+        "note": "Tripod MK19, C16 and L134A1: 235 m/s against 230 m/s on vehicles. Aimed through the sights (RMB, no zoom), which look 1.674° below the barrel: the shot leaves 1.674° above the screen centre (zero ~330 m). Fire short bursts; minimum arming range ~30 m.",
+        "bore": 1.674
     },
     "AGS-17 · emplacement": {
         "velocity": 185,
@@ -127,9 +89,8 @@
         ],
         "bore": 0.85,
         "zoom": 2.5,
-        "zoom_bore": 0.85,
         "category": "agl",
-        "note": "AGS-17 with the PAG-17 optic (RMB, ×2.5). High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark, which accounts for the optic's 0.85° socket (zero ~58 m). Velocity 185 m/s and gravity ×1.8 come from the game files; the hold rate and the top of the mount are fitted on 67 in-game hold-time measurements (280–1930 m, 7 m RMS error), the same as the Deadline SquadCalc. The fitted top, 85.87°, is the mount's 85° limit plus this optic's 0.85°, so the fit is of the optic gun; for the open-sight gun pick \"AGS-17 · iron sights emplacement\"."
+        "note": "AGS-17 aimed through the PAG-17 optic (RMB, ×2.5). High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark, which accounts for the optic's 0.85° socket (zero ~58 m). Velocity 185 m/s and gravity ×1.8 come from the game files; the hold rate and the top of the mount are fitted on 67 in-game hold-time measurements (280–1930 m, 7 m RMS error), the same as the Deadline SquadCalc. The fitted top, 85.87°, is the mount's 85° limit plus this optic's 0.85°, so the fit is of the optic gun; for the open-sight gun pick \"AGS-17 · iron sights emplacement\"."
     },
     "AGS-17 · iron sights emplacement": {
         "velocity": 185,
@@ -153,52 +114,34 @@
     "QLZ87": {
         "velocity": 190,
         "gravity": 1,
-        "bore": -0.9,
+        "bore": 0.774,
         "zoom": 3,
-        "zoom_bore": 0.774,
         "category": "agl",
-        "note": "Tripod QLZ87. Its optic (RMB, ×3) is zeroed at 100 m; without it the shot leaves 0.9° below the screen centre — the mark accounts for both, pick the view you aim from. Fire short bursts; minimum arming range ~30 m."
+        "note": "Tripod QLZ87, aimed through its optic (RMB, ×3), which is zeroed at 100 m: the shot leaves 0.774° above the screen centre. Fire short bursts; minimum arming range ~30 m."
     },
     "QLZ87 · Lynx / CSK131": {
         "velocity": 190,
         "gravity": 1,
         "bore": 0.85,
         "zoom": 3,
-        "zoom_bore": 0.85,
         "category": "agl",
-        "note": "QLZ87 on the Lynx, CSK131, WZ551 and ZBL-08: the shot leaves 0.85° above the screen centre (zero ~110 m), with or without the optic (RMB, ×3). Fire short bursts; minimum arming range ~30 m."
+        "note": "QLZ87 on the Lynx, CSK131, WZ551 and ZBL-08, aimed through the optic (RMB, ×3): the shot leaves 0.85° above the screen centre (zero ~110 m). Fire short bursts; minimum arming range ~30 m."
     },
     "AGS-30 / BTR-4 AGS": {
         "velocity": 190,
         "gravity": 1,
-        "views": [
-            {
-                "zoom": 3.0,
-                "bore": 1.58
-            },
-            {
-                "zoom": 9.0,
-                "bore": 1.58
-            }
-        ],
         "category": "agl",
-        "note": "Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m. BTR-4 and BMP-1TS: the gunner's sight at ×3, ×9 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 1.58° above the screen centre (zero ~205 m). For the BMP-2M's AGS-30 pick its own entry."
+        "note": "Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m. BTR-4 and BMP-1TS: the gunner's sight at its first zoom level, ×3; the shot leaves 1.58° above the screen centre (zero ~205 m). For the BMP-2M's AGS-30 pick its own entry.",
+        "bore": 1.58,
+        "zoom": 3.0
     },
     "AGS-30 (BMP-2M)": {
         "velocity": 190,
         "gravity": 1,
-        "views": [
-            {
-                "zoom": 1.5,
-                "bore": 1.55
-            },
-            {
-                "zoom": 6.0,
-                "bore": 1.55
-            }
-        ],
         "category": "agl",
-        "note": "BMP-2M: the gunner's sight at ×1.5, ×6 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 1.55° above the screen centre (zero ~200 m)."
+        "note": "BMP-2M: the gunner's sight at its first zoom level, ×1.5; the shot leaves 1.55° above the screen centre (zero ~200 m).",
+        "bore": 1.55,
+        "zoom": 1.5
     },
     "M72A7 LAW / RPG-26": {
         "velocity": 144,
@@ -316,9 +259,8 @@
         "gravity": 1.2,
         "bore": 2.34,
         "zoom": 4,
-        "zoom_bore": 2.34,
         "category": "guns",
-        "note": "SPG-9 with the PGO-9 scope (RMB, ×4). The scope's barrel socket is 2.34° above the screen centre, with or without RMB (zero ~1300 m); the mark accounts for it. HEAT and FRAG shells fly at different speeds — pick the shell you have loaded."
+        "note": "SPG-9 with the PGO-9 scope (RMB, ×4). The scope's barrel socket is 2.34° above the screen centre (zero ~1300 m); the mark accounts for it. HEAT and FRAG shells fly at different speeds — pick the shell you have loaded."
     },
     "SPG-9 · FRAG": {
         "velocity": 315,
@@ -332,486 +274,230 @@
         "gravity": 1.2,
         "bore": 2.34,
         "zoom": 4,
-        "zoom_bore": 2.34,
         "category": "guns",
-        "note": "SPG-9 with the PGO-9 scope (RMB, ×4). The scope's barrel socket is 2.34° above the screen centre, with or without RMB (zero ~700 m); the mark accounts for it. HEAT and FRAG shells fly at different speeds — pick the shell you have loaded."
+        "note": "SPG-9 with the PGO-9 scope (RMB, ×4). The scope's barrel socket is 2.34° above the screen centre (zero ~700 m); the mark accounts for it. HEAT and FRAG shells fly at different speeds — pick the shell you have loaded."
     },
     "2A28 Grom (BMP-1 / BMD-1) · HEAT": {
         "velocity": 435,
         "gravity": 1.2,
-        "views": [
-            {
-                "zoom": 1.5,
-                "bore": 1.4
-            },
-            {
-                "zoom": 6.0,
-                "bore": 1.4
-            }
-        ],
         "category": "guns",
-        "note": "HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. BMP-1 (also the BMP-1 technical): the gunner's sight at ×1.5, ×6 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 1.4° above the screen centre (zero ~790 m). For the BMD-1M pick its own entry."
+        "note": "HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. BMP-1 (also the BMP-1 technical): the gunner's sight at its first zoom level, ×1.5; the shot leaves 1.4° above the screen centre (zero ~790 m). For the BMD-1M pick its own entry.",
+        "bore": 1.4,
+        "zoom": 1.5
     },
     "2A28 Grom (BMD-1M) · HEAT": {
         "velocity": 435,
         "gravity": 1.2,
-        "views": [
-            {
-                "zoom": 1.5,
-                "bore": 1.57
-            },
-            {
-                "zoom": 6.0,
-                "bore": 1.57
-            }
-        ],
         "category": "guns",
-        "note": "BMD-1M: the gunner's sight at ×1.5, ×6 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 1.57° above the screen centre (zero ~885 m)."
+        "note": "BMD-1M: the gunner's sight at its first zoom level, ×1.5; the shot leaves 1.57° above the screen centre (zero ~885 m).",
+        "bore": 1.57,
+        "zoom": 1.5
     },
     "2A28 Grom (BMP-1 / BMD-1) · FRAG": {
         "velocity": 290,
         "gravity": 1.2,
-        "views": [
-            {
-                "zoom": 1.5,
-                "bore": 1.4
-            },
-            {
-                "zoom": 6.0,
-                "bore": 1.4
-            }
-        ],
         "category": "guns",
-        "note": "HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. BMP-1 (also the BMP-1 technical): the gunner's sight at ×1.5, ×6 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 1.4° above the screen centre (zero ~350 m). For the BMD-1M pick its own entry."
+        "note": "HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. BMP-1 (also the BMP-1 technical): the gunner's sight at its first zoom level, ×1.5; the shot leaves 1.4° above the screen centre (zero ~350 m). For the BMD-1M pick its own entry.",
+        "bore": 1.4,
+        "zoom": 1.5
     },
     "2A28 Grom (BMD-1M) · FRAG": {
         "velocity": 290,
         "gravity": 1.2,
-        "views": [
-            {
-                "zoom": 1.5,
-                "bore": 1.57
-            },
-            {
-                "zoom": 6.0,
-                "bore": 1.57
-            }
-        ],
         "category": "guns",
-        "note": "BMD-1M: the gunner's sight at ×1.5, ×6 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 1.57° above the screen centre (zero ~395 m)."
+        "note": "BMD-1M: the gunner's sight at its first zoom level, ×1.5; the shot leaves 1.57° above the screen centre (zero ~395 m).",
+        "bore": 1.57,
+        "zoom": 1.5
     },
     "2A70 100mm (BMP-3 / BMD-4 / ZBD04A) · FRAG": {
         "velocity": 355,
         "gravity": 2,
-        "views": [
-            {
-                "zoom": 2.5,
-                "bore": 0.58
-            },
-            {
-                "zoom": 4.0,
-                "bore": 0.58
-            },
-            {
-                "zoom": 14.0,
-                "bore": 0.58
-            }
-        ],
         "category": "guns",
-        "note": "BMP-3M: the gunner's sight at ×2.5, ×4, ×14 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 0.58° above the screen centre (zero ~130 m). For the BMD-4M and the ZBD-04A pick their own entries."
+        "note": "BMP-3M: the gunner's sight at its first zoom level, ×2.5; the shot leaves 0.58° above the screen centre (zero ~130 m). For the BMD-4M and the ZBD-04A pick their own entries.",
+        "bore": 0.58,
+        "zoom": 2.5
     },
     "2A70 100mm (ZBD-04A) · FRAG": {
         "velocity": 355,
         "gravity": 2,
-        "views": [
-            {
-                "zoom": 2.5,
-                "bore": 0.95
-            },
-            {
-                "zoom": 4.0,
-                "bore": 0.95
-            },
-            {
-                "zoom": 14.0,
-                "bore": 0.95
-            }
-        ],
         "category": "guns",
-        "note": "ZBD-04A: the gunner's sight at ×2.5, ×4, ×14 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 0.95° above the screen centre (zero ~215 m)."
+        "note": "ZBD-04A: the gunner's sight at its first zoom level, ×2.5; the shot leaves 0.95° above the screen centre (zero ~215 m).",
+        "bore": 0.95,
+        "zoom": 2.5
     },
     "2A70 100mm (BMD-4M) · FRAG": {
         "velocity": 355,
         "gravity": 2,
-        "views": [
-            {
-                "zoom": 2.5,
-                "bore": 0.57
-            },
-            {
-                "zoom": 5.0,
-                "bore": 0.57
-            },
-            {
-                "zoom": 14.0,
-                "bore": 0.57
-            }
-        ],
         "category": "guns",
-        "note": "BMD-4M: the gunner's sight at ×2.5, ×5, ×14 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 0.57° above the screen centre (zero ~130 m)."
+        "note": "BMD-4M: the gunner's sight at its first zoom level, ×2.5; the shot leaves 0.57° above the screen centre (zero ~130 m).",
+        "bore": 0.57,
+        "zoom": 2.5
     },
     "ZiS-3": {
         "velocity": 700,
         "gravity": 2,
         "bore": 0.4,
         "zoom": 4,
-        "zoom_bore": 0.4,
         "category": "guns",
-        "note": "The shot leaves 0.4° above the screen centre (zero ~350 m), with or without RMB. The sight's zoom level (RMB, ×4) comes from the vehicle's zoom levels in the game files, not from a zoom script: if the mark is off in the zoomed view, enter the FOV you see instead."
+        "note": "Aimed through the sight (RMB, ×4): the shot leaves 0.4° above the screen centre (zero ~350 m). The sight's zoom level (×4) comes from the vehicle's zoom levels in the game files, not from a zoom script: if the mark is off, enter the FOV you see instead."
     },
     "Tank AP · 2A46 / ZPT98 / 2A20 / 2A45 / KBA3": {
         "velocity": 1300,
         "gravity": 2.5,
-        "views": [
-            {
-                "zoom": 4.0,
-                "bore": 0.28
-            },
-            {
-                "zoom": 12.0,
-                "bore": 0.28
-            }
-        ],
         "category": "tanks",
-        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. T-72A / T-72S / T-72B3 / T-90A / Sprut-SDM1 (the gunner's sight): the gunner's sight at ×4, ×12 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 0.28° above the screen centre (zero ~675 m). For the other tanks pick their own entry."
+        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. T-72A / T-72S / T-72B3 / T-90A / Sprut-SDM1 (the gunner's sight): the gunner's sight at its first zoom level, ×4; the shot leaves 0.28° above the screen centre (zero ~675 m). For the other tanks pick their own entry.",
+        "bore": 0.28,
+        "zoom": 4.0
     },
     "Tank AP · T-62 (2A20)": {
         "velocity": 1300,
         "gravity": 2.5,
-        "views": [
-            {
-                "zoom": 3.5,
-                "bore": 0.05
-            },
-            {
-                "zoom": 7.0,
-                "bore": 0.05
-            }
-        ],
         "category": "tanks",
-        "note": "T-62: the gunner's sight at ×3.5, ×7 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 0.05° above the screen centre, practically on it."
+        "note": "T-62: the gunner's sight at its first zoom level, ×3.5; the shot leaves 0.05° above the screen centre, practically on it.",
+        "bore": 0.05,
+        "zoom": 3.5
     },
     "Tank AP · T-64BM2 (KBA3)": {
         "velocity": 1300,
         "gravity": 2.5,
-        "views": [
-            {
-                "zoom": 2.7,
-                "bore": 0.29
-            },
-            {
-                "zoom": 12.0,
-                "bore": 0.29
-            }
-        ],
         "category": "tanks",
-        "note": "T-64BM2: the gunner's sight at ×2.7, ×12 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 0.29° above the screen centre (zero ~700 m)."
+        "note": "T-64BM2: the gunner's sight at its first zoom level, ×2.7; the shot leaves 0.29° above the screen centre (zero ~700 m).",
+        "bore": 0.29,
+        "zoom": 2.7
     },
     "Tank AP · ZTZ-99 (ZPT-98)": {
         "velocity": 1300,
         "gravity": 2.5,
-        "views": [
-            {
-                "zoom": 4.0,
-                "bore": 0.1
-            },
-            {
-                "zoom": 12.0,
-                "bore": 0.1
-            }
-        ],
         "category": "tanks",
-        "note": "ZTZ-99: the gunner's sight at ×4, ×12 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 0.1° above the screen centre (zero ~240 m)."
+        "note": "ZTZ-99: the gunner's sight at its first zoom level, ×4; the shot leaves 0.1° above the screen centre (zero ~240 m).",
+        "bore": 0.1,
+        "zoom": 4.0
     },
     "Tank AP · M256 / Rh120": {
         "velocity": 1200,
         "gravity": 2.5,
-        "views": [
-            {
-                "zoom": 3.0,
-                "bore": 0.31
-            },
-            {
-                "zoom": 6.0,
-                "bore": 0.31
-            },
-            {
-                "zoom": 12.0,
-                "bore": 0.31
-            }
-        ],
         "category": "tanks",
-        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. M1A1 / M1A2 (the gunner's sight): the gunner's sight at ×3, ×6, ×12 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 0.31° above the screen centre (zero ~635 m). For the other tanks pick their own entry."
+        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. M1A1 / M1A2 (the gunner's sight): the gunner's sight at its first zoom level, ×3; the shot leaves 0.31° above the screen centre (zero ~635 m). For the other tanks pick their own entry.",
+        "bore": 0.31,
+        "zoom": 3.0
     },
     "Tank AP · Leopard 2A6 (Rh120)": {
         "velocity": 1200,
         "gravity": 2.5,
-        "views": [
-            {
-                "zoom": 3.0,
-                "bore": 0.25
-            },
-            {
-                "zoom": 12.0,
-                "bore": 0.25
-            }
-        ],
         "category": "tanks",
-        "note": "Leopard 2A6: the gunner's sight at ×3, ×12 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 0.25° above the screen centre (zero ~515 m)."
+        "note": "Leopard 2A6: the gunner's sight at its first zoom level, ×3; the shot leaves 0.25° above the screen centre (zero ~515 m).",
+        "bore": 0.25,
+        "zoom": 3.0
     },
     "Tank AP · M60T (MG253)": {
         "velocity": 1200,
         "gravity": 2.5,
-        "views": [
-            {
-                "zoom": 1.0,
-                "bore": 0.5
-            },
-            {
-                "zoom": 3.0,
-                "bore": 0.5
-            },
-            {
-                "zoom": 8.0,
-                "bore": 0.5
-            }
-        ],
         "category": "tanks",
-        "note": "M60T: the gunner's sight at ×1, ×3, ×8 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 0.5° above the screen centre (zero ~1030 m)."
+        "note": "M60T: the gunner's sight at ×1; the shot leaves 0.5° above the screen centre (zero ~1030 m).",
+        "bore": 0.5
     },
     "Tank AP · L30A1 (Challenger 2) / M68A2": {
         "velocity": 1500,
         "gravity": 2.5,
-        "views": [
-            {
-                "zoom": 1.5,
-                "bore": 0.31
-            },
-            {
-                "zoom": 4.0,
-                "bore": 0.31
-            },
-            {
-                "zoom": 10.0,
-                "bore": 0.31
-            }
-        ],
         "category": "tanks",
-        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. Challenger 2: the gunner's sight at ×1.5, ×4, ×10 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 0.31° above the screen centre (zero ~995 m). For the M1128 MGS pick its own entry."
+        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. Challenger 2: the gunner's sight at its first zoom level, ×1.5; the shot leaves 0.31° above the screen centre (zero ~995 m). For the M1128 MGS pick its own entry.",
+        "bore": 0.31,
+        "zoom": 1.5
     },
     "Tank AP · M1128 MGS (M68A2)": {
         "velocity": 1500,
         "gravity": 2.5,
-        "views": [
-            {
-                "zoom": 3.0,
-                "bore": 0.6
-            },
-            {
-                "zoom": 8.0,
-                "bore": 0.6
-            }
-        ],
         "category": "tanks",
-        "note": "M1128 MGS: the gunner's sight at ×3, ×8 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 0.6° above the screen centre (zero ~1925 m)."
+        "note": "M1128 MGS: the gunner's sight at its first zoom level, ×3; the shot leaves 0.6° above the screen centre (zero ~1925 m).",
+        "bore": 0.6,
+        "zoom": 3.0
     },
     "Tank HEAT/HE · M256 / Rh120 / 2A46 / ZPT98 / 2A20 / M68A2": {
         "velocity": 1100,
         "gravity": 2,
-        "views": [
-            {
-                "zoom": 4.0,
-                "bore": 0.28
-            },
-            {
-                "zoom": 12.0,
-                "bore": 0.28
-            }
-        ],
         "category": "tanks",
-        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. T-72A / T-72S / T-72B3 / T-90A / Sprut-SDM1 (the gunner's sight): the gunner's sight at ×4, ×12 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 0.28° above the screen centre (zero ~605 m). For the other tanks pick their own entry."
+        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. T-72A / T-72S / T-72B3 / T-90A / Sprut-SDM1 (the gunner's sight): the gunner's sight at its first zoom level, ×4; the shot leaves 0.28° above the screen centre (zero ~605 m). For the other tanks pick their own entry.",
+        "bore": 0.28,
+        "zoom": 4.0
     },
     "Tank HEAT/HE · M1A1 / M1A2 (M256)": {
         "velocity": 1100,
         "gravity": 2,
-        "views": [
-            {
-                "zoom": 3.0,
-                "bore": 0.31
-            },
-            {
-                "zoom": 6.0,
-                "bore": 0.31
-            },
-            {
-                "zoom": 12.0,
-                "bore": 0.31
-            }
-        ],
         "category": "tanks",
-        "note": "M1A1 / M1A2: the gunner's sight at ×3, ×6, ×12 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 0.31° above the screen centre (zero ~670 m)."
+        "note": "M1A1 / M1A2: the gunner's sight at its first zoom level, ×3; the shot leaves 0.31° above the screen centre (zero ~670 m).",
+        "bore": 0.31,
+        "zoom": 3.0
     },
     "Tank HEAT/HE · Leopard 2A6 (Rh120)": {
         "velocity": 1100,
         "gravity": 2,
-        "views": [
-            {
-                "zoom": 3.0,
-                "bore": 0.25
-            },
-            {
-                "zoom": 12.0,
-                "bore": 0.25
-            }
-        ],
         "category": "tanks",
-        "note": "Leopard 2A6: the gunner's sight at ×3, ×12 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 0.25° above the screen centre (zero ~540 m)."
+        "note": "Leopard 2A6: the gunner's sight at its first zoom level, ×3; the shot leaves 0.25° above the screen centre (zero ~540 m).",
+        "bore": 0.25,
+        "zoom": 3.0
     },
     "Tank HEAT/HE · M1128 MGS (M68A2)": {
         "velocity": 1100,
         "gravity": 2,
-        "views": [
-            {
-                "zoom": 3.0,
-                "bore": 0.6
-            },
-            {
-                "zoom": 8.0,
-                "bore": 0.6
-            }
-        ],
         "category": "tanks",
-        "note": "M1128 MGS: the gunner's sight at ×3, ×8 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 0.6° above the screen centre (zero ~1295 m)."
+        "note": "M1128 MGS: the gunner's sight at its first zoom level, ×3; the shot leaves 0.6° above the screen centre (zero ~1295 m).",
+        "bore": 0.6,
+        "zoom": 3.0
     },
     "Tank HEAT/HE · M60T (MG253)": {
         "velocity": 1100,
         "gravity": 2,
-        "views": [
-            {
-                "zoom": 1.0,
-                "bore": 0.5
-            },
-            {
-                "zoom": 3.0,
-                "bore": 0.5
-            },
-            {
-                "zoom": 8.0,
-                "bore": 0.5
-            }
-        ],
         "category": "tanks",
-        "note": "M60T: the gunner's sight at ×1, ×3, ×8 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 0.5° above the screen centre (zero ~1080 m)."
+        "note": "M60T: the gunner's sight at ×1; the shot leaves 0.5° above the screen centre (zero ~1080 m).",
+        "bore": 0.5
     },
     "Tank HEAT/HE · ZTZ-99 (ZPT-98)": {
         "velocity": 1100,
         "gravity": 2,
-        "views": [
-            {
-                "zoom": 4.0,
-                "bore": 0.1
-            },
-            {
-                "zoom": 12.0,
-                "bore": 0.1
-            }
-        ],
         "category": "tanks",
-        "note": "ZTZ-99: the gunner's sight at ×4, ×12 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 0.1° above the screen centre (zero ~215 m)."
+        "note": "ZTZ-99: the gunner's sight at its first zoom level, ×4; the shot leaves 0.1° above the screen centre (zero ~215 m).",
+        "bore": 0.1,
+        "zoom": 4.0
     },
     "Tank HEAT/HE · T-62 (2A20)": {
         "velocity": 1100,
         "gravity": 2,
-        "views": [
-            {
-                "zoom": 3.5,
-                "bore": 0.05
-            },
-            {
-                "zoom": 7.0,
-                "bore": 0.05
-            }
-        ],
         "category": "tanks",
-        "note": "T-62: the gunner's sight at ×3.5, ×7 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 0.05° above the screen centre, practically on it."
+        "note": "T-62: the gunner's sight at its first zoom level, ×3.5; the shot leaves 0.05° above the screen centre, practically on it.",
+        "bore": 0.05,
+        "zoom": 3.5
     },
     "Tank HEAT/HE · T-64BM2 (KBA3)": {
         "velocity": 1100,
         "gravity": 2,
-        "views": [
-            {
-                "zoom": 2.7,
-                "bore": 0.29
-            },
-            {
-                "zoom": 12.0,
-                "bore": 0.29
-            }
-        ],
         "category": "tanks",
-        "note": "T-64BM2: the gunner's sight at ×2.7, ×12 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 0.29° above the screen centre (zero ~625 m)."
+        "note": "T-64BM2: the gunner's sight at its first zoom level, ×2.7; the shot leaves 0.29° above the screen centre (zero ~625 m).",
+        "bore": 0.29,
+        "zoom": 2.7
     },
     "Tank HESH · L30A1 (Challenger 2)": {
         "velocity": 670,
         "gravity": 2,
-        "views": [
-            {
-                "zoom": 1.5,
-                "bore": 0.31
-            },
-            {
-                "zoom": 4.0,
-                "bore": 0.31
-            },
-            {
-                "zoom": 10.0,
-                "bore": 0.31
-            }
-        ],
         "category": "tanks",
-        "note": "Slow shell (670 m/s, the L30A1 smoke too): it drops noticeably, enter the distance precisely. Challenger 2: the gunner's sight at ×1.5, ×4, ×10 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 0.31° above the screen centre (zero ~250 m)."
+        "note": "Slow shell (670 m/s, the L30A1 smoke too): it drops noticeably, enter the distance precisely. Challenger 2: the gunner's sight at its first zoom level, ×1.5; the shot leaves 0.31° above the screen centre (zero ~250 m).",
+        "bore": 0.31,
+        "zoom": 1.5
     },
     "ZPL-98A 105mm (ZTD-05) · AP": {
         "velocity": 1110,
         "gravity": 2.5,
-        "views": [
-            {
-                "zoom": 3.5,
-                "bore": 0.02
-            },
-            {
-                "zoom": 7.0,
-                "bore": 0.02
-            }
-        ],
         "category": "tanks",
-        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. ZTD-05: the gunner's sight at ×3.5, ×7 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 0.02° above the screen centre, practically on it."
+        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. ZTD-05: the gunner's sight at its first zoom level, ×3.5; the shot leaves 0.02° above the screen centre, practically on it.",
+        "bore": 0.02,
+        "zoom": 3.5
     },
     "ZPL-98A 105mm (ZTD-05) · HEAT / HE": {
         "velocity": 730,
         "gravity": 2,
-        "views": [
-            {
-                "zoom": 3.5,
-                "bore": 0.02
-            },
-            {
-                "zoom": 7.0,
-                "bore": 0.02
-            }
-        ],
         "category": "tanks",
-        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. ZTD-05: the gunner's sight at ×3.5, ×7 (the zoom key cycles the levels, pick yours with the view switch); the shot leaves 0.02° above the screen centre, practically on it."
+        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. ZTD-05: the gunner's sight at its first zoom level, ×3.5; the shot leaves 0.02° above the screen centre, practically on it.",
+        "bore": 0.02,
+        "zoom": 3.5
     },
     "Mortar (M252 / 2B14 / L16 / Type 63)": {
         "velocity": 110,
