@@ -1,12 +1,16 @@
 ## Squad Ballistics 1.6.0
 
 ### Что нового
+- **Наводка миномёта по азимуту:** для цели с карты SquadCalc F7 теперь сначала поворачивает миномёт клавишами D/A, пока компас внизу экрана не покажет азимут цели (точность чтения около 0,03°, остановка в пределах половины шага кадра игры), а затем, как раньше, поднимает ствол по шкале прицела. Наводите из обычного вида миномёта, без приближения: там видны и шкала, и компас. Остаток азимута виден на оверлее.
+- **Шкала дальности под меткой:** у оружия прямой наводки под меткой оверлея нарисованы риски 100, 200, 300 м… — куда ставить цель на этой дальности, без ввода дистанции. Шкала следует за оружием, FOV и калибровкой; выключается на странице прицела.
+- **Сигнал удержания АГС-17 раньше на время реакции:** игрок отпускает S через 150–300 мс после сигнала, а это 40–120 м перелёта. Теперь сигнал звучит раньше — сначала на 0,2 с, затем программа подстраивает запас по вашим отпусканиям и запоминает его.
 - **Подключение устройства без кода:** Настройки → «Подключить устройство» показывают ссылку и QR-код. Отсканируйте его телефоном или откройте ссылку на втором мониторе — SquadCalc Deadline там свяжется с программой сам, и цели с его карты придут сюда. Вводить код больше не нужно, а связь переживает перезапуск программы и браузера: у программы теперь постоянный код сессии (12 символов), «Новый код» отвязывает все устройства, переключатель «Связь с устройствами» выключает связь. Код передаётся во фрагменте ссылки (`#link=`), который не уходит на сервер.
 
 ### Изменено
 - **Только Linux:** поддержка Windows убрана целиком — нет больше exe, автообновления, сборки PyInstaller и Windows-клавиш. Программа запускается из исходников (`python app.py`), обновление — `git pull`. Клавиши читаются через evdev или X11, нажимаются через uinput или XTest; настройки лежат в `~/.config/SquadBallistics`, кэш карты — в `~/.cache/SquadBallistics`.
 
 ### Исправлено
+- **Цель с карты точнее:** дистанция и перепад высот из SquadCalc больше не округляются до целого метра (теряли до 0,5 м, а метр высоты сдвигает близкий выстрел UB-32 на 20–40 м) — теперь до 0,1 м.
 - **Ошибки ввода видны сразу:** при расчёте во время ввода FOV вне 1–179 или нулевая дистанция показывали «Введите дистанцию». Теперь показывается сама ошибка; подсказка «Введите дистанцию» — только при пустом поле дистанции.
 - **Диалоги читаются:** в окнах «Перезапустить?» и «Сбросить настройки?» светлый текст стоял на светлом фоне и почти не был виден.
 - **Контраст на акценте:** на зелёном, янтарном и песочном акценте белый текст кнопок, выбранных переключателей и пунктов списка почти не читался. На светлом акценте текст теперь тёмный.
@@ -15,12 +19,16 @@
 - Мелочи: «Папка настроек» и «Открыть в браузере» показывают путь или адрес, если в системе нечем их открыть (раньше ничего не происходило), а при включённом «Открывать карту в обычном браузере» вкладка карты тогда открывает встроенную карту; «Сброс» скорости автонаводки оформлен как второстепенная кнопка, как остальные «Сброс»; в английском тексте шаг про автонаводку говорил, что она «включена», когда она выключена.
 
 ### What's new
+- **Mortar bearing lay:** for a SquadCalc map target F7 now first turns the mortar with D/A until the HUD compass at the bottom of the screen shows the target's bearing (read to about 0.03°, stopped within half the game's frame step), then lays the elevation on the sight as before. Lay from the mortar's own view, not zoomed in: it shows both the scale and the compass. The bearing left is on the overlay.
+- **Range ladder under the mark:** direct-fire weapons get ticks at 100, 200, 300 m… under the overlay mark — where a target at that range goes, with no distance typed. The ladder follows the weapon, FOV and calibration; turn it off on the crosshair page.
+- **AGS-17 hold beep early by your reaction time:** a player releases S 150–300 ms after the beep, 40–120 m long. The beep now comes early — 0.2 s at first, then the app fits the lead to your own releases and keeps it.
 - **Connect a device without typing a code:** Settings → *Connect a device* shows a link and a QR code. Scan it with the phone or open the link on the second monitor: the Deadline SquadCalc there links up with the app by itself and its map targets come here. No code to type any more, and the link survives restarts of the app and the browser: the app now keeps one session code (12 characters), *New code* unlinks every device, the *Link with devices* toggle turns the link off. The code travels in the link's fragment (`#link=`), which never reaches the server.
 
 ### Changed
 - **Linux only:** Windows support is gone entirely — no exe, auto-update, PyInstaller build or Windows key handling. The app runs from source (`python app.py`) and updates with `git pull`. Keys are read through evdev or X11 and sent through uinput or XTest; settings live in `~/.config/SquadBallistics`, the map cache in `~/.cache/SquadBallistics`.
 
 ### Fixed
+- **Map targets more exact:** the distance and height difference from SquadCalc are no longer rounded to whole metres (up to 0.5 m lost, and a metre of height moves a short UB-32 shot 20–40 m) — they keep a tenth of a metre.
 - **Input errors show right away:** while calculating as you type, a FOV outside 1–179 or a zero distance showed "Enter the distance". The error itself is shown now; "Enter the distance" only when the distance field is empty.
 - **Readable dialogs:** the "Restart?" and "Reset settings?" boxes had light text on a light background.
 - **Contrast on the accent:** with the green, amber and sand accents the white text of buttons, checked segments and selected list rows was hard to read. Light accents get dark text now.
