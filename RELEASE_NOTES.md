@@ -1,3 +1,11 @@
+## Squad Ballistics 1.6.0
+
+### Изменено
+- **Только Linux:** поддержка Windows убрана целиком — нет больше exe, автообновления, сборки PyInstaller и Windows-клавиш. Программа запускается из исходников (`python app.py`), обновление — `git pull`. Клавиши читаются через evdev или X11, нажимаются через uinput или XTest; настройки лежат в `~/.config/SquadBallistics`, кэш карты — в `~/.cache/SquadBallistics`.
+
+### Changed
+- **Linux only:** Windows support is gone entirely — no exe, auto-update, PyInstaller build or Windows key handling. The app runs from source (`python app.py`) and updates with `git pull`. Keys are read through evdev or X11 and sent through uinput or XTest; settings live in `~/.config/SquadBallistics`, the map cache in `~/.cache/SquadBallistics`.
+
 ## Squad Ballistics 1.5.1
 
 ### Исправлено
@@ -19,12 +27,12 @@
 ## Squad Ballistics 1.5.0
 
 ### Что нового
-- **Чтение прицела миномёта с экрана:** пока выбран миномёт, программа читает милы со шкалы его прицела и пишет их на оверлее рядом с нужными, например «прицел 1041.5 мил (+4.6)». Точность около 0,1 мил, любое разрешение и соотношение сторон. Игра должна быть в оконном режиме или «без рамки».
+- **Чтение прицела миномёта с экрана:** пока выбран миномёт, программа читает милы со шкалы его прицела и пишет их на оверлее рядом с нужными, например «прицел 1041.5 мил (+4.6)». Точность около 0,1 мил, любое разрешение и соотношение сторон.
 - **Автонаводка по прицелу:** F7 в прицеле миномёта теперь держит W или S, пока прицел не покажет решение с точностью до 0,5 мил: не нужно поднимать ствол до упора, и скорость ствола не важна. Если прицел не читается, работает прежняя наводка по времени.
 - **«Уточнить» без ввода:** с пустым полем милы берутся с прицела на экране.
 
 ### What's new
-- **Mortar sight read off the screen:** while a mortar is selected the app reads the mils off its sight's scale and shows them on the overlay next to the target ones, e.g. "sight 1041.5 mil (+4.6)". About 0.1 mil, any resolution and aspect ratio. The game must run windowed or borderless.
+- **Mortar sight read off the screen:** while a mortar is selected the app reads the mils off its sight's scale and shows them on the overlay next to the target ones, e.g. "sight 1041.5 mil (+4.6)". About 0.1 mil, any resolution and aspect ratio.
 - **Auto-lay on the sight:** F7 in the mortar sight now holds W or S until the sight shows the solution within 0.5 mil — no trip to the top, and the barrel rate does not matter. If the sight cannot be read, the timed lay works as before.
 - **Calibrate without typing:** with the field empty the mils are read off the sight on the screen.
 
@@ -66,8 +74,6 @@
 
 ## Squad Ballistics 1.3.0
 
-**Скачайте только `SquadBallistics.exe`** — это вся программа, ничего распаковывать не нужно. На Linux — запуск из исходников (см. README). Настройки и кэш карты сохраняются.
-
 ### Что нового
 - **Метка оверлея с учётом перепада высот:** метка ставится по углу над линией на цель, а не к горизонту. Раньше перепад высот учитывался дважды, и по цели выше или ниже снаряд уходил мимо на величину перепада. Крупная цифра — угол над линией на цель, угол к горизонту — под ней.
 - **Карта SquadCalc Deadline → калькулятор:** цель с карты подставляет дистанцию, перепад высот и азимут, а оружие, выбранное в SquadCalc, выбирается и здесь — метка оверлея встаёт на цель сама. В SquadCalc Deadline есть группа «Прямая наводка (Squad Ballistics)» со всеми оружиями оверлея, посчитанными по тем же данным, и кнопка «Зона поражения»: куда оружие достаёт с позиции с учётом рельефа и зданий. С другого устройства — по коду сессии.
@@ -81,8 +87,6 @@
 - **Linux:** timer, beep, hotkeys and auto-hold work (evdev, X11/XWayland, uinput).
 
 ## Squad Ballistics 1.2.0
-
-**Скачайте только `SquadBallistics.exe`** — это вся программа, ничего распаковывать не нужно. Настройки хранятся в `%APPDATA%\SquadBallistics`, кэш карты — в `%LOCALAPPDATA%\SquadBallistics`. Если у вас стоит старая версия, она обновится сама.
 
 ### Что нового
 - **59 видов оружия** (было 6): подствольные и автоматические гранатомёты, РПГ и другие ПТ-гранатомёты с разгоном ракеты, безоткатные орудия, танковые и автоматические пушки, пулемёты, миномёты и РСЗО, плюс оружие из популярных модов.
@@ -98,6 +102,5 @@
 - New minimal interface with weapon search, live calculation, trajectory view and step-by-step firing instructions.
 - Crosshair preview and presets, Russian/English UI, rebindable hotkeys.
 - Faster SquadCalc map; the embedded browser no longer uses QUIC, ECH and secure DNS, which could keep the map black on restricted networks; compatibility mode for black maps; open in browser.
-- One file: settings live in `%APPDATA%\SquadBallistics`, map cache in `%LOCALAPPDATA%\SquadBallistics`.
 
 Данные оружия: официальная вики Squad и [SquadCalc](https://github.com/sh4rkman/SquadCalc).

@@ -15,11 +15,10 @@ import time
 import pytest
 
 import keystate
-from keystate import EVDEV_CODES, EVIOCGBIT_KEY, EVIOCGKEY
+from hotkeys import KEYS
+from keystate import EVIOCGBIT_KEY, EVIOCGKEY, KEY_MAX, KEY_S, KEY_W
 
-VK_S = 0x53
-VK_W = 0x57
-VK_F8 = 0x77
+KEY_F8 = KEYS["F8"]
 
 
 def test_ioctl_numbers_match_linux_input_h():
@@ -28,15 +27,11 @@ def test_ioctl_numbers_match_linux_input_h():
     assert EVIOCGBIT_KEY == 0x80604521
 
 
-def test_every_bindable_key_has_a_linux_code():
-    from hotkeys import KEYS
-
-    for name, vk in KEYS.items():
-        assert vk in EVDEV_CODES, name
-
-    assert EVDEV_CODES[VK_S] == 31
-    assert EVDEV_CODES[VK_W] == 17
-    assert EVDEV_CODES[VK_F8] == 66
+def test_key_codes_match_linux_input_event_codes_h():
+    assert (KEY_S, KEY_W, KEY_F8) == (31, 17, 66)
+    assert (KEYS["F1"], KEYS["F10"], KEYS["F11"], KEYS["F12"]) == (59, 68, 87, 88)
+    assert len(set(KEYS.values())) == len(KEYS)
+    assert all(0 < code <= KEY_MAX for code in KEYS.values())
 
 
 def test_no_devices_means_no_reader(tmp_path):
@@ -82,7 +77,7 @@ def uinput_keyboard():
     try:
         fcntl.ioctl(fd, UI_SET_EVBIT, keystate.EV_KEY)
 
-        for code in EVDEV_CODES.values():
+        for code in (KEY_S, KEY_W, *KEYS.values()):
             fcntl.ioctl(fd, UI_SET_KEYBIT, code)
 
         setup = DEVICE_NAME.ljust(80, b"\0") + struct.pack(
@@ -121,22 +116,22 @@ def test_evdev_reader_sees_a_real_keyboard(uinput_keyboard):
     reader = keystate.evdev_reader([path])
 
     assert reader is not None
-    assert not reader(VK_S)
+    assert not reader(KEY_S)
 
-    _key(fd, EVDEV_CODES[VK_S], True)
+    _key(fd, KEY_S, True)
     time.sleep(0.05)
-    assert reader(VK_S)
-    assert not reader(VK_W)
+    assert reader(KEY_S)
+    assert not reader(KEY_W)
 
-    _key(fd, EVDEV_CODES[VK_F8], True)
+    _key(fd, KEY_F8, True)
     time.sleep(0.05)
-    assert reader(VK_F8)
+    assert reader(KEY_F8)
 
-    _key(fd, EVDEV_CODES[VK_S], False)
-    _key(fd, EVDEV_CODES[VK_F8], False)
+    _key(fd, KEY_S, False)
+    _key(fd, KEY_F8, False)
     time.sleep(0.05)
-    assert not reader(VK_S)
-    assert not reader(VK_F8)
+    assert not reader(KEY_S)
+    assert not reader(KEY_F8)
     assert not reader(0x41)  # a key without a Linux mapping
 
 
@@ -176,22 +171,21 @@ def test_x11_reader_sees_keys_on_the_display(xvfb):
     reader = keystate.x11_reader()
 
     assert reader is not None
-    assert not reader(VK_S)
+    assert not reader(KEY_S)
 
     xdotool("keydown", "s")
-    assert reader(VK_S)
-    assert not reader(VK_W)
+    assert reader(KEY_S)
+    assert not reader(KEY_W)
 
     xdotool("keydown", "F8")
-    assert reader(VK_F8)
+    assert reader(KEY_F8)
 
     xdotool("keyup", "s", "keyup", "F8")
-    assert not reader(VK_S)
-    assert not reader(VK_F8)
+    assert not reader(KEY_S)
+    assert not reader(KEY_F8)
 
 
-def test_linux_prefers_evdev_then_x11(monkeypatch):
-    monkeypatch.setattr(keystate.sys, "platform", "linux")
+def test_prefers_evdev_then_x11(monkeypatch):
     monkeypatch.setattr(keystate, "evdev_reader", lambda: "evdev")
     monkeypatch.setattr(keystate, "x11_reader", lambda: "x11")
     assert keystate.system_key_reader() == "evdev"
@@ -199,7 +193,7 @@ def test_linux_prefers_evdev_then_x11(monkeypatch):
     monkeypatch.setattr(keystate, "evdev_reader", lambda: None)
     assert keystate.system_key_reader() == "x11"
 
-    monkeypatch.setattr(keystate.sys, "platform", "darwin")
+    monkeypatch.setattr(keystate, "x11_reader", lambda: None)
     assert keystate.system_key_reader() is None
 
 

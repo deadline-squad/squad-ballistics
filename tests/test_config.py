@@ -131,48 +131,24 @@ def test_defaults_are_inside_ranges():
         assert config.DEFAULT_CONFIG[key] in choices, key
 
 
-def test_legacy_config_next_to_frozen_exe(tmp_path, monkeypatch):
-    run_dir = tmp_path / "somewhere_else"
-    run_dir.mkdir()
-    monkeypatch.chdir(run_dir)
-
-    exe_dir = tmp_path / "app"
-    (exe_dir / "configs").mkdir(parents=True)
-    (exe_dir / "configs" / "config.json").write_text(json.dumps({"fov": 104}))
-
-    monkeypatch.setattr(config.sys, "frozen", True, raising=False)
-    monkeypatch.setattr(
-        config.sys, "executable", str(exe_dir / "SquadBallistics.exe")
-    )
-
-    path = tmp_path / "appdata" / "config.json"
-
-    assert config.load_config(str(path))["fov"] == 104
-    assert json.loads(path.read_text())["fov"] == 104
-
-
-def test_linux_wayland_runs_through_xwayland():
+def test_wayland_runs_through_xwayland():
     from app import prefer_x11
 
     wayland = {"WAYLAND_DISPLAY": "wayland-0", "DISPLAY": ":0"}
-    prefer_x11(wayland, "linux")
+    prefer_x11(wayland)
     assert wayland["QT_QPA_PLATFORM"] == "xcb"
 
     chosen = {"WAYLAND_DISPLAY": "wayland-0", "DISPLAY": ":0", "QT_QPA_PLATFORM": "wayland"}
-    prefer_x11(chosen, "linux")
+    prefer_x11(chosen)
     assert chosen["QT_QPA_PLATFORM"] == "wayland"
 
     no_xwayland = {"WAYLAND_DISPLAY": "wayland-0"}
-    prefer_x11(no_xwayland, "linux")
+    prefer_x11(no_xwayland)
     assert "QT_QPA_PLATFORM" not in no_xwayland
 
     x11 = {"DISPLAY": ":0"}
-    prefer_x11(x11, "linux")
+    prefer_x11(x11)
     assert "QT_QPA_PLATFORM" not in x11
-
-    windows = {"WAYLAND_DISPLAY": "x", "DISPLAY": ":0"}
-    prefer_x11(windows, "win32")
-    assert "QT_QPA_PLATFORM" not in windows
 
 
 def test_lay_rates_keep_only_positive_numbers():

@@ -100,7 +100,7 @@ class ScreenSight:
 
     def grab_image(self):
         """The region as a QImage, or None if the screen can't be grabbed
-        (Wayland; a game in exclusive fullscreen gives black)."""
+        (a Wayland session without XWayland)."""
         screen = self.overlay.screen() or QGuiApplication.primaryScreen()
         region = self.region()
 
@@ -124,7 +124,7 @@ class ScreenSight:
 
         left, top, right, _ = self.region()
 
-        # Device pixels per logical pixel (Windows display scaling)
+        # Device pixels per logical pixel (display scaling)
         ratio = image.width() / (right - left)
 
         return Sight(

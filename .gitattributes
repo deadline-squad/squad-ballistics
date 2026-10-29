@@ -1,3 +1,0 @@
-# Windows scripts must keep CRLF line endings.
-*.bat -text
-*.ps1 -text

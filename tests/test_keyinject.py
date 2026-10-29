@@ -1,6 +1,5 @@
 """Key injection: timing logic and real delivery (Xvfb + XTest, uinput)."""
 
-import ctypes
 import glob
 import os
 import shutil
@@ -13,8 +12,7 @@ import pytest
 import keyinject
 import keystate
 from keyinject import AutoHold, hold_key
-
-VK_S = 0x53
+from keystate import KEY_S
 
 
 class FakeInjector:
@@ -30,12 +28,6 @@ class FakeInjector:
 
     def close(self):
         self.closed = True
-
-
-def test_input_struct_matches_windows_x64():
-    # SendInput rejects a wrong cbSize: sizeof(INPUT) is 40 on 64-bit.
-    if ctypes.sizeof(ctypes.c_void_p) == 8:
-        assert ctypes.sizeof(keyinject._Input) == 40
 
 
 def test_hold_key_holds_for_the_requested_time():
@@ -121,12 +113,6 @@ def test_nothing_to_hold():
     auto.stop()  # no thread: no-op
 
 
-def test_no_injector_on_other_systems(monkeypatch):
-    monkeypatch.setattr(keyinject.sys, "platform", "darwin")
-
-    assert keyinject.system_key_injector(VK_S) is None
-
-
 @pytest.fixture
 def xvfb(monkeypatch):
     if not (shutil.which("Xvfb") and (
@@ -156,23 +142,23 @@ def xvfb(monkeypatch):
 
 
 def test_xtest_injector_presses_s_on_the_display(xvfb):
-    injector = keyinject.XTestInjector(VK_S)
+    injector = keyinject.XTestInjector(KEY_S)
     reader = keystate.x11_reader()
 
-    assert not reader(VK_S)
+    assert not reader(KEY_S)
 
     injector.press()
-    assert reader(VK_S)
+    assert reader(KEY_S)
 
     injector.release()
-    assert not reader(VK_S)
+    assert not reader(KEY_S)
 
 
 def test_uinput_injector_is_a_real_keyboard():
     if not os.access("/dev/uinput", os.W_OK):
         pytest.skip("/dev/uinput is not writable")
 
-    injector = keyinject.UinputInjector(VK_S)
+    injector = keyinject.UinputInjector(KEY_S)
 
     try:
         path = None
@@ -200,7 +186,7 @@ def test_uinput_injector_is_a_real_keyboard():
                 fcntl.ioctl(fd, keystate.EVIOCGKEY, state)
             finally:
                 os.close(fd)
-            return keystate._bit(state, keystate.EVDEV_CODES[VK_S])
+            return keystate._bit(state, KEY_S)
 
         assert not s_down()
         injector.press()
@@ -213,17 +199,3 @@ def test_uinput_injector_is_a_real_keyboard():
         injector.close()
 
     injector.close()  # idempotent
-
-
-def test_imports_without_fcntl(monkeypatch):
-    """Windows has no fcntl: the key modules still import (the exe used to
-    stop with ModuleNotFoundError before showing a window)."""
-    import importlib
-    import sys
-
-    monkeypatch.setitem(sys.modules, "fcntl", None)
-    monkeypatch.delitem(sys.modules, "keystate")
-    monkeypatch.delitem(sys.modules, "keyinject")
-
-    assert importlib.import_module("keystate").fcntl is None
-    assert importlib.import_module("keyinject").fcntl is None

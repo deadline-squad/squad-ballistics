@@ -39,7 +39,7 @@ def stylesheet(accent):
 
     QWidget {{
         color: {TEXT};
-        font-family: "Segoe UI", "Inter", sans-serif;
+        font-family: "Inter", "Noto Sans", "DejaVu Sans", sans-serif;
         font-size: 13px;
     }}
 

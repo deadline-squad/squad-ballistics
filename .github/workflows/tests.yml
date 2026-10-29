@@ -15,7 +15,7 @@ jobs:
       - name: Install system libraries for Qt
         run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3 xvfb xdotool
       - name: Install dependencies
-        run: pip install PyQt6 qtawesome requests pytest
+        run: pip install PyQt6 qtawesome pytest
       - name: Run tests
         env:
           QT_QPA_PLATFORM: offscreen

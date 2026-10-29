@@ -22,6 +22,18 @@ from PyQt6.QtGui import (
 from PyQt6.QtWidgets import QWidget
 
 
+# Fonts of the overlay text, the first one installed is used.
+OVERLAY_FONTS = ["Inter", "Noto Sans", "DejaVu Sans"]
+
+
+def overlay_font(size):
+    font = QFont()
+    font.setFamilies(OVERLAY_FONTS)
+    font.setPointSize(size)
+
+    return font
+
+
 def paint_crosshair(painter, cfg, x, y):
     """Draw the configured crosshair centred on (x, y).
 
@@ -245,7 +257,7 @@ class Overlay(QWidget):
         self.update(area.toAlignedRect().adjusted(-2, -2, 3, 3))
 
     def info_font(self):
-        font = QFont("Segoe UI", 10)
+        font = overlay_font(10)
         font.setBold(True)
         return font
 
@@ -408,7 +420,7 @@ class Overlay(QWidget):
         width = rect.width() - 24
 
         def text(y, height, size, bold, color, value, align=Qt.AlignmentFlag.AlignLeft):
-            font = QFont("Segoe UI", size)
+            font = overlay_font(size)
             font.setBold(bold)
             painter.setFont(font)
             painter.setPen(QColor(color))

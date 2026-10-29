@@ -6,7 +6,7 @@ elevation and holding S lowers it at a constant rate (see
 since the last W and signals once when the hold time of the target is
 reached, so the player can release S on the beep.
 
-Keys are read system-wide by `keystate` (Windows, Linux evdev or X11);
+Keys are read system-wide by `keystate` (evdev or X11);
 where they cannot be read `available` is False. Because the keys are
 global, S pressed anywhere counts until the next W.
 
@@ -20,7 +20,6 @@ import os
 import shutil
 import struct
 import subprocess
-import sys
 import tempfile
 import time
 
@@ -30,8 +29,7 @@ from PyQt6.QtCore import (
     pyqtSignal
 )
 
-VK_S = 0x53
-VK_W = 0x57
+from keystate import KEY_S, KEY_W
 
 BEEP_FREQUENCY = 1200
 BEEP_MS = 120
@@ -69,8 +67,6 @@ class HoldTimer(QObject):
         # keyinject.AutoHold while auto-hold is enabled, else None.
         self.auto_hold = None
 
-        # perf_counter: time.monotonic ticks every ~15.6 ms on Windows
-        # before Python 3.13, which is ~8 m of AGS-17 range.
         self.clock = clock
 
         self.held = 0.0
@@ -227,9 +223,9 @@ class HoldTimer(QObject):
 
         self.advance(
             min(elapsed, MAX_POLL_GAP),
-            # The reader may not see our own synthetic keys (evdev, Windows).
-            self.key_reader(VK_S) or self.auto_pressing,
-            self.key_reader(VK_W) or resetting,
+            # The reader may not see our own synthetic keys (evdev).
+            self.key_reader(KEY_S) or self.auto_pressing,
+            self.key_reader(KEY_W) or resetting,
             own_w=resetting
         )
 
@@ -285,18 +281,7 @@ def linux_beep_command():
 
 def beep():
     """Short high beep that does not block the UI."""
-    if sys.platform == "win32":
-        import threading
-        import winsound
-
-        threading.Thread(
-            target=winsound.Beep,
-            args=(BEEP_FREQUENCY, BEEP_MS),
-            daemon=True
-        ).start()
-        return
-
-    command = linux_beep_command() if sys.platform.startswith("linux") else None
+    command = linux_beep_command()
 
     if command is not None:
         try:
@@ -311,7 +296,7 @@ def beep():
         except OSError:
             pass
 
-    # Often muted on Linux desktops: only the last resort.
+    # Often muted on desktops: only the last resort.
     from PyQt6.QtWidgets import QApplication
 
     QApplication.beep()

@@ -5,13 +5,14 @@ import pytest
 
 pytest.importorskip("PyQt6.QtCore")
 
-from holdtimer import MAX_POLL_GAP, VK_S, VK_W, HoldTimer
+from holdtimer import MAX_POLL_GAP, HoldTimer
+from keystate import KEY_S, KEY_W
 
 
 def make_timer(keys=None):
     keys = set() if keys is None else keys
 
-    timer = HoldTimer(lambda vk: vk in keys)
+    timer = HoldTimer(lambda code: code in keys)
     timer.set_active(True)
 
     reached = []
@@ -93,7 +94,7 @@ class FakeClock:
 def make_polled_timer():
     keys = set()
     clock = FakeClock()
-    timer = HoldTimer(lambda vk: vk in keys, clock=clock)
+    timer = HoldTimer(lambda code: code in keys, clock=clock)
     reached = []
     timer.reached.connect(lambda: reached.append(timer.held))
     timer.set_active(True)
@@ -105,14 +106,14 @@ def test_poll_measures_the_time_between_polls():
 
     timer.set_target(10.0)
 
-    keys.add(VK_S)
+    keys.add(KEY_S)
     for _ in range(5):
         clock.now += 0.01
         timer.poll()
 
     assert timer.held == pytest.approx(0.05)
 
-    keys.add(VK_W)
+    keys.add(KEY_W)
     clock.now += 0.01
     timer.poll()
     assert timer.held == 0.0
@@ -125,7 +126,7 @@ def test_ui_freeze_is_not_counted_as_holding():
 
     # The UI froze for 2 s; S is down only at the next poll.
     clock.now += 2.0
-    keys.add(VK_S)
+    keys.add(KEY_S)
     timer.poll()
 
     assert timer.held <= MAX_POLL_GAP
@@ -136,20 +137,20 @@ def test_w_is_watched_without_a_target():
     timer, keys, clock, reached = make_polled_timer()
 
     timer.set_target(2.0)
-    keys.add(VK_S)
+    keys.add(KEY_S)
     for _ in range(250):
         clock.now += 0.01
         timer.poll()
-    keys.discard(VK_S)
+    keys.discard(KEY_S)
     assert len(reached) == 1
 
     timer.set_target(None)
     assert timer.active
 
-    keys.add(VK_W)
+    keys.add(KEY_W)
     clock.now += 0.01
     timer.poll()
-    keys.discard(VK_W)
+    keys.discard(KEY_W)
     clock.now += 0.01
     timer.poll()
 
@@ -157,7 +158,7 @@ def test_w_is_watched_without_a_target():
     assert timer.held == 0.0
     assert not timer.is_reached
 
-    keys.add(VK_S)
+    keys.add(KEY_S)
     for _ in range(160):
         clock.now += 0.01
         timer.poll()
@@ -254,11 +255,11 @@ def test_auto_hold_holds_the_time_left_and_counts_it():
     timer.auto_hold = FakeAutoHold()
 
     timer.set_target(1.0)
-    keys.add(VK_S)
+    keys.add(KEY_S)
     for _ in range(30):
         clock.now += 0.01
         timer.poll()
-    keys.discard(VK_S)
+    keys.discard(KEY_S)
 
     assert timer.toggle_auto_hold()
     assert timer.auto_hold.started == [pytest.approx(0.7)]
@@ -300,11 +301,11 @@ def test_mortar_auto_lay_resets_with_its_own_w_then_holds_the_whole_time():
     timer.set_target(1.0)
 
     # S partly held by hand: the auto-lay still holds the whole time after W
-    keys.add(VK_S)
+    keys.add(KEY_S)
     for _ in range(30):
         clock.now += 0.01
         timer.poll()
-    keys.discard(VK_S)
+    keys.discard(KEY_S)
 
     assert timer.toggle_auto_hold(reset_seconds=5.2)
     assert timer.auto_hold.started == [(1.0, 5.2)]
@@ -340,7 +341,7 @@ def test_player_w_still_cancels_a_mortar_auto_lay():
     timer.auto_hold.resetting.clear()
     timer.auto_hold.pressing.set()
 
-    keys.add(VK_W)
+    keys.add(KEY_W)
     clock.now += 0.01
     timer.poll()
 
@@ -362,7 +363,7 @@ def test_key_state_is_reported():
     changes = []
     timer.changed.connect(lambda: changes.append((timer.s_down, timer.w_down)))
 
-    keys.add(VK_W)
+    keys.add(KEY_W)
     clock.now += 0.01
     timer.poll()
     assert (timer.s_down, timer.w_down) == (False, True)
