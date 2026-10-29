@@ -3,10 +3,10 @@
 ### Что нового
 - **Наводка миномёта по азимуту:** для цели с карты SquadCalc F7 теперь сначала поворачивает миномёт клавишами D/A, пока компас внизу экрана не покажет азимут цели (азимут читается с десятыми градуса, остановка в пределах 0,1° или половины шага кадра игры), а затем, как раньше, поднимает ствол по шкале прицела. Наводите из обычного вида миномёта, без приближения: там видны и шкала, и компас. Остаток азимута виден на оверлее.
 - **Шкала дальности под меткой:** у оружия прямой наводки под меткой оверлея нарисованы риски 100, 200, 300 м… — куда ставить цель на этой дальности, без ввода дистанции. Шкала следует за оружием, FOV и калибровкой; выключается на странице прицела.
-- **Подключение устройства без кода:** Настройки → «Подключить устройство» показывают ссылку и QR-код. Отсканируйте его телефоном или откройте ссылку на втором мониторе — SquadCalc Deadline там свяжется с программой сам, и цели с его карты придут сюда. Вводить код больше не нужно, а связь переживает перезапуск программы и браузера: у программы теперь постоянный код сессии (12 символов), «Новый код» отвязывает все устройства, переключатель «Связь с устройствами» выключает связь. Код передаётся во фрагменте ссылки (`#link=`), который не уходит на сервер.
 
 ### Изменено
 - **Только Linux:** поддержка Windows убрана целиком — нет больше exe, автообновления, сборки PyInstaller и Windows-клавиш. Программа запускается из исходников (`python app.py`), обновление — `git pull`. Клавиши читаются через evdev или X11, нажимаются через uinput или XTest; настройки лежат в `~/.config/SquadBallistics`, кэш карты — в `~/.cache/SquadBallistics`.
+- **Убрана связь с телефоном или вторым монитором по ссылке и QR-коду** (настройки «Подключить устройство», код сессии, «Связь с устройствами»). Цели по-прежнему приходят со встроенной карты SquadCalc.
 - **Убраны сигнал удержания АГС-17, панель таймера на оверлее и их настройки** (сигнал, панель и её угол): программа по-прежнему показывает, сколько держать S (на карточке АГС-17 «S 1,23 с»), а по F7 может держать S сама. Сигнал окончания наводки миномёта остался.
 
 ### Исправлено
@@ -24,10 +24,10 @@
 ### What's new
 - **Mortar bearing lay:** for a SquadCalc map target F7 now first turns the mortar with D/A until the HUD compass at the bottom of the screen shows the target's bearing (read to a tenth of a degree, stopped within 0.1° or half the game's frame step), then lays the elevation on the sight as before. Lay from the mortar's own view, not zoomed in: it shows both the scale and the compass. The bearing left is on the overlay.
 - **Range ladder under the mark:** direct-fire weapons get ticks at 100, 200, 300 m… under the overlay mark — where a target at that range goes, with no distance typed. The ladder follows the weapon, FOV and calibration; turn it off on the crosshair page.
-- **Connect a device without typing a code:** Settings → *Connect a device* shows a link and a QR code. Scan it with the phone or open the link on the second monitor: the Deadline SquadCalc there links up with the app by itself and its map targets come here. No code to type any more, and the link survives restarts of the app and the browser: the app now keeps one session code (12 characters), *New code* unlinks every device, the *Link with devices* toggle turns the link off. The code travels in the link's fragment (`#link=`), which never reaches the server.
 
 ### Changed
 - **Linux only:** Windows support is gone entirely — no exe, auto-update, PyInstaller build or Windows key handling. The app runs from source (`python app.py`) and updates with `git pull`. Keys are read through evdev or X11 and sent through uinput or XTest; settings live in `~/.config/SquadBallistics`, the map cache in `~/.cache/SquadBallistics`.
+- **The link to a phone or a second monitor by link and QR code is removed** (the *Connect a device* settings, the session code, *Link with devices*). Targets still come from the embedded SquadCalc map.
 - **The AGS-17 hold beep, the hold timer panel on the overlay and their settings (beep, panel, panel corner) are removed:** the app still shows how long to hold S (the AGS-17 card reads "S 1.23 s") and F7 can hold it for you. The mortar's "lay finished" beep stays.
 
 ### Fixed

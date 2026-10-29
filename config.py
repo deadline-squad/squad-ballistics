@@ -85,14 +85,9 @@ DEFAULT_CONFIG = {
 
     # Map source: "deadline" (SquadCalc build with AGS-17 and the target
     # bridge) or "squadcalc" (squadcalc.app). map_follow puts the newest
-    # map target into the calculator. relay_code is the session that joins
-    # SquadCalc pages open elsewhere through the relay: made once by the app
-    # when empty (maplink.new_session_code) and kept, so paired devices stay
-    # paired; relay_enabled turns the link off without losing the code.
+    # map target into the calculator.
     "map_source": "deadline",
     "map_follow": True,
-    "relay_code": "",
-    "relay_enabled": True,
 
     # auto_hold lets the app hold S itself (hotkey "auto_hold"); synthetic
     # input may be treated as a macro by the anti-cheat or server rules, so
@@ -272,14 +267,25 @@ def load_config(path=None):
 
 
 def save_config(config, path=None):
+    """Write `config` as JSON, readable by the owner only.
+
+    The folder is created with mode 0700 and the file written to a 0600 temp
+    file that replaces the old one, so a settings file saved world-readable
+    by an older version is replaced by a private one.
+    """
     path = path or CONFIG_PATH
 
     try:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
 
         tmp = path + ".tmp"
 
-        with open(tmp, "w", encoding="utf-8") as f:
+        descriptor = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+
+        # A leftover temp file keeps its old mode through O_CREAT.
+        os.fchmod(descriptor, 0o600)
+
+        with os.fdopen(descriptor, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=4)
 
         os.replace(tmp, path)

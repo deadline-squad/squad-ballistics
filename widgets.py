@@ -16,12 +16,10 @@ from PyQt6.QtGui import (
     QColor,
     QFont,
     QGuiApplication,
-    QImage,
     QLinearGradient,
     QPainter,
     QPainterPath,
     QPen,
-    QPixmap,
     QValidator
 )
 
@@ -44,10 +42,6 @@ import theme
 from ballistics import MILS_PER_DEGREE
 from i18n import tr, category_name
 from overlay import paint_crosshair
-from qr import qr_matrix
-
-# Light modules around a QR code, as the standard requires for scanning.
-QR_QUIET_ZONE = 4
 
 
 def label(text, role=None):
@@ -57,32 +51,6 @@ def label(text, role=None):
         widget.setProperty("role", role)
 
     return widget
-
-
-def qr_pixmap(text, module=4):
-    """QR code of `text`: black on white (in any theme), quiet zone included.
-
-    `module` is the side of one module in pixels; nearest-neighbour scaling
-    keeps the edges sharp for the camera.
-    """
-    matrix = qr_matrix(text)
-    side = len(matrix) + 2 * QR_QUIET_ZONE
-
-    image = QImage(side, side, QImage.Format.Format_Grayscale8)
-
-    image.fill(Qt.GlobalColor.white)
-
-    for row, modules in enumerate(matrix):
-        for column, dark in enumerate(modules):
-            if dark:
-                image.setPixel(column + QR_QUIET_ZONE, row + QR_QUIET_ZONE, 0xFF000000)
-
-    return QPixmap.fromImage(image.scaled(
-        side * module,
-        side * module,
-        Qt.AspectRatioMode.IgnoreAspectRatio,
-        Qt.TransformationMode.FastTransformation
-    ))
 
 
 def repolish(widget):

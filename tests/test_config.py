@@ -1,4 +1,5 @@
 import json
+import os
 
 import config
 
@@ -163,20 +164,20 @@ def test_lay_rates_keep_only_positive_numbers():
     assert config._merge({"lay_rates": [1, 2]})["lay_rates"] == {}
 
 
-def test_device_link_settings_from_older_versions(tmp_path):
-    """A typed relay code stays and the link is on; no code means the app makes one."""
+def test_settings_of_the_removed_device_link_are_ignored(tmp_path):
+    """Files saved by 1.6.0 builds with the device link still load."""
     path = tmp_path / "config.json"
+    path.write_text(json.dumps({
+        "relay_code": "ABCD2345",
+        "relay_enabled": False,
+        "fov": 60
+    }))
 
-    path.write_text(json.dumps({"relay_code": "ABCD2345"}))
     cfg = config.load_config(str(path))
-    assert cfg["relay_code"] == "ABCD2345"
-    assert cfg["relay_enabled"] is True
 
-    path.write_text(json.dumps({"relay_code": 5, "relay_enabled": "no"}))
-    cfg = config.load_config(str(path))
-    assert cfg["relay_code"] == ""
-    assert cfg["relay_enabled"] is True
-
+    assert cfg["fov"] == 60
+    assert "relay_code" not in cfg
+    assert "relay_enabled" not in cfg
 
 def test_settings_of_the_removed_hold_timer_are_ignored(tmp_path):
     """Files saved by 1.6.0 builds with the AGS-17 beep still load."""
@@ -197,3 +198,28 @@ def test_settings_of_the_removed_hold_timer_are_ignored(tmp_path):
 
     config.save_config(cfg, str(path))
     assert "hold_lead" not in json.loads(path.read_text())
+
+
+def test_saved_settings_are_private(tmp_path):
+    folder = tmp_path / "new" / "SquadBallistics"
+    path = folder / "config.json"
+
+    config.save_config(config.load_config(str(path)), str(path))
+
+    assert os.stat(path).st_mode & 0o777 == 0o600
+    assert os.stat(folder).st_mode & 0o777 == 0o700
+    assert json.loads(path.read_text())["fov"] == config.DEFAULT_CONFIG["fov"]
+
+
+def test_saving_replaces_a_world_readable_file_and_temp_file(tmp_path):
+    path = tmp_path / "config.json"
+
+    for stale in (path, tmp_path / "config.json.tmp"):
+        stale.write_text("{}")
+        os.chmod(stale, 0o644)
+
+    config.save_config({"fov": 60}, str(path))
+
+    assert os.stat(path).st_mode & 0o777 == 0o600
+    assert json.loads(path.read_text()) == {"fov": 60}
+    assert not (tmp_path / "config.json.tmp").exists()

@@ -26,7 +26,6 @@ from PyQt6.QtWidgets import (
     QFrame,
     QGridLayout,
     QHBoxLayout,
-    QLineEdit,
     QMainWindow,
     QMessageBox,
     QPushButton,
@@ -84,14 +83,6 @@ from keyinject import AutoHold, system_key_injector
 
 from keystate import KEY_A, KEY_D, KEY_S, KEY_W, system_key_reader
 
-from maplink import (
-    RelayLink,
-    device_link,
-    format_code,
-    new_session_code,
-    normalize_code
-)
-
 from overlay import Overlay
 
 from compassreader import DigitReader
@@ -116,7 +107,6 @@ from widgets import (
     card,
     format_angle,
     label,
-    qr_pixmap,
     repolish
 )
 
@@ -278,13 +268,6 @@ class MainWindow(QMainWindow):
 
         self.hold_timer = HoldTimer(self.key_reader, self)
 
-        self.relay = RelayLink(parent=self)
-        self.relay.targets_received.connect(self.on_map_targets)
-        self.relay.weapon_received.connect(self.on_map_weapon)
-        self.relay.status_changed.connect(
-            lambda _status: self.update_map_status()
-        )
-
         self.save_timer = QTimer(self)
         self.save_timer.setSingleShot(True)
         self.save_timer.setInterval(400)
@@ -330,15 +313,10 @@ class MainWindow(QMainWindow):
         # first, so the settings toggle shows it off.
         self.apply_auto_hold()
 
-        # Before the UI, which shows the code and its device link.
-        self.ensure_relay_code()
-
         self.build_ui()
 
         # Only after the UI exists: a hotkey may fire right away.
         setup_hotkeys(self)
-
-        self.apply_relay()
 
     # =========================
     # LAYOUT
@@ -857,8 +835,7 @@ class MainWindow(QMainWindow):
     def on_map_targets(self, targets):
         """Put the newest SquadCalc target into the inputs and solve it.
 
-        `targets` comes from the embedded map or the relay (see maplink);
-        the last one is the most recently placed marker. An empty list, or
+        `targets` comes from the embedded map (see maplink); the last one is the most recently placed marker. An empty list, or
         the same newest target delivered again (even after the inputs were
         edited by hand), keeps the current inputs.
         """
@@ -933,11 +910,6 @@ class MainWindow(QMainWindow):
             text = tr("map_target", t="  ·  ".join(parts))
 
         self.map_label.setText(text)
-
-        relay_status = getattr(self, "relay_status_label", None)
-
-        if relay_status is not None:
-            relay_status.setText(tr(f"relay_{self.relay.status}"))
 
     def recalculate_if_ready(self):
         # The FOV, the calibration or the centre may have changed.
@@ -2249,7 +2221,6 @@ class MainWindow(QMainWindow):
         column.addWidget(self.build_calc_settings_card())
         column.addWidget(self.build_overlay_card())
         column.addWidget(self.build_map_card())
-        column.addWidget(self.build_device_card())
         column.addWidget(self.build_hotkeys_card())
         column.addWidget(self.build_about_card())
 
@@ -2616,16 +2587,10 @@ class MainWindow(QMainWindow):
 
         old_map_url = map_url(self.config)
 
-        # The session code is the pairing with other devices, not a
-        # preference: a reset keeps it, so they stay linked.
-        relay_code = self.config["relay_code"]
-
         # The overlay keeps a reference to this dict, so update it in place.
         self.config.clear()
 
         self.config.update(copy.deepcopy(DEFAULT_CONFIG))
-
-        self.config["relay_code"] = relay_code
 
         set_language(self.config["language"])
 
@@ -2634,8 +2599,6 @@ class MainWindow(QMainWindow):
         self.overlay.move_to_screen()
 
         self.set_on_top(False)
-
-        self.apply_relay()
 
         self.apply_auto_hold()
 
@@ -2756,163 +2719,6 @@ class MainWindow(QMainWindow):
 
         self.map_page.load_source()
 
-    def build_device_card(self):
-        """Settings card pairing SquadCalc on another device: link, QR code, code."""
-        frame, layout = card()
-
-        layout.addWidget(label(tr("s_device"), "title"))
-
-        hint = label(tr("s_device_hint"), "small")
-
-        hint.setWordWrap(True)
-
-        layout.addWidget(hint)
-
-        self.add_toggle(
-            layout,
-            tr("s_relay_enabled"),
-            "relay_enabled",
-            lambda _checked: self.on_relay_toggled()
-        )
-
-        self.device_qr = label("")
-
-        self.device_qr.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        layout.addWidget(self.device_qr)
-
-        self.device_link_entry = QLineEdit()
-
-        self.device_link_entry.setReadOnly(True)
-
-        layout.addWidget(self.device_link_entry)
-
-        copy_button = QPushButton(tr("s_device_copy"))
-
-        copy_button.setProperty("flat_style", True)
-
-        def copy_link():
-            QGuiApplication.clipboard().setText(self.device_link_entry.text())
-
-            copy_button.setText(tr("s_device_copied"))
-
-        copy_button.clicked.connect(copy_link)
-
-        new_button = QPushButton(tr("s_device_new"))
-
-        new_button.setProperty("flat_style", True)
-
-        new_button.clicked.connect(self.renew_relay_code)
-
-        buttons = QHBoxLayout()
-
-        buttons.addWidget(copy_button)
-
-        buttons.addWidget(new_button)
-
-        buttons.addStretch()
-
-        layout.addLayout(buttons)
-
-        self.relay_entry = QLineEdit()
-
-        self.relay_entry.setPlaceholderText("ABCD-EFGH-JKLM")
-
-        self.relay_entry.setMaximumWidth(180)
-
-        self.relay_entry.editingFinished.connect(
-            lambda: self.set_relay_code(self.relay_entry.text())
-        )
-
-        self.setting_row(layout, tr("s_relay_code"), self.relay_entry)
-
-        self.relay_status_label = label("", "small")
-
-        self.relay_status_label.setWordWrap(True)
-
-        layout.addWidget(self.relay_status_label)
-
-        self.show_device_link()
-
-        return frame
-
-    def show_device_link(self):
-        """Show the current session code, its device link and QR code."""
-        code = self.config["relay_code"]
-        link = device_link(code)
-
-        self.relay_entry.setText(format_code(code))
-
-        self.device_link_entry.setText(link)
-
-        self.device_link_entry.setCursorPosition(0)
-
-        self.device_qr.setPixmap(qr_pixmap(link))
-
-    def ensure_relay_code(self):
-        """Give the app its session code once; it is kept from then on."""
-        if normalize_code(self.config["relay_code"]) is not None:
-            return
-
-        self.config["relay_code"] = new_session_code()
-
-        # At once: a device paired before the next save would be lost.
-        save_config(self.config)
-
-    def apply_relay(self):
-        """Join the relay with the app's code, or leave it when the link is off."""
-        enabled = self.config["relay_enabled"]
-
-        self.relay.set_code(
-            normalize_code(self.config["relay_code"]) if enabled else None
-        )
-
-        self.update_map_status()
-
-    def on_relay_toggled(self):
-        self.schedule_save()
-
-        self.apply_relay()
-
-    def set_relay_code(self, text):
-        """Use the code typed in Settings (a code shown by a SquadCalc page).
-
-        An invalid code is refused with a hint and the current one stays.
-        """
-        code = normalize_code(text)
-
-        if code is None:
-            self.relay_status_label.setText(tr("relay_bad_code"))
-            return
-
-        if code == self.config["relay_code"]:
-            self.show_device_link()
-            return
-
-        self.change_relay_code(code)
-
-    def renew_relay_code(self):
-        """Make a new code after a confirmation: every paired device is unlinked."""
-        answer = QMessageBox.question(
-            self,
-            "Squad Ballistics",
-            tr("s_device_new_confirm")
-        )
-
-        if answer != QMessageBox.StandardButton.Yes:
-            return
-
-        self.change_relay_code(new_session_code())
-
-    def change_relay_code(self, code):
-        self.config["relay_code"] = code
-
-        save_config(self.config)
-
-        self.show_device_link()
-
-        self.apply_relay()
-
     def set_map_render(self, mode):
         if mode == self.config["map_render"]:
             return
@@ -2959,8 +2765,6 @@ class MainWindow(QMainWindow):
 
         # Release a held S and remove the virtual keyboard.
         self.drop_auto_hold()
-
-        self.relay.set_code(None)
 
         if self.map_page is not None:
             self.map_page.shutdown()
