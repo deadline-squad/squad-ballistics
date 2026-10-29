@@ -134,6 +134,11 @@ LAY_RATE_TOLERANCE = 0.3
 SIGHT_WATCH_MS = 300
 SIGHT_GRAB_FILE = "sight-grab.png"
 
+# The hotkey hint under the inputs: no-break spaces keep a "key — action"
+# entry together, the line may break only after the separator's dot.
+NBSP = "\u00a0"
+HINT_SEPARATOR = NBSP * 3 + "·   "
+
 CROSSHAIR_COLORS = [
     "#00ff00",
     "#00ffff",
@@ -468,8 +473,9 @@ class MainWindow(QMainWindow):
         return sidebar
 
     def set_page(self, index):
-        if index == 3 and self.config["map_external"]:
-            open_external(map_url(self.config))
+        # The map in the regular browser; the embedded one when it can't open.
+        if index == 3 and self.config["map_external"] \
+                and open_external(map_url(self.config)):
             index = self.pages.currentIndex()
 
         self.pages.setCurrentIndex(index)
@@ -643,10 +649,17 @@ class MainWindow(QMainWindow):
         return frame
 
     def update_hotkey_hint(self):
-        """The keys that work now (auto-hold's only while it is on)."""
-        self.hotkey_hint.setText("   ·   ".join(
-            f"{key} — {tr('hk_' + action)}" for key, action in bindings(self)
-        ))
+        """The keys that work now (auto-hold's only while it is on).
+
+        Each "key — action" is kept on one line with no-break spaces, so
+        the hint wraps only after a separator dot.
+        """
+        entries = (
+            f"{key} — {tr('hk_' + action)}".replace(" ", NBSP)
+            for key, action in bindings(self)
+        )
+
+        self.hotkey_hint.setText(HINT_SEPARATOR.join(entries))
 
     def build_solution_card(self):
         frame, layout = card()
@@ -993,6 +1006,13 @@ class MainWindow(QMainWindow):
         return distance, height, fov
 
     def calculate(self, show_errors=True):
+        """Solve the inputs for the current weapon and show the result.
+
+        `show_errors` False (calculation while typing, hotkeys): an empty
+        distance shows the "Enter the distance" prompt rather than an
+        error; any other bad input (zero distance, FOV out of range) is
+        still reported.
+        """
         weapon = self.current_weapon()
 
         if weapon is None:
@@ -1030,7 +1050,9 @@ class MainWindow(QMainWindow):
 
             self.hold_timer.set_target(None)
 
-            if show_errors:
+            # While typing, only an empty distance is not worth an error:
+            # a bad FOV or a zero distance must not read "Enter the distance".
+            if show_errors or self.distance_entry.text().strip():
                 self.clear_result(message, error=True)
             else:
                 self.clear_result()
@@ -1502,6 +1524,9 @@ class MainWindow(QMainWindow):
         row.addWidget(calibrate)
 
         reset = QPushButton(tr("lay_reset"))
+
+        # Secondary, like the app's other reset buttons: Calibrate is the action.
+        reset.setProperty("flat_style", True)
 
         reset.clicked.connect(lambda: self.reset_lay_rate())
 
@@ -2410,9 +2435,7 @@ class MainWindow(QMainWindow):
 
         open_button.setProperty("flat_style", True)
 
-        open_button.clicked.connect(
-            lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(config_dir()))
-        )
+        open_button.clicked.connect(self.open_config_dir)
 
         reset_button = QPushButton(tr("s_reset"))
 
@@ -2426,7 +2449,34 @@ class MainWindow(QMainWindow):
 
         layout.addLayout(row)
 
+        self.open_status = label("", "small")
+
+        self.open_status.setWordWrap(True)
+
+        self.open_status.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
+
+        self.open_status.hide()
+
+        layout.addWidget(self.open_status)
+
         return frame
+
+    def open_config_dir(self):
+        """Open the settings folder in the file manager; without one (no
+        xdg-open handler) show its path to open by hand."""
+        path = config_dir()
+
+        os.makedirs(path, exist_ok=True)
+
+        if QDesktopServices.openUrl(QUrl.fromLocalFile(path)):
+            self.open_status.hide()
+            return
+
+        self.open_status.setText(tr("open_failed", target=path))
+
+        self.open_status.show()
 
     def set_language(self, code):
         self.config["language"] = code

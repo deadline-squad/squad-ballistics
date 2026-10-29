@@ -29,12 +29,55 @@ def shade(color, factor):
     return f"#{f(r):02x}{f(g):02x}{f(b):02x}"
 
 
+# Light text on an accent background needs at least this WCAG contrast
+# ratio (the minimum for bold UI text); a lighter accent gets dark text.
+MIN_TEXT_CONTRAST = 3.0
+
+
+def luminance(color):
+    """WCAG 2 relative luminance of a #rrggbb color (0 black .. 1 white).
+
+    https://www.w3.org/TR/WCAG21/#dfn-relative-luminance
+    """
+    color = color.lstrip("#")
+
+    def channel(value):
+        c = int(value, 16) / 255
+        return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+    r, g, b = (channel(color[i:i + 2]) for i in (0, 2, 4))
+
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast(first, second):
+    """WCAG 2 contrast ratio of two #rrggbb colors (1 .. 21).
+
+    https://www.w3.org/TR/WCAG21/#dfn-contrast-ratio
+    """
+    lighter, darker = sorted((luminance(first), luminance(second)), reverse=True)
+
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+def on_accent(accent):
+    """Text color for an `accent` background: the usual light text, or the
+    dark background color when the accent is too light for it (amber,
+    green, sand)."""
+    return TEXT if contrast(TEXT, accent) >= MIN_TEXT_CONTRAST else BG
+
+
 def stylesheet(accent):
     hover = shade(accent, 0.85)
+    accent_text = on_accent(accent)
 
     return f"""
     QMainWindow, QWidget#root {{
         background: {BG};
+    }}
+
+    QDialog {{
+        background: {SURFACE};
     }}
 
     QWidget {{
@@ -124,6 +167,7 @@ def stylesheet(accent):
         border-radius: 10px;
         padding: 9px 12px;
         selection-background-color: {accent};
+        selection-color: {accent_text};
     }}
 
     QLineEdit:focus {{
@@ -146,11 +190,13 @@ def stylesheet(accent):
         background: {SURFACE_2};
         border: 1px solid {BORDER};
         selection-background-color: {accent};
+        selection-color: {accent_text};
         outline: none;
     }}
 
     QPushButton {{
         background: {accent};
+        color: {accent_text};
         border: none;
         border-radius: 10px;
         padding: 9px 14px;
@@ -163,6 +209,7 @@ def stylesheet(accent):
 
     QPushButton[flat_style="true"] {{
         background: {SURFACE_2};
+        color: {TEXT};
         border: 1px solid {BORDER};
         font-weight: 500;
     }}
@@ -173,6 +220,7 @@ def stylesheet(accent):
 
     QPushButton#picker {{
         background: {SURFACE_2};
+        color: {TEXT};
         border: 1px solid {BORDER};
         text-align: left;
         padding: 10px 12px;
@@ -198,7 +246,7 @@ def stylesheet(accent):
 
     QPushButton#segment:checked {{
         background: {accent};
-        color: white;
+        color: {accent_text};
     }}
 
     QFrame#segments {{
@@ -290,6 +338,7 @@ def stylesheet(accent):
 
     QListWidget::item:selected {{
         background: {accent};
+        color: {accent_text};
     }}
 
     QListWidget::item:hover:!selected {{

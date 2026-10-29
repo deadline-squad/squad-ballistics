@@ -51,6 +51,8 @@ STRINGS = {
     "unit_mps": ("м/с", "m/s"),
     "mil": ("мил", "mil"),
 
+    "open_failed": ("Не удалось открыть: {target}", "Could not open: {target}"),
+
     "how_to": ("Как стрелять", "How to fire"),
     "how_overlay_on": ("Включите оверлей ({hotkey}).", "Turn the overlay on ({hotkey})."),
     "how_overlay_1": (
@@ -130,7 +132,7 @@ STRINGS = {
     ),
     "how_lay_off": (
         "Автонаводка (S {t} с) включается в настройках: «Автозажатие S».",
-        "Auto-lay (S {t} s) is turned on in the settings: \"Auto-hold S\"."
+        "Auto-lay (S {t} s) can be turned on in the settings: \"Auto-hold S\"."
     ),
     "hold_progress": ("S зажата {held} из {t} с", "S held {held} of {t} s"),
     "how_hold_1": (
