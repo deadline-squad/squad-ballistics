@@ -45,6 +45,7 @@ from ballistics import (
     current_weapon_name,
     first_obstacle,
     solve,
+    range_ladder,
     screen_offset,
     trajectory
 )
@@ -60,6 +61,7 @@ from config import (
 )
 
 from holdtimer import (
+    DEFAULT_LEAD,
     HoldTimer,
     beep
 )
@@ -81,7 +83,7 @@ from i18n import (
 
 from keyinject import AutoHold, system_key_injector
 
-from keystate import KEY_S, KEY_W, system_key_reader
+from keystate import KEY_A, KEY_D, KEY_S, KEY_W, system_key_reader
 
 from maplink import (
     RelayLink,
@@ -93,7 +95,8 @@ from maplink import (
 
 from overlay import HoldPanel, Overlay
 
-from sightlay import ScreenSight, SightLayer, read_sight
+from compassreader import DigitReader
+from sightlay import BEARING, CompassReader, ScreenSight, SightLayer, read_sight
 
 from sightreader import LabelTemplates
 
@@ -262,6 +265,12 @@ class MainWindow(QMainWindow):
         self.screen_sight = ScreenSight(self.overlay)
         self.sight_layer = None
 
+        # The lay's first part for a map target: the bearing on the HUD
+        # compass, turned with D and A (None without the key injectors).
+        self.bearing_layer = None
+        self.bearing_info = ""
+        self.own_compass_reader = None
+
         self.sight_timer = QTimer(self)
         self.sight_timer.setInterval(SIGHT_WATCH_MS)
         self.sight_timer.timeout.connect(self.watch_sight)
@@ -273,6 +282,8 @@ class MainWindow(QMainWindow):
         self.hold_timer = HoldTimer(self.key_reader, self)
         self.hold_timer.changed.connect(self.update_hold_readout)
         self.hold_timer.reached.connect(self.on_hold_reached)
+        self.hold_timer.lead_learned.connect(self.on_hold_lead_learned)
+        self.apply_hold_lead()
 
         self.relay = RelayLink(parent=self)
         self.relay.targets_received.connect(self.on_map_targets)
@@ -776,6 +787,8 @@ class MainWindow(QMainWindow):
 
         self.solution_weapon.setText(name)
 
+        self.update_ladder()
+
         self.update_hold_watch()
 
         self.recalculate_if_ready()
@@ -847,12 +860,15 @@ class MainWindow(QMainWindow):
 
         self.last_map_target = target
 
-        self.distance_entry.set_value(round(target.distance))
+        # Tenths of a metre: whole metres would throw away up to 0.5 m the
+        # map delivered (and a metre of height moves a short UB-32 shot
+        # 20-40 m).
+        self.distance_entry.set_value(round(target.distance, 1))
 
         if target.height is None:
             self.height_entry.setText("")
         else:
-            self.height_entry.set_value(round(target.height))
+            self.height_entry.set_value(round(target.height, 1))
 
         self.map_target = target
 
@@ -912,6 +928,9 @@ class MainWindow(QMainWindow):
             relay_status.setText(tr(f"relay_{self.relay.status}"))
 
     def recalculate_if_ready(self):
+        # The FOV, the calibration or the centre may have changed.
+        self.update_ladder()
+
         if self.distance_entry.text().strip():
             self.calculate(show_errors=False)
         else:
@@ -1062,6 +1081,7 @@ class MainWindow(QMainWindow):
         if self.config["fov"] != fov:
             self.config["fov"] = fov
             self.schedule_save()
+            self.update_ladder()
 
         # Too close or too far to lob (AGS-17 under 280 m): fire directly.
         if not solution.reachable and direct is not None:
@@ -1397,7 +1417,7 @@ class MainWindow(QMainWindow):
 
     def show_overlay_info(self):
         """The overlay label: the solution, the hold progress, the sight."""
-        parts = (self.info_base, self.hold_info, self.sight_info)
+        parts = (self.info_base, self.hold_info, self.bearing_info, self.sight_info)
 
         self.overlay.set_info("  ·  ".join(part for part in parts if part))
 
@@ -1652,16 +1672,27 @@ class MainWindow(QMainWindow):
         first, then S for the hold time.
         """
         layer = self.sight_layer
+        turning = self.bearing_layer
+
+        if turning is not None and turning.active:
+            turning.stop()
+            return
 
         if layer is not None and layer.active:
             layer.stop()
             return
 
         weapon = self.current_weapon()
+        on_screen = not self.hold_timer.auto_holding \
+            and self.config["sight_reader"] and self.lays_by_sight(weapon)
 
-        if layer is not None and not self.hold_timer.auto_holding \
-                and self.config["sight_reader"] and self.lays_by_sight(weapon) \
-                and layer.start():
+        # A map target's bearing first (then the elevation, see
+        # on_bearing_lay_finished), when the compass is on the screen.
+        if on_screen and turning is not None and layer is not None and turning.start():
+            self.sight_timer.stop()
+            return
+
+        if on_screen and layer is not None and layer.start():
             self.sight_timer.stop()
             return
 
@@ -1689,6 +1720,16 @@ class MainWindow(QMainWindow):
             return None
 
         return solution.angle * MILS_PER_DEGREE
+
+    def bearing_target(self):
+        """Bearing to turn the mortar to: the SquadCalc map target's, while
+        a mortar is laid on it; None otherwise."""
+        target = self.map_target
+
+        if self.sight_target() is None or target is None or target.bearing is None:
+            return None
+
+        return target.bearing % 360.0
 
     def read_sight_now(self):
         """The elevation on the mortar sight now (sightreader.Reading), or
@@ -1718,6 +1759,7 @@ class MainWindow(QMainWindow):
         if not watch:
             self.sight_timer.stop()
             self.set_sight_info("")
+            self.set_bearing_info("")
             return
 
         if not self.sight_timer.isActive() and not (
@@ -1727,6 +1769,23 @@ class MainWindow(QMainWindow):
 
     def watch_sight(self):
         self.show_sight_reading(self.read_sight_now())
+
+        # The bearing left to a map target, off the compass
+        if self.bearing_target() is None:
+            self.set_bearing_info("")
+        else:
+            self.show_bearing_reading(self.compass_reader()(self.screen_sight.grab_compass()))
+
+    def compass_reader(self):
+        """The compass reader of the bearing lay, or one of its own without
+        it (made on first use)."""
+        if self.bearing_layer is not None:
+            return self.bearing_layer.reader
+
+        if self.own_compass_reader is None:
+            self.own_compass_reader = CompassReader(DigitReader(self.templates()))
+
+        return self.own_compass_reader
 
     def show_sight_reading(self, reading, mark=""):
         """The sight reading and what is left to the target on the overlay."""
@@ -1753,6 +1812,40 @@ class MainWindow(QMainWindow):
 
         self.sight_info = text
         self.show_overlay_info()
+
+    def show_bearing_reading(self, reading, mark=""):
+        """The compass reading and what is left to the target bearing."""
+        if reading is None:
+            self.set_bearing_info("")
+            return
+
+        target = self.bearing_target()
+
+        if target is None:
+            text = tr("compass_reading", deg=f"{reading.degrees:.1f}")
+        else:
+            left = BEARING.difference(target, reading.degrees)
+            text = tr("compass_reading_left", deg=f"{reading.degrees:.1f}", left=f"{left:+.1f}")
+
+        self.set_bearing_info(f"{text}{mark}")
+
+    def set_bearing_info(self, text):
+        if text == self.bearing_info:
+            return
+
+        self.bearing_info = text
+        self.show_overlay_info()
+
+    def on_bearing_lay_finished(self, reading, on_target):
+        """The bearing is laid (or could not be): lay the elevation next,
+        unless the player stopped the lay."""
+        self.show_bearing_reading(reading, "  ✓" if on_target else "  ✗")
+
+        layer = self.sight_layer
+        stopped = self.bearing_layer is not None and self.bearing_layer.stopped
+
+        if stopped or layer is None or not layer.start():
+            self.update_sight_watch()
 
     def on_sight_lay_finished(self, reading, on_target):
         """The lay on the sight ended: show where it stopped, beep on target,
@@ -1805,13 +1898,51 @@ class MainWindow(QMainWindow):
             self.sight_layer.read.connect(self.show_sight_reading)
             self.sight_layer.finished.connect(self.on_sight_lay_finished)
 
+            self.make_bearing_layer()
+
         return True
+
+    def make_bearing_layer(self):
+        """The bearing lay (D turns right, A left), if both keys can be
+        sent."""
+        try:
+            right = system_key_injector(KEY_D)
+            left = system_key_injector(KEY_A)
+        except OSError:
+            right = left = None
+
+        if right is None or left is None:
+            for injector in (right, left):
+                if injector is not None:
+                    injector.close()
+            return
+
+        templates = self.templates()
+        self.bearing_layer = SightLayer(
+            lambda: self.screen_sight.grab_compass(),
+            templates,
+            self.bearing_target,
+            right,
+            left,
+            self,
+            axis=BEARING,
+            reader=CompassReader(DigitReader(templates))
+        )
+        self.bearing_layer.read.connect(self.show_bearing_reading)
+        self.bearing_layer.finished.connect(self.on_bearing_lay_finished)
 
     def drop_auto_hold(self):
         """Release S if it is being held and close the injector."""
         timer = self.hold_timer
 
         timer.stop_auto_hold()
+
+        if self.bearing_layer is not None:
+            self.bearing_layer.stop()
+            self.bearing_layer.raise_key.close()
+            self.bearing_layer.lower_key.close()
+            self.bearing_layer.deleteLater()
+            self.bearing_layer = None
 
         if self.sight_layer is not None:
             self.sight_layer.stop()
@@ -1843,6 +1974,16 @@ class MainWindow(QMainWindow):
         self.auto_hold_status.setText("" if ok else tr("auto_hold_unavailable"))
 
         self.update_hotkey_hint()
+
+    def apply_hold_lead(self):
+        """The beep lead learnt in earlier sessions, else the default."""
+        lead = self.config["hold_lead"]
+
+        self.hold_timer.lead = DEFAULT_LEAD if lead is None else lead
+
+    def on_hold_lead_learned(self, lead):
+        self.config["hold_lead"] = lead
+        self.schedule_save()
 
     def on_hold_reached(self):
         beep()
@@ -1881,6 +2022,27 @@ class MainWindow(QMainWindow):
             self.overlay.screen_width(),
             self.config["offset_scale"] / 100
         )
+
+    def update_ladder(self):
+        """Put the current weapon's range ladder on the overlay, or clear
+        it (weapons laid by elevation, or the ladder turned off)."""
+        weapon = self.current_weapon()
+
+        if weapon is None or not self.config["range_ladder"]:
+            self.overlay.set_ladder([])
+            return
+
+        first, spacing, reach = self.overlay.ladder_bounds()
+
+        self.overlay.set_ladder(range_ladder(
+            weapon,
+            self.config["fov"],
+            self.overlay.screen_width(),
+            first,
+            spacing,
+            reach,
+            self.config["offset_scale"] / 100
+        ))
 
     def reset_offset(self):
         self.last_solution = None
@@ -1955,6 +2117,7 @@ class MainWindow(QMainWindow):
             ("opt_glow", "glow_enabled"),
             ("opt_animated", "animated"),
             ("opt_info", "info_enabled"),
+            ("opt_ladder", "range_ladder"),
         ]:
             self.add_toggle(settings_layout, tr(text), key)
 
@@ -2120,6 +2283,9 @@ class MainWindow(QMainWindow):
         self.refresh_crosshair()
 
     def refresh_crosshair(self):
+        # The crosshair's size moves the ladder's first tick.
+        self.update_ladder()
+
         self.overlay.update()
 
         self.preview.update()
@@ -2585,8 +2751,12 @@ class MainWindow(QMainWindow):
 
         self.apply_lay_rates()
 
+        self.apply_hold_lead()
+
         # rebuild() keeps the typed inputs; the FOV is a setting.
         self.fov_entry.set_value(self.config["fov"])
+
+        self.update_ladder()
 
         if self.map_page is not None and map_url(self.config) != old_map_url:
             self.map_page.load_source()

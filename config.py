@@ -57,6 +57,10 @@ DEFAULT_CONFIG = {
     "outline_color": "white",
     "info_enabled": True,
 
+    # Range ticks under the mark for direct-fire weapons: where a target at
+    # each range goes, on flat ground, without typing the distance.
+    "range_ladder": True,
+
     # Overlay placement
     "monitor": 0,
     "center_offset_x": 0,
@@ -97,6 +101,10 @@ DEFAULT_CONFIG = {
     "hold_panel": True,
     "hold_panel_corner": "top_right",
     "auto_hold": False,
+
+    # How early the hold beep comes (s): learnt from the player's releases
+    # after it (holdtimer.HoldTimer.lead); None until the first one.
+    "hold_lead": None,
 
     # Mortars: read the elevation off the sight on the screen (shown on the
     # overlay; the auto-lay then lays on it, see sightlay).

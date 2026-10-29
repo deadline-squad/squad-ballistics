@@ -531,10 +531,12 @@ def test_map_target_fills_the_inputs(window):
         MapTarget(1234.4, -12.6, 271.25),
     ])
 
-    assert window.distance_entry.text() == "1234"
-    assert window.height_entry.text() == "-13"
+    # Kept to a tenth of a metre, not rounded to whole metres
+    assert window.distance_entry.text() == "1234.4"
+    assert window.height_entry.text() == "-12.6"
     assert window.last_solution.reachable
-    assert window.last_solution.height_diff == -13
+    assert window.last_solution.distance == pytest.approx(1234.4)
+    assert window.last_solution.height_diff == pytest.approx(-12.6)
     bearing = f"{271.25:.1f}"
     assert bearing in window.map_label.text()
     assert window.current_steps[0] == tr("how_bearing", b=bearing)
@@ -585,8 +587,8 @@ def test_embedded_map_bridge_feeds_the_calculator(window):
     })
     assert page.bridge_found is True
     assert window.picker.current == "AT-4"
-    assert window.distance_entry.text() == "950"
-    assert window.height_entry.text() == "4"
+    assert window.distance_entry.text() == "950.2"
+    assert window.height_entry.text() == "3.9"
 
     # The weapon selected in SquadCalc is selected here and solved.
     page.on_bridge_result({
@@ -953,15 +955,15 @@ def test_embedded_bridge_reads_a_real_page(window, monkeypatch):
 
     clock = QElapsedTimer()
     clock.start()
-    while window.distance_entry.text() != "612" and clock.elapsed() < 15000:
+    while window.distance_entry.text() != "612.4" and clock.elapsed() < 15000:
         QCoreApplication.processEvents()
 
-    assert window.distance_entry.text() == "612"
-    assert window.height_entry.text() == "-9"
+    assert window.distance_entry.text() == "612.4"
+    assert window.height_entry.text() == "-8.6"
     assert window.map_page.bridge_found is True
     assert window.picker.current == "RPG-7V1 · HEAT"
     assert window.last_solution.angle == pytest.approx(
-        solve(window.weapons["RPG-7V1 · HEAT"], 612, -9, "low").angle
+        solve(window.weapons["RPG-7V1 · HEAT"], 612.4, -8.6, "low").angle
     )
 
 
@@ -1424,6 +1426,83 @@ def test_mortar_auto_lay_on_the_sight(window, monkeypatch):
     assert window.sight_layer is None
 
 
+def compass_at(degrees):
+    """A grab of the compass strip showing `degrees` (grab_compass)."""
+    from compassimage import draw_compass
+    from sightlay import Sight
+    from sightreader import GrayImage
+
+    strip = draw_compass(degrees, 1280, 720).copy(0, 640, 1280, 80)
+
+    return Sight(GrayImage.from_qimage(strip), 640.0, 0, 720 / 1080)
+
+
+def test_mortar_auto_lay_turns_to_the_map_bearing_first(window, monkeypatch):
+    """A SquadCalc target: F7 turns the mortar on the compass (D/A), then
+    lays the elevation on the sight; the bearing left shows on the overlay."""
+    import crosshair
+    from maplink import MapTarget
+
+    class Injector:
+        def __init__(self, code):
+            self.code = code
+
+        def press(self):
+            pass
+
+        def release(self):
+            pass
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(crosshair, "system_key_injector", Injector)
+    window.controls["auto_hold"].toggled.emit(True)
+    window.hold_timer.key_reader = lambda code: False
+    window.select_weapon(MORTAR)
+    window.config["arc"] = "high"
+    window.on_map_targets([MapTarget(900, 4.0, 123.4)])
+
+    turning = window.bearing_layer
+    assert turning is not None
+    assert turning.raise_key.code == crosshair.KEY_D and turning.lower_key.code == crosshair.KEY_A
+    assert window.bearing_target() == pytest.approx(123.4)
+
+    monkeypatch.setattr(window.screen_sight, "grab_compass", lambda: compass_at(120.0))
+    monkeypatch.setattr(window.screen_sight, "grab", lambda: sight_at(1100.0))
+
+    window.watch_sight()
+    assert "+3.4" in window.overlay.info_text
+
+    window.auto_hold()
+    assert turning.active and not window.sight_layer.active
+
+    # The key again stops the whole lay, the elevation is not laid
+    window.auto_hold()
+    assert not turning.active and not window.sight_layer.active
+    assert window.sight_timer.isActive()
+
+    # Turned (the lay ended by itself): the elevation is laid next
+    window.auto_hold()
+    assert turning.active
+    turning.finish(True)
+    assert window.sight_layer.active
+
+    window.auto_hold()
+    assert not window.sight_layer.active
+
+    # A typed target has no bearing: straight to the elevation
+    window.distance_entry.setText("1000")
+    window.forget_map_target()
+    assert window.bearing_target() is None
+    window.auto_hold()
+    assert not turning.active and window.sight_layer.active
+    window.auto_hold()
+
+    window.close()
+    assert window.bearing_layer is None
+
+
 def test_mortar_calibration_reads_the_sight(window, monkeypatch, tmp_path):
     import crosshair
 
@@ -1831,6 +1910,65 @@ def test_calibrate_without_mils_says_what_is_missing(window, monkeypatch):
     monkeypatch.setattr(window.screen_sight, "grab_image", lambda: None)
     assert not window.calibrate_lay()
     assert window.lay_status.text() == tr("lay_no_grab")
+
+
+def test_range_ladder_follows_the_weapon(window):
+    """Direct-fire weapons get range ticks under the mark, without a
+    distance typed; weapons laid by elevation get none."""
+    from ballistics import range_ladder
+
+    window.overlay.setGeometry(0, 0, 1920, 1080)
+    window.distance_entry.setText("")
+    window.select_weapon("RPG-7 · PG-7V HEAT / OG-7V")
+    window.recalculate_if_ready()
+
+    ladder = window.overlay.ladder
+    assert len(ladder) >= 3
+    first, spacing, reach = window.overlay.ladder_bounds()
+    assert ladder == range_ladder(window.current_weapon(), window.config["fov"], 1920, first, spacing, reach)
+
+    window.select_weapon("Mortar (M252 / 2B14 / L16 / Type 63)")
+    assert window.overlay.ladder == []
+
+
+def test_range_ladder_follows_fov_calibration_and_toggle(window):
+    window.overlay.setGeometry(0, 0, 1920, 1080)
+    window.select_weapon("M203 / M320 / GP-25 / HK79 / SL40")
+    window.distance_entry.setText("200")
+    window.fov_entry.setText("90")
+    window.calculate()
+    wide = dict(window.overlay.ladder)
+
+    window.fov_entry.setText("60")
+    window.calculate()
+    narrow = dict(window.overlay.ladder)
+    shared = set(wide) & set(narrow)
+    assert shared
+    assert all(narrow[d] > wide[d] for d in shared)
+
+    window.set_setting("range_ladder", False)
+    assert window.overlay.ladder == []
+
+    window.set_setting("range_ladder", True)
+    assert window.overlay.ladder
+
+
+def test_range_ladder_is_drawn_left_of_the_centre(window):
+    overlay = window.overlay
+    overlay.setGeometry(0, 0, 1920, 1080)
+    window.select_weapon("M203 / M320 / GP-25 / HK79 / SL40")
+    window.distance_entry.setText("")
+    window.recalculate_if_ready()
+    distance, offset = overlay.ladder[0]
+
+    image = overlay.grab().toImage()
+    y = round(overlay.center_y + offset)
+    centre = int(overlay.center_x)
+    painted = [x for x in range(centre - 120, centre) if image.pixelColor(x, y).alpha() > 0]
+
+    # The tick and its label, left of the centre line, clear of the right side
+    assert painted and max(painted) < centre
+    assert all(image.pixelColor(x, y).alpha() == 0 for x in range(centre + 40, centre + 120))
 
 
 def test_hotkey_hint_wraps_only_between_entries(window):

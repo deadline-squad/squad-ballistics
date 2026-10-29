@@ -23,7 +23,9 @@ import os
 
 # Linux input event codes (linux/input-event-codes.h)
 KEY_W = 17
+KEY_A = 30
 KEY_S = 31
+KEY_D = 32
 
 # X11 keycodes are the input event codes + 8
 X11_KEYCODE_OFFSET = 8

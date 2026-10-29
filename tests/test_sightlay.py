@@ -156,6 +156,7 @@ def test_stop_releases_the_key(templates):
     assert barrel.direction == 0
     assert ended == [False]
     assert not layer.active
+    assert layer.stopped
 
 
 def test_target_gone_ends_the_lay(templates):
@@ -168,3 +169,65 @@ def test_target_gone_ends_the_lay(templates):
 
     assert not on_target
     assert barrel.direction == 0
+
+
+class Turret(Barrel):
+    """The mortar's traverse: D turns right (bearing up), A left, at `rate`
+    degrees/s for every 60 fps frame the key is down; wraps at 360."""
+
+    def update(self):
+        now = time.perf_counter()
+
+        while self.frame + FRAME <= now:
+            self.frame += FRAME
+            self.mils = (self.mils + self.direction * self.rate * FRAME) % 360.0
+
+
+def make_bearing_layer(turret, templates, target):
+    from compassimage import draw_compass
+    from compassreader import DigitReader
+
+    def grab():
+        turret.update()
+        image = draw_compass(turret.mils, WIDTH, HEIGHT)
+        strip = image.copy(0, HEIGHT - 80, WIDTH, 80)
+
+        return Sight(GrayImage.from_qimage(strip), WIDTH / 2, 0, HEIGHT / 1080)
+
+    reader = sightlay.CompassReader(DigitReader(templates))
+
+    return SightLayer(grab, templates, target, turret.key(1), turret.key(-1),
+                      axis=sightlay.BEARING, reader=reader)
+
+
+def bearing_error(a, b):
+    return (a - b + 180.0) % 360.0 - 180.0
+
+
+@pytest.mark.parametrize("start, target", [
+    (100.0, 37.4),      # left a long way: hold A
+    (350.0, 10.3),      # right over north: the short way round
+    (12.6, 13.4),       # close: taps
+])
+def test_lays_the_bearing(templates, start, target):
+    turret = Turret(start, 50.0)
+    layer = make_bearing_layer(turret, templates, lambda: target)
+
+    reading, on_target = run(layer)
+    turret.update()
+
+    # Within half the game's frame step (0.83 degree at 60 fps), as measured
+    allowed = max(sightlay.BEARING.tolerance, layer.step_size / 2) + 0.05
+    assert on_target
+    assert abs(bearing_error(reading.degrees, target)) <= allowed
+    assert abs(bearing_error(turret.mils, target)) <= allowed + 0.05
+    assert turret.direction == 0
+    # Never the long way round
+    assert turret.presses[0] == (1 if bearing_error(target, start) > 0 else -1)
+
+
+def test_axis_difference_wraps_only_bearings():
+    assert sightlay.BEARING.difference(10.0, 350.0) == pytest.approx(20.0)
+    assert sightlay.BEARING.difference(350.0, 10.0) == pytest.approx(-20.0)
+    assert sightlay.ELEVATION.difference(1010.0, 990.0) == 20.0
+    assert sightlay.ELEVATION.difference(10.0, 350.0) == -340.0

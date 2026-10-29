@@ -118,6 +118,8 @@ STRINGS = {
     ),
     "sight_reading": ("прицел {mils} мил", "sight {mils} mil"),
     "sight_reading_left": ("прицел {mils} мил ({left})", "sight {mils} mil ({left})"),
+    "compass_reading": ("азимут {deg}°", "bearing {deg}°"),
+    "compass_reading_left": ("азимут {deg}° ({left})", "bearing {deg}° ({left})"),
     "lay_need_mils": (
         "Введите милы, которые показывает прицел",
         "Type the mils the sight shows"
@@ -261,6 +263,7 @@ STRINGS = {
     "opt_glow": ("Свечение", "Glow"),
     "opt_animated": ("Плавное движение", "Smooth motion"),
     "opt_info": ("Подпись у метки", "Label next to the mark"),
+    "opt_ladder": ("Шкала дальности", "Range ladder"),
     "sl_dot": ("Точка", "Dot size"),
     "sl_length": ("Длина линий", "Line length"),
     "sl_gap": ("Зазор", "Gap"),
@@ -470,14 +473,21 @@ STRINGS = {
     "s_sight_reader_hint": (
         "Пока выбран миномёт, программа читает милы со шкалы его прицела "
         "(слева от центра экрана) и пишет их на оверлее рядом с нужными. "
-        "Автонаводка тогда наводит по прицелу: держит W или S, пока он не "
-        "покажет цель с точностью до 0,5 мил. Экран снимается под X11 и "
-        "XWayland, под чистым Wayland — нет.",
+        "Автонаводка тогда наводит по прицелу: для цели с карты SquadCalc "
+        "сначала поворачивает миномёт (D/A) по компасу внизу экрана, затем "
+        "держит W или S, пока прицел не покажет цель с точностью до 0,5 мил. "
+        "Наводите в обычном виде миномёта, без приближения (правая кнопка): "
+        "там видны и шкала, и компас. Экран снимается под X11 и XWayland, "
+        "под чистым Wayland — нет.",
         "While a mortar is selected the app reads the mils off its sight's "
         "scale (left of the screen centre) and shows them on the overlay "
-        "next to the target ones. The auto-lay then lays on the sight: it "
-        "holds W or S until the sight shows the target within 0.5 mil. The "
-        "screen is grabbed under X11 and XWayland, not under pure Wayland."
+        "next to the target ones. The auto-lay then lays on the screen: for "
+        "a SquadCalc map target it first turns the mortar (D/A) on the "
+        "compass at the bottom of the screen, then holds W or S until the "
+        "sight shows the target within 0.5 mil. Lay from the mortar's own "
+        "view, not zoomed in (right mouse button): it shows both the scale "
+        "and the compass. The screen is grabbed under X11 and XWayland, not "
+        "under pure Wayland."
     ),
     "auto_hold_unavailable": (
         "Не получилось: программа не может нажимать клавиши в этой системе.",

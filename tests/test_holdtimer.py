@@ -5,15 +5,17 @@ import pytest
 
 pytest.importorskip("PyQt6.QtCore")
 
-from holdtimer import MAX_POLL_GAP, HoldTimer
+from holdtimer import DEFAULT_LEAD, MAX_LEAD, MAX_POLL_GAP, HoldTimer
 from keystate import KEY_S, KEY_W
 
 
-def make_timer(keys=None):
+def make_timer(keys=None, lead=0.0):
+    """A timer on fake keys; the beep lead is 0 unless a test is about it."""
     keys = set() if keys is None else keys
 
     timer = HoldTimer(lambda code: code in keys)
     timer.set_active(True)
+    timer.lead = lead
 
     reached = []
     timer.reached.connect(lambda: reached.append(timer.held))
@@ -95,6 +97,7 @@ def make_polled_timer():
     keys = set()
     clock = FakeClock()
     timer = HoldTimer(lambda code: code in keys, clock=clock)
+    timer.lead = 0.0
     reached = []
     timer.reached.connect(lambda: reached.append(timer.held))
     timer.set_active(True)
@@ -373,3 +376,84 @@ def test_key_state_is_reported():
     timer.poll()
     assert (timer.s_down, timer.w_down) == (False, False)
     assert changes
+
+
+def test_the_beep_comes_early_by_the_lead():
+    timer, _keys, reached = make_timer(lead=DEFAULT_LEAD)
+    timer.set_target(2.0)
+
+    timer.advance(1.75, s_down=True, w_down=False)
+    assert reached == []
+
+    timer.advance(0.05, s_down=True, w_down=False)
+    assert reached == [pytest.approx(1.8)]
+
+
+def test_the_lead_is_learnt_from_the_players_release():
+    """Released 0.1 s late after the beep: the next beep comes 0.05 s
+    earlier; released early: later. Each change is reported to be saved."""
+    timer, _keys, reached = make_timer(lead=0.2)
+    learned = []
+    timer.lead_learned.connect(learned.append)
+    timer.set_target(2.0)
+
+    timer.advance(1.8, s_down=True, w_down=False)
+    assert len(reached) == 1
+    timer.advance(0.3, s_down=True, w_down=False)
+    timer.advance(0.01, s_down=False, w_down=False)
+
+    assert timer.lead == pytest.approx(0.25)
+    assert learned == [pytest.approx(0.25)]
+
+    # Next lay: released 0.06 s early
+    timer.advance(0.01, s_down=False, w_down=True)
+    timer.advance(0.01, s_down=False, w_down=False)
+    timer.advance(1.75, s_down=True, w_down=False)
+    assert len(reached) == 2
+    timer.advance(0.19, s_down=True, w_down=False)
+    timer.advance(0.01, s_down=False, w_down=False)
+
+    assert timer.lead == pytest.approx(0.22)
+
+
+def test_only_the_first_release_after_the_beep_teaches():
+    timer, _keys, _reached = make_timer(lead=0.2)
+    timer.set_target(2.0)
+
+    timer.advance(1.9, s_down=True, w_down=False)
+    timer.advance(0.01, s_down=False, w_down=False)
+    lead = timer.lead
+
+    # Topping up with S afterwards is not a reaction to the beep
+    timer.advance(0.3, s_down=True, w_down=False)
+    timer.advance(0.01, s_down=False, w_down=False)
+    assert timer.lead == lead
+
+
+def test_no_learning_from_releases_before_the_beep_or_far_off():
+    timer, _keys, _reached = make_timer(lead=0.2)
+    timer.set_target(2.0)
+
+    # Released before the beep
+    timer.advance(1.0, s_down=True, w_down=False)
+    timer.advance(0.01, s_down=False, w_down=False)
+    assert timer.lead == 0.2
+
+    # Held on for a second after the beep: not a reaction
+    timer.advance(1.0, s_down=True, w_down=False)
+    timer.advance(1.0, s_down=True, w_down=False)
+    timer.advance(0.01, s_down=False, w_down=False)
+    assert timer.lead == 0.2
+
+
+def test_the_lead_stays_within_its_limits():
+    timer, _keys, _reached = make_timer(lead=MAX_LEAD - 0.01)
+    timer.set_target(2.0)
+
+    # Released 0.4 s late: half of it would pass the limit
+    timer.advance(2.0 - timer.lead, s_down=True, w_down=False)
+    timer.advance(timer.lead + 0.4, s_down=True, w_down=False)
+    timer.advance(0.01, s_down=False, w_down=False)
+
+    assert timer.lead == MAX_LEAD
+
