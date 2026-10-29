@@ -378,7 +378,7 @@ def test_map_page_survives_rebuild(window, monkeypatch):
 
 def test_map_help_panel_and_external_mode(window, monkeypatch):
     opened = []
-    monkeypatch.setattr("crosshair.open_external", opened.append)
+    monkeypatch.setattr("crosshair.open_external", lambda url: opened.append(url) or True)
 
     window.set_page(1)
     window.config["map_external"] = True
@@ -1804,7 +1804,7 @@ def test_hotkey_hint_lists_only_bound_keys(window):
 
     try:
         window.controls["auto_hold"].toggled.emit(True)
-        assert f"F7 — {tr('hk_auto_hold')}" in hint()
+        assert f"F7 — {tr('hk_auto_hold')}".replace(" ", crosshair.NBSP) in hint()
 
         window.controls["auto_hold"].toggled.emit(False)
         assert "F7" not in hint()
@@ -1831,3 +1831,134 @@ def test_calibrate_without_mils_says_what_is_missing(window, monkeypatch):
     monkeypatch.setattr(window.screen_sight, "grab_image", lambda: None)
     assert not window.calibrate_lay()
     assert window.lay_status.text() == tr("lay_no_grab")
+
+
+def test_hotkey_hint_wraps_only_between_entries(window):
+    from crosshair import HINT_SEPARATOR
+
+    window.set_hotkey("distance_up", "PgUp")
+    window.set_hotkey("distance_down", "PgDown")
+
+    entries = window.hotkey_hint.text().split(HINT_SEPARATOR)
+
+    assert len(entries) == 4
+    # A plain space is a line break opportunity: none inside an entry
+    assert all(" " not in entry for entry in entries)
+    assert entries[2] == f"PgUp — {tr('hk_distance_up')}".replace(" ", "\u00a0")
+
+
+def test_trajectory_view_keeps_flat_shots_flat():
+    from widgets import MIN_VIEW_HEIGHT_SHARE, VIEW_PAD, view_bounds
+
+    # A tank shell rising 0.2 m over 400 m: drawn in a view 40 m tall,
+    # not stretched into an arc filling it.
+    max_x, low, high = view_bounds([(0.0, 0.0), (200.0, 0.2), (400.0, 0.0)])
+    assert max_x == 400
+    assert high - low == pytest.approx(400 * MIN_VIEW_HEIGHT_SHARE * (1 + 2 * VIEW_PAD))
+    assert low == pytest.approx(-400 * MIN_VIEW_HEIGHT_SHARE * VIEW_PAD)
+
+    # A real arc keeps its own height
+    max_x, low, high = view_bounds([(0.0, 0.0), (200.0, 300.0), (400.0, 0.0)])
+    assert (low, high) == (pytest.approx(-300 * VIEW_PAD), pytest.approx(300 * (1 + VIEW_PAD)))
+
+    # A target far below: the drop is tall enough on its own
+    max_x, low, high = view_bounds([(0.0, 0.0), (250.0, -60.0)])
+    assert (low, high) == (pytest.approx(-60 - 60 * VIEW_PAD), pytest.approx(60 * VIEW_PAD))
+
+
+def test_typing_reports_bad_input_but_not_an_empty_distance(window):
+    window.select_weapon("RPG-29")
+
+    window.distance_entry.setText("500")
+    window.fov_entry.setText("300")
+    window.calculate(show_errors=False)
+    assert window.status_text() == tr("bad_fov")
+    assert window.big_label.property("state") == "error"
+
+    window.fov_entry.setText("90")
+    window.distance_entry.setText("0")
+    window.calculate(show_errors=False)
+    assert window.status_text() == tr("bad_distance")
+
+    window.distance_entry.setText("")
+    window.calculate(show_errors=False)
+    assert window.status_text() == tr("ready")
+    assert window.big_label.property("state") == ""
+
+
+def test_message_boxes_are_readable(window, app):
+    import theme
+    from PyQt6.QtWidgets import QMessageBox
+
+    box = QMessageBox(window)
+    box.setText("Reset all crosshair and app settings?")
+    box.show()
+    app.processEvents()
+
+    try:
+        image = box.grab().toImage()
+        background = image.pixelColor(4, image.height() // 2).name()
+
+        assert theme.contrast(background, theme.TEXT) >= 4.5
+    finally:
+        box.close()
+
+
+@pytest.mark.parametrize("accent", __import__("theme").ACCENTS)
+def test_text_on_the_accent_is_readable(accent):
+    import theme
+
+    text = theme.on_accent(accent)
+
+    assert theme.contrast(text, accent) >= theme.MIN_TEXT_CONTRAST
+    # Buttons, checked segments and selected rows all use it
+    assert theme.stylesheet(accent).count(f"color: {text};") >= 3
+    assert "color: white" not in theme.stylesheet(accent)
+
+
+def test_light_accents_get_dark_text():
+    import theme
+
+    assert theme.on_accent("#c8b98f") == theme.BG
+    assert theme.on_accent("#f59e0b") == theme.BG
+    assert theme.on_accent("#3b82f6") == theme.TEXT
+
+
+def test_lay_reset_is_a_secondary_button(window):
+    reset = next(
+        button for button in window.lay_row.findChildren(QPushButton)
+        if button.text() == tr("lay_reset")
+    )
+
+    assert reset.property("flat_style") is True
+
+
+def test_settings_folder_path_shown_when_it_cannot_be_opened(window, monkeypatch, tmp_path):
+    from PyQt6.QtGui import QDesktopServices
+
+    folder = str(tmp_path / "settings")
+    monkeypatch.setattr("crosshair.config_dir", lambda: folder)
+    monkeypatch.setattr(QDesktopServices, "openUrl", lambda url: False)
+
+    window.open_config_dir()
+    assert not window.open_status.isHidden()
+    assert window.open_status.text() == tr("open_failed", target=folder)
+    assert os.path.isdir(folder)
+
+    monkeypatch.setattr(QDesktopServices, "openUrl", lambda url: True)
+
+    window.open_config_dir()
+    assert window.open_status.isHidden()
+
+
+def test_map_without_a_browser_stays_embedded_and_says_so(window, monkeypatch):
+    monkeypatch.setattr("crosshair.open_external", lambda url: False)
+    monkeypatch.setattr("webmap.open_external", lambda url: False)
+    monkeypatch.setattr(type(window.map_page), "ensure_loaded", lambda self: None)
+
+    window.config["map_external"] = True
+    window.set_page(3)
+    assert window.pages.currentIndex() == 3
+
+    window.map_page.open_in_browser()
+    assert window.map_page.status.text() == tr("open_failed", target="https://calc.tk104.duckdns.org/")

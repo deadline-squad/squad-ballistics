@@ -161,7 +161,9 @@ def map_url(config):
 
 
 def open_external(url=SQUADCALC_URL):
-    QDesktopServices.openUrl(QUrl(url))
+    """Open `url` in the regular browser; False when there is none to open
+    it (no xdg-open handler)."""
+    return QDesktopServices.openUrl(QUrl(url))
 
 
 def _make_page_classes():
@@ -272,9 +274,7 @@ class MapPage(QWidget):
 
         self.external_button = QPushButton()
         self.external_button.setProperty("flat_style", True)
-        self.external_button.clicked.connect(
-            lambda: open_external(map_url(self.config))
-        )
+        self.external_button.clicked.connect(self.open_in_browser)
 
         toolbar.addWidget(self.status, 1)
         toolbar.addWidget(self.reload_button)
@@ -319,9 +319,7 @@ class MapPage(QWidget):
 
         self.panel_external_button = QPushButton()
         self.panel_external_button.setProperty("flat_style", True)
-        self.panel_external_button.clicked.connect(
-            lambda: open_external(map_url(self.config))
-        )
+        self.panel_external_button.clicked.connect(self.open_in_browser)
 
         self.compat_button = QPushButton()
         self.compat_button.setProperty("flat_style", True)
@@ -417,6 +415,14 @@ class MapPage(QWidget):
             text += ("  ·  " if text else "") + tr("map_compat_on")
 
         self.status.setText(text)
+
+    def open_in_browser(self):
+        """Open the map in the regular browser; without one, say so in the
+        status line with the address to open by hand."""
+        url = map_url(self.config)
+
+        if not open_external(url):
+            self.status.setText(tr("open_failed", target=url))
 
     # ---------- loading ----------
 
