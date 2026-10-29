@@ -20,6 +20,14 @@ def app(qapp):
     return qapp
 
 
+@pytest.fixture(autouse=True)
+def offline_relay(monkeypatch):
+    """The window joins the relay on start: tests stay off the live one."""
+    from maplink import RelayLink
+
+    monkeypatch.setattr(RelayLink, "connect_relay", lambda self: None)
+
+
 @pytest.fixture
 def window(app, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
@@ -370,7 +378,7 @@ def test_map_page_survives_rebuild(window, monkeypatch):
 
 def test_map_help_panel_and_external_mode(window, monkeypatch):
     opened = []
-    monkeypatch.setattr("crosshair.open_external", opened.append)
+    monkeypatch.setattr("crosshair.open_external", lambda url: opened.append(url) or True)
 
     window.set_page(1)
     window.config["map_external"] = True
@@ -668,21 +676,104 @@ def test_relay_weapon_line_selects_the_weapon(window):
 
 
 def test_relay_code_setting(window, monkeypatch):
+    """A code typed in Settings (shown by a SquadCalc page) replaces the app's."""
     connected = []
     monkeypatch.setattr(window.relay, "connect_relay", lambda: connected.append(window.relay.code))
+    code = window.config["relay_code"]
 
-    window.set_relay_code("bad!")
-    assert window.relay_status_label.text() == tr("relay_bad_code")
-    assert window.config["relay_code"] == ""
+    for bad in ("bad!", ""):
+        window.set_relay_code(bad)
+        assert window.relay_status_label.text() == tr("relay_bad_code")
+        assert window.config["relay_code"] == code
+        assert window.relay.code == code
 
     window.set_relay_code("abcd-2345")
     assert window.config["relay_code"] == "ABCD2345"
     assert connected == ["ABCD2345"]
+    assert window.relay_entry.text() == "ABCD-2345"
+    assert window.device_link_entry.text() == "https://calc.tk104.duckdns.org/#link=ABCD2345"
+    # Saved at once: a device paired with it must survive a crash.
+    assert config.load_config()["relay_code"] == "ABCD2345"
 
-    window.set_relay_code("")
-    assert window.config["relay_code"] == ""
+
+def test_device_code_is_made_once_and_kept(window):
+    from crosshair import MainWindow
+    from maplink import CODE_ALPHABET, NEW_CODE_LENGTH, device_link
+
+    code = window.config["relay_code"]
+
+    assert len(code) == NEW_CODE_LENGTH and set(code) <= set(CODE_ALPHABET)
+    assert window.relay.code == code
+    assert window.device_link_entry.text() == device_link(code)
+    assert config.load_config()["relay_code"] == code
+
+    # The next start joins the same session: paired devices relink by themselves.
+    restarted = MainWindow(load_weapons(os.path.join(ROOT, "weapons.json")))
+    try:
+        assert restarted.config["relay_code"] == code
+        assert restarted.relay.code == code
+    finally:
+        restarted.close()
+
+
+def test_device_link_toggle(window):
+    code = window.config["relay_code"]
+    toggle = window.controls["relay_enabled"]
+
+    toggle.setChecked(False)
+    assert window.config["relay_enabled"] is False
     assert window.relay.code is None
     assert window.relay_status_label.text() == tr("relay_off")
+
+    toggle.setChecked(True)
+    assert window.relay.code == code
+    assert window.config["relay_code"] == code
+
+
+def test_new_device_code_needs_a_confirmation(window, monkeypatch):
+    from PyQt6.QtWidgets import QMessageBox
+
+    code = window.config["relay_code"]
+    answers = [QMessageBox.StandardButton.No, QMessageBox.StandardButton.Yes]
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: answers.pop(0))
+
+    window.renew_relay_code()
+    assert window.config["relay_code"] == code
+
+    window.renew_relay_code()
+    new_code = window.config["relay_code"]
+    assert new_code != code
+    assert window.relay.code == new_code
+    assert new_code in window.device_link_entry.text()
+    assert config.load_config()["relay_code"] == new_code
+
+
+def test_device_qr_code_scans_to_the_link(window):
+    """The QR code the card shows, read by an independent decoder."""
+    zxingcpp = pytest.importorskip("zxingcpp")
+    from PyQt6.QtGui import QImage
+
+    image = window.device_qr.pixmap().toImage().convertToFormat(QImage.Format.Format_Grayscale8)
+    width, height = image.width(), image.height()
+    rows = image.constBits().asstring(image.bytesPerLine() * height)
+    pixels = b"".join(
+        rows[y * image.bytesPerLine():y * image.bytesPerLine() + width] for y in range(height)
+    )
+
+    results = zxingcpp.read_barcodes(
+        zxingcpp.ImageView(pixels, width, height, zxingcpp.ImageFormat.Lum)
+    )
+
+    assert [result.text for result in results] == [window.device_link_entry.text()]
+
+
+def test_copy_device_link(window):
+    button = next(b for b in window.findChildren(QPushButton) if b.text() == tr("s_device_copy"))
+
+    button.click()
+
+    assert QApplication.clipboard().text() == window.device_link_entry.text()
+    assert button.text() == tr("s_device_copied")
 
 
 def test_switching_map_source_reloads(window):
@@ -806,14 +897,13 @@ def test_absurd_typed_distance_does_not_crash(window):
 
 def test_map_status_is_shown_on_start(window):
     assert window.map_label.text() == tr("map_follow_hint")
-    assert window.relay_status_label.text() == tr("relay_off")
+    assert window.relay_status_label.text() == tr(f"relay_{window.relay.status}")
 
 
-def test_reset_settings_reloads_map_and_drops_relay(window, monkeypatch):
+def test_reset_settings_reloads_map_and_keeps_device_code(window, monkeypatch):
     pytest.importorskip("PyQt6.QtWebEngineWidgets")
     from PyQt6.QtWidgets import QMessageBox
 
-    monkeypatch.setattr(window.relay, "connect_relay", lambda: None)
     monkeypatch.setattr(
         QMessageBox, "question",
         lambda *a, **k: QMessageBox.StandardButton.Yes
@@ -822,17 +912,20 @@ def test_reset_settings_reloads_map_and_drops_relay(window, monkeypatch):
     window.set_page(3)
     window.set_map_source("squadcalc")
     window.set_relay_code("ABCD-2345")
-    assert window.relay.code == "ABCD2345"
+    window.controls["relay_enabled"].setChecked(False)
+    assert window.relay.code is None
 
     window.reset_settings()
 
     assert window.config["map_source"] == "deadline"
     assert window.map_page.page.requestedUrl().host() == "calc.tk104.duckdns.org"
-    assert window.relay.code is None
+    # The pairing survives the reset; the link is on again (the default).
+    assert window.config["relay_code"] == "ABCD2345"
+    assert window.config["relay_enabled"] is True
+    assert window.relay.code == "ABCD2345"
 
 
-def test_close_drops_relay_and_key_watch(window, monkeypatch):
-    monkeypatch.setattr(window.relay, "connect_relay", lambda: None)
+def test_close_drops_relay_and_key_watch(window):
     window.hold_timer.key_reader = lambda code: False
     window.select_weapon(AGS17)
     window.set_relay_code("ABCD-2345")
@@ -1790,7 +1883,7 @@ def test_hotkey_hint_lists_only_bound_keys(window):
 
     try:
         window.controls["auto_hold"].toggled.emit(True)
-        assert f"F7 — {tr('hk_auto_hold')}" in hint()
+        assert f"F7 — {tr('hk_auto_hold')}".replace(" ", crosshair.NBSP) in hint()
 
         window.controls["auto_hold"].toggled.emit(False)
         assert "F7" not in hint()
@@ -1876,3 +1969,134 @@ def test_range_ladder_is_drawn_left_of_the_centre(window):
     # The tick and its label, left of the centre line, clear of the right side
     assert painted and max(painted) < centre
     assert all(image.pixelColor(x, y).alpha() == 0 for x in range(centre + 40, centre + 120))
+
+
+def test_hotkey_hint_wraps_only_between_entries(window):
+    from crosshair import HINT_SEPARATOR
+
+    window.set_hotkey("distance_up", "PgUp")
+    window.set_hotkey("distance_down", "PgDown")
+
+    entries = window.hotkey_hint.text().split(HINT_SEPARATOR)
+
+    assert len(entries) == 4
+    # A plain space is a line break opportunity: none inside an entry
+    assert all(" " not in entry for entry in entries)
+    assert entries[2] == f"PgUp — {tr('hk_distance_up')}".replace(" ", "\u00a0")
+
+
+def test_trajectory_view_keeps_flat_shots_flat():
+    from widgets import MIN_VIEW_HEIGHT_SHARE, VIEW_PAD, view_bounds
+
+    # A tank shell rising 0.2 m over 400 m: drawn in a view 40 m tall,
+    # not stretched into an arc filling it.
+    max_x, low, high = view_bounds([(0.0, 0.0), (200.0, 0.2), (400.0, 0.0)])
+    assert max_x == 400
+    assert high - low == pytest.approx(400 * MIN_VIEW_HEIGHT_SHARE * (1 + 2 * VIEW_PAD))
+    assert low == pytest.approx(-400 * MIN_VIEW_HEIGHT_SHARE * VIEW_PAD)
+
+    # A real arc keeps its own height
+    max_x, low, high = view_bounds([(0.0, 0.0), (200.0, 300.0), (400.0, 0.0)])
+    assert (low, high) == (pytest.approx(-300 * VIEW_PAD), pytest.approx(300 * (1 + VIEW_PAD)))
+
+    # A target far below: the drop is tall enough on its own
+    max_x, low, high = view_bounds([(0.0, 0.0), (250.0, -60.0)])
+    assert (low, high) == (pytest.approx(-60 - 60 * VIEW_PAD), pytest.approx(60 * VIEW_PAD))
+
+
+def test_typing_reports_bad_input_but_not_an_empty_distance(window):
+    window.select_weapon("RPG-29")
+
+    window.distance_entry.setText("500")
+    window.fov_entry.setText("300")
+    window.calculate(show_errors=False)
+    assert window.status_text() == tr("bad_fov")
+    assert window.big_label.property("state") == "error"
+
+    window.fov_entry.setText("90")
+    window.distance_entry.setText("0")
+    window.calculate(show_errors=False)
+    assert window.status_text() == tr("bad_distance")
+
+    window.distance_entry.setText("")
+    window.calculate(show_errors=False)
+    assert window.status_text() == tr("ready")
+    assert window.big_label.property("state") == ""
+
+
+def test_message_boxes_are_readable(window, app):
+    import theme
+    from PyQt6.QtWidgets import QMessageBox
+
+    box = QMessageBox(window)
+    box.setText("Reset all crosshair and app settings?")
+    box.show()
+    app.processEvents()
+
+    try:
+        image = box.grab().toImage()
+        background = image.pixelColor(4, image.height() // 2).name()
+
+        assert theme.contrast(background, theme.TEXT) >= 4.5
+    finally:
+        box.close()
+
+
+@pytest.mark.parametrize("accent", __import__("theme").ACCENTS)
+def test_text_on_the_accent_is_readable(accent):
+    import theme
+
+    text = theme.on_accent(accent)
+
+    assert theme.contrast(text, accent) >= theme.MIN_TEXT_CONTRAST
+    # Buttons, checked segments and selected rows all use it
+    assert theme.stylesheet(accent).count(f"color: {text};") >= 3
+    assert "color: white" not in theme.stylesheet(accent)
+
+
+def test_light_accents_get_dark_text():
+    import theme
+
+    assert theme.on_accent("#c8b98f") == theme.BG
+    assert theme.on_accent("#f59e0b") == theme.BG
+    assert theme.on_accent("#3b82f6") == theme.TEXT
+
+
+def test_lay_reset_is_a_secondary_button(window):
+    reset = next(
+        button for button in window.lay_row.findChildren(QPushButton)
+        if button.text() == tr("lay_reset")
+    )
+
+    assert reset.property("flat_style") is True
+
+
+def test_settings_folder_path_shown_when_it_cannot_be_opened(window, monkeypatch, tmp_path):
+    from PyQt6.QtGui import QDesktopServices
+
+    folder = str(tmp_path / "settings")
+    monkeypatch.setattr("crosshair.config_dir", lambda: folder)
+    monkeypatch.setattr(QDesktopServices, "openUrl", lambda url: False)
+
+    window.open_config_dir()
+    assert not window.open_status.isHidden()
+    assert window.open_status.text() == tr("open_failed", target=folder)
+    assert os.path.isdir(folder)
+
+    monkeypatch.setattr(QDesktopServices, "openUrl", lambda url: True)
+
+    window.open_config_dir()
+    assert window.open_status.isHidden()
+
+
+def test_map_without_a_browser_stays_embedded_and_says_so(window, monkeypatch):
+    monkeypatch.setattr("crosshair.open_external", lambda url: False)
+    monkeypatch.setattr("webmap.open_external", lambda url: False)
+    monkeypatch.setattr(type(window.map_page), "ensure_loaded", lambda self: None)
+
+    window.config["map_external"] = True
+    window.set_page(3)
+    assert window.pages.currentIndex() == 3
+
+    window.map_page.open_in_browser()
+    assert window.map_page.status.text() == tr("open_failed", target="https://calc.tk104.duckdns.org/")

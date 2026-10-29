@@ -84,11 +84,14 @@ DEFAULT_CONFIG = {
 
     # Map source: "deadline" (SquadCalc build with AGS-17 and the target
     # bridge) or "squadcalc" (squadcalc.app). map_follow puts the newest
-    # map target into the calculator; relay_code joins a SquadCalc page
-    # open elsewhere through the relay (empty = off).
+    # map target into the calculator. relay_code is the session that joins
+    # SquadCalc pages open elsewhere through the relay: made once by the app
+    # when empty (maplink.new_session_code) and kept, so paired devices stay
+    # paired; relay_enabled turns the link off without losing the code.
     "map_source": "deadline",
     "map_follow": True,
     "relay_code": "",
+    "relay_enabled": True,
 
     # Beep when S has been held for the AGS-17 hold time; hold_panel shows
     # the timer on the overlay in a corner of the screen. auto_hold lets the

@@ -158,3 +158,18 @@ def test_lay_rates_keep_only_positive_numbers():
     }})
     assert merged["lay_rates"] == {"Mortar (M252 / 2B14 / L16 / Type 63)": 8.7}
     assert config._merge({"lay_rates": [1, 2]})["lay_rates"] == {}
+
+
+def test_device_link_settings_from_older_versions(tmp_path):
+    """A typed relay code stays and the link is on; no code means the app makes one."""
+    path = tmp_path / "config.json"
+
+    path.write_text(json.dumps({"relay_code": "ABCD2345"}))
+    cfg = config.load_config(str(path))
+    assert cfg["relay_code"] == "ABCD2345"
+    assert cfg["relay_enabled"] is True
+
+    path.write_text(json.dumps({"relay_code": 5, "relay_enabled": "no"}))
+    cfg = config.load_config(str(path))
+    assert cfg["relay_code"] == ""
+    assert cfg["relay_enabled"] is True

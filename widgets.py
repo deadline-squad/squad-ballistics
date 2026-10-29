@@ -16,10 +16,12 @@ from PyQt6.QtGui import (
     QColor,
     QFont,
     QGuiApplication,
+    QImage,
     QLinearGradient,
     QPainter,
     QPainterPath,
     QPen,
+    QPixmap,
     QValidator
 )
 
@@ -43,6 +45,10 @@ import theme
 from ballistics import MILS_PER_DEGREE
 from i18n import tr, category_name
 from overlay import paint_crosshair
+from qr import qr_matrix
+
+# Light modules around a QR code, as the standard requires for scanning.
+QR_QUIET_ZONE = 4
 
 
 def label(text, role=None):
@@ -52,6 +58,32 @@ def label(text, role=None):
         widget.setProperty("role", role)
 
     return widget
+
+
+def qr_pixmap(text, module=4):
+    """QR code of `text`: black on white (in any theme), quiet zone included.
+
+    `module` is the side of one module in pixels; nearest-neighbour scaling
+    keeps the edges sharp for the camera.
+    """
+    matrix = qr_matrix(text)
+    side = len(matrix) + 2 * QR_QUIET_ZONE
+
+    image = QImage(side, side, QImage.Format.Format_Grayscale8)
+
+    image.fill(Qt.GlobalColor.white)
+
+    for row, modules in enumerate(matrix):
+        for column, dark in enumerate(modules):
+            if dark:
+                image.setPixel(column + QR_QUIET_ZONE, row + QR_QUIET_ZONE, 0xFF000000)
+
+    return QPixmap.fromImage(image.scaled(
+        side * module,
+        side * module,
+        Qt.AspectRatioMode.IgnoreAspectRatio,
+        Qt.TransformationMode.FastTransformation
+    ))
 
 
 def repolish(widget):
@@ -731,6 +763,32 @@ def reduce_profile(terrain, limit=MAX_TERRAIN_POINTS):
     ]
 
 
+# The side view is at least this share of the distance tall: a flat shot
+# (a tank shell rising 0.2 m over 400 m) is drawn nearly straight instead of
+# being stretched into an arc as tall as a mortar's.
+MIN_VIEW_HEIGHT_SHARE = 0.1
+
+# Room above and below the drawing, as a share of its height.
+VIEW_PAD = 0.08
+
+
+def view_bounds(points):
+    """(max_x, min_y, max_y) of the side view showing `points` (x, height).
+
+    The height range spans at least MIN_VIEW_HEIGHT_SHARE of the distance,
+    added above the highest point, then VIEW_PAD on both sides.
+    """
+    max_x = max(p[0] for p in points) or 1.0
+    min_y = min(p[1] for p in points)
+    max_y = max(p[1] for p in points)
+
+    max_y = max(max_y, min_y + max_x * MIN_VIEW_HEIGHT_SHARE)
+
+    pad = (max_y - min_y) * VIEW_PAD
+
+    return max_x, min_y - pad, max_y + pad
+
+
 class TrajectoryView(QWidget):
     """Side view of the shot: weapon, target, both possible arcs, and the
     terrain and buildings in between when the map gives them, with the
@@ -786,17 +844,7 @@ class TrajectoryView(QWidget):
 
         points = self.main + self.alt + self.terrain + [(0.0, 0.0), self.target]
 
-        max_x = max(p[0] for p in points) or 1.0
-        min_y = min(p[1] for p in points)
-        max_y = max(p[1] for p in points)
-
-        if max_y - min_y < 1e-6:
-            max_y += 1
-            min_y -= 1
-
-        pad = (max_y - min_y) * 0.08
-        min_y -= pad
-        max_y += pad
+        max_x, min_y, max_y = view_bounds(points)
 
         def map_point(p):
             return QPointF(

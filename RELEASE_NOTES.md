@@ -1,10 +1,34 @@
 ## Squad Ballistics 1.6.0
 
+### Что нового
+- **Подключение устройства без кода:** Настройки → «Подключить устройство» показывают ссылку и QR-код. Отсканируйте его телефоном или откройте ссылку на втором мониторе — SquadCalc Deadline там свяжется с программой сам, и цели с его карты придут сюда. Вводить код больше не нужно, а связь переживает перезапуск программы и браузера: у программы теперь постоянный код сессии (12 символов), «Новый код» отвязывает все устройства, переключатель «Связь с устройствами» выключает связь. Код передаётся во фрагменте ссылки (`#link=`), который не уходит на сервер.
+
 ### Изменено
 - **Только Linux:** поддержка Windows убрана целиком — нет больше exe, автообновления, сборки PyInstaller и Windows-клавиш. Программа запускается из исходников (`python app.py`), обновление — `git pull`. Клавиши читаются через evdev или X11, нажимаются через uinput или XTest; настройки лежат в `~/.config/SquadBallistics`, кэш карты — в `~/.cache/SquadBallistics`.
 
+### Исправлено
+- **Ошибки ввода видны сразу:** при расчёте во время ввода FOV вне 1–179 или нулевая дистанция показывали «Введите дистанцию». Теперь показывается сама ошибка; подсказка «Введите дистанцию» — только при пустом поле дистанции.
+- **Диалоги читаются:** в окнах «Перезапустить?» и «Сбросить настройки?» светлый текст стоял на светлом фоне и почти не был виден.
+- **Контраст на акценте:** на зелёном, янтарном и песочном акценте белый текст кнопок, выбранных переключателей и пунктов списка почти не читался. На светлом акценте текст теперь тёмный.
+- **Боковой вид траектории:** настильный выстрел (танк: 0,2 м над линией на 400 м) растягивался в высокую дугу, как у миномёта. Теперь высота вида — не меньше 10 % дистанции, и такой выстрел выглядит почти прямой линией.
+- **Подсказка горячих клавиш** переносится только между клавишами, а не посередине «PgUp — Дистанция +».
+- Мелочи: «Папка настроек» и «Открыть в браузере» показывают путь или адрес, если в системе нечем их открыть (раньше ничего не происходило), а при включённом «Открывать карту в обычном браузере» вкладка карты тогда открывает встроенную карту; «Сброс» скорости автонаводки оформлен как второстепенная кнопка, как остальные «Сброс»; в английском тексте шаг про автонаводку говорил, что она «включена», когда она выключена.
+
+### What's new
+- **Connect a device without typing a code:** Settings → *Connect a device* shows a link and a QR code. Scan it with the phone or open the link on the second monitor: the Deadline SquadCalc there links up with the app by itself and its map targets come here. No code to type any more, and the link survives restarts of the app and the browser: the app now keeps one session code (12 characters), *New code* unlinks every device, the *Link with devices* toggle turns the link off. The code travels in the link's fragment (`#link=`), which never reaches the server.
+
 ### Changed
 - **Linux only:** Windows support is gone entirely — no exe, auto-update, PyInstaller build or Windows key handling. The app runs from source (`python app.py`) and updates with `git pull`. Keys are read through evdev or X11 and sent through uinput or XTest; settings live in `~/.config/SquadBallistics`, the map cache in `~/.cache/SquadBallistics`.
+
+### Fixed
+- **Input errors show right away:** while calculating as you type, a FOV outside 1–179 or a zero distance showed "Enter the distance". The error itself is shown now; "Enter the distance" only when the distance field is empty.
+- **Readable dialogs:** the "Restart?" and "Reset settings?" boxes had light text on a light background.
+- **Contrast on the accent:** with the green, amber and sand accents the white text of buttons, checked segments and selected list rows was hard to read. Light accents get dark text now.
+- **Trajectory side view:** a flat shot (a tank shell 0.2 m above the line over 400 m) was stretched into a tall arc like a mortar's. The view is now at least 10 % of the distance tall, so such a shot looks nearly straight.
+- **The hotkey hint** wraps only between keys, never inside "PgUp — Distance +".
+- Small things: "Settings folder" and "Open in browser" show the path or address when the system has nothing to open them with (they used to do nothing), and with "Open the map in the regular browser" on, the map tab then shows the embedded map; the auto-lay rate "Reset" is a secondary button like the app's other resets; the English auto-lay step said auto-lay "is turned on" while it is off.
+
+## Squad Ballistics 1.5.1
 
 ## Squad Ballistics 1.5.1
 
