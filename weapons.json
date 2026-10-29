@@ -63,7 +63,7 @@
         "zoom": 2.5,
         "zoom_bore": 0.85,
         "category": "agl",
-        "note": "AGS-17 with the PAG-17 optic (RMB, ×2.5). High arc: W puts the barrel up, hold S for the shown time (the app beeps). Low arc: aim with the overlay mark, which accounts for the optic's 0.85° socket (zero ~58 m). Velocity 185 m/s and gravity ×1.8 come from the game files; the hold rate and the top of the mount are fitted on 67 in-game hold-time measurements (280–1930 m, 7 m RMS error), the same as the Deadline SquadCalc. The fitted top, 85.87°, is the mount's 85° limit plus this optic's 0.85°, so the fit is of the optic gun; for the open-sight gun pick \"AGS-17 · iron sights emplacement\"."
+        "note": "AGS-17 with the PAG-17 optic (RMB, ×2.5). High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark, which accounts for the optic's 0.85° socket (zero ~58 m). Velocity 185 m/s and gravity ×1.8 come from the game files; the hold rate and the top of the mount are fitted on 67 in-game hold-time measurements (280–1930 m, 7 m RMS error), the same as the Deadline SquadCalc. The fitted top, 85.87°, is the mount's 85° limit plus this optic's 0.85°, so the fit is of the optic gun; for the open-sight gun pick \"AGS-17 · iron sights emplacement\"."
     },
     "AGS-17 · iron sights emplacement": {
         "velocity": 185,
@@ -82,7 +82,7 @@
         ],
         "bore": 4.5,
         "category": "agl",
-        "note": "AGS-17 with open sights. Its barrel socket is tilted 4.5° up (the optic gun's is 0.85°), so the same mount angle shoots 3.65° higher: the top of the hold is 89.52° (the mount's 85° limit + 4.5°) and a target 33 m away can be lobbed. High arc: W puts the barrel up, hold S for the shown time (the app beeps). Low arc: aim with the overlay mark; the sights are zeroed at ~300 m. Velocity, gravity and the hold rate are those of \"AGS-17 · emplacement\"; the top is derived from the game files, not measured in game."
+        "note": "AGS-17 with open sights. Its barrel socket is tilted 4.5° up (the optic gun's is 0.85°), so the same mount angle shoots 3.65° higher: the top of the hold is 89.52° (the mount's 85° limit + 4.5°) and a target 33 m away can be lobbed. High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark; the sights are zeroed at ~300 m. Velocity, gravity and the hold rate are those of \"AGS-17 · emplacement\"; the top is derived from the game files, not measured in game."
     },
     "QLZ87": {
         "velocity": 190,
