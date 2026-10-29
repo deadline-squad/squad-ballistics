@@ -96,6 +96,7 @@ Squad Ballistics предоставляет:
 2. Enter your horizontal FOV: the in-game setting, or the zoomed FOV when aiming through a scope. Tripod weapons whose view with RMB differs from the plain one (an optic that zooms the screen: QLZ87, Kord SPP, M2 ACOG, SPG-9 scope, AGS-17 optic, ZiS-3; or sights that look below the barrel: MK19) show a *view* switch instead: keep the game's FOV and pick *Sight (RMB)* or *No RMB*; the mark follows that view's zoom and zero. Holding the Focus key narrows the game's FOV to two thirds: type that FOV in.
 3. The result updates while you type. The **How to fire** block tells you exactly what to do for the selected weapon.
 4. Direct fire (launchers, grenade launchers, guns): put the overlay mark on the target and fire. Without a distance typed, the *range ladder* under the mark shows where a target at each round range (every 25–1000 m, finer near the weapon) goes (flat ground, the weapon's own ballistics); turn it off on the crosshair page.
+   *Vehicle guns:* a gunner's sight zooms in steps (×3 / ×6 / ×12 on an M1A2, ×4 / ×12 on a T-72, ...). Keep the game's FOV in the FOV field and pick the zoom you are looking through with the view switch (up to three buttons, one per level); the mark and the ladder follow that level's zoom and the gun's zero. Entries are split per vehicle where the zoom levels or the gun's tilt differ (*Tank AP · T-62 (2A20)*, *MK19 · M1151 / RHIB open turret* ...). Open-turret guns with RMB sights (the MK19 on the M113, M1151, RHIB: sights 1.6-1.73° under the barrel, zero 300-325 m) use the *No RMB / Sight (RMB)* switch.
 5. Indirect fire (mortars, Hell Cannon, rockets): set the shown elevation (mils or degrees) on the weapon. These weapons are laid on their own sight, so the overlay shows only the info line, no aim mark.
 6. Or skip typing: place your weapon and a target on the SquadCalc map (tab **SquadCalc**) — distance, height difference and bearing go to the calculator by themselves.
 
@@ -201,6 +202,7 @@ Weapons live in `weapons.json`. Only `velocity` is required:
 * `launch_height`: muzzle height above the ground in metres (the map height difference is ground to ground).
 * `hold_rate` / `hold_elevation`: weapons laid by holding a key (AGS-17): degrees per second and `[lowest, top]` elevation; the high arc is then shown as a hold time.
 * `bore`: degrees above the screen centre the shot leaves in the plain view (the barrel socket's tilt against the camera); `zoom`: the FOV divisor of the RMB view (1 = the sights, no zoom) and `zoom_bore`: the bore in that view. A weapon with `zoom` gets the *view* switch.
+* `views`: for a vehicle gunner's sight, up to three `{"zoom": ..., "bore": ...}` in the order the game cycles them (`zoom` is the turret's zoom level: the camera FOV is the game FOV divided by it; `bore` is the barrel socket's pitch minus the camera's pitch). It replaces `bore`, `zoom` and `zoom_bore`.
 * `min_distance`, `elevation_limits` `[min, max]`, `category`, `mod`.
 
 ## Development / Разработка
