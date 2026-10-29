@@ -101,6 +101,10 @@ DEFAULT_CONFIG = {
     "hold_panel_corner": "top_right",
     "auto_hold": False,
 
+    # Mortar auto-lay: hold rate (degrees per second) per weapon, fitted on
+    # the mils the sight showed after a lay; replaces weapons.json's.
+    "lay_rates": {},
+
     "hotkeys": {
         "toggle_overlay": "F8",
         "reset_offset": "F9",
@@ -205,6 +209,18 @@ def _merge(loaded):
         if key == "recent_weapons":
             if isinstance(value, list):
                 config[key] = [current_weapon_name(v) for v in value if isinstance(v, str)][:5]
+            continue
+
+        if key == "lay_rates":
+            if isinstance(value, dict):
+                config[key] = {
+                    current_weapon_name(name): float(rate)
+                    for name, rate in value.items()
+                    if isinstance(name, str)
+                    and isinstance(rate, (int, float))
+                    and not isinstance(rate, bool)
+                    and rate > 0
+                }
             continue
 
         if key == "last_weapon":

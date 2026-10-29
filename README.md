@@ -97,14 +97,14 @@ Squad Ballistics предоставляет:
 2. Enter your horizontal FOV: the in-game setting, or the zoomed FOV when aiming through a scope.
 3. The result updates while you type. The **How to fire** block tells you exactly what to do for the selected weapon.
 4. Direct fire (launchers, grenade launchers, guns): put the overlay mark on the target and fire.
-5. Indirect fire (mortars, Hell Cannon, rockets): set the shown elevation (mils or degrees) on the weapon.
+5. Indirect fire (mortars, Hell Cannon, rockets): set the shown elevation (mils or degrees) on the weapon. These weapons are laid on their own sight, so the overlay shows only the info line, no aim mark.
 6. Or skip typing: place your weapon and a target on the SquadCalc map (tab **SquadCalc**) — distance, height difference and bearing go to the calculator by themselves.
 
 1. Выберите оружие (поиск по списку, недавние сверху), введите дистанцию и при необходимости перепад высот: цель выше `+`, ниже `-`.
 2. Укажите горизонтальный FOV: значение из настроек игры или FOV прицела при стрельбе через оптику.
 3. Результат пересчитывается при вводе. Блок **«Как стрелять»** говорит, что делать для выбранного оружия.
 4. Прямая наводка (гранатомёты, пушки): совместите метку оверлея с целью и стреляйте.
-5. Навесной огонь (миномёты, Hell Cannon, ракеты): выставьте показанный угол (милы или градусы) на орудии.
+5. Навесной огонь (миномёты, Hell Cannon, ракеты): выставьте показанный угол (милы или градусы) на орудии. Они наводятся своим прицелом, поэтому оверлей показывает только строку с данными, без метки.
 6. Или не вводите ничего: поставьте своё оружие и цель на карте SquadCalc (вкладка **SquadCalc**) — дистанция, перепад высот и азимут подставятся в калькулятор сами.
 
 ### AGS-17
@@ -117,6 +117,7 @@ Pick **AGS-17 · emplacement**. / Выберите **AGS-17 · emplacement**.
 * **Both at once / оба сразу:** on the high arc the overlay mark shows the direct-fire aim at the same time (`S 2.31 s · direct fire 3.21°`), and a target too close to lob (under 280 m) is solved for direct fire. / На навесной метка оверлея одновременно показывает прямую наводку, а цель ближе 280 м считается прямой наводкой.
 * **Timer on the overlay / таймер на оверлее:** a panel in a corner of the screen (Settings → Overlay) shows the target and its hold time, where the barrel shoots right now (`~820 m`), the seconds S has been held with a progress bar that turns green when it is time to release, and whether the app sees S and W. / Панель в углу экрана (Настройки → Оверлей): цель и её время, куда бьёт ствол сейчас (`~820 м`), сколько секунд зажата S с полоской, которая зеленеет, когда пора отпускать, и видит ли программа S и W.
 * **Auto-hold / автозажатие** (off by default, Settings → Calculator): press **F7** and the app holds S itself for the time left to the target, then releases; F7 again or W cancels. Synthetic key presses may be treated as a macro by EasyAntiCheat or server rules — your risk. Linux needs write access to `/dev/uinput` (Steam's udev rules) or the game on X11/XWayland. / Выключено по умолчанию (Настройки → Калькулятор): **F7** — программа сама держит S оставшееся время и отпускает; повторное F7 или W отменяет. Нажатия от программы античит и правила сервера могут счесть макросом — на свой риск. В Linux нужен доступ к `/dev/uinput` (правила Steam) или игра в X11/XWayland.
+* **Mortar auto-lay / автонаводка миномёта** (with auto-hold on): in the mortar sight press **F7** — the app holds W until the barrel is at its top (1580 mil), then S for the shown time; the sight then shows the mils of the solution. The rate (9°/s) comes from the game files: keyboard pitch ×300 × input ×0.03, the rule that gives the AGS-17's measured 9.08°/s. To make it exact for your game, after a lay type the mils the sight shows into *Sight shows (mil)* and press *Calibrate*: the rate is fitted on the time S was held and kept for that weapon (*Reset* goes back to 9°/s). Set the bearing yourself. / С включённым автозажатием: в прицеле миномёта **F7** — программа держит W до упора (1580 мил), затем S показанное время; прицел покажет милы решения. Скорость (9°/с) — из файлов игры: клавиатура ×300 × ввод ×0.03, то же правило даёт измеренные у АГС-17 9.08°/с. Для точности под вашу игру после наводки введите милы с прицела в «Прицел показал (мил)» и нажмите «Уточнить»: скорость подгоняется по времени удержания S и запоминается (кнопка «Сброс» вернёт 9°/с). Азимут выставляйте сами.
 * Hold range 280–1925 m on flat ground; the model is fitted on 67 in-game measurements (hold time → distance, 0.02 s RMS) and is the same as in the Deadline SquadCalc. / Зажатием S — от 280 до 1925 м по ровной земле; модель подобрана по 67 замерам в игре (ошибка 0.02 с) и совпадает с SquadCalc Deadline.
 
 Tips / Советы:
@@ -129,7 +130,7 @@ Tips / Советы:
 | F8 | Show / hide overlay — показать / скрыть оверлей |
 | F9 | Reset aim mark — сбросить метку |
 | — | Distance + / − (bind in Settings) — дистанция + / − (назначается в настройках) |
-| F7 | AGS-17 auto-hold, when enabled — автозажатие S АГС-17, если включено |
+| F7 | AGS-17 auto-hold / mortar auto-lay, when enabled — автозажатие S АГС-17 / автонаводка миномёта, если включено |
 
 Hotkeys can be changed in **Settings**. They are global, so they work while the game is focused: on Windows always, on Linux when the keys can be read (see *Linux* below). / Клавиши меняются в **Настройках**. Они глобальные и работают поверх игры: в Windows всегда, в Linux — когда программа видит клавиатуру (см. *Linux* ниже).
 
@@ -193,7 +194,7 @@ Weapons live in `weapons.json`. Only `velocity` is required:
 
 * `gravity`: projectile gravity scale (1 = normal, 0 = no drop).
 * `acceleration` / `acceleration_time`: rocket motor phase in m/s² and seconds (negative = slows down, UB-32).
-* `arc`: default trajectory, `low` or `high`; `aim`: `overlay` (direct fire) or `elevation` (set the angle on the weapon).
+* `arc`: default trajectory, `low` or `high`; `aim`: `overlay` (direct fire, aimed with the overlay mark) or `elevation` (set the angle on the weapon; no overlay mark). Defaults to `elevation` for `high` and `overlay` for `low`.
 * `unit`: `mil` shows mils first (mortars).
 * `angle_offset`: subtracted from the elevation, for weapons whose readout is shifted (technical mortar).
 * `launch_height`: muzzle height above the ground in metres (the map height difference is ground to ground).

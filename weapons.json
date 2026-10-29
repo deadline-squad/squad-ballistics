@@ -393,8 +393,13 @@
             45,
             88.875
         ],
-        "note": "Set the mils on the mortar sight. Range 51–1237 m.",
-        "note_ru": "Выставьте милы на прицеле миномёта. Дальность 51–1237 м."
+        "hold_rate": 9.0,
+        "hold_elevation": [
+            45,
+            88.875
+        ],
+        "note": "Set the mils on the mortar sight. Range 51–1237 m. Auto-lay: W raises the barrel to its top (1580 mil), S lowers it at 9°/s (game files: keyboard pitch ×300 × input ×0.03, the same rule gives the AGS-17's measured 9.08°/s).",
+        "note_ru": "Выставьте милы на прицеле миномёта. Дальность 51–1237 м. Автонаводка: W поднимает ствол до упора (1580 мил), S опускает его на 9°/с (файлы игры: клавиатура ×300 × ввод ×0.03; то же правило даёт измеренные у АГС-17 9.08°/с)."
     },
     "Technical Mortar": {
         "velocity": 110,

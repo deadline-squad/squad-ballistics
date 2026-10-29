@@ -38,7 +38,10 @@ from PyQt6.QtWidgets import (
 
 import theme
 
+from dataclasses import replace
+
 from ballistics import (
+    MILS_PER_DEGREE,
     current_weapon_name,
     first_obstacle,
     solve,
@@ -57,6 +60,7 @@ from config import (
 
 from holdtimer import (
     VK_S,
+    VK_W,
     HoldTimer,
     beep
 )
@@ -107,6 +111,16 @@ from widgets import (
     label,
     repolish
 )
+
+# Extra W time of a mortar auto-lay past the full travel of the barrel: the
+# barrel stops at its top, so holding longer only makes sure it got there.
+LAY_RESET_MARGIN = 0.3
+
+# Auto-lay calibration: S held at least this long (a short hold measures the
+# rate poorly), and a fitted rate within this fraction of weapons.json's
+# (a typo in the mils would give an absurd one).
+LAY_CALIBRATION_MIN_HOLD = 0.5
+LAY_RATE_TOLERANCE = 0.3
 
 CROSSHAIR_COLORS = [
     "#00ff00",
@@ -185,9 +199,13 @@ class MainWindow(QMainWindow):
     def __init__(self, weapons):
         super().__init__()
 
-        self.weapons = weapons
+        # weapons.json as loaded; `weapons` may carry calibrated hold rates
+        self.file_weapons = weapons
+        self.weapons = dict(weapons)
 
         self.config = load_config()
+
+        self.apply_lay_rates()
 
         set_language(self.config["language"])
 
@@ -617,6 +635,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.big_label)
         layout.addWidget(self.sub_label)
         layout.addWidget(self.hold_label)
+        layout.addWidget(self.build_lay_calibration())
 
         grid = QGridLayout()
 
@@ -829,6 +848,11 @@ class MainWindow(QMainWindow):
     def recalculate_if_ready(self):
         if self.distance_entry.text().strip():
             self.calculate(show_errors=False)
+        else:
+            # No shot yet: the mark waits at the centre, or stays hidden for
+            # weapons laid by elevation.
+            self.last_solution = None
+            self.overlay.set_offset(self.current_offset())
 
     def primary_unit(self, weapon):
         mode = self.config["unit_mode"]
@@ -935,7 +959,7 @@ class MainWindow(QMainWindow):
 
             # A hold weapon lobbing (AGS-17) can also fire directly through
             # its sight: the overlay mark shows that aim at the same time.
-            if weapon.has_hold and solution.arc == "high":
+            if weapon.has_hold and weapon.aim == "overlay" and solution.arc == "high":
                 direct = solve(weapon, distance, height, "low")
 
                 if not direct.reachable:
@@ -947,7 +971,7 @@ class MainWindow(QMainWindow):
             self.last_solution = None
             self.direct_solution = None
 
-            self.overlay.reset_offset()
+            self.overlay.set_offset(self.current_offset())
 
             self.set_overlay_info("")
 
@@ -978,7 +1002,7 @@ class MainWindow(QMainWindow):
         self.show_solution(weapon, solution, fov)
 
     def show_unreachable(self, weapon, solution):
-        self.overlay.reset_offset()
+        self.overlay.set_offset(self.current_offset())
 
         self.set_overlay_info("")
 
@@ -1022,6 +1046,10 @@ class MainWindow(QMainWindow):
         holding = math.isfinite(hold)
         direct = self.direct_solution if holding else None
 
+        # Mortars are laid on their sight by the angle; the hold time is for
+        # the auto-lay (W to the top, then S), not what the player reads.
+        laid_by_angle = holding and weapon.aim == "elevation"
+
         # Terrain and buildings on the line to the SquadCalc target: where the
         # shown trajectories hit them first (None: clear, or no profile).
         profile, step = self.map_profile()
@@ -1033,7 +1061,7 @@ class MainWindow(QMainWindow):
 
         offset = self.current_offset()
 
-        offscreen = self.overlay.is_offscreen(offset)
+        offscreen = offset is not None and self.overlay.is_offscreen(offset)
 
         self.overlay.set_offset(offset)
 
@@ -1041,8 +1069,10 @@ class MainWindow(QMainWindow):
         # the horizon (see Solution.sight_angle).
         aimed = solution.sight_angle if weapon.aim == "overlay" else solution.angle
 
-        if holding:
+        if holding and not laid_by_angle:
             readout = f"S {hold:.2f} {s}"
+        elif laid_by_angle:
+            readout = f"{format_angle(aimed, unit)}  ·  S {hold:.2f} {s}"
         else:
             readout = format_angle(aimed, unit)
 
@@ -1066,7 +1096,7 @@ class MainWindow(QMainWindow):
 
         self.set_overlay_info(info)
 
-        if holding:
+        if holding and not laid_by_angle:
             self.set_big(tr("hold_big", t=f"{hold:.2f}"))
 
             sub = (
@@ -1090,6 +1120,9 @@ class MainWindow(QMainWindow):
                     "to_horizon", angle=format_angle(solution.angle, "deg")
                 )
 
+            if laid_by_angle:
+                sub += "  ·  " + tr("lay_short", t=f"{hold:.2f}")
+
             self.sub_label.setText(sub)
 
         self.hold_timer.set_target(
@@ -1105,7 +1138,7 @@ class MainWindow(QMainWindow):
             f"{solution.velocity:.0f} {tr('unit_mps')}"
         )
 
-        if holding and direct is None:
+        if offset is None or (holding and direct is None):
             self.stats["stat_offset"].set("—")
         elif offscreen:
             self.stats["stat_offset"].set(tr("off_screen"))
@@ -1151,7 +1184,7 @@ class MainWindow(QMainWindow):
 
         tof = f"{solution.time_of_flight:.1f}"
 
-        if holding:
+        if holding and not laid_by_angle:
             steps = [
                 tr("how_hold_1"),
                 tr(
@@ -1204,6 +1237,9 @@ class MainWindow(QMainWindow):
                 tr("how_elevation_2", angle=angle_text),
                 tr("how_tof_adjust", tof=tof)
             ]
+
+            if laid_by_angle:
+                steps.insert(2, self.lay_step(hold))
 
         steps = self.obstacle_steps(
             weapon, solution, obstacle, alt_solution, profile, step, unit
@@ -1351,6 +1387,10 @@ class MainWindow(QMainWindow):
         """Watch S/W only while a hold weapon is selected and enabled."""
         weapon = self.current_weapon()
 
+        self.lay_row.setVisible(
+            weapon is not None and weapon.has_hold and weapon.aim == "elevation"
+        )
+
         self.hold_timer.set_active(
             weapon is not None
             and weapon.has_hold
@@ -1359,9 +1399,131 @@ class MainWindow(QMainWindow):
 
         self.update_hold_panel()
 
+    def build_lay_calibration(self):
+        """Row of the mortar auto-lay calibration: the mils the sight shows."""
+        self.lay_row = QWidget()
+
+        row = QHBoxLayout(self.lay_row)
+
+        row.setContentsMargins(0, 0, 0, 0)
+
+        row.addWidget(label(tr("lay_read"), "small"))
+
+        self.lay_entry = NumberEdit(allow_negative=False, step=1)
+
+        self.lay_entry.setFixedWidth(80)
+
+        self.lay_entry.returnPressed.connect(self.calibrate_lay)
+
+        row.addWidget(self.lay_entry)
+
+        calibrate = QPushButton(tr("lay_calibrate"))
+
+        calibrate.clicked.connect(lambda: self.calibrate_lay())
+
+        row.addWidget(calibrate)
+
+        reset = QPushButton(tr("lay_reset"))
+
+        reset.clicked.connect(lambda: self.reset_lay_rate())
+
+        row.addWidget(reset)
+
+        self.lay_status = label("", "small")
+
+        row.addWidget(self.lay_status)
+
+        row.addStretch()
+
+        self.lay_row.hide()
+
+        return self.lay_row
+
+    def apply_lay_rates(self):
+        """Use the calibrated hold rates of `config["lay_rates"]`."""
+        self.weapons = dict(self.file_weapons)
+
+        for name, rate in self.config["lay_rates"].items():
+            weapon = self.weapons.get(name)
+
+            if weapon is not None and weapon.has_hold and weapon.aim == "elevation":
+                self.weapons[name] = replace(weapon, hold_rate=rate)
+
+    def calibrate_lay(self):
+        """Fit the hold rate on the mils the sight shows after a lay.
+
+        The barrel went down from the top for the time S was held since the
+        last W (the hold timer's count, auto-lay or by hand), so the rate is
+        (top - shown angle) / held. Returns True when the rate was saved.
+        """
+        weapon = self.current_weapon()
+        mils = self.lay_entry.value()
+        held = self.hold_timer.held
+
+        if weapon is None or not weapon.has_hold or weapon.aim != "elevation" or mils is None:
+            return False
+
+        if held < LAY_CALIBRATION_MIN_HOLD:
+            self.lay_status.setText(tr("lay_need_hold", t=f"{LAY_CALIBRATION_MIN_HOLD:g}"))
+            return False
+
+        lowest, top = weapon.hold_elevation
+        rate = (top - mils / MILS_PER_DEGREE) / held
+        base = self.file_weapons[weapon.name].hold_rate
+
+        if abs(rate - base) > LAY_RATE_TOLERANCE * base:
+            self.lay_status.setText(tr("lay_out_of_range", rate=f"{rate:.2f}", base=f"{base:g}"))
+            return False
+
+        self.config["lay_rates"][weapon.name] = round(rate, 4)
+        self.schedule_save()
+        self.apply_lay_rates()
+        self.lay_entry.clear()
+        self.lay_status.setText(tr("lay_done", rate=f"{rate:.2f}", base=f"{base:g}"))
+        self.recalculate_if_ready()
+
+        return True
+
+    def reset_lay_rate(self):
+        """Back to the hold rate of weapons.json for the current weapon."""
+        weapon = self.current_weapon()
+
+        if weapon is None or self.config["lay_rates"].pop(weapon.name, None) is None:
+            return
+
+        self.schedule_save()
+        self.apply_lay_rates()
+        self.lay_status.setText(tr("lay_reset_done", base=f"{self.file_weapons[weapon.name].hold_rate:g}"))
+        self.recalculate_if_ready()
+
+    def lay_reset_time(self, weapon):
+        """Seconds of W that surely put the barrel at its top, 0 if not needed.
+
+        Only for weapons laid by the angle (mortars): the player may have left
+        the barrel anywhere, the AGS-17 player presses W before holding S.
+        """
+        if weapon is None or not weapon.has_hold or weapon.aim != "elevation":
+            return 0.0
+
+        return weapon.max_hold_time() + LAY_RESET_MARGIN
+
+    def lay_step(self, hold):
+        """How-to line of the mortar auto-lay, by the state of the setting."""
+        if not self.config["auto_hold"] or self.hold_timer.auto_hold is None:
+            return tr("how_lay_off", t=f"{hold:.2f}")
+
+        return tr(
+            "how_lay",
+            hotkey=self.config["hotkeys"].get("auto_hold", ""),
+            t=f"{hold:.2f}"
+        )
+
     def auto_hold(self):
-        """Hotkey: hold S for the time left to the target (again: release)."""
-        self.hold_timer.toggle_auto_hold()
+        """Hotkey: hold S for the time left to the target (again: release).
+
+        Mortars are laid from scratch: W to the top first, then S.
+        """
+        self.hold_timer.toggle_auto_hold(self.lay_reset_time(self.current_weapon()))
 
     def apply_auto_hold(self):
         """Create or drop the key injector according to the setting.
@@ -1383,7 +1545,13 @@ class MainWindow(QMainWindow):
             self.config["auto_hold"] = False
             return False
 
-        self.hold_timer.auto_hold = AutoHold(injector)
+        # W puts a mortar's barrel to its top before the hold (auto-lay)
+        try:
+            reset_injector = system_key_injector(VK_W)
+        except OSError:
+            reset_injector = None
+
+        self.hold_timer.auto_hold = AutoHold(injector, reset_injector)
 
         return True
 
@@ -1395,6 +1563,8 @@ class MainWindow(QMainWindow):
 
         if timer.auto_hold is not None:
             timer.auto_hold.injector.close()
+            if timer.auto_hold.reset_injector is not None:
+                timer.auto_hold.reset_injector.close()
             timer.auto_hold = None
 
     def set_auto_hold(self, checked):
@@ -1421,6 +1591,16 @@ class MainWindow(QMainWindow):
         self.update_hold_readout()
 
     def current_offset(self):
+        """Pixels the overlay mark sits below the centre, None without a mark.
+
+        Weapons laid by elevation (`aim` "elevation": mortars, rocket
+        artillery) are set on their own sight, so they get no mark.
+        """
+        weapon = self.current_weapon()
+
+        if weapon is not None and weapon.aim != "overlay":
+            return None
+
         solution = self.last_solution
 
         if solution is None or not solution.reachable:
@@ -1447,7 +1627,7 @@ class MainWindow(QMainWindow):
         self.last_solution = None
         self.direct_solution = None
 
-        self.overlay.reset_offset()
+        self.overlay.set_offset(self.current_offset())
 
         self.set_overlay_info("")
 

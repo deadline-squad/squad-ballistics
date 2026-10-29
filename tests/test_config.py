@@ -173,3 +173,12 @@ def test_linux_wayland_runs_through_xwayland():
     windows = {"WAYLAND_DISPLAY": "x", "DISPLAY": ":0"}
     prefer_x11(windows, "win32")
     assert "QT_QPA_PLATFORM" not in windows
+
+
+def test_lay_rates_keep_only_positive_numbers():
+    merged = config._merge({"lay_rates": {
+        "Mortar (M252 / 2B14 / L16 / Type 63)": 8.7,
+        "bad": "fast", "zero": 0, "flag": True, "neg": -1,
+    }})
+    assert merged["lay_rates"] == {"Mortar (M252 / 2B14 / L16 / Type 63)": 8.7}
+    assert config._merge({"lay_rates": [1, 2]})["lay_rates"] == {}

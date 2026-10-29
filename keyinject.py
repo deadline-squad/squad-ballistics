@@ -1,4 +1,8 @@
-"""Synthetic key presses for the AGS-17 auto-hold (the app holds S itself).
+"""Synthetic key presses for the auto-hold (the app holds S itself).
+
+AGS-17: S is held for the time left to the target. Mortars (auto-lay): W is
+held first until the barrel is at its top, then S for the whole hold time,
+since the app cannot know where the barrel was left.
 
 `system_key_injector(vk)` returns an injector with press()/release()/close()
 for one key, or None where keys cannot be sent:
@@ -29,6 +33,10 @@ from keystate import EV_KEY, EVDEV_CODES
 # The last milliseconds of a hold are waited for actively: sleeping is
 # coarse on Windows.
 PRECISE_SPIN_SECONDS = 0.003
+
+# Pause between releasing W and pressing S, so the game sees two separate
+# keys (at least a few frames at 30 fps).
+RESET_SETTLE_SECONDS = 0.1
 
 UINPUT_NAME = b"Squad Ballistics auto-hold"
 
@@ -230,26 +238,76 @@ def hold_key(injector, seconds, cancel):
         injector.release()
 
 
-class AutoHold:
-    """Holds the key in a worker thread; one hold at a time."""
+def lay(injector, seconds, cancel, reset_injector=None, reset_seconds=0.0,
+        resetting=None, pressing=None):
+    """Hold the reset key (W) `reset_seconds` first, if any, then the key.
 
-    def __init__(self, injector):
+    Runs in a worker thread; `cancel` stops it at any point with both keys
+    released. `resetting` and `pressing` (threading.Event) are set while W,
+    and then the key, are held: the hold timer counts the key from them and
+    tells this W from one the player presses.
+    """
+    if reset_injector is not None and reset_seconds > 0:
+        if resetting is not None:
+            resetting.set()
+
+        try:
+            hold_key(reset_injector, reset_seconds, cancel)
+        finally:
+            if resetting is not None:
+                resetting.clear()
+
+        if cancel.wait(RESET_SETTLE_SECONDS):
+            return
+
+    if pressing is not None:
+        pressing.set()
+
+    try:
+        hold_key(injector, seconds, cancel)
+    finally:
+        if pressing is not None:
+            pressing.clear()
+
+
+class AutoHold:
+    """Holds the key in a worker thread; one hold at a time.
+
+    `reset_injector` (optional) sends W, for holds that start by putting the
+    barrel back to its top (`start(..., reset_seconds)`).
+    """
+
+    def __init__(self, injector, reset_injector=None):
         self.injector = injector
+        self.reset_injector = reset_injector
         self.cancel = threading.Event()
         self.thread = None
+        # Set while the app itself holds W (the reset before the hold), then
+        # while it holds the key.
+        self.resetting = threading.Event()
+        self.pressing = threading.Event()
 
     @property
     def active(self):
         return self.thread is not None and self.thread.is_alive()
 
-    def start(self, seconds):
+    def start(self, seconds, reset_seconds=0.0):
+        """Hold the key `seconds`, after W for `reset_seconds` if > 0.
+
+        Returns False if a hold is running, the time is not positive, or a
+        reset is asked for without a W injector.
+        """
         if self.active or seconds <= 0:
+            return False
+
+        if reset_seconds > 0 and self.reset_injector is None:
             return False
 
         self.cancel = threading.Event()
         self.thread = threading.Thread(
-            target=hold_key,
-            args=(self.injector, seconds, self.cancel),
+            target=lay,
+            args=(self.injector, seconds, self.cancel, self.reset_injector, reset_seconds,
+                  self.resetting, self.pressing),
             daemon=True
         )
         self.thread.start()
