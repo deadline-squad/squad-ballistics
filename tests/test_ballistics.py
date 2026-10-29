@@ -214,7 +214,7 @@ def test_range_ladder_matches_the_mark(name):
 
     for distance, offset in ticks:
         solution = solve(weapon, distance, 0.0, "low")
-        assert offset == pytest.approx(screen_offset(solution.sight_angle, 90, 1920))
+        assert offset == pytest.approx(mark_offset(weapon, solution.sight_angle, 90, 1920))
         assert distance % 25 == 0
         assert offset <= 520
 
@@ -289,6 +289,146 @@ def test_views_are_zeroed_where_the_game_puts_them(name, zoomed, zero):
 
     assert sight_angle == pytest.approx(bore, abs=0.05)
     assert abs(mark_offset(weapon, sight_angle, 90, 1920, zoomed=zoomed)) < screen_offset(0.05, view_fov, 1920)
+
+
+def zero_range(weapon, bore):
+    """Range (m, flat ground) at which a shot leaving `bore` degrees above
+    the view centre comes back to the centre: the view's zero."""
+    low, high = 1.0, 6000.0
+
+    for _ in range(60):
+        middle = (low + high) / 2
+        solution = solve(weapon, middle, 0.0, "low")
+
+        if not solution.reachable or solution.sight_angle > bore:
+            high = middle
+        else:
+            low = middle
+
+    return low
+
+
+# Tripod geometry from the game files (build 26005357): the pitch of the
+# weapon's barrel socket (`Attach_Muzzle*` of its skeleton, composed with the
+# bone rotations), the pitch of the tripod's `AdsCamera1pPositionComponent`
+# against the gun mount (the plain camera, `FirstPersonVehicleCam`, sits at
+# 0 on the mount) and the divisor the RMB handler puts on the FOV
+# (`SetFieldOfView(UserSettings.FOV / k)`, None: it does not zoom).
+# The shot leaves `socket` above the plain camera's centre and
+# `socket - ads_camera` above the RMB camera's.
+EMPLACED_GEOMETRY = {
+    "QLZ87": (-0.9, -1.6738, 3.0),
+    "MK19 · emplacement / C16 / L134A1": (0.0, -1.6738, 1.0),
+    "AGS-17 · emplacement": (0.85, 0.0, 2.5),
+    "AGS-17 · iron sights emplacement": (4.5, 0.0, None),
+    "SPG-9 · HEAT": (0.13, 0.0, None),
+    "SPG-9 · FRAG": (0.13, 0.0, None),
+    "SPG-9 · HEAT · scope": (2.34, 0.0, 4.0),
+    "SPG-9 · FRAG · scope": (2.34, 0.0, 4.0),
+    "ZiS-3": (0.4, 0.0, 4.0),
+    "M2A1 .50 · emplacement": (0.22, 0.0, None),
+    "M2A1 .50 · ACOG emplacement": (0.22, 0.0, 4.0),
+    "Kord · emplacement": (0.45, 0.0, None),
+    "Kord · SPP emplacement": (0.45, 0.0, 4.5),
+    "DShK-M · emplacement": (0.17, 0.0, None),
+    "QJZ-89 · emplacement": (0.17, 0.0, None),
+    "QJZ-89 · scope emplacement": (0.17, 0.0, 4.5),
+}
+
+
+@pytest.mark.parametrize("name", EMPLACED_GEOMETRY)
+def test_weapons_json_matches_the_tripod_geometry(name):
+    socket, ads_camera, divisor = EMPLACED_GEOMETRY[name]
+    weapon = WEAPONS[name]
+
+    assert weapon.bore == pytest.approx(socket, abs=0.01)
+
+    if divisor is None:
+        assert weapon.zoom == 0
+        assert weapon.sight_view(90, True) == (90, weapon.bore)
+        return
+
+    assert weapon.zoom == divisor
+    assert weapon.zoom_bore == pytest.approx(socket - ads_camera, abs=0.01)
+    assert weapon.sight_view(90, True) == (90 / divisor, weapon.zoom_bore)
+
+
+# (weapon, RMB view, round zero range in m): the zero each view comes out at
+# is a round number, which is what the tilt was built for; a model that put
+# a view elsewhere would not land on one. Not here: the open-sight SPG-9
+# (0.13 degrees, zero 73 m HEAT / 38 m FRAG) and the AGS-17 optic (0.85
+# degrees, 58 m) have no round zero; the AGS-17 optic is confirmed instead
+# by the hold fit, whose top 85.87 is the mount's 85 + 0.85.
+ROUND_ZEROS = [
+    ("MK19 · emplacement / C16 / L134A1", True, 330),
+    ("AGS-17 · iron sights emplacement", False, 300),
+    ("SPG-9 · HEAT · scope", True, 1300),
+    ("SPG-9 · HEAT · scope", False, 1300),
+    ("SPG-9 · FRAG · scope", True, 700),
+    ("ZiS-3", True, 350),
+    ("ZiS-3", False, 350),
+    ("M2A1 .50 · emplacement", False, 400),
+    ("M2A1 .50 · ACOG emplacement", True, 200),
+    ("Kord · emplacement", False, 800),
+    ("DShK-M · emplacement", False, 300),
+    ("QJZ-89 · emplacement", False, 300),
+    ("QJZ-89 · scope emplacement", True, 300),
+]
+
+
+@pytest.mark.parametrize("name, zoomed, zero", ROUND_ZEROS)
+def test_emplaced_views_are_zeroed_at_a_round_range(name, zoomed, zero):
+    weapon = WEAPONS[name]
+    view_fov, bore = weapon.sight_view(90, zoomed)
+
+    assert zero_range(weapon, bore) == pytest.approx(zero, rel=0.05)
+
+    # Sign convention: inside the zero the mark is above the centre, at the
+    # zero on it, beyond it below (positive offsets are below)
+    def offset(distance):
+        sight_angle = solve(weapon, distance, 0.0, "low").sight_angle
+        return mark_offset(weapon, sight_angle, 90, 1920, zoomed=zoomed)
+
+    assert offset(zero_range(weapon, bore)) == pytest.approx(0, abs=0.5)
+    assert offset(zero / 2) < 0
+    assert offset(zero * 1.5) > 0
+
+
+def test_the_mk19_sights_do_not_zoom_but_look_below_the_barrel():
+    """RMB on the tripod MK19 keeps the FOV and tilts the view 1.674
+    degrees under the barrel; without RMB the barrel is on the centre."""
+    weapon = WEAPONS["MK19 · emplacement / C16 / L134A1"]
+    sight_angle = solve(weapon, 500, 0.0, "low").sight_angle
+
+    assert weapon.sight_view(90, False) == (90, 0.0)
+    assert weapon.sight_view(90, True) == (90, 1.674)
+    assert mark_offset(weapon, sight_angle, 90, 1920) - mark_offset(
+        weapon, sight_angle, 90, 1920, zoomed=True
+    ) == pytest.approx(screen_offset(sight_angle, 90, 1920) - screen_offset(sight_angle - 1.674, 90, 1920))
+
+
+def test_the_scope_spg9_has_a_deeper_view_than_the_open_sights():
+    iron = WEAPONS["SPG-9 · HEAT"]
+    scope = WEAPONS["SPG-9 · HEAT · scope"]
+
+    assert (iron.velocity, iron.g) == (scope.velocity, scope.g)
+    assert iron.sight_view(90, True) == (90, 0.13)
+    assert scope.sight_view(90, False) == (90, 2.34)
+    assert scope.sight_view(90, True) == (22.5, 2.34)
+
+
+def test_the_iron_sight_ags17_lobs_closer_than_the_optic_one():
+    """Same mount, but the open-sight socket is 3.65 degrees higher: its top
+    of the hold is that much higher and it lobs where the optic gun fires
+    directly."""
+    optic = WEAPONS["AGS-17 · emplacement"]
+    iron = WEAPONS["AGS-17 · iron sights emplacement"]
+
+    assert iron.hold_elevation[1] - optic.hold_elevation[1] == pytest.approx(4.5 - 0.85, abs=0.01)
+    assert iron.hold_elevation[0] == optic.hold_elevation[0]
+    assert iron.hold_rate == optic.hold_rate
+    assert not solve(optic, 100, 0.0, "high").reachable
+    assert solve(iron, 100, 0.0, "high").reachable
 
 
 def test_the_tripod_qlz87_fires_below_the_centre_unzoomed():
