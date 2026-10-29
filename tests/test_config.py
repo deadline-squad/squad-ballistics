@@ -1,4 +1,5 @@
 import json
+import os
 
 import config
 
@@ -104,9 +105,7 @@ def test_values_are_validated(tmp_path, monkeypatch):
         "dot_size": 500,
         "opacity": -4,
         "fov": 0,
-        "language": "klingon",
         "arc": "sideways",
-        "accent": "red; background: url(x)",
         "distance_step": 7,
         "outline_color": "black",
     }))
@@ -116,9 +115,7 @@ def test_values_are_validated(tmp_path, monkeypatch):
     assert cfg["dot_size"] == config.RANGES["dot_size"][1]
     assert cfg["opacity"] == config.RANGES["opacity"][0]
     assert cfg["fov"] == 1
-    assert cfg["language"] == "auto"
     assert cfg["arc"] == "auto"
-    assert cfg["accent"] == config.DEFAULT_CONFIG["accent"]
     assert cfg["distance_step"] == config.DEFAULT_CONFIG["distance_step"]
     assert cfg["outline_color"] == "black"
 
@@ -163,34 +160,78 @@ def test_lay_rates_keep_only_positive_numbers():
     assert config._merge({"lay_rates": [1, 2]})["lay_rates"] == {}
 
 
-def test_device_link_settings_from_older_versions(tmp_path):
-    """A typed relay code stays and the link is on; no code means the app makes one."""
+def test_settings_of_the_removed_device_link_are_ignored(tmp_path):
+    """Files saved by 1.6.0 builds with the device link still load."""
     path = tmp_path / "config.json"
+    path.write_text(json.dumps({
+        "relay_code": "ABCD2345",
+        "relay_enabled": False,
+        "fov": 60
+    }))
 
-    path.write_text(json.dumps({"relay_code": "ABCD2345"}))
     cfg = config.load_config(str(path))
-    assert cfg["relay_code"] == "ABCD2345"
-    assert cfg["relay_enabled"] is True
 
-    path.write_text(json.dumps({"relay_code": 5, "relay_enabled": "no"}))
-    cfg = config.load_config(str(path))
-    assert cfg["relay_code"] == ""
-    assert cfg["relay_enabled"] is True
+    assert cfg["fov"] == 60
+    assert "relay_code" not in cfg
+    assert "relay_enabled" not in cfg
 
-
-def test_learnt_hold_lead_survives_a_restart(tmp_path):
-    from holdtimer import MAX_LEAD
-
+def test_settings_of_the_removed_hold_timer_are_ignored(tmp_path):
+    """Files saved by 1.6.0 builds with the AGS-17 beep still load."""
     path = tmp_path / "config.json"
-    cfg = config.load_config(str(path))
-    assert cfg["hold_lead"] is None
+    path.write_text(json.dumps({
+        "hold_timer": False,
+        "hold_panel": False,
+        "hold_panel_corner": "bottom_left",
+        "hold_lead": 0.31,
+        "fov": 60
+    }))
 
-    cfg["hold_lead"] = 0.31
+    cfg = config.load_config(str(path))
+
+    assert cfg["fov"] == 60
+    for key in ("hold_timer", "hold_panel", "hold_panel_corner", "hold_lead"):
+        assert key not in cfg
+
     config.save_config(cfg, str(path))
-    assert config.load_config(str(path))["hold_lead"] == 0.31
+    assert "hold_lead" not in json.loads(path.read_text())
 
-    assert config.RANGES["hold_lead"] == (0.0, MAX_LEAD)
 
-    for stored, loaded in ((9.0, MAX_LEAD), (-1, 0.0), (True, None), ("0.3", None), (float("nan"), None)):
-        path.write_text(json.dumps({"hold_lead": stored}))
-        assert config.load_config(str(path))["hold_lead"] == loaded
+def test_saved_settings_are_private(tmp_path):
+    folder = tmp_path / "new" / "SquadBallistics"
+    path = folder / "config.json"
+
+    config.save_config(config.load_config(str(path)), str(path))
+
+    assert os.stat(path).st_mode & 0o777 == 0o600
+    assert os.stat(folder).st_mode & 0o777 == 0o700
+    assert json.loads(path.read_text())["fov"] == config.DEFAULT_CONFIG["fov"]
+
+
+def test_saving_replaces_a_world_readable_file_and_temp_file(tmp_path):
+    path = tmp_path / "config.json"
+
+    for stale in (path, tmp_path / "config.json.tmp"):
+        stale.write_text("{}")
+        os.chmod(stale, 0o644)
+
+    config.save_config({"fov": 60}, str(path))
+
+    assert os.stat(path).st_mode & 0o777 == 0o600
+    assert json.loads(path.read_text()) == {"fov": 60}
+    assert not (tmp_path / "config.json.tmp").exists()
+
+
+def test_language_and_accent_settings_are_ignored(tmp_path):
+    """Files saved by older versions with the language and accent still load."""
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({
+        "language": "ru",
+        "accent": "#22c55e",
+        "fov": 60
+    }))
+
+    cfg = config.load_config(str(path))
+
+    assert cfg["fov"] == 60
+    assert "language" not in cfg
+    assert "accent" not in cfg
