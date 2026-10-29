@@ -57,6 +57,10 @@ DEFAULT_CONFIG = {
     "outline_color": "white",
     "info_enabled": True,
 
+    # Range ticks under the mark for direct-fire weapons: where a target at
+    # each range goes, on flat ground, without typing the distance.
+    "range_ladder": True,
+
     # Overlay placement
     "monitor": 0,
     "center_offset_x": 0,

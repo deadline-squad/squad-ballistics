@@ -152,6 +152,14 @@ INFO_LINE_HEIGHT = 20
 INFO_MIN_WIDTH = 200
 INFO_EDGE = 8
 
+# The range ladder: its ticks end this far left of the mark's centre line,
+# are this long, at least LADDER_SPACING screen heights apart, and start
+# LADDER_CLEAR px below the crosshair's reach (px).
+LADDER_GAP = 6
+LADDER_TICK = 10
+LADDER_SPACING = 0.017
+LADDER_CLEAR = 6
+
 INFO_FLAGS = (
     Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
 ).value | Qt.TextFlag.TextWordWrap.value
@@ -192,6 +200,9 @@ class Overlay(QWidget):
 
         # False for weapons laid by elevation: no aim mark, only the info line.
         self.mark_visible = True
+
+        # Range ticks under the centre: [(distance m, pixels below)].
+        self.ladder = []
 
         # The animation timer only runs while the aim point is moving.
         self.animation_timer = QTimer(self)
@@ -256,6 +267,42 @@ class Overlay(QWidget):
         # The shadow is drawn 1 px lower right; antialiasing spills over.
         self.update(area.toAlignedRect().adjusted(-2, -2, 3, 3))
 
+    def crosshair_reach(self):
+        """How far the crosshair reaches from its centre (px)."""
+        cfg = self.config
+
+        return max(
+            cfg["circle_radius"] if cfg["circle_enabled"] else 0,
+            cfg["line_gap"] + cfg["line_length"] if cfg["lines_enabled"] else 0,
+            cfg["dot_size"] + 6
+        )
+
+    def ladder_bounds(self):
+        """(first, spacing, reach) of the range ladder in px, as
+        ballistics.range_ladder takes them: clear of the crosshair, ticks
+        apart by a share of the screen height, down to the screen edge."""
+        first = self.crosshair_reach() + LADDER_CLEAR
+        spacing = max(14.0, LADDER_SPACING * self.height())
+        reach = self.height() - self.EDGE_MARGIN - self.center_y
+
+        return first, spacing, reach
+
+    def set_ladder(self, ticks):
+        """Show the range ladder: [(distance m, pixels below the centre)];
+        an empty list hides it."""
+        ticks = list(ticks)
+
+        if ticks == self.ladder:
+            return
+
+        self.ladder = ticks
+        self.update()
+
+    def ladder_font(self):
+        font = overlay_font(8)
+        font.setBold(True)
+        return font
+
     def info_font(self):
         font = overlay_font(10)
         font.setBold(True)
@@ -277,15 +324,8 @@ class Overlay(QWidget):
         its text, wrapped onto more lines when it would leave the screen.
         Centred on the anchor's height."""
         x, y = self.info_anchor()
-        cfg = self.config
 
-        reach = max(
-            cfg["circle_radius"] if cfg["circle_enabled"] else 0,
-            cfg["line_gap"] + cfg["line_length"] if cfg["lines_enabled"] else 0,
-            cfg["dot_size"] + 6
-        )
-
-        left = x + reach + INFO_GAP
+        left = x + self.crosshair_reach() + INFO_GAP
         room = max(INFO_MIN_WIDTH, self.width() - INFO_EDGE - left)
         metrics = QFontMetricsF(self.info_font(), self)
 
@@ -391,6 +431,9 @@ class Overlay(QWidget):
         x = self.center_x
         y = self.center_y + self.offset
 
+        if self.mark_visible and self.ladder:
+            self.draw_ladder(painter, color)
+
         if not self.mark_visible:
             pass
         elif self.is_offscreen(self.offset):
@@ -458,6 +501,32 @@ class Overlay(QWidget):
             for name, down in (("S", panel.s_down), ("W", panel.w_down))
         )
         text(90, 16, 9, False, "#80ff80" if panel.s_down or panel.w_down else "#9a9a9a", keys)
+
+    def draw_ladder(self, painter, color):
+        """Range ticks left of the centre line, labelled with the range:
+        the target at that range goes on its tick. Dimmer than the mark,
+        with a dark shadow to read over bright ground."""
+        x = self.center_x
+        right = x - LADDER_GAP
+        left = right - LADDER_TICK
+
+        tick_color = QColor(color)
+        tick_color.setAlpha(round(color.alpha() * 0.8))
+        shadow = QColor(0, 0, 0, round(color.alpha() * 0.7))
+
+        painter.setFont(self.ladder_font())
+        metrics = QFontMetricsF(painter.font())
+        height = metrics.height()
+
+        for distance, offset in self.ladder:
+            y = self.center_y + offset
+            label = QRectF(left - 4 - 60, y - height / 2, 60, height)
+            flags = Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+
+            for pen_color, shift in ((shadow, 1), (tick_color, 0)):
+                painter.setPen(QPen(pen_color, 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.FlatCap))
+                painter.drawLine(QPointF(left + shift, y + shift), QPointF(right + shift, y + shift))
+                painter.drawText(label.translated(shift, shift), flags, str(distance))
 
     def draw_info(self, painter, color):
         rect = self.info_rect()

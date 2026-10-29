@@ -45,6 +45,7 @@ from ballistics import (
     current_weapon_name,
     first_obstacle,
     solve,
+    range_ladder,
     screen_offset,
     trajectory
 )
@@ -756,6 +757,8 @@ class MainWindow(QMainWindow):
 
         self.solution_weapon.setText(name)
 
+        self.update_ladder()
+
         self.update_hold_watch()
 
         self.recalculate_if_ready()
@@ -892,6 +895,9 @@ class MainWindow(QMainWindow):
             relay_status.setText(tr(f"relay_{self.relay.status}"))
 
     def recalculate_if_ready(self):
+        # The FOV, the calibration or the centre may have changed.
+        self.update_ladder()
+
         if self.distance_entry.text().strip():
             self.calculate(show_errors=False)
         else:
@@ -1033,6 +1039,7 @@ class MainWindow(QMainWindow):
         if self.config["fov"] != fov:
             self.config["fov"] = fov
             self.schedule_save()
+            self.update_ladder()
 
         # Too close or too far to lob (AGS-17 under 280 m): fire directly.
         if not solution.reachable and direct is not None:
@@ -1850,6 +1857,27 @@ class MainWindow(QMainWindow):
             self.config["offset_scale"] / 100
         )
 
+    def update_ladder(self):
+        """Put the current weapon's range ladder on the overlay, or clear
+        it (weapons laid by elevation, or the ladder turned off)."""
+        weapon = self.current_weapon()
+
+        if weapon is None or not self.config["range_ladder"]:
+            self.overlay.set_ladder([])
+            return
+
+        first, spacing, reach = self.overlay.ladder_bounds()
+
+        self.overlay.set_ladder(range_ladder(
+            weapon,
+            self.config["fov"],
+            self.overlay.screen_width(),
+            first,
+            spacing,
+            reach,
+            self.config["offset_scale"] / 100
+        ))
+
     def reset_offset(self):
         self.last_solution = None
         self.direct_solution = None
@@ -1923,6 +1951,7 @@ class MainWindow(QMainWindow):
             ("opt_glow", "glow_enabled"),
             ("opt_animated", "animated"),
             ("opt_info", "info_enabled"),
+            ("opt_ladder", "range_ladder"),
         ]:
             self.add_toggle(settings_layout, tr(text), key)
 
@@ -2088,6 +2117,9 @@ class MainWindow(QMainWindow):
         self.refresh_crosshair()
 
     def refresh_crosshair(self):
+        # The crosshair's size moves the ladder's first tick.
+        self.update_ladder()
+
         self.overlay.update()
 
         self.preview.update()
@@ -2523,6 +2555,8 @@ class MainWindow(QMainWindow):
 
         # rebuild() keeps the typed inputs; the FOV is a setting.
         self.fov_entry.set_value(self.config["fov"])
+
+        self.update_ladder()
 
         if self.map_page is not None and map_url(self.config) != old_map_url:
             self.map_page.load_source()

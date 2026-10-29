@@ -578,6 +578,71 @@ def screen_offset(angle, fov, screen_width, scale=1.0):
     return focal * math.tan(math.radians(angle)) * scale
 
 
+# Range steps of the overlay's ladder (m): the step grows through these as
+# the ticks close up with distance, so every label stays a round number.
+LADDER_STEPS = (25, 50, 100, 200, 250, 500, 1000)
+
+# A ladder longer than this is clutter (ticks, nearest first); no Squad
+# map is wider than LADDER_MAX_DISTANCE (m) diagonally across its play area.
+LADDER_MAX_TICKS = 24
+LADDER_MAX_DISTANCE = 5000
+
+
+def range_ladder(weapon, fov, screen_width, first, spacing, reach, scale=1.0):
+    """Range ticks of the overlay ladder: where to put a target at each
+    range on flat ground, as [(distance m, pixels below the centre)].
+
+    The first tick is at least `first` pixels below the centre (clear of
+    the crosshair) and the ticks at least `spacing` apart; the step grows
+    through LADDER_STEPS to keep them apart, and the ladder ends where the
+    weapon cannot reach, at `reach` pixels, after LADDER_MAX_TICKS or at
+    LADDER_MAX_DISTANCE.
+    The offsets are those of the overlay mark (`screen_offset` of the
+    low-arc `Solution.sight_angle`). Empty for weapons laid by elevation and
+    for weapons without gravity (every range is on the centre).
+    """
+    if weapon.aim != "overlay" or weapon.g == 0:
+        return []
+
+    ticks = []
+    last_offset = 0.0
+    last_distance = 0
+    steps = list(LADDER_STEPS)
+    step = steps.pop(0)
+    distance = step
+
+    while len(ticks) < LADDER_MAX_TICKS and distance <= LADDER_MAX_DISTANCE:
+        if distance < weapon.min_distance:
+            distance += step
+            continue
+
+        solution = solve(weapon, distance, 0.0, "low")
+
+        if not solution.reachable:
+            break
+
+        offset = screen_offset(solution.sight_angle, fov, screen_width, scale)
+
+        if offset > reach:
+            break
+
+        gap = first if not ticks else spacing
+
+        if offset - last_offset < gap:
+            if steps:
+                step = steps.pop(0)
+                distance = (last_distance // step + 1) * step
+            else:
+                distance += step
+            continue
+
+        ticks.append((distance, offset))
+        last_offset, last_distance = offset, distance
+        distance += step
+
+    return ticks
+
+
 def load_weapons(path):
     """Load weapons.json into an ordered {name: Weapon} dict."""
     try:

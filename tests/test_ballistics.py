@@ -14,6 +14,7 @@ from ballistics import (
     height_at,
     load_weapons,
     parse_weapons,
+    range_ladder,
     screen_offset,
     solve,
     trajectory,
@@ -194,6 +195,73 @@ def test_screen_offset_projection():
 def test_screen_offset_invalid_fov(fov):
     with pytest.raises(ValueError):
         screen_offset(1, fov, 1920)
+
+
+@pytest.mark.parametrize("name", [
+    "M203 / M320 / GP-25 / HK79 / SL40",
+    "RPG-7 · PG-7V HEAT / OG-7V",
+    "AGS-17 · emplacement",
+    "SPG-9 · FRAG",
+])
+def test_range_ladder_matches_the_mark(name):
+    """Each tick is where the mark would be for a target at its range on
+    flat ground; ticks are round, apart, in order and on the screen."""
+    weapon = WEAPONS[name]
+    ticks = range_ladder(weapon, 90, 1920, first=20, spacing=18, reach=520)
+
+    assert len(ticks) >= 3
+
+    for distance, offset in ticks:
+        solution = solve(weapon, distance, 0.0, "low")
+        assert offset == pytest.approx(screen_offset(solution.sight_angle, 90, 1920))
+        assert distance % 25 == 0
+        assert offset <= 520
+
+    assert ticks[0][1] >= 20
+    distances = [d for d, _ in ticks]
+    offsets = [o for _, o in ticks]
+    assert distances == sorted(distances)
+    assert all(b - a >= 18 for a, b in zip(offsets, offsets[1:]))
+
+
+def test_range_ladder_step_grows_with_range():
+    """Ticks close up with range: the step grows to keep them apart, and
+    a later step is never smaller than an earlier one."""
+    weapon = WEAPONS["RPG-7 · PG-7V HEAT / OG-7V"]
+    distances = [d for d, _ in range_ladder(weapon, 90, 1920, 20, 18, 2000)]
+    steps = [b - a for a, b in zip(distances, distances[1:])]
+
+    assert steps == sorted(steps)
+    assert steps[-1] > steps[0]
+
+
+def test_range_ladder_scales_with_zoom_and_calibration():
+    weapon = WEAPONS["RPG-7 · PG-7V HEAT / OG-7V"]
+    wide = dict(range_ladder(weapon, 90, 1920, 20, 18, 5000))
+    scaled = dict(range_ladder(weapon, 90, 1920, 20, 18, 5000, scale=1.5))
+
+    for distance in set(wide) & set(scaled):
+        assert scaled[distance] == pytest.approx(wide[distance] * 1.5)
+
+
+def test_range_ladder_ends_at_the_reach_and_the_tick_limit():
+    weapon = WEAPONS["M203 / M320 / GP-25 / HK79 / SL40"]
+
+    assert all(o <= 100 for _, o in range_ladder(weapon, 90, 1920, 20, 18, 100))
+    assert len(range_ladder(weapon, 90, 1920, 1, 1, 10 ** 6)) <= 24
+
+
+def test_no_range_ladder_without_a_mark_or_gravity():
+    assert range_ladder(WEAPONS["Mortar (M252 / 2B14 / L16 / Type 63)"], 90, 1920, 20, 18, 520) == []
+
+    straight = Weapon(name="laser", velocity=900, gravity=0)
+    assert range_ladder(straight, 90, 1920, 20, 18, 520) == []
+
+
+def test_range_ladder_starts_past_the_minimum_distance():
+    weapon = Weapon(name="slow", velocity=80, min_distance=60)
+
+    assert range_ladder(weapon, 90, 1920, 1, 1, 520)[0][0] >= 60
 
 
 @pytest.mark.parametrize("data", [

@@ -259,6 +259,7 @@ STRINGS = {
     "opt_glow": ("Свечение", "Glow"),
     "opt_animated": ("Плавное движение", "Smooth motion"),
     "opt_info": ("Подпись у метки", "Label next to the mark"),
+    "opt_ladder": ("Шкала дальности", "Range ladder"),
     "sl_dot": ("Точка", "Dot size"),
     "sl_length": ("Длина линий", "Line length"),
     "sl_gap": ("Зазор", "Gap"),

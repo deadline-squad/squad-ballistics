@@ -1738,3 +1738,62 @@ def test_calibrate_without_mils_says_what_is_missing(window, monkeypatch):
     monkeypatch.setattr(window.screen_sight, "grab_image", lambda: None)
     assert not window.calibrate_lay()
     assert window.lay_status.text() == tr("lay_no_grab")
+
+
+def test_range_ladder_follows_the_weapon(window):
+    """Direct-fire weapons get range ticks under the mark, without a
+    distance typed; weapons laid by elevation get none."""
+    from ballistics import range_ladder
+
+    window.overlay.setGeometry(0, 0, 1920, 1080)
+    window.distance_entry.setText("")
+    window.select_weapon("RPG-7 · PG-7V HEAT / OG-7V")
+    window.recalculate_if_ready()
+
+    ladder = window.overlay.ladder
+    assert len(ladder) >= 3
+    first, spacing, reach = window.overlay.ladder_bounds()
+    assert ladder == range_ladder(window.current_weapon(), window.config["fov"], 1920, first, spacing, reach)
+
+    window.select_weapon("Mortar (M252 / 2B14 / L16 / Type 63)")
+    assert window.overlay.ladder == []
+
+
+def test_range_ladder_follows_fov_calibration_and_toggle(window):
+    window.overlay.setGeometry(0, 0, 1920, 1080)
+    window.select_weapon("M203 / M320 / GP-25 / HK79 / SL40")
+    window.distance_entry.setText("200")
+    window.fov_entry.setText("90")
+    window.calculate()
+    wide = dict(window.overlay.ladder)
+
+    window.fov_entry.setText("60")
+    window.calculate()
+    narrow = dict(window.overlay.ladder)
+    shared = set(wide) & set(narrow)
+    assert shared
+    assert all(narrow[d] > wide[d] for d in shared)
+
+    window.set_setting("range_ladder", False)
+    assert window.overlay.ladder == []
+
+    window.set_setting("range_ladder", True)
+    assert window.overlay.ladder
+
+
+def test_range_ladder_is_drawn_left_of_the_centre(window):
+    overlay = window.overlay
+    overlay.setGeometry(0, 0, 1920, 1080)
+    window.select_weapon("M203 / M320 / GP-25 / HK79 / SL40")
+    window.distance_entry.setText("")
+    window.recalculate_if_ready()
+    distance, offset = overlay.ladder[0]
+
+    image = overlay.grab().toImage()
+    y = round(overlay.center_y + offset)
+    centre = int(overlay.center_x)
+    painted = [x for x in range(centre - 120, centre) if image.pixelColor(x, y).alpha() > 0]
+
+    # The tick and its label, left of the centre line, clear of the right side
+    assert painted and max(painted) < centre
+    assert all(image.pixelColor(x, y).alpha() == 0 for x in range(centre + 40, centre + 120))
