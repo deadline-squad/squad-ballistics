@@ -79,10 +79,14 @@ def _start_polling(window, items, reader):
         for key, action in items:
             down = reader(KEYS[key])
 
-            if down and not was_down[key]:
-                getattr(window, action)()
+            fire = down and not was_down[key]
 
+            # Before the action: one that raises must not fire again on
+            # every poll while the key stays down.
             was_down[key] = down
+
+            if fire:
+                getattr(window, action)()
 
     timer = QTimer(window)
     timer.setInterval(POLL_INTERVAL_MS)

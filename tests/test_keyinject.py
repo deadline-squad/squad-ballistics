@@ -199,3 +199,37 @@ def test_uinput_injector_is_a_real_keyboard():
         injector.close()
 
     injector.close()  # idempotent
+
+
+def test_uinput_device_advertises_the_keys_udev_needs_for_a_keyboard(monkeypatch, tmp_path):
+    """udev tags a device as a keyboard only with KEY_ESC..KEY_D set;
+    without the tag the compositor may ignore the injected keys."""
+    calls = []
+    opened = []
+
+    monkeypatch.setattr(keyinject.fcntl, "ioctl", lambda fd, request, arg=0: calls.append((request, arg)))
+    monkeypatch.setattr(keyinject.os, "write", lambda fd, data: len(data))
+    monkeypatch.setattr(keyinject.os, "close", lambda fd: opened.append(fd))
+
+    device = tmp_path / "uinput"
+    device.touch()
+    injector = keyinject.UinputInjector(keystate.KEY_D, str(device))
+    keys = {arg for request, arg in calls if request == keyinject._UI_SET_KEYBIT}
+
+    assert set(range(1, 32)) <= keys
+    assert keystate.KEY_D in keys
+    injector.close()
+
+
+def test_xtest_injector_closes_its_connection_once(xvfb):
+    injector = keyinject.XTestInjector(KEY_S)
+
+    injector.close()
+    assert injector.display is None
+    injector.close()
+
+    # No client is left behind: far more cycles than the server's client limit
+    for _ in range(300):
+        keyinject.XTestInjector(KEY_S).close()
+
+    assert keyinject.XTestInjector(KEY_S).display

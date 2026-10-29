@@ -225,15 +225,22 @@ def test_range_ladder_matches_the_mark(name):
     assert all(b - a >= 18 for a, b in zip(offsets, offsets[1:]))
 
 
-def test_range_ladder_step_grows_with_range():
-    """Ticks close up with range: the step grows to keep them apart, and
-    a later step is never smaller than an earlier one."""
-    weapon = WEAPONS["RPG-7 · PG-7V HEAT / OG-7V"]
-    distances = [d for d, _ in range_ladder(weapon, 90, 1920, 20, 18, 2000)]
-    steps = [b - a for a, b in zip(distances, distances[1:])]
+def test_range_ladder_is_as_dense_as_the_spacing_allows():
+    """Each tick is the nearest range that clears the previous one by
+    `spacing` pixels, rounded up to a round step that grows with range:
+    the optic view of the QLZ87 gets a tick every 50 m, not every 200 m."""
+    weapon = WEAPONS["QLZ87"]
+    ticks = range_ladder(weapon, 90, 1920, 20, 18, 520, zoomed=True)
+    distances = [d for d, _ in ticks]
 
-    assert steps == sorted(steps)
-    assert steps[-1] > steps[0]
+    # The 100 m zero is on the centre; the next ranges follow every 50 m
+    assert distances[:4] == [150, 200, 250, 300]
+
+    offsets = [o for _, o in ticks]
+    assert all(b - a >= 18 for a, b in zip(offsets, offsets[1:]))
+
+    steps = [b - a for a, b in zip(distances, distances[1:])]
+    assert max(steps) >= 4 * min(steps)
 
 
 def test_range_ladder_scales_with_zoom_and_calibration():
@@ -293,6 +300,20 @@ def test_the_tripod_qlz87_fires_below_the_centre_unzoomed():
     assert mark_offset(weapon, sight_angle, 90, 1920) == pytest.approx(
         screen_offset(sight_angle + 0.9, 90, 1920)
     )
+
+
+def test_a_fov_below_the_zoom_is_held_at_one_degree():
+    """A small FOV through a strong optic is a view narrower than the
+    narrowest screen_offset takes: it must not raise."""
+    weapon = WEAPONS["Kord · SPP emplacement"]
+    sight_angle = solve(weapon, 300, 0.0, "low").sight_angle
+
+    assert mark_offset(weapon, sight_angle, 4, 1920, zoomed=True) == pytest.approx(
+        screen_offset(sight_angle - 0.45, 1, 1920)
+    )
+
+    with pytest.raises(ValueError):
+        mark_offset(weapon, sight_angle, 0.5, 1920, zoomed=True)
 
 
 def test_the_optic_view_narrows_the_fov_by_its_zoom():

@@ -1,5 +1,6 @@
 import copy
 import json
+import math
 import os
 import re
 
@@ -138,6 +139,8 @@ CHOICES = {
 
 RANGES = {
     "fov": (1, 179),
+    # holdtimer.MAX_LEAD
+    "hold_lead": (0.0, 0.6),
     "fps": (10, 240),
     "opacity": (20, 255),
     "dot_size": (1, 20),
@@ -228,6 +231,17 @@ def _merge(loaded):
         if key == "last_weapon":
             if isinstance(value, str):
                 config[key] = current_weapon_name(value)
+            continue
+
+        if key == "hold_lead":
+            # The AGS-17 beep's lead (s), learnt from the player's releases
+            if (
+                isinstance(value, (int, float))
+                and not isinstance(value, bool)
+                and math.isfinite(value)
+            ):
+                low, high = RANGES[key]
+                config[key] = max(low, min(high, float(value)))
             continue
 
         if isinstance(default, bool):
