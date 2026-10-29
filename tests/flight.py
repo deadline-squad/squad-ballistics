@@ -16,7 +16,8 @@ down in the decompiled server (Squad build 26005357, USQProjectileMovement):
 * the camera is rectilinear with the horizontal FOV, so a point `p` pixels
   below the centre of an image `W` pixels wide is
   atan(p / ((W / 2) / tan(fov / 2))) below the view axis; the shot leaves
-  `bore` degrees above that axis and an optic divides the FOV by its zoom.
+  `bore` degrees above that axis and the weapon's sight divides the FOV by
+  its zoom.
 
 The flight is integrated with classical Runge-Kutta 4 at a 1 ms step (the
 acceleration is piecewise constant, so RK4 is exact between the switch at the
@@ -53,18 +54,11 @@ class Shot:
         )
 
 
-def views(entry):
-    """The sight views of a raw entry: [(zoom, bore in degrees)], the plain
-    view first. `views` lists them for vehicle gunners; else the plain view
-    has `bore` and an optic (`zoom` > 0) adds the second view."""
-    if "views" in entry:
-        return [(float(v["zoom"]), float(v.get("bore", 0.0))) for v in entry["views"]]
-
-    plain = [(1.0, float(entry.get("bore", 0.0)))]
-    if entry.get("zoom"):
-        plain.append((float(entry["zoom"]), float(entry.get("zoom_bore", 0.0))))
-
-    return plain
+def view(entry):
+    """(zoom, bore in degrees) of the view a raw entry is aimed through: the
+    sight's own magnification (`zoom`, the FOV divisor; absent = 1) and the
+    degrees above the view axis the shot leaves (`bore`)."""
+    return float(entry.get("zoom", 1.0)), float(entry.get("bore", 0.0))
 
 
 def focal_length(width, fov, zoom=1.0):
@@ -276,11 +270,12 @@ def range_at(shot, elevation, height, step=STEP, limit=200000.0):
     return flight.x
 
 
-def highest_at(shot, distance, step=STEP):
+def highest_at(shot, distance, reaches=math.inf, step=STEP):
     """The greatest height the shot can have when it is `distance` m ahead of
     the pivot, over every barrel elevation: the height is unimodal in the
-    elevation, so a golden-section search finds it. -inf if it never gets
-    there."""
+    elevation, so a golden-section search finds it (to 1e-5 rad, which is
+    far below a millimetre of height). -inf if it never gets there. The
+    search stops early as soon as a height of at least `reaches` is found."""
     golden = (math.sqrt(5) - 1) / 2
 
     def height(elevation):
@@ -292,7 +287,7 @@ def highest_at(shot, distance, step=STEP):
     right = low + golden * (high - low)
     left_height, right_height = height(left), height(right)
 
-    while high - low > 1e-7:
+    while high - low > 1e-5 and max(left_height, right_height) < reaches:
         if left_height < right_height:
             low, left, left_height = left, right, right_height
             right = low + golden * (high - low)

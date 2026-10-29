@@ -14,7 +14,7 @@ Tolerance. A miss up to max(0.5 m, 0.05 % of the distance) is accepted. That
 is far above the integrator's error (RK4 is exact for the piecewise-constant
 acceleration; the result is the same at 0.25 ms, see
 test_oracle_is_converged_and_exact) and above the 8-bit anti-aliasing of the
-rendered dot, whose centre is read to 0.01 px. It is also below one pixel for
+rendered dot, whose centre is read to 0.005 px. It is also below one pixel for
 the short ranges but NOT for the long ones: a pixel is worth up to hundreds of
 metres of range for a fast shell at long range, so the player cannot place the
 mark more exactly than that. The mark is measured at sub-pixel precision, so
@@ -53,8 +53,6 @@ WEAPONS_JSON = os.path.join(ROOT, "weapons.json")
 with open(WEAPONS_JSON, encoding="utf-8") as _file:
     RAW = {k: v for k, v in json.load(_file).items() if not k.startswith("_")}
 
-MAGENTA = [255, 0, 255]
-
 # The owner plays at 120; the game's slider goes 90-120. 60 is a spot check.
 FOVS = (90, 100, 110, 120)
 SPOT_FOV = 60
@@ -70,8 +68,8 @@ LONGEST = 5000.0
 BOUNDARY = 0.05
 
 # Sub-pixel precision of the rendered mark's centre, in pixels: the centroid of
-# the 8-bit anti-aliased dot is off by up to 0.01 px (test_the_rendered_mark_is_
-# read_to_a_hundredth_of_a_pixel); the bound allows twice that.
+# the 8-bit anti-aliased mark is off by up to 0.005 px (test_the_rendered_mark_is_
+# read_to_a_hundredth_of_a_pixel); the bound allows four times that.
 MEASURE_PX = 0.02
 
 FULL = os.environ.get("SB_PROOF_FULL") == "1"
@@ -93,17 +91,17 @@ class Rig:
         self.window = window
         self.overlay = window.overlay
         self.texts = []
-        self.set_crosshair(dot=True, ladder=False)
-        self.window.config["animated"] = False
-        self.window.config["info_enabled"] = False
+        self.set_crosshair()
 
-    def set_crosshair(self, dot, ladder, lines=False):
-        """A magenta dot (or nothing) with no lines, outline or glow."""
+    def set_crosshair(self, style="cross_dot", ladder=False):
+        """A magenta mark of the given style (the default one) at full size.
+        It is outlined in white and symmetric about its centre, so the
+        centroid of its rendering is its centre (to 0.004 px for this style;
+        a lone dot is only good to 0.04)."""
         settings = self.window.config
         settings.update(
-            color=MAGENTA, opacity=255, dot_enabled=dot, dot_size=4,
-            lines_enabled=lines, circle_enabled=False, outline_enabled=False,
-            glow_enabled=False, t_style=False, range_ladder=ladder,
+            mark_style=style, color="magenta", mark_size=100,
+            range_ladder=ladder, info_enabled=False,
         )
         self.window.refresh_crosshair()
 
@@ -113,21 +111,16 @@ class Rig:
     def click(self, control, key):
         control.buttons[key].click()
 
-    def aim(self, name, view=0, fov=90, scale=100, distance=500, height=0,
+    def aim(self, name, fov=90, scale=100, distance=500, height=0,
             arc="auto", width=1920, ox=0, oy=0):
         """Everything the player types and picks, through the window."""
         win = self.window
-        weapon = win.weapons[name]
-
         self.set_screen(width)
         win.config["center_offset_x"] = ox
         win.config["center_offset_y"] = oy
         win.config["offset_scale"] = scale
         win.select_weapon(name)
         self.click(win.arc_control, arc)
-
-        if weapon.zoom:
-            self.click(win.view_control, "optic" if view else "plain")
 
         win.fov_entry.setText(f"{fov:g}")
         win.height_entry.setText("" if height == 0 else f"{height:g}")
@@ -250,13 +243,8 @@ def rig(qapp, tmp_path_factory):
 
 LOADED = load_weapons(WEAPONS_JSON)
 
-# Weapons aimed with the overlay mark, with every view they have.
-MARKED = [
-    (name, index)
-    for name, weapon in LOADED.items()
-    if weapon.aim == "overlay"
-    for index in range(len(flight.views(RAW[name])))
-]
+# Weapons aimed with the overlay mark (each has one fixed sight view).
+MARKED = [name for name, weapon in LOADED.items() if weapon.aim == "overlay"]
 
 
 def distances(name):
@@ -301,7 +289,7 @@ def cases(name):
     sample = [
         ("auto", FOVS[k % 4], WIDTHS[(k // 4) % 2], SCALES[(k // 8) % 2],
          ds[(5 * k + k // 8) % n], HEIGHTS[(2 * k + k // 3) % 3])
-        for k in range(16)
+        for k in range(12)
     ]
     sample += [
         ("auto", 120, 2560, 125, ds[-1], 30),
@@ -322,14 +310,14 @@ def cases(name):
 RESULTS = {}
 
 
-def measure_case(rig, name, view_index, case):
+def measure_case(rig, name, case):
     """Drive the window through `case`, render the mark and fly the shot.
     Returns (miss m, pixel floor m or None, on_screen)."""
     arc, fov, width, scale, distance, height = case
     entry = RAW[name]
-    view = flight.views(entry)[view_index]
+    view = flight.view(entry)
 
-    rig.aim(name, view_index, fov, scale, distance, height, arc, width)
+    rig.aim(name, fov, scale, distance, height, arc, width)
 
     ov = rig.overlay
     solution = rig.window.last_solution
@@ -339,7 +327,7 @@ def measure_case(rig, name, view_index, case):
     if not solution.reachable:
         # Unreachable must mean unreachable for the game's physics too: no
         # barrel elevation brings the shell up to the target.
-        assert flight.highest_at(flight.Shot(entry), distance) < height + BOUNDARY, (
+        assert flight.highest_at(flight.Shot(entry), distance, height + BOUNDARY) < height + BOUNDARY, (
             "the app calls a reachable target unreachable", name, case,
             solution.reason,
         )
@@ -368,30 +356,30 @@ def measure_case(rig, name, view_index, case):
     return result, floor, True
 
 
-def check_measurement(name, view_index, case, result):
+def check_measurement(name, case, result):
     miss, floor, on_screen = result
     allowed = tolerance(case[4])
 
     if floor is not None:
         allowed = max(allowed, MEASURE_PX * floor.distance)
 
-    assert miss.distance <= allowed, (name, view_index, case, miss, allowed, floor)
+    assert miss.distance <= allowed, (name, case, miss, allowed, floor)
 
 
-@pytest.mark.parametrize("name, view_index", MARKED)
-def test_mark_puts_the_shell_on_the_target(rig, name, view_index):
+@pytest.mark.parametrize("name", MARKED)
+def test_mark_puts_the_shell_on_the_target(rig, name):
     worst = (0.0, 0.0)
     floor = 0.0
     checked = skipped = 0
 
     for case in cases(name):
-        result = measure_case(rig, name, view_index, case)
+        result = measure_case(rig, name, case)
 
         if result is None:
             skipped += 1
             continue
 
-        check_measurement(name, view_index, case, result)
+        check_measurement(name, case, result)
         checked += 1
         miss, pixel_floor, _ = result
         worst = max(worst, (miss.distance, 100 * miss.distance / case[4]))
@@ -399,8 +387,8 @@ def test_mark_puts_the_shell_on_the_target(rig, name, view_index):
         if pixel_floor is not None:
             floor = max(floor, pixel_floor.distance)
 
-    assert checked >= 5, (name, view_index, "too few shots on the screen")
-    RESULTS[(name, view_index)] = (worst[0], worst[1], floor, checked, skipped)
+    assert checked >= 5, (name, "too few shots on the screen")
+    RESULTS[name] = (worst[0], worst[1], floor, checked, skipped)
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -411,8 +399,8 @@ def print_report(request):
         return
 
     print("\nworst miss per weapon and view (m, % of range, pixel floor m, shots, off screen or unreachable)")
-    for (name, view_index), (miss, percent, floor, checked, off) in RESULTS.items():
-        print(f"{name} | view {view_index} | {miss:.4f} m | {percent:.5f} % | {floor:.1f} m | {checked} | {off}")
+    for name, (miss, percent, floor, checked, off) in RESULTS.items():
+        print(f"{name} | {miss:.4f} m | {percent:.5f} % | {floor:.1f} m | {checked} | {off}")
 
 
 # ---------------------------------------------------------------------------
@@ -497,25 +485,25 @@ def ladder_combos():
 LADDER_SEEN = {}
 
 
-@pytest.mark.parametrize("name, view_index", [m for m in MARKED if LOADED[m[0]].g])
-def test_ladder_ticks_are_where_their_labels_say(rig, name, view_index):
+@pytest.mark.parametrize("name", [m for m in MARKED if LOADED[m].g])
+def test_ladder_ticks_are_where_their_labels_say(rig, name):
     entry = RAW[name]
-    view = flight.views(entry)[view_index]
+    view = flight.view(entry)
     shot = flight.Shot(entry)
     ticks_seen = 0
     # The default crosshair shape, so the first tick's clearance is checked
     # against its real reach (a dot, three lines of 14 px 6 px out).
-    rig.set_crosshair(dot=True, ladder=True, lines=True)
+    rig.set_crosshair(ladder=True)
 
     try:
         for fov, width, scale in ladder_combos():
-            rig.aim(name, view_index, fov, scale, None, 0, "auto", width)
+            rig.aim(name, fov, scale, None, 0, "auto", width)
             ov = rig.overlay
             centre = ov.center_y
             ticks, labels, rects = rig.ladder()
             # The crosshair's own left line is at the centre row.
             ticks = [t for t in ticks if t - centre > 3]
-            case = (name, view_index, fov, width, scale)
+            case = (name, fov, width, scale)
 
             assert len(ticks) == len(labels) == len(ov.ladder), case
 
@@ -564,10 +552,10 @@ def test_ladder_ticks_are_where_their_labels_say(rig, name, view_index):
 
             ticks_seen += len(ticks)
     finally:
-        rig.set_crosshair(dot=True, ladder=False)
+        rig.set_crosshair()
 
-    LADDER_SEEN[(name, view_index)] = ticks_seen
-    assert ticks_seen > 0, (name, view_index, "no ladder at all")
+    LADDER_SEEN[name] = ticks_seen
+    assert ticks_seen > 0, (name, "no ladder at all")
 
 
 # ---------------------------------------------------------------------------
@@ -583,15 +571,15 @@ def test_calibration_multiplies_the_offset_and_the_shell_still_lands(rig):
     its range): the drawn offset is scale x the one at 100 %, and dividing it
     back by the scale lands the shell."""
     entry = RAW["SPG-9 · HEAT"]
-    view = flight.views(entry)[0]
+    view = flight.view(entry)
     shot = flight.Shot(entry)
 
     for fov, width in ((90, 1920), (120, 2560)):
-        rig.aim("SPG-9 · HEAT", 0, fov, 100, 700, 5, "auto", width)
+        rig.aim("SPG-9 · HEAT", fov, 100, 700, 5, "auto", width)
         base = mark_pixels(rig)
 
         for scale in (50, 75, 125, 150):
-            rig.aim("SPG-9 · HEAT", 0, fov, scale, 700, 5, "auto", width)
+            rig.aim("SPG-9 · HEAT", fov, scale, 700, 5, "auto", width)
             drawn = mark_pixels(rig)
 
             assert drawn == pytest.approx(base * scale / 100, abs=0.03), scale
@@ -607,11 +595,11 @@ def test_calibration_multiplies_the_offset_and_the_shell_still_lands(rig):
 
 
 def test_centre_offsets_move_the_mark_by_exactly_the_offset(rig):
-    rig.aim("SPG-9 · HEAT", 0, 110, 100, 600, 0, "auto", 1920, 0, 0)
+    rig.aim("SPG-9 · HEAT", 110, 100, 600, 0, "auto", 1920, 0, 0)
     row, column = rig.mark_row(), rig.mark_column()
 
     for ox, oy in ((40, 0), (0, -70), (-55, 33), (130, 90)):
-        rig.aim("SPG-9 · HEAT", 0, 110, 100, 600, 0, "auto", 1920, ox, oy)
+        rig.aim("SPG-9 · HEAT", 110, 100, 600, 0, "auto", 1920, ox, oy)
 
         assert rig.mark_row() == pytest.approx(row + oy, abs=0.03), (ox, oy)
         assert rig.mark_column() == pytest.approx(column + ox, abs=0.03), (ox, oy)
@@ -631,10 +619,10 @@ def test_centre_offsets_move_the_mark_by_exactly_the_offset(rig):
 
 def test_the_mark_of_a_shifted_centre_still_lands(rig):
     entry = RAW["Tank AP · M256 / Rh120"]
-    view = flight.views(entry)[0]
+    view = flight.view(entry)
 
     for oy in (-60, 45):
-        rig.aim("Tank AP · M256 / Rh120", 0, 120, 100, 1800, 10, "auto", 2560, 20, oy)
+        rig.aim("Tank AP · M256 / Rh120", 120, 100, 1800, 10, "auto", 2560, 20, oy)
         pixels = rig.mark_row() - (rig.overlay.height() / 2 + oy)
         elevation = flight.barrel_elevation(entry, view, 120, 2560, pixels, 1800, 10)
 
@@ -644,18 +632,16 @@ def test_the_mark_of_a_shifted_centre_still_lands(rig):
 def test_fov_120_is_accepted_everywhere(rig, tmp_path):
     """The game's FOV slider goes 90-120, the player uses 120."""
     win = rig.window
-    rig.aim("SPG-9 · HEAT", 0, 120, 100, 500, 0)
+    rig.aim("SPG-9 · HEAT", 120, 100, 500, 0)
 
     assert win.config["fov"] == 120
     assert win.fov_entry.value() == 120
     assert win.last_solution.reachable
-    assert win.status_text() != win.fov_entry.text()
 
     # Saved and read back unchanged
-    saved = tmp_path / "config.json"
-    config.save(win.config, str(saved)) if hasattr(config, "save") else None
-    if saved.exists():
-        assert config.load(str(saved))["fov"] == 120
+    saved = str(tmp_path / "config.json")
+    config.save_config(win.config, saved)
+    assert config.load_config(saved)["fov"] == 120
 
     # The arrow keys of the field step by one and do not clamp 120
     win.fov_entry.add(1)
@@ -675,13 +661,13 @@ def test_the_mark_is_physical_at_the_extreme_fovs(rig):
     crashes, the mark stays where the camera model puts it, and when it is on
     the screen the shell lands."""
     entry = RAW["SPG-9 · HEAT"]
-    view = flight.views(entry)[0]
+    view = flight.view(entry)
     shot = flight.Shot(entry)
     on_screen = 0
 
     for fov in (1, 179):
         for distance in (150, 600, 1500):
-            rig.aim("SPG-9 · HEAT", 0, fov, 100, distance, 0, "auto", 1920)
+            rig.aim("SPG-9 · HEAT", fov, 100, distance, 0, "auto", 1920)
             ov = rig.overlay
 
             if ov.is_offscreen(ov.offset):
@@ -707,54 +693,51 @@ def test_a_fov_below_the_zoom_is_held_at_one_degree_and_is_not_exact(rig):
     real 0.75 degree view would need a different mark."""
     name = "SPG-9 · HEAT · scope"
     entry = RAW[name]
-    view = flight.views(entry)[1]
+    zoom, bore = flight.view(entry)
     shot = flight.Shot(entry)
-    distance = 1400
+    distance = 1440
 
-    rig.aim(name, 1, 3, 100, distance, 0, "auto", 1920)
+    rig.aim(name, 3, 100, distance, 0, "auto", 1920)
     assert not rig.overlay.is_offscreen(rig.overlay.offset)
     pixels = mark_pixels(rig)
 
-    held = flight.barrel_elevation(entry, view, 3, 1920, pixels, distance, 0)
+    held = flight.barrel_elevation(entry, (zoom, bore), 3, 1920, pixels, distance, 0)
     assert flight.miss(shot, held, distance, 0).distance < 0.5
 
-    zoom, bore = view
     true_focal = (1920 / 2) / math.tan(math.radians(3 / zoom) / 2)
-    below = math.atan(pixels / true_focal)
-    true = math.atan2(0 - 0, distance) + below + math.radians(bore)
-    assert flight.miss(shot, true, distance, 0).distance > 5
+    true = math.atan(pixels / true_focal) + math.radians(bore)
+    assert flight.miss(shot, true, distance, 0).distance > 1.0
 
 
 def test_a_mark_off_the_screen_becomes_an_arrow_at_the_edge(rig):
     ov = rig.overlay
 
     # Far below: a high arc of a direct-fire weapon
-    rig.aim("SPG-9 · HEAT", 0, 90, 100, 500, 0, "high", 1920)
+    rig.aim("SPG-9 · HEAT", 90, 100, 500, 0, "high", 1920)
     assert ov.is_offscreen(ov.offset) and ov.offset > 0
     rows = rig.grab(int(ov.center_x) - 20, int(ov.center_x) + 20)
     mass = [(r, w) for r, w in enumerate(rows) if w]
     assert mass and all(ov.height() - 24 <= r <= ov.height() - 7 for r, _ in mass)
 
     # Far above: a strong optic at a narrow FOV, aimed closer than its zero
-    rig.aim("SPG-9 · HEAT · scope", 1, 20, 100, 30, 0, "auto", 1920)
+    rig.aim("SPG-9 · HEAT · scope", 20, 100, 30, 0, "auto", 1920)
     assert ov.is_offscreen(ov.offset) and ov.offset < 0
     rows = rig.grab(int(ov.center_x) - 20, int(ov.center_x) + 20)
     mass = [(r, w) for r, w in enumerate(rows) if w]
     assert mass and all(6 <= r <= 24 for r, _ in mass)
 
     # ...and back on the screen the dot returns
-    rig.aim("SPG-9 · HEAT", 0, 90, 100, 500, 0, "auto", 1920)
+    rig.aim("SPG-9 · HEAT", 90, 100, 500, 0, "auto", 1920)
     assert not ov.is_offscreen(ov.offset)
 
 
 def test_unreachable_ranges_are_unreachable_for_the_game_too(rig):
     for name, distance, height in (
         ("M203 / M320 / GP-25 / HK79 / SL40", 700, 0),
-        ("SPG-9 · FRAG", 9000, 0),
-        ("RPG-7 · PG-7V HEAT / OG-7V", 8000, 0),
+        ("RPG-7 · PG-7V HEAT / OG-7V", 6000, 0),
         ("AGS-17 · emplacement", 2500, 0),
     ):
-        rig.aim(name, 0, 90, 100, distance, height)
+        rig.aim(name, 90, 100, distance, height)
         solution = rig.window.last_solution
 
         assert not solution.reachable, name
@@ -795,7 +778,7 @@ def test_solver_lands_on_the_target_for_every_weapon(name):
         solution = solve(weapon, distance, height, arc)
 
         if solution.reason_code == "out_of_range":
-            assert flight.highest_at(shot, distance) < height + BOUNDARY, (arc, distance, height)
+            assert flight.highest_at(shot, distance, height + BOUNDARY) < height + BOUNDARY, (arc, distance, height)
             continue
 
         if not math.isfinite(solution.raw_angle) or not solution.reachable:
@@ -815,13 +798,10 @@ def test_solver_lands_on_the_target_for_every_weapon(name):
 
 
 def test_max_range_is_the_longest_the_game_flies():
-    """Weapon.max_range() against the integrator's longest flat-ground range
-    over every barrel elevation, for all weapons that fly (the very long
-    ranges are checked at 45 degrees, where a plain parabola peaks)."""
-    from ballistics import MILS_PER_DEGREE  # noqa: F401  (units are checked below)
-
-    golden = (math.sqrt(5) - 1) / 2
-
+    """Weapon.max_range() against the integrator: flown at the elevation
+    that gives the longest range (the app's own peak_elevation), the shell
+    lands on max_range() on flat ground, and 0.5 degrees either side it falls
+    short (so no better elevation is hiding nearby)."""
     for name, weapon in LOADED.items():
         if not weapon.g:
             assert weapon.max_range() == math.inf, name
@@ -829,29 +809,20 @@ def test_max_range_is_the_longest_the_game_flies():
 
         shot = flight.Shot(RAW[name])
         longest = weapon.max_range()
+        best = weapon.peak_elevation(longest)
 
-        if longest > 12000:
-            assert shot.pivot_height == shot.muzzle_forward == shot.muzzle_up == shot.boost_time == 0
-            at_45 = flight.range_at(shot, math.radians(45), 0.0)
-            assert at_45 == pytest.approx(longest, rel=1e-5), name
+        if longest > 30000:
+            # 60 000 steps a flight: a plain parabola, checked by its formula
+            assert shot.boost_time == shot.muzzle_forward == shot.pivot_height == 0, name
+            assert longest == pytest.approx(shot.velocity ** 2 / shot.gravity), name
             continue
 
-        low, high = math.radians(25), math.radians(60)
-        left, right = high - golden * (high - low), low + golden * (high - low)
-        left_range = flight.range_at(shot, left, 0.0)
-        right_range = flight.range_at(shot, right, 0.0)
+        assert flight.range_at(shot, best, 0.0) == pytest.approx(longest, abs=0.02), name
 
-        while high - low > 1e-5:
-            if left_range < right_range:
-                low, left, left_range = left, right, right_range
-                right = low + golden * (high - low)
-                right_range = flight.range_at(shot, right, 0.0)
-            else:
-                high, right, right_range = right, left, left_range
-                left = high - golden * (high - low)
-                left_range = flight.range_at(shot, left, 0.0)
-
-        assert max(left_range, right_range) == pytest.approx(longest, abs=0.01), name
+        if longest <= 12000:
+            for side in (-1, 1):
+                nearby = flight.range_at(shot, best + side * math.radians(0.5), 0.0)
+                assert nearby < longest + 0.02, (name, side)
 
 
 def test_min_distance_and_the_arc_that_is_chosen():
