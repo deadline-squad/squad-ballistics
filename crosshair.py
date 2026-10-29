@@ -61,6 +61,7 @@ from config import (
 )
 
 from holdtimer import (
+    DEFAULT_LEAD,
     HoldTimer,
     beep
 )
@@ -265,6 +266,8 @@ class MainWindow(QMainWindow):
         self.hold_timer = HoldTimer(self.key_reader, self)
         self.hold_timer.changed.connect(self.update_hold_readout)
         self.hold_timer.reached.connect(self.on_hold_reached)
+        self.hold_timer.lead_learned.connect(self.on_hold_lead_learned)
+        self.apply_hold_lead()
 
         self.relay = RelayLink(parent=self)
         self.relay.targets_received.connect(self.on_map_targets)
@@ -1822,6 +1825,16 @@ class MainWindow(QMainWindow):
 
         self.update_hotkey_hint()
 
+    def apply_hold_lead(self):
+        """The beep lead learnt in earlier sessions, else the default."""
+        lead = self.config["hold_lead"]
+
+        self.hold_timer.lead = DEFAULT_LEAD if lead is None else lead
+
+    def on_hold_lead_learned(self, lead):
+        self.config["hold_lead"] = lead
+        self.schedule_save()
+
     def on_hold_reached(self):
         beep()
 
@@ -2555,6 +2568,8 @@ class MainWindow(QMainWindow):
         self.apply_auto_hold()
 
         self.apply_lay_rates()
+
+        self.apply_hold_lead()
 
         # rebuild() keeps the typed inputs; the FOV is a setting.
         self.fov_entry.set_value(self.config["fov"])

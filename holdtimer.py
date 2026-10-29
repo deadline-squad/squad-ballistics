@@ -6,6 +6,11 @@ elevation and holding S lowers it at a constant rate (see
 since the last W and signals once when the hold time of the target is
 reached, so the player can release S on the beep.
 
+The beep comes `lead` seconds early: a player releases S a reaction time
+after hearing it (150-300 ms, 40-120 m of range on the AGS-17 lob). The
+lead is learnt from the player's own releases: each manual release after
+the beep moves it by half of the overshoot (see `learn_lead`).
+
 Keys are read system-wide by `keystate` (evdev or X11);
 where they cannot be read `available` is False. Because the keys are
 global, S pressed anywhere counts until the next W.
@@ -43,6 +48,16 @@ POLL_INTERVAL_MS = 10
 # between is unknown, so at most this much of the gap is counted.
 MAX_POLL_GAP = 0.05
 
+# Beep this early before the hold time, at first (s): a typical reaction
+# time to a sound plus starting the sound player. Each manual release
+# after the beep corrects it by LEAD_LEARNING of its overshoot, within
+# 0..MAX_LEAD; a release further than MAX_OVERSHOOT off the target was not
+# a reaction to the beep and teaches nothing.
+DEFAULT_LEAD = 0.2
+MAX_LEAD = 0.6
+LEAD_LEARNING = 0.5
+MAX_OVERSHOOT = 0.6
+
 
 class HoldTimer(QObject):
     """Counts how long S is held since the last W and signals the target.
@@ -56,8 +71,11 @@ class HoldTimer(QObject):
     # Held time, target or key state changed (redraw the readouts).
     changed = pyqtSignal()
 
-    # The held time has just reached the target (beep now).
+    # The held time has just reached the target, less the lead (beep now).
     reached = pyqtSignal()
+
+    # The beep lead was learnt from a release (seconds; save it).
+    lead_learned = pyqtSignal(float)
 
     def __init__(self, key_reader=None, parent=None, clock=time.perf_counter):
         super().__init__(parent)
@@ -71,6 +89,11 @@ class HoldTimer(QObject):
 
         self.held = 0.0
         self.target = None
+        self.lead = DEFAULT_LEAD
+
+        # The beep sounded and S is still held by the player: its release
+        # teaches the lead.
+        self._awaiting_release = False
 
         self._reached = False
         self._w_was_down = False
@@ -168,14 +191,16 @@ class HoldTimer(QObject):
         self.stop_auto_hold()
 
         self.target = seconds
+        self._awaiting_release = False
 
-        self._reached = seconds is None or self.held >= seconds
+        self._reached = seconds is None or self.held >= seconds - self.beep_lead
 
         self.changed.emit()
 
     def reset(self):
         """W pressed: the barrel is back at the top, start counting anew."""
         self.held = 0.0
+        self._awaiting_release = False
 
         self._reached = self.target is None
 
@@ -188,8 +213,13 @@ class HoldTimer(QObject):
         the count without cancelling the auto-hold it belongs to.
         """
         keys_changed = (s_down, w_down) != (self.s_down, self.w_down)
+        released = self.s_down and not s_down
 
         self.s_down, self.w_down = s_down, w_down
+
+        if released and self._awaiting_release:
+            self._awaiting_release = False
+            self.learn_lead()
 
         if w_down and not self._w_was_down:
             if not own_w:
@@ -208,9 +238,33 @@ class HoldTimer(QObject):
         self.changed.emit()
 
         if not self._reached and self.target is not None \
-                and self.held >= self.target:
+                and self.held >= self.target - self.beep_lead:
             self._reached = True
+            self._awaiting_release = not self.auto_holding
             self.reached.emit()
+
+    @property
+    def beep_lead(self):
+        """How early the beep comes: the learnt lead, none while the app
+        holds S itself (it releases on time)."""
+        return 0.0 if self.auto_holding else self.lead
+
+    def learn_lead(self):
+        """S was released by the player after the beep: move the lead by
+        part of the overshoot (positive: released late, beep earlier)."""
+        if self.target is None:
+            return
+
+        overshoot = self.held - self.target
+
+        if abs(overshoot) > MAX_OVERSHOOT:
+            return
+
+        lead = min(MAX_LEAD, max(0.0, self.lead + LEAD_LEARNING * overshoot))
+
+        if lead != self.lead:
+            self.lead = lead
+            self.lead_learned.emit(lead)
 
     def poll(self):
         now = self.clock()
