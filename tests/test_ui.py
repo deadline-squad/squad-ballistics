@@ -450,14 +450,15 @@ def test_ags17_lob_is_laid_by_holding_s(window):
     assert any("S" in step for step in window.current_steps)
     assert "S " in window.overlay.info_text
 
-    # The overlay mark shows the direct-fire aim at the same time.
+    # The overlay mark shows the direct-fire aim at the same time, through
+    # the optic's view (the default): ×2.5 and the optic's 0.85 degree socket.
     direct = window.direct_solution
     assert direct.reachable and direct.arc == "low"
     assert direct.angle < 45 < solution.angle
     assert window.overlay.offset == pytest.approx(
         screen_offset(
-            direct.sight_angle,
-            window.config["fov"],
+            direct.sight_angle - 0.85,
+            window.config["fov"] / 2.5,
             window.overlay.screen_width(),
             window.config["offset_scale"] / 100
         )
@@ -1778,6 +1779,60 @@ def test_small_fov_through_the_optic_neither_raises_nor_stops_the_app(window):
     window.view_control.changed.emit("plain")
     window.select_weapon("QLZ87")
     window.view_control.changed.emit("optic")
+
+
+def painted_rows(overlay, width=25):
+    """Rows (y) with something painted in the `width` px right of the
+    overlay's centre line: the aim mark, clear of the ladder and the label."""
+    image = overlay.grab().toImage()
+    left = int(overlay.center_x)
+
+    return [
+        y for y in range(image.height())
+        if any(image.pixelColor(x, y).alpha() > 0 for x in range(left, left + width))
+    ]
+
+
+@pytest.mark.parametrize("name, zero", [
+    ("MK19 · emplacement / C16 / L134A1", 330),
+    ("SPG-9 · HEAT · scope", 1300),
+    ("ZiS-3", 350),
+])
+def test_emplaced_mark_is_drawn_where_the_view_puts_it(window, name, zero):
+    """The painted mark is `mark_offset` below the centre in each view, the
+    ladder of the sight view starts past that view's zero, and the views
+    differ by the camera tilt."""
+    from ballistics import mark_offset, solve
+
+    overlay = window.overlay
+    overlay.setGeometry(0, 0, 1920, 1080)
+    window.select_weapon(name)
+    weapon = window.current_weapon()
+    distance = zero * 1.6
+    window.distance_entry.setText(str(distance))
+    window.height_entry.setText("0")
+    window.fov_entry.setText("90")
+
+    drawn = {}
+
+    for key, zoomed in (("optic", True), ("plain", False)):
+        window.view_control.changed.emit(key)
+        window.calculate()
+        angle = solve(weapon, distance, 0.0, "low").sight_angle
+        expected = mark_offset(weapon, angle, 90, 1920, zoomed=zoomed)
+        rows = painted_rows(overlay)
+        drawn[key] = expected
+
+        assert window.current_offset() == pytest.approx(expected)
+        assert overlay.offset == pytest.approx(expected)
+        assert (min(rows) + max(rows)) / 2 == pytest.approx(overlay.center_y + expected, abs=1.5)
+
+        if zoomed:
+            assert overlay.ladder
+            assert overlay.ladder[0][0] > zero
+
+    if weapon.bore != weapon.zoom_bore:
+        assert drawn["optic"] != pytest.approx(drawn["plain"])
 
 
 def test_range_ladder_is_drawn_left_of_the_centre(window):

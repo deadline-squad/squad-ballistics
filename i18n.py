@@ -17,8 +17,8 @@ STRINGS = {
     "arc_auto": "Auto",
     "arc_low": "Low",
     "arc_high": "High",
-    "view_plain": "Unzoomed",
-    "view_optic": "Optic (RMB)",
+    "view_plain": "No RMB",
+    "view_optic": "Sight (RMB)",
     "distance": "Distance, m",
     "height": "Height diff, m",
     "height_hint": "target higher +, lower −",
@@ -55,8 +55,8 @@ STRINGS = {
         "exactly {angle} above the line to the target."
     ),
     "how_overlay_optic": (
-        "Your in-game FOV must be {fov}°. The mark is for the optic's view (RMB, zoom ×{zoom}); "
-        "unzoomed, switch the view."
+        "Your in-game FOV must be {fov}°. The mark is for the sight's view (RMB, zoom ×{zoom}); "
+        "without RMB, switch the view."
     ),
     "how_overlay_2": "Your in-game FOV must be {fov}°. Through a scope, enter the scope FOV.",
     "how_overlay_offscreen": (
