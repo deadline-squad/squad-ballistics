@@ -57,7 +57,6 @@ from beep import beep
 
 from config import (
     APP_VERSION,
-    CHOICES,
     DEFAULT_CONFIG,
     DISTANCE_STEPS,
     MARK_COLORS,
@@ -66,7 +65,6 @@ from config import (
     config_dir,
     load_config,
     save_config,
-    trim_key
 )
 
 from holdtimer import HoldTimer
@@ -132,10 +130,6 @@ SIGHT_GRAB_FILE = "sight-grab.png"
 NBSP = "\u00a0"
 HINT_SEPARATOR = NBSP * 3 + "·   "
 
-# A mark of another view fits the screen when it is at most this share of the
-# screen height from the centre (the half height is the edge).
-FIT_SHARE = 0.45
-
 # The settings that align the mark with the in-game sight.
 ALIGNMENT_KEYS = ("center_offset_x", "center_offset_y", "offset_scale")
 
@@ -191,7 +185,7 @@ class MainWindow(QMainWindow):
         self.config["mark_trim"] = {
             key: trim
             for key, trim in self.config["mark_trim"].items()
-            if key.rpartition("|")[0] in self.weapons
+            if key in self.weapons
         }
 
         self.apply_lay_rates()
@@ -519,22 +513,6 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(self.arc_control)
 
-        # Weapons with a zoomed optic: the mark follows the view aimed from.
-        self.view_control = Segmented(
-            [
-                ("plain", tr("view_plain")),
-                ("optic", tr("view_optic")),
-                ("optic2", "")
-            ],
-            self.config["sight_view"]
-        )
-
-        self.view_control.changed.connect(self.on_view_changed)
-
-        self.view_control.setVisible(False)
-
-        layout.addWidget(self.view_control)
-
         self.distance_entry = NumberEdit(
             allow_negative=False,
             step=self.config["distance_step"]
@@ -781,8 +759,6 @@ class MainWindow(QMainWindow):
 
         self.update_weapon_info(weapon)
 
-        self.update_view_control(weapon)
-
         self.show_trim()
 
         # The calibration status is about the previous weapon.
@@ -824,67 +800,15 @@ class MainWindow(QMainWindow):
 
         self.weapon_info.setText("  ·  ".join(parts))
 
-    def update_view_control(self, weapon):
-        """Show the view buttons `weapon` needs: the plain and RMB views of
-        a weapon with an RMB sight, or one button per zoom level of a
-        vehicle gunner's sight (`views`)."""
-        views = weapon.sight_views
-
-        self.view_control.setVisible(weapon.has_views)
-
-        for index, (key, button) in enumerate(self.view_control.buttons.items()):
-            button.setVisible(index < len(views))
-
-            if index >= len(views):
-                continue
-
-            button.setText(self.view_name(weapon, index))
-
-            button.setChecked(index == self.view_index(weapon))
-
-    def view_index(self, weapon):
-        """Index in `weapon.sight_views` of the view the control is on (the
-        last view when the weapon has fewer than the control's choice)."""
-        chosen = CHOICES["sight_view"].index(self.config["sight_view"])
-
-        return min(chosen, len(weapon.sight_views) - 1)
-
-    def on_view_changed(self, key):
-        self.config["sight_view"] = key
-
-        weapon = self.current_weapon()
-
-        if weapon is not None:
-            self.update_view_control(weapon)
-
-        self.schedule_save()
-
-        self.show_trim()
-
-        self.update_ladder()
-
-        self.recalculate_if_ready()
-
-    def trim_view(self, weapon, index=None):
-        """The view the trim of `weapon` belongs to: the `sight_view` value
-        of view `index` (the one aimed from by default)."""
-        if index is None:
-            index = self.view_index(weapon)
-
-        return CHOICES["sight_view"][index]
-
-    def current_trim(self, weapon, index=None):
-        """The trim (degrees) set for `weapon` in view `index` (the one
-        aimed from by default)."""
+    def current_trim(self, weapon):
+        """The trim (degrees) set for `weapon`."""
         if weapon is None:
             return 0.0
 
-        return self.config["mark_trim"].get(
-            trim_key(weapon.name, self.trim_view(weapon, index)), 0.0
-        )
+        return self.config["mark_trim"].get(weapon.name, 0.0)
 
     def show_trim(self):
-        """Load the trim of the current weapon and view into the controls."""
+        """Load the trim of the current weapon into the controls."""
         weapon = self.current_weapon()
 
         self.trim_box.setVisible(weapon is not None and weapon.aim == "overlay")
@@ -897,7 +821,7 @@ class MainWindow(QMainWindow):
 
     def set_trim(self, trim):
         """Store `trim` (degrees, limited and rounded to 0.001) for the
-        current weapon and view; the mark and the ladder follow at once."""
+        current weapon; the mark and the ladder follow at once."""
         weapon = self.current_weapon()
 
         if weapon is None:
@@ -905,12 +829,10 @@ class MainWindow(QMainWindow):
 
         trim = round(clamp_trim(trim), 3) + 0.0
 
-        key = trim_key(weapon.name, self.trim_view(weapon))
-
         if trim:
-            self.config["mark_trim"][key] = trim
+            self.config["mark_trim"][weapon.name] = trim
         else:
-            self.config["mark_trim"].pop(key, None)
+            self.config["mark_trim"].pop(weapon.name, None)
 
         self.schedule_save()
 
@@ -927,7 +849,7 @@ class MainWindow(QMainWindow):
         self.trim_status.setText("")
 
     def reset_trim(self):
-        """Remove the trim of the current weapon and view."""
+        """Remove the trim of the current weapon."""
         self.set_trim(0.0)
 
         self.show_trim()
@@ -1446,7 +1368,7 @@ class MainWindow(QMainWindow):
                 )
         elif weapon.aim == "overlay":
             if offscreen:
-                steps = [self.how_overlay_offscreen(weapon, angle_text)]
+                steps = [tr("how_overlay_offscreen", angle=angle_text)]
             else:
                 toggle_key = self.config["hotkeys"].get("toggle_overlay")
 
@@ -2048,11 +1970,8 @@ class MainWindow(QMainWindow):
 
         self.update_hotkey_hint()
 
-    def current_offset(self, view=None):
+    def current_offset(self):
         """Pixels the overlay mark sits below the centre, None without a mark.
-
-        `view` is an index in `Weapon.sight_views`: the mark as that view
-        would show it (the one aimed from by default).
 
         Weapons laid by elevation (`aim` "elevation": mortars, rocket
         artillery) are set on their own sight, so they get no mark.
@@ -2092,77 +2011,16 @@ class MainWindow(QMainWindow):
             self.config["fov"],
             self.overlay.screen_width(),
             self.config["offset_scale"] / 100,
-            self.optic_view(weapon) if view is None else view,
-            trim=self.current_trim(weapon, view)
-        )
-
-    def optic_view(self, weapon):
-        """Index of the view `weapon` is aimed from, as `Weapon.sight_view`
-        takes it: 0 the plain view, 1 the optic (RMB) or the second zoom
-        level, 2 the third."""
-        return self.view_index(weapon)
-
-    def how_overlay_offscreen(self, weapon, angle_text):
-        """The how-to step for a mark off the screen: another view of the
-        weapon where it fits, else raising the barrel by hand."""
-        fit = self.view_that_fits(weapon) if weapon.has_views else None
-
-        if fit is None:
-            return tr("how_overlay_offscreen", angle=angle_text)
-
-        index, offset = fit
-
-        return tr(
-            "how_overlay_other_view",
-            view=self.view_name(weapon, self.optic_view(weapon)),
-            better=self.view_name(weapon, index),
-            px=f"{abs(offset):.0f}",
-            side=tr("below" if offset >= 0 else "above")
+            trim=self.current_trim(weapon)
         )
 
     def how_overlay_view(self, weapon, fov):
         """The how-to step about the in-game FOV and the view the mark is
         for."""
-        index = self.optic_view(weapon)
-        zoom = weapon.sight_views[index][0]
-
-        if weapon.views:
-            return tr("how_overlay_levels", fov=f"{fov:g}", zoom=f"{zoom:g}")
-
-        if index:
-            return tr("how_overlay_optic", fov=f"{fov:g}", zoom=f"{zoom:g}")
+        if weapon.zoom:
+            return tr("how_overlay_optic", fov=f"{fov:g}", zoom=f"{weapon.zoom:g}")
 
         return tr("how_overlay_2", fov=f"{fov:g}")
-
-    def view_name(self, weapon, index):
-        """How the view control calls view `index` of `weapon`: its zoom for
-        a vehicle gunner's sight, else "No RMB" or "Sight (RMB)"."""
-        if weapon.views:
-            return f"×{weapon.views[index][0]:g}"
-
-        return tr("view_optic" if index else "view_plain")
-
-    def view_that_fits(self, weapon):
-        """(index, offset) of the highest zoom among the other views of
-        `weapon` whose mark for the current solution is within FIT_SHARE of
-        the screen height from the centre, or None when no view fits."""
-        current = self.optic_view(weapon)
-        by_zoom = sorted(
-            range(len(weapon.sight_views)),
-            key=lambda index: weapon.sight_views[index][0],
-            reverse=True
-        )
-
-        for index in by_zoom:
-            if index == current:
-                continue
-
-            offset = self.current_offset(index)
-
-            if abs(offset) <= FIT_SHARE * self.overlay.height():
-                return index, offset
-
-        return None
 
     def update_ladder(self):
         """Put the current weapon's range ladder on the overlay, or clear
@@ -2183,7 +2041,6 @@ class MainWindow(QMainWindow):
             spacing,
             reach,
             self.config["offset_scale"] / 100,
-            self.optic_view(weapon),
             trim=self.current_trim(weapon)
         ))
 

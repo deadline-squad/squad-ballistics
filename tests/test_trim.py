@@ -205,14 +205,11 @@ def test_mark_trim_is_saved_and_loaded(tmp_path):
 
     assert cfg["mark_trim"] == {}
 
-    cfg["mark_trim"][config.trim_key(M203, "plain")] = 0.35
-    cfg["mark_trim"][config.trim_key(QLZ87, "optic")] = -1.25
+    cfg["mark_trim"][M203] = 0.35
+    cfg["mark_trim"][QLZ87] = -1.25
     config.save_config(cfg, path)
 
-    assert config.load_config(path)["mark_trim"] == {
-        f"{M203}|plain": 0.35,
-        f"{QLZ87}|optic": -1.25,
-    }
+    assert config.load_config(path)["mark_trim"] == {M203: 0.35, QLZ87: -1.25}
 
 
 def test_files_without_mark_trim_load(tmp_path):
@@ -227,35 +224,52 @@ def test_files_without_mark_trim_load(tmp_path):
 
 def test_mark_trim_ignores_what_is_malformed():
     merged = config._merge({"mark_trim": {
-        f"{M203}|plain": 9,
-        f"{QLZ87}|optic": -9,
-        f"{QLZ87}|optic2": 0.5,
-        f"{RPG7}|plain": 0,
-        f"{AGS}|plain": "far",
-        f"{AGS}|optic": True,
-        f"{MORTAR}|plain": math.nan,
-        f"{MORTAR}|optic": math.inf,
-        f"{QLZ87}|plain": 10 ** 400,
-        f"{QLZ87}|sideways": 1.0,
-        "no view": 1.0,
+        M203: 9,
+        QLZ87: -9,
+        RPG7: 0,
+        AGS: "far",
+        MORTAR: math.nan,
+        "Tank AP · M256 / Rh120": math.inf,
+        "Tank AP · T-62 (2A20)": 10 ** 400,
+        "Tank AP · ZTZ-99 (ZPT-98)": True,
+        "": 1.0,
         "|plain": 1.0,
         3: 1.0,
     }})
 
-    assert merged["mark_trim"] == {
-        f"{M203}|plain": TRIM_LIMIT,
-        f"{QLZ87}|optic": -TRIM_LIMIT,
-        f"{QLZ87}|optic2": 0.5,
-    }
+    assert merged["mark_trim"] == {M203: TRIM_LIMIT, QLZ87: -TRIM_LIMIT}
 
     for junk in ([1, 2], "x", 5, None):
         assert config._merge({"mark_trim": junk})["mark_trim"] == {}
 
 
-def test_mark_trim_follows_renamed_weapons():
-    merged = config._merge({"mark_trim": {"BTR-4 AGS|plain": 0.5}})
+def test_a_trim_per_view_from_an_older_file_keeps_only_the_plain_one():
+    merged = config._merge({"mark_trim": {
+        f"{M203}|plain": 0.35,
+        f"{QLZ87}|plain": 9,
+        f"{QLZ87}|optic": -1.25,
+        f"{QLZ87}|optic2": 0.5,
+        f"{AGS}|optic": 0.2,
+        f"{RPG7}|plain": 0,
+        f"{MORTAR}|plain": math.nan,
+        f"{MORTAR}|sideways": 1.0,
+        "|plain": 1.0,
+    }})
 
-    assert merged["mark_trim"] == {"AGS-30 / BTR-4 AGS|plain": 0.5}
+    assert merged["mark_trim"] == {M203: 0.35, QLZ87: TRIM_LIMIT}
+
+
+def test_mark_trim_follows_renamed_weapons():
+    merged = config._merge({"mark_trim": {
+        "BTR-4 AGS": 0.5,
+        "Old MK19|plain": 0.1,
+    }})
+
+    assert merged["mark_trim"] == {"AGS-30 / BTR-4 AGS": 0.5, "Old MK19": 0.1}
+
+    assert config._merge({"mark_trim": {"BTR-4 AGS|plain": 0.5}})["mark_trim"] == {
+        "AGS-30 / BTR-4 AGS": 0.5
+    }
 
 
 # The Calculator page
@@ -280,9 +294,9 @@ def button(window, text):
     return next(b for b in window.findChildren(QPushButton) if b.text() == text)
 
 
-def expected_pixels(weapon, sight_angle, fov, zoomed, trim):
+def expected_pixels(weapon, sight_angle, fov, trim):
     """Pixels below the centre, from the projection formula alone."""
-    view_fov, bore = weapon.sight_view(fov, zoomed)
+    view_fov, bore = weapon.sight_view(fov)
     focal = (1920 / 2) / math.tan(math.radians(view_fov) / 2)
 
     return focal * math.tan(math.radians(sight_angle - bore + trim))
@@ -303,7 +317,7 @@ def test_apply_sets_the_trim_and_moves_the_mark(window, fov):
     sight = window.last_solution.sight_angle
     before = window.overlay.offset
 
-    assert before == pytest.approx(expected_pixels(weapon, sight, float(fov), False, 0.0))
+    assert before == pytest.approx(expected_pixels(weapon, sight, float(fov), 0.0))
 
     window.landed_entry.setText("260")
     button(window, "Apply").click()
@@ -313,9 +327,9 @@ def test_apply_sets_the_trim_and_moves_the_mark(window, fov):
 
     assert window.trim_entry.value() == pytest.approx(round(trim, 3))
     assert window.trim_status.text() == f"Trim set to {round(trim, 3):+g} deg"
-    assert window.config["mark_trim"] == {f"{M203}|plain": pytest.approx(round(trim, 3))}
+    assert window.config["mark_trim"] == {M203: pytest.approx(round(trim, 3))}
     assert window.overlay.offset == pytest.approx(
-        expected_pixels(weapon, sight, float(fov), False, round(trim, 3))
+        expected_pixels(weapon, sight, float(fov), round(trim, 3))
     )
     assert window.overlay.offset > before
     assert window.landed_entry.text() == ""
@@ -344,7 +358,7 @@ def test_typing_the_trim_moves_the_mark_and_the_ladder(window):
     window.trim_entry.setText("0.5")
     window.trim_entry.textEdited.emit("0.5")
 
-    assert window.overlay.offset == pytest.approx(expected_pixels(weapon, sight, 90, False, 0.5))
+    assert window.overlay.offset == pytest.approx(expected_pixels(weapon, sight, 90, 0.5))
     assert window.overlay.ladder != plain_ladder
 
     first, spacing, reach = window.overlay.ladder_bounds()
@@ -354,7 +368,7 @@ def test_typing_the_trim_moves_the_mark_and_the_ladder(window):
 
     window.trim_entry.setText("-0.2")
     window.trim_entry.textEdited.emit("-0.2")
-    assert window.config["mark_trim"] == {f"{M203}|plain": -0.2}
+    assert window.config["mark_trim"] == {M203: -0.2}
 
     window.trim_entry.setText("")
     window.trim_entry.textEdited.emit("")
@@ -368,7 +382,7 @@ def test_the_typed_trim_is_limited(window):
     window.trim_entry.setText("50")
     window.trim_entry.textEdited.emit("50")
 
-    assert window.config["mark_trim"] == {f"{M203}|plain": TRIM_LIMIT}
+    assert window.config["mark_trim"] == {M203: TRIM_LIMIT}
     assert window.trim_entry.value() == TRIM_LIMIT
 
 
@@ -380,87 +394,58 @@ def test_the_wheel_steps_the_trim_by_a_twentieth_of_a_degree(window):
     window.trim_entry.add(0.05)
     window.trim_entry.stepped.emit()
 
-    assert window.config["mark_trim"] == {f"{M203}|plain": pytest.approx(0.1)}
+    assert window.config["mark_trim"] == {M203: pytest.approx(0.1)}
 
 
-def test_each_weapon_and_view_keeps_its_own_trim(window):
+def test_each_weapon_keeps_its_own_trim(window):
     fire_at(window, QLZ87, 400)
     weapon = window.current_weapon()
     sight = window.last_solution.sight_angle
 
-    assert window.config["sight_view"] == "optic"
     window.trim_entry.setText("0.4")
     window.trim_entry.textEdited.emit("0.4")
-    assert window.overlay.offset == pytest.approx(expected_pixels(weapon, sight, 90, True, 0.4))
+    assert window.overlay.offset == pytest.approx(expected_pixels(weapon, sight, 90, 0.4))
+    assert window.config["mark_trim"] == {QLZ87: 0.4}
     optic_ladder = window.overlay.ladder
-
-    window.view_control.changed.emit("plain")
-    assert window.trim_entry.value() == 0.0
-    assert window.overlay.offset == pytest.approx(expected_pixels(weapon, sight, 90, False, 0.0))
-
-    window.trim_entry.setText("-0.3")
-    window.trim_entry.textEdited.emit("-0.3")
-    assert window.overlay.offset == pytest.approx(expected_pixels(weapon, sight, 90, False, -0.3))
-    assert window.config["mark_trim"] == {f"{QLZ87}|optic": 0.4, f"{QLZ87}|plain": -0.3}
-
-    window.view_control.changed.emit("optic")
-    assert window.trim_entry.value() == 0.4
-    assert window.overlay.offset == pytest.approx(expected_pixels(weapon, sight, 90, True, 0.4))
-    assert window.overlay.ladder == optic_ladder
 
     window.select_weapon(M203)
     assert window.trim_entry.value() == 0.0
-    assert f"{M203}|plain" not in window.config["mark_trim"]
+    assert M203 not in window.config["mark_trim"]
 
     window.select_weapon(QLZ87)
     assert window.trim_entry.value() == 0.4
+    window.calculate()
+    assert window.overlay.offset == pytest.approx(expected_pixels(weapon, sight, 90, 0.4))
+    assert window.overlay.ladder == optic_ladder
 
 
-def test_every_zoom_level_of_a_vehicle_sight_keeps_its_own_trim(window):
+def test_a_vehicle_sight_keeps_one_trim(window):
     tank = "Tank AP · M256 / Rh120"
 
     fire_at(window, tank, 800)
     weapon = window.current_weapon()
     sight = window.last_solution.sight_angle
-    trims = {"plain": 0.1, "optic": -0.2, "optic2": 0.3}
 
-    for index, (view, trim) in enumerate(trims.items()):
-        window.view_control.changed.emit(view)
-        window.trim_entry.setText(str(trim))
-        window.trim_entry.textEdited.emit(str(trim))
-        assert window.overlay.offset == pytest.approx(
-            expected_pixels(weapon, sight, 90, index, trim)
-        )
+    window.trim_entry.setText("-0.2")
+    window.trim_entry.textEdited.emit("-0.2")
 
-    assert window.config["mark_trim"] == {f"{tank}|{view}": trim for view, trim in trims.items()}
-
-    window.view_control.changed.emit("optic")
-    assert window.trim_entry.value() == -0.2
+    assert window.overlay.offset == pytest.approx(expected_pixels(weapon, sight, 90, -0.2))
+    assert window.config["mark_trim"] == {tank: -0.2}
 
 
-def test_a_weapon_without_a_zoom_uses_the_plain_view_whatever_the_view_setting(window):
-    window.config["sight_view"] = "optic"
-    fire_at(window, M203, 300)
-
-    window.trim_entry.setText("0.4")
-    window.trim_entry.textEdited.emit("0.4")
-
-    assert window.config["mark_trim"] == {f"{M203}|plain": 0.4}
-
-
-def test_reset_trim_clears_only_this_weapon_and_view(window):
+def test_reset_trim_clears_only_this_weapon(window):
     fire_at(window, M203, 300)
     sight = window.last_solution.sight_angle
     weapon = window.current_weapon()
-    window.config["mark_trim"][f"{RPG7}|plain"] = 0.9
+    window.config["mark_trim"][RPG7] = 0.9
 
     window.trim_entry.setText("0.4")
     window.trim_entry.textEdited.emit("0.4")
     button(window, "Reset trim").click()
 
     assert window.trim_entry.value() == 0.0
-    assert window.config["mark_trim"] == {f"{RPG7}|plain": 0.9}
-    assert window.overlay.offset == pytest.approx(expected_pixels(weapon, sight, 90, False, 0.0))
+    assert window.config["mark_trim"] == {RPG7: 0.9}
+    assert window.overlay.offset == pytest.approx(expected_pixels(weapon, sight, 90, 0.0))
     assert "trim" not in window.overlay.info_text
     assert not any("trim" in step for step in window.current_steps)
 
@@ -474,7 +459,7 @@ def test_reset_settings_removes_all_trims(window, monkeypatch):
     fire_at(window, M203, 300)
     window.trim_entry.setText("0.4")
     window.trim_entry.textEdited.emit("0.4")
-    window.config["mark_trim"][f"{RPG7}|plain"] = 0.9
+    window.config["mark_trim"][RPG7] = 0.9
 
     window.reset_settings()
 
@@ -489,12 +474,12 @@ def test_the_trim_survives_a_restart_and_unknown_weapons_are_dropped(window, tmp
     fire_at(window, M203, 300)
     window.trim_entry.setText("0.4")
     window.trim_entry.textEdited.emit("0.4")
-    window.config["mark_trim"]["Removed weapon|plain"] = 1.0
+    window.config["mark_trim"]["Removed weapon"] = 1.0
     config.save_config(window.config)
 
     restarted = MainWindow(load_weapons(os.path.join(ROOT, "weapons.json")))
     try:
-        assert restarted.config["mark_trim"] == {f"{M203}|plain": 0.4}
+        assert restarted.config["mark_trim"] == {M203: 0.4}
         assert restarted.trim_entry.value() == 0.4
     finally:
         restarted.close()
