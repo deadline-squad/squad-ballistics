@@ -228,7 +228,8 @@ class HoldTimer(QObject):
 
         resetting = self.auto_resetting
 
-        # The reader may not see our own synthetic keys (evdev).
+        # Our own keys count from the AutoHold flags: evdev skips the app's
+        # virtual keyboards (keystate), X11 sees them as any other key.
         s_down = self.key_reader(KEY_S) or self.auto_pressing
         w_down = self.key_reader(KEY_W) or resetting
 

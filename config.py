@@ -167,6 +167,17 @@ def data_dir():
     return os.path.join(base, APP_NAME)
 
 
+def state_dir():
+    """Per-user folder for data that must survive cache cleaners: the
+    embedded map's cookies and localStorage ($XDG_DATA_HOME/SquadBallistics,
+    https://specifications.freedesktop.org/basedir-spec/latest/)."""
+    base = os.environ.get("XDG_DATA_HOME") or os.path.join(
+        os.path.expanduser("~"), ".local", "share"
+    )
+
+    return os.path.join(base, APP_NAME)
+
+
 CONFIG_PATH = os.path.join(config_dir(), "config.json")
 
 
