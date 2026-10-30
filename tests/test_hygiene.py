@@ -60,3 +60,94 @@ def test_the_live_map_is_requested_in_name_only(qapp, tmp_path, monkeypatch):
         assert conftest.BLOCKED_URLS[before:] == ["https://calc.tk104.duckdns.org/"]
     finally:
         window.close()
+
+
+def app_sources():
+    """{file name: source} of the app's modules (not the tests)."""
+    import glob
+
+    sources = {}
+
+    for path in sorted(glob.glob(os.path.join(ROOT, "*.py"))):
+        with open(path, encoding="utf-8") as f:
+            sources[os.path.basename(path)] = f.read()
+
+    return sources
+
+
+def test_every_signal_of_the_window_has_a_listener(qapp, tmp_path, monkeypatch):
+    """A signal of the app's own classes that nothing in the app listens
+    to is dead code (HoldTimer.changed, review 1.6.0 slice 1 #10)."""
+    from PyQt6.QtCore import QObject, pyqtBoundSignal
+
+    import config
+    from ballistics import load_weapons
+    from crosshair import MainWindow
+
+    monkeypatch.setattr(config, "CONFIG_PATH", str(tmp_path / "config.json"))
+    window = MainWindow(load_weapons(os.path.join(ROOT, "weapons.json")))
+    modules = set(app_sources())
+    # {"Class.signal": heard by some instance}
+    heard = {}
+
+    try:
+        objects = [window, window.overlay] + window.findChildren(QObject)
+
+        for item in objects:
+            cls = type(item)
+
+            if cls.__module__ + ".py" not in modules:
+                continue
+
+            for name in vars(cls):
+                signal = getattr(item, name, None)
+
+                if isinstance(signal, pyqtBoundSignal):
+                    key = f"{cls.__name__}.{name}"
+                    heard[key] = heard.get(key, False) or item.receivers(signal) > 0
+    finally:
+        window.close()
+
+    # The scan found the signals (the picker, the sliders, the overlay, ...)
+    assert len(heard) >= 8
+    assert sorted(key for key, listened in heard.items() if not listened) == []
+
+
+def test_the_tests_set_only_settings_the_app_has():
+    """A test that sets a removed setting ("animated") tests nothing."""
+    import glob
+    import re
+
+    from config import DEFAULT_CONFIG
+
+    for path in sorted(glob.glob(os.path.join(ROOT, "tests", "*.py"))):
+        with open(path, encoding="utf-8") as f:
+            source = f.read()
+
+        for key in re.findall(r"\bconfig\[\"(\w+)\"\] = ", source):
+            assert key in DEFAULT_CONFIG, f"{os.path.basename(path)}: {key}"
+
+
+@pytest.mark.parametrize("file", ["crosshair.py", "widgets.py", "hotkeys.py"])
+def test_the_public_interface_is_documented(file):
+    """Review 1.6.0 slice 1 #9: every public class, function and method
+    (not dunder methods) has a docstring."""
+    import ast
+
+    tree = ast.parse(app_sources()[file])
+    missing = []
+
+    def walk(node, prefix=""):
+        for child in ast.iter_child_nodes(node):
+            if not isinstance(child, (ast.FunctionDef, ast.ClassDef)):
+                continue
+
+            if not child.name.startswith("_") and ast.get_docstring(child) is None:
+                missing.append(prefix + child.name)
+
+            if isinstance(child, ast.ClassDef):
+                walk(child, prefix + child.name + ".")
+
+    walk(tree)
+
+    assert missing == []

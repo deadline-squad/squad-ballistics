@@ -25,6 +25,7 @@ STRINGS = {
     "fov_hint": "horizontal FOV",
     "trim": "Trim, deg",
     "trim_hint": "+ farther, − nearer",
+    "trim_hint_high": "high arc: + nearer, − farther",
     "landed": "Landed at, m",
     "landed_hint": "where the shot landed",
     "trim_apply": "Apply",
@@ -32,6 +33,11 @@ STRINGS = {
     "enter_landed": "Enter where the shot landed",
     "trim_set": "Trim set to {trim} deg",
     "trim_set_limit": "Trim set to {trim} deg (the limit)",
+    "trim_lob_refused": (
+        "Not applied: the lob is laid by holding S, not with the mark, so "
+        "its landing says nothing about the trim. Set the trim from a "
+        "direct-fire shot on the Low arc."
+    ),
     "info_trim": "trim {trim}",
     "how_trim": (
         "Your trim {trim}° is on for this weapon and view "
@@ -219,7 +225,7 @@ STRINGS = {
     "preview": "Preview",
     "mark_caption": "The mark shows where to put the target: it moves down with the range.",
     "align_title": "Align with the sight",
-    "align_caption": "Move and scale the mark onto the sight in the game. Arrow keys step by 1; F9 clears the target, not the alignment.",
+    "align_caption": "Move and scale the mark onto the sight in the game. Arrow keys step by 1; {key} clears the target, not the alignment.",
     "align_x": "Move left/right",
     "align_y": "Move up/down",
     "align_scale": "Scale",
