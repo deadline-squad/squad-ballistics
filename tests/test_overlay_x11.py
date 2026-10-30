@@ -3,7 +3,9 @@
 Without a compositing manager a translucent window is drawn opaque: the
 overlay would turn the whole game black. The overlay must then stay hidden
 and say why; with a compositor (xcompmgr) the game shows through and only
-the mark is drawn. CI installs Xvfb and xcompmgr.
+the mark is drawn. A compositor that stops while the overlay is up hides
+it, and one that starts again brings it back. CI installs Xvfb and
+xcompmgr.
 """
 
 import json
@@ -18,15 +20,16 @@ import pytest
 from conftest import ROOT
 
 PROBE = os.path.join(ROOT, "tests", "overlay_probe.py")
+LOSS_PROBE = os.path.join(ROOT, "tests", "compositor_loss_probe.py")
 
 WHITE = "#ffffff"
 MARK_GREEN = "#00ff00"
 
 
-def run_probe(display):
-    env = dict(os.environ, DISPLAY=display, QT_QPA_PLATFORM="xcb")
+def run_probe(display, probe=PROBE, **environ):
+    env = dict(os.environ, DISPLAY=display, QT_QPA_PLATFORM="xcb", **environ)
     result = subprocess.run(
-        [sys.executable, PROBE],
+        [sys.executable, probe],
         env=env,
         capture_output=True,
         text=True,
@@ -100,3 +103,29 @@ def test_with_a_compositor_the_overlay_draws_only_the_mark(xvfb_display):
     assert seen["before"] == WHITE
     assert seen["with_overlay"] == WHITE
     assert seen["centre"] == MARK_GREEN
+
+
+def test_compositing_lost_while_shown_hides_the_overlay_and_brings_it_back(xvfb_display):
+    """Compositing that stops under a shown overlay (KWin suspends it for
+    a fullscreen game) must not leave a black screen."""
+    compositor = start_compositor(xvfb_display)
+
+    try:
+        seen = run_probe(xvfb_display, LOSS_PROBE, SB_COMPOSITOR_PID=str(compositor.pid))
+    finally:
+        compositor.terminate()
+        compositor.wait(10)
+
+    assert seen["watching"]
+    assert seen["visible_before"]
+    assert seen["shown_with"] == WHITE
+
+    assert not seen["compositing_after"]
+    assert seen["after_loss"] == WHITE
+    assert not seen["overlay_visible_after"]
+    assert seen["warning_after"]
+
+    assert seen["overlay_visible_back"]
+    assert not seen["warning_back"]
+    assert seen["probe_back"] == WHITE
+    assert seen["centre_back"] == MARK_GREEN
