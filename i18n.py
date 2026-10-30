@@ -158,6 +158,23 @@ STRINGS = {
     "splash_loading": "Starting…",
     "error_title": "Squad Ballistics — error",
     "error_saved": "Details saved to:\n{path}",
+    "already_running": (
+        "Squad Ballistics is already running. Two copies would draw two "
+        "overlays and send every hotkey twice, so this one is closing."
+    ),
+    "config_unreadable": (
+        "The settings file could not be read, so the defaults are used.\n"
+        "The old file is kept here:\n{path}"
+    ),
+    "no_compositor_title": "Overlay needs a compositor",
+    "no_compositor": (
+        "The overlay is off: no compositing manager is running on this X11 "
+        "desktop, so it would cover the whole screen in black instead of "
+        "drawing only the mark.\n\n"
+        "Turn compositing on (KDE: System Settings → Display → Compositor; "
+        "Xfce: Window Manager Tweaks → Compositor) or start one such as "
+        "picom, then press the overlay hotkey or reopen the app."
+    ),
 
     # Crosshair page
     "preview": "Preview",

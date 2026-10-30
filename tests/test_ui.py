@@ -1,10 +1,8 @@
 import math
 import os
+import shutil
 
 import pytest
-
-pytest.importorskip("PyQt6.QtWidgets")
-pytest.importorskip("qtawesome")
 
 from PyQt6.QtWidgets import QApplication, QLabel, QPushButton
 
@@ -322,30 +320,34 @@ def test_overlay_hint_uses_bound_key(window):
     assert "F8" not in window.current_steps[0]
 
 
-def test_selftest_does_not_touch_user_config(tmp_path):
+def test_selftest_does_not_touch_user_config_or_the_app_folder(tmp_path):
     import subprocess
     import sys
 
     env = dict(os.environ)
     env["XDG_CONFIG_HOME"] = str(tmp_path / "cfg")
     env["QT_QPA_PLATFORM"] = "offscreen"
+    before = set(os.listdir(ROOT))
 
     result = subprocess.run(
         [sys.executable, os.path.join(ROOT, "app.py"), "--selftest"],
         cwd=tmp_path,
         env=env,
-        timeout=120,
+        timeout=300,
+        capture_output=True,
+        text=True,
     )
 
-    log = os.path.join(ROOT, "selftest.log")
-    try:
-        with open(log, encoding="utf-8") as f:
-            text = f.read()
-    finally:
-        os.remove(log)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "SELFTEST PASSED" in result.stdout
 
-    assert result.returncode == 0, text
-    assert "SELFTEST PASSED" in text
+    log = result.stdout.rstrip().splitlines()[-1].removeprefix("Log: ")
+    assert not os.path.abspath(log).startswith(ROOT + os.sep)
+    with open(log, encoding="utf-8") as f:
+        assert "SELFTEST PASSED" in f.read()
+    shutil.rmtree(os.path.dirname(log))
+
+    assert set(os.listdir(ROOT)) == before
     assert not (tmp_path / "cfg" / "SquadBallistics" / "config.json").exists()
 
 

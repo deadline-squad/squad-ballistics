@@ -1,7 +1,5 @@
 import pytest
 
-pytest.importorskip("PyQt6.QtGui")
-
 from PyQt6.QtGui import QColor, QImage
 
 import webmap

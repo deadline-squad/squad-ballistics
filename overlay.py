@@ -1,10 +1,26 @@
+"""The overlay: a transparent full-screen window over the game that draws
+the aim mark, the range ladder and an info line, and lets every click
+through.
+
+It needs translucent windows. On X11 those are blended only by a
+compositing manager; without one the window is opaque black, so the overlay
+then stays hidden and says so (`compositing_active`). It follows the screen
+it is on: a resolution change or a monitor plugged in or out puts it back
+over the configured monitor and emits `screen_changed`, so the mark and the
+ladder can be recomputed for the new size.
+"""
+
+import ctypes
+import ctypes.util
 import math
 from typing import NamedTuple
 
 from PyQt6.QtCore import (
     Qt,
     QPointF,
-    QRectF
+    QRectF,
+    QTimer,
+    pyqtSignal
 )
 
 from PyQt6.QtGui import (
@@ -18,9 +34,10 @@ from PyQt6.QtGui import (
     QGuiApplication
 )
 
-from PyQt6.QtWidgets import QWidget
+from PyQt6.QtWidgets import QMessageBox, QWidget
 
 from config import MARK_COLORS
+from i18n import tr
 
 
 # Fonts of the overlay text, the first one installed is used.
@@ -28,6 +45,7 @@ OVERLAY_FONTS = ["Inter", "Noto Sans", "DejaVu Sans"]
 
 
 def overlay_font(size):
+    """The overlay's font (`OVERLAY_FONTS`) at `size` points."""
     font = QFont()
     font.setFamilies(OVERLAY_FONTS)
     font.setPointSize(size)
@@ -169,11 +187,82 @@ INFO_FLAGS = (
 ).value | Qt.TextFlag.TextWordWrap.value
 
 
+def x11_compositing_manager_running():
+    """Whether a compositing manager runs on $DISPLAY's default screen: it
+    owns the selection `_NET_WM_CM_S<screen>` (EWMH, "Compositing
+    managers": https://specifications.freedesktop.org/wm-spec/latest/).
+
+    True when that cannot be found out (no libX11, no display), so a failed
+    check never hides the overlay.
+    """
+    try:
+        xlib = ctypes.CDLL(ctypes.util.find_library("X11") or "libX11.so.6")
+    except OSError:
+        return True
+
+    xlib.XOpenDisplay.restype = ctypes.c_void_p
+    xlib.XOpenDisplay.argtypes = [ctypes.c_char_p]
+    xlib.XDefaultScreen.restype = ctypes.c_int
+    xlib.XDefaultScreen.argtypes = [ctypes.c_void_p]
+    xlib.XInternAtom.restype = ctypes.c_ulong
+    xlib.XInternAtom.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+    xlib.XGetSelectionOwner.restype = ctypes.c_ulong
+    xlib.XGetSelectionOwner.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+    xlib.XCloseDisplay.argtypes = [ctypes.c_void_p]
+
+    display = xlib.XOpenDisplay(None)
+
+    if not display:
+        return True
+
+    try:
+        screen = xlib.XDefaultScreen(display)
+        selection = xlib.XInternAtom(display, f"_NET_WM_CM_S{screen}".encode(), 0)
+
+        return xlib.XGetSelectionOwner(display, selection) != 0
+    finally:
+        xlib.XCloseDisplay(display)
+
+
+def compositing_active():
+    """Whether a translucent window is blended over what is below it.
+
+    Only X11 (Qt's "xcb" platform, also XWayland) can run without a
+    compositing manager; Wayland always composites, and the offscreen
+    platform of the tests has no screen to cover.
+    """
+    if QGuiApplication.platformName() != "xcb":
+        return True
+
+    return x11_compositing_manager_running()
+
+
 class Overlay(QWidget):
+    """The full-screen overlay window over the configured monitor.
+
+    `config` is the app's settings dict, kept by reference: the mark's
+    style, colour, size and alignment and the monitor are read from it on
+    every paint.
+    """
+
+    # The overlay moved to another screen or its screen changed size.
+    screen_changed = pyqtSignal()
+
     def __init__(self, config):
         super().__init__()
 
         self.config = config
+
+        # The warning shown instead of the overlay without a compositor.
+        self.compositor_warning = None
+
+        # Screen changes arrive as several signals at once (a monitor
+        # unplugged also resizes the virtual desktop); they are handled
+        # once, after Qt has updated its screen list.
+        self.screen_timer = QTimer(self)
+        self.screen_timer.setSingleShot(True)
+        self.screen_timer.setInterval(0)
+        self.screen_timer.timeout.connect(self.follow_screens)
 
         self.info_text = ""
 
@@ -204,36 +293,98 @@ class Overlay(QWidget):
         # Range ticks under the centre: [(distance m, pixels below)].
         self.ladder = []
 
+        app = QGuiApplication.instance()
+        app.screenAdded.connect(self.watch_screen)
+        app.screenAdded.connect(self.schedule_screen_check)
+        app.screenRemoved.connect(self.schedule_screen_check)
+        app.primaryScreenChanged.connect(self.schedule_screen_check)
+
+        for screen in QGuiApplication.screens():
+            self.watch_screen(screen)
+
         self.move_to_screen()
 
         self.show()
 
-    def move_to_screen(self):
+    def setVisible(self, visible):
+        """Show or hide the overlay; it is not shown on X11 without a
+        compositing manager, where it would be an opaque black screen, and a
+        warning says why instead (again on every later try to show it)."""
+        if visible and not compositing_active():
+            self.warn_no_compositor()
+            return
+
+        super().setVisible(visible)
+
+    def warn_no_compositor(self):
+        """Show the non-modal "no compositor" warning, once at a time."""
+        if self.compositor_warning is None:
+            self.compositor_warning = QMessageBox(
+                QMessageBox.Icon.Warning,
+                tr("no_compositor_title"),
+                tr("no_compositor")
+            )
+            self.compositor_warning.setWindowModality(Qt.WindowModality.NonModal)
+
+        self.compositor_warning.show()
+        self.compositor_warning.raise_()
+
+    def closeEvent(self, event):
+        """Close the compositor warning with the overlay: a window left
+        open would keep the app running after the main window closed."""
+        if self.compositor_warning is not None:
+            self.compositor_warning.close()
+
+        super().closeEvent(event)
+
+    def watch_screen(self, screen):
+        """Follow `screen`'s size and position (a resolution change)."""
+        screen.geometryChanged.connect(self.schedule_screen_check)
+
+    def schedule_screen_check(self, *args):
+        """Re-place the overlay once the current screen changes settle."""
+        self.screen_timer.start()
+
+    def follow_screens(self):
+        """Put the overlay back over the configured monitor and tell the
+        owner, who recomputes the mark and the ladder for the new size."""
+        self.move_to_screen()
+
+        self.screen_changed.emit()
+
+    def target_screen(self):
+        """The screen of the configured monitor index; the primary screen
+        when that monitor is not connected (it is used again once it is)."""
         screens = QGuiApplication.screens()
 
         index = int(self.config.get("monitor", 0))
 
         if 0 <= index < len(screens):
-            screen = screens[index]
-        else:
-            screen = QGuiApplication.primaryScreen()
+            return screens[index]
 
-        self.setGeometry(screen.geometry())
+        return QGuiApplication.primaryScreen()
+
+    def move_to_screen(self):
+        """Cover the configured monitor (see `target_screen`)."""
+        self.setGeometry(self.target_screen().geometry())
 
         self.update()
 
     @property
     def center_x(self):
+        """x of the aim centre: the screen centre moved by the alignment."""
         return self.width() / 2 + self.config.get("center_offset_x", 0)
 
     @property
     def center_y(self):
+        """y of the aim centre: the screen centre moved by the alignment."""
         return self.height() / 2 + self.config.get("center_offset_y", 0)
 
     # Distance from the screen edge inside which the mark is still drawn.
     EDGE_MARGIN = 20
 
     def screen_width(self):
+        """Width of the covered screen in pixels, which the FOV spans."""
         return self.width()
 
     def is_offscreen(self, offset):
@@ -286,11 +437,13 @@ class Overlay(QWidget):
         self.update()
 
     def ladder_font(self):
+        """Font of the range ladder's labels."""
         font = overlay_font(8)
         font.setBold(True)
         return font
 
     def info_font(self):
+        """Font of the info line."""
         font = overlay_font(10)
         font.setBold(True)
         return font
@@ -353,6 +506,7 @@ class Overlay(QWidget):
         self.update()
 
     def paintEvent(self, event):
+        """Draw the ladder, the mark (or the edge arrow) and the info line."""
         painter = QPainter(self)
 
         painter.setRenderHint(
@@ -366,18 +520,17 @@ class Overlay(QWidget):
         x = self.center_x
         y = self.center_y + self.offset
 
-        if self.mark_visible and self.ladder:
-            self.draw_ladder(painter, color)
+        if self.mark_visible:
+            if self.ladder:
+                self.draw_ladder(painter, color)
 
-        if not self.mark_visible:
-            pass
-        elif self.is_offscreen(self.offset):
-            # The aim point is off-screen (very high angle shot):
-            # show an arrow on the edge pointing towards it; the label
-            # stays next to it (see info_anchor).
-            self.draw_edge_arrow(painter, color, x, y < self.EDGE_MARGIN)
-        else:
-            paint_crosshair(painter, cfg, x, y)
+            if self.is_offscreen(self.offset):
+                # The aim point is off-screen (very high angle shot):
+                # show an arrow on the edge pointing towards it; the label
+                # stays next to it (see info_anchor).
+                self.draw_edge_arrow(painter, color, x, y < self.EDGE_MARGIN)
+            else:
+                paint_crosshair(painter, cfg, x, y)
 
         if cfg.get("info_enabled", True) and self.info_text:
             self.draw_info(painter, color)
@@ -411,6 +564,7 @@ class Overlay(QWidget):
                 painter.drawText(label.translated(shift, shift), flags, str(distance))
 
     def draw_info(self, painter, color):
+        """The info line in the mark's colour over a dark shadow."""
         rect = self.info_rect()
 
         painter.setFont(self.info_font())
@@ -422,6 +576,8 @@ class Overlay(QWidget):
         painter.drawText(rect, INFO_FLAGS, self.info_text)
 
     def draw_edge_arrow(self, painter, color, x, top):
+        """A triangle at the top (`top`) or bottom edge at `x`, pointing at
+        an aim point off the screen."""
         size = 14
 
         if top:

@@ -4,8 +4,6 @@ import os
 
 import pytest
 
-pytest.importorskip("PyQt6.QtWidgets")
-pytest.importorskip("qtawesome")
 
 import config
 from ballistics import load_weapons, mark_offset

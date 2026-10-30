@@ -35,9 +35,6 @@ import os
 
 import pytest
 
-pytest.importorskip("PyQt6.QtWidgets")
-pytest.importorskip("qtawesome")
-
 from PyQt6.QtCore import QRect
 from PyQt6.QtGui import QImage, QPainter
 

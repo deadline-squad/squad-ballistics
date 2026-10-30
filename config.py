@@ -1,3 +1,14 @@
+"""The user's settings: defaults, where they are stored, and loading that
+never fails.
+
+Settings live in `$XDG_CONFIG_HOME/SquadBallistics/config.json` (see
+`config_dir`). `read_config` merges the file over `DEFAULT_CONFIG` setting
+by setting: a value of the wrong type, out of `CHOICES`, not finite, or a
+fraction for a whole-number setting falls back to its default alone, and
+an unreadable file is kept as `config.json.bad` instead of being replaced
+silently. `save_config` writes atomically and privately (mode 0600).
+"""
+
 import copy
 import json
 import math
@@ -15,7 +26,9 @@ LEGACY_CONFIG_PATH = os.path.join("configs", "config.json")
 
 
 def legacy_config_paths():
+    """Settings files of older versions to migrate from, oldest last."""
     return [LEGACY_CONFIG_PATH]
+
 
 # The mark's colours (RGB), in the order of the swatches on the Crosshair page.
 MARK_COLORS = {
@@ -128,6 +141,13 @@ RANGES = {
 
 DISTANCE_STEPS = (1, 5, 10, 25, 50, 100)
 
+# Numeric settings that take a fraction; every other number is a whole one
+# (slider positions, pixels, an index), so a saved fraction there is junk.
+FRACTIONAL_SETTINGS = ("fov",)
+
+# Suffix of an unreadable settings file kept next to the new one.
+BAD_CONFIG_SUFFIX = ".bad"
+
 
 def config_dir():
     """Per-user settings folder ($XDG_CONFIG_HOME/SquadBallistics)."""
@@ -150,17 +170,39 @@ def data_dir():
 CONFIG_PATH = os.path.join(config_dir(), "config.json")
 
 
+def finite_number(value):
+    """`value` as a float when it is a finite JSON number, else None.
+
+    Booleans are not numbers here, and an integer too big for a float
+    (`1e400` written out) is rejected like `Infinity` and `NaN`, which
+    Python's json module accepts.
+    """
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+
+    try:
+        number = float(value)
+    except OverflowError:
+        return None
+
+    return number if math.isfinite(number) else None
+
+
 def is_rgb(value):
-    """Whether `value` is a colour as older versions stored it: [r, g, b]."""
+    """Whether `value` is a colour as older versions stored it: [r, g, b],
+    three finite numbers."""
     return (
         isinstance(value, list)
         and len(value) == 3
-        and all(isinstance(c, (int, float)) and not isinstance(c, bool) for c in value)
+        and all(finite_number(c) is not None for c in value)
     )
 
 
 def nearest_mark_color(rgb):
-    """The name of the MARK_COLORS entry closest to `rgb`, by RGB distance."""
+    """The name of the MARK_COLORS entry closest to `rgb`, by RGB distance;
+    components outside 0..255 count as the nearest end."""
+    rgb = [max(0, min(255, c)) for c in rgb]
+
     return min(
         MARK_COLORS,
         key=lambda name: sum((a - b) ** 2 for a, b in zip(MARK_COLORS[name], rgb))
@@ -189,15 +231,9 @@ def _valid_mark_trims(loaded):
         else:
             name = key
 
-        if not isinstance(trim, (int, float)) or isinstance(trim, bool):
-            continue
+        trim = finite_number(trim)
 
-        try:
-            trim = float(trim)
-        except OverflowError:
-            continue
-
-        if not math.isfinite(trim):
+        if trim is None:
             continue
 
         trim = clamp_trim(trim)
@@ -208,8 +244,32 @@ def _valid_mark_trims(loaded):
     return trims
 
 
+def _valid_number(key, value):
+    """`value` for the numeric setting `key` clamped to its range, or None
+    when it is not a finite number or is a fraction for a whole-number
+    setting."""
+    number = finite_number(value)
+
+    if number is None:
+        return None
+
+    if key not in FRACTIONAL_SETTINGS:
+        if not isinstance(value, int):
+            return None
+
+        number = value
+
+    low, high = RANGES.get(key, (-math.inf, math.inf))
+
+    return max(low, min(high, number))
+
+
 def _merge(loaded):
-    """Fill missing keys with defaults and drop values of the wrong type."""
+    """Fill missing keys with defaults and drop values of the wrong type.
+
+    Each setting is checked on its own: a bad value falls back to its
+    default and leaves the other settings alone.
+    """
     config = copy.deepcopy(DEFAULT_CONFIG)
 
     if not isinstance(loaded, dict):
@@ -240,11 +300,10 @@ def _merge(loaded):
         if key == "lay_rates":
             if isinstance(value, dict):
                 config[key] = {
-                    current_weapon_name(name): float(rate)
+                    current_weapon_name(name): finite_number(rate)
                     for name, rate in value.items()
                     if isinstance(name, str)
-                    and isinstance(rate, (int, float))
-                    and not isinstance(rate, bool)
+                    and finite_number(rate) is not None
                     and rate > 0
                 }
             continue
@@ -263,9 +322,10 @@ def _merge(loaded):
             if isinstance(value, bool):
                 config[key] = value
         elif isinstance(default, (int, float)):
-            if isinstance(value, (int, float)) and not isinstance(value, bool):
-                low, high = RANGES.get(key, (-float("inf"), float("inf")))
-                config[key] = max(low, min(high, value))
+            number = _valid_number(key, value)
+
+            if number is not None:
+                config[key] = number
         elif key in CHOICES:
             if value in CHOICES[key]:
                 config[key] = value
@@ -279,31 +339,86 @@ def _merge(loaded):
 
 
 def _read(path):
+    """The settings object in `path`.
+
+    Raises OSError when the file cannot be read and ValueError when it is
+    not JSON or not a JSON object.
+    """
     with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+        try:
+            loaded = json.load(f)
+        except RecursionError:
+            # Nesting deeper than the parser's recursion limit.
+            raise ValueError("nested too deeply")
+
+    if not isinstance(loaded, dict):
+        raise ValueError("not a JSON object")
+
+    return loaded
 
 
-def load_config(path=None):
+def _keep_bad_file(path):
+    """Move the unreadable settings file `path` aside so that the defaults
+    do not overwrite it; returns where it is now.
+
+    It becomes `path` + BAD_CONFIG_SUFFIX, replacing an older bad file. When
+    it cannot be moved it stays where it is and `path` is returned.
+    """
+    bad_path = path + BAD_CONFIG_SUFFIX
+
+    try:
+        os.replace(path, bad_path)
+    except OSError:
+        return path
+
+    return bad_path
+
+
+def read_config(path=None):
+    """Load the settings and say whether the settings file was unreadable.
+
+    Returns `(config, bad_path)`. `bad_path` is None when the file was read
+    or did not exist. A file that cannot be read or parsed is not replaced
+    silently: it is kept as `config.json.bad` (see `_keep_bad_file`) and
+    `bad_path` names it, so the app can tell the user that the defaults are
+    used. A settings file of an older version (`legacy_config_paths`) is
+    migrated when there is no current one.
+    """
     path = path or CONFIG_PATH
+    bad_path = None
 
-    for candidate in [path] + legacy_config_paths():
+    if os.path.exists(path):
+        try:
+            return _merge(_read(path)), None
+        except (OSError, ValueError):
+            bad_path = _keep_bad_file(path)
+
+    for candidate in legacy_config_paths():
         if not os.path.exists(candidate):
             continue
 
         try:
             config = _merge(_read(candidate))
         except (OSError, ValueError):
-            # Corrupted file: fall back to defaults instead of crashing.
             continue
 
-        if candidate != path:
+        if bad_path != path:
             save_config(config, path)
 
-        return config
+        return config, bad_path
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    save_config(config, path)
-    return config
+
+    if bad_path != path:
+        save_config(config, path)
+
+    return config, bad_path
+
+
+def load_config(path=None):
+    """The settings in `path` (default CONFIG_PATH) merged over the defaults;
+    see `read_config`."""
+    return read_config(path)[0]
 
 
 def save_config(config, path=None):
