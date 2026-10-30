@@ -1,0 +1,2347 @@
+{
+ "_source": {
+  "build": "26005357",
+  "generator": "tools/game_weapons.py",
+  "date": "2026-10-30",
+  "units": "m, m/s, s, degrees; bore and zoom null = aimed by elevation; elevation_limits null = no mount or not derived"
+ },
+ "M203 / M320 / GP-25 / HK79 / SL40": {
+  "velocity": 76.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": null,
+  "bore_assumed": true,
+  "zoom_assumed": true,
+  "sources": {
+   "weapon": "Blueprints/Items/GrenadeLaunchers/M4M203_UGL/BP_M4M203_UGL_Parent",
+   "projectile": "Blueprints/Items/Projectiles/Explosives/BP_40MM_Proj2",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
+   "classes": [
+    "BP_M4M203_UGL_Parent -> BP_40MM_Proj2 (no MaxSpeed)",
+    "BP_M320_Parent -> BP_40MM_Proj2 (no MaxSpeed)",
+    "BP_AK74GP25_UGL_Parent -> BP_40MM_VOG_Proj2 (no MaxSpeed)",
+    "BP_G3A3HK79_UGL_HE -> BP_40MM_Proj2 (no MaxSpeed)",
+    "BP_EF88_SL40_UGL_Parent -> BP_40MM_Proj2 (no MaxSpeed)"
+   ]
+  }
+ },
+ "MGL / M32": {
+  "velocity": 75.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": null,
+  "bore_assumed": true,
+  "zoom_assumed": true,
+  "sources": {
+   "weapon": "Blueprints/Items/GrenadeLaunchers/MGL_GL/BP_MGL_Parent",
+   "projectile": "Blueprints/Items/Projectiles/Explosives/BP_40MM_Proj2",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
+   "classes": [
+    "BP_MGL_Parent -> BP_40MM_Proj2 (no MaxSpeed)",
+    "BP_M32_Parent -> BP_40MM_Proj2 (no MaxSpeed)"
+   ]
+  }
+ },
+ "AK-40GL (MPT-76)": {
+  "velocity": 70.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": null,
+  "bore_assumed": true,
+  "zoom_assumed": true,
+  "sources": {
+   "weapon": "Blueprints/Items/GrenadeLaunchers/MPT76AK40_UGL/BP_MPT76_AK40GL_UGL_Parent",
+   "projectile": "Blueprints/Items/Projectiles/Explosives/BP_40MM_Proj2",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
+   "classes": [
+    "BP_MPT76_AK40GL_UGL_Parent -> BP_40MM_Proj2 (no MaxSpeed)"
+   ]
+  }
+ },
+ "QLG10": {
+  "velocity": 78.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": null,
+  "bore_assumed": true,
+  "zoom_assumed": true,
+  "sources": {
+   "weapon": "Blueprints/Items/GrenadeLaunchers/QBZ-95-1_QLG-10_UGL/BP_QBZ95-1_QLG-10_UGL_Parent",
+   "projectile": "Blueprints/Items/Projectiles/Explosives/BP_40MM_VOG_Proj2",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
+   "classes": [
+    "BP_QBZ95-1_QLG-10_UGL_Parent -> BP_40MM_VOG_Proj2 (no MaxSpeed)"
+   ]
+  }
+ },
+ "Rifle grenade": {
+  "velocity": 76.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": false,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": null,
+  "bore_assumed": true,
+  "zoom_assumed": true,
+  "sources": {
+   "weapon": "Blueprints/Items/GrenadeLaunchers/FNFAL_GL/BP_FNFAL_GL_Frag",
+   "projectile": "Blueprints/Items/Projectiles/BP_Projectile_RifleGrenade_FNFAL_Frag",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration",
+   "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
+   "classes": [
+    "BP_FNFAL_GL_Frag -> BP_Projectile_RifleGrenade_FNFAL_Frag (no MaxSpeed)",
+    "BP_FNFAL_GL_HEAT -> BP_Projectile_RifleGrenade_FNFAL_HEAT (no MaxSpeed)"
+   ]
+  }
+ },
+ "MK19": {
+  "velocity": 230.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -15.0,
+   30.0
+  ],
+  "view_variants": {
+   "Vehicles/AAVP7A1/Turrets/BP_AAVP7A1_Turret": {
+    "elevation_limits": [
+     -10.0,
+     30.0
+    ],
+    "barrel": "AAVP7A1_Gun:MK19_Muzzle 0.0",
+    "camera": "FirstPersonCamera 0.0 on GunAttachPoint"
+   }
+  },
+  "sources": {
+   "weapon": "Vehicles/M1117/Weapons/BP_M1117_MK19",
+   "projectile": "Vehicles/AAVP7A1/Weapons/BP_40MM_MK19_Proj",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_M1117_Gun:MK19_Muzzle 0.0",
+   "mount": "Vehicles/M1117/Turrets/BP_M1117_Turret",
+   "camera": "FirstPersonCamera 0.0 on GunAttachPoint",
+   "zoom": "BP_M1117_Turret.ZoomLevels[0] of [1.0, 4.5]",
+   "elevation": "TurretMovement curves M1117_YawToMinPitch / M1117_YawToMaxPitch: -15.0..30.0 (yaw 0: -5.0..30.0) + socket pitch",
+   "classes": [
+    "BP_M1117_MK19 -> BP_40MM_MK19_Proj (no MaxSpeed)",
+    "BP_AAVP7A1_MK19 -> BP_40MM_MK19_Proj (no MaxSpeed)",
+    "BP_Mk19_RHIB_Weapon -> BP_40MM_MK19_Proj (no MaxSpeed)",
+    "BP_Mk19_OpenTurret_Weapon -> BP_40MM_MK19_Proj (no MaxSpeed)"
+   ]
+  }
+ },
+ "MK19 · PARS III RWS": {
+  "velocity": 230.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.95,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -24.05,
+   40.95
+  ],
+  "sources": {
+   "weapon": "Vehicles/PARS_III/Sancak_RWS/Weapons/BP_SancakRWS_MK19",
+   "projectile": "Vehicles/AAVP7A1/Weapons/BP_40MM_MK19_Proj",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_SancakRWS_Gun_40mm:Attach_Muzzle 0.95",
+   "mount": "Vehicles/PARS_III/Sancak_RWS/BP_SancakRWS_MK19_Turret",
+   "camera": "FirstPersonCamera 0.0 on GunAttachPoint",
+   "zoom": "BP_SancakRWS_MK19_Turret.ZoomLevels[0] of [1.0, 3.0, 9.0]",
+   "elevation": "SQTurretMovement curves PARS3RWS_YawToMinPitch / PARS3RWS_YawToMaxPitch: -25.0..40.0 (yaw 0: -14.0..40.0) + socket pitch",
+   "same_view": [
+    "Vehicles/PARS_III/Sancak_RWS/BP_SancakRWS_MK19_Turret_Desert"
+   ],
+   "classes": [
+    "BP_SancakRWS_MK19 -> BP_40MM_MK19_Proj (no MaxSpeed)"
+   ]
+  }
+ },
+ "MK19 · TAPV C16 RWS": {
+  "velocity": 230.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 1.55,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -8.45,
+   46.55
+  ],
+  "sources": {
+   "weapon": "Vehicles/TAPV/Protector_C16/BP_C16_MK19",
+   "projectile": "Vehicles/AAVP7A1/Weapons/BP_40MM_MK19_Proj",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_C16_Weapon:Attach_Muzzle_MK19 1.55",
+   "mount": "Vehicles/TAPV/Protector_C16/BP_C16_Turret",
+   "camera": "FirstPersonCamera 0.0 on GunAttachPoint",
+   "zoom": "BP_C16_Turret.ZoomLevels[0] of [1.0, 5.0, 12.0]",
+   "elevation": "TurretMovement curves C16_YawToMinPitch / c16_YawToMaxPitch: -10.0..45.0 (yaw 0: -10.0..45.0) + socket pitch",
+   "same_view": [
+    "Vehicles/TAPV/Protector_C16/BP_C16_Turret_Desert"
+   ],
+   "classes": [
+    "BP_C16_MK19 -> BP_40MM_MK19_Proj (no MaxSpeed)"
+   ]
+  }
+ },
+ "MK19 · M113 open turret": {
+  "velocity": 230.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 1.6,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -15.0,
+   30.0
+  ],
+  "sources": {
+   "weapon": "Vehicles/Emplaced_Mk19/BP_Mk19_OpenTurret_Weapon",
+   "projectile": "Vehicles/AAVP7A1/Weapons/BP_40MM_MK19_Proj",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_MK19:Attach_Muzzle 0.0",
+   "mount": "Vehicles/M113A3/Turrets/BP_M113A3_OpenTurret_Mk19_Turret",
+   "camera": "AdsCamera1pPositionComponent -1.6 on GunMountComponent",
+   "zoom": "RMB keeps the FOV (BP_Mk19_OpenTurret_Weapon: no SetFieldOfView(FOV / k))",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -15.0..30.0 + socket pitch",
+   "same_view": [
+    "Vehicles/M113A2T_TLF/Turrets/BP_M113A2T_TLF_OpenTurret_Mk19_Turret"
+   ],
+   "classes": [
+    "BP_Mk19_OpenTurret_Weapon -> BP_40MM_MK19_Proj (no MaxSpeed)"
+   ]
+  }
+ },
+ "MK19 · M1151 / RHIB open turret": {
+  "velocity": 230.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 1.7211,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -20.0,
+   30.0
+  ],
+  "view_variants": {
+   "Vehicles/RHIB/Turrets/BP_RHIB_Turret_Mk19": {
+    "bore": 1.7286,
+    "barrel": "SK_MK19:Attach_Muzzle 0.0",
+    "camera": "AdsCamera1pPositionComponent -1.7286 on GunMountComponent"
+   }
+  },
+  "sources": {
+   "weapon": "Vehicles/Emplaced_Mk19/BP_Mk19_OpenTurret_Weapon",
+   "projectile": "Vehicles/AAVP7A1/Weapons/BP_40MM_MK19_Proj",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_MK19:Attach_Muzzle 0.0",
+   "mount": "Vehicles/M1151/Turrets/BP_M1151_Mk19_Turret",
+   "camera": "AdsCamera1pPositionComponent -1.7211 on GunMountComponent",
+   "zoom": "RMB keeps the FOV (BP_Mk19_OpenTurret_Weapon: no SetFieldOfView(FOV / k))",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -20.0..30.0 + socket pitch",
+   "classes": [
+    "BP_Mk19_OpenTurret_Weapon -> BP_40MM_MK19_Proj (no MaxSpeed)",
+    "BP_Mk19_RHIB_Weapon -> BP_40MM_MK19_Proj (no MaxSpeed)"
+   ]
+  }
+ },
+ "MK19 · emplacement / C16 / L134A1": {
+  "velocity": 235.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 1.6738,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -35.0,
+   20.0
+  ],
+  "sources": {
+   "weapon": "Vehicles/Emplaced_Mk19/BP_Mk19_Weapon",
+   "projectile": "Vehicles/AAVP7A1/Weapons/BP_40MM_MK19_Proj",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_MK19:Attach_Muzzle 0.0",
+   "mount": "Vehicles/Emplaced_Mk19/BP_EmplacedMk19_Tripod",
+   "camera": "AdsCamera1pPositionComponent -1.6738 on GunMountComponent",
+   "zoom": "RMB keeps the FOV (BP_Mk19_Weapon: no SetFieldOfView(FOV / k))",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -35.0..20.0 + socket pitch",
+   "same_view": [
+    "Vehicles/Emplaced_Mk19/BP_EmplacedC16_Tripod",
+    "Vehicles/Emplaced_Mk19/BP_EmplacedL134A1_Tripod"
+   ],
+   "classes": [
+    "BP_Mk19_Weapon -> BP_40MM_MK19_Proj (no MaxSpeed)",
+    "BP_Weapon_C16 -> BP_40MM_MK19_Proj (no MaxSpeed)",
+    "BP_Weapon_L134A1 -> BP_40MM_MK19_Proj (no MaxSpeed)"
+   ]
+  }
+ },
+ "MK19 · emplacement / C16 / L134A1 · no sights": {
+  "velocity": 235.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -35.0,
+   20.0
+  ],
+  "sources": {
+   "weapon": "Vehicles/Emplaced_Mk19/BP_Mk19_Weapon",
+   "projectile": "Vehicles/AAVP7A1/Weapons/BP_40MM_MK19_Proj",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_MK19:Attach_Muzzle 0.0",
+   "mount": "Vehicles/Emplaced_Mk19/BP_EmplacedMk19_Tripod",
+   "camera": "FirstPersonVehicleCam 0.0 on GunMountComponent",
+   "zoom": "normal view, the game's FOV",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -35.0..20.0 + socket pitch",
+   "same_view": [
+    "Vehicles/Emplaced_Mk19/BP_EmplacedC16_Tripod",
+    "Vehicles/Emplaced_Mk19/BP_EmplacedL134A1_Tripod"
+   ],
+   "classes": [
+    "BP_Mk19_Weapon -> BP_40MM_MK19_Proj (no MaxSpeed)",
+    "BP_Weapon_C16 -> BP_40MM_MK19_Proj (no MaxSpeed)",
+    "BP_Weapon_L134A1 -> BP_40MM_MK19_Proj (no MaxSpeed)"
+   ]
+  }
+ },
+ "AGS-17 · emplacement": {
+  "velocity": 185.0,
+  "gravity_scale": 1.8,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.85,
+  "zoom": 2.5,
+  "elevation_limits": [
+   -12.15,
+   85.85
+  ],
+  "sources": {
+   "weapon": "Vehicles/Emplaced_AGS-17/BP_AGS-17_Weapon_Optic",
+   "projectile": "Vehicles/Emplaced_AGS-17/BP_30mm_VOG19_Proj",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_AGS-17:Attach_Muzzle_Scoped 0.85",
+   "mount": "Vehicles/Emplaced_AGS-17/BP_Emplaced_AGS-17_Optic_Tripod",
+   "camera": "AdsCamera1pPositionComponent 0.0 on GunMountComponent",
+   "zoom": "BP_AGS-17_Weapon_Optic BlueprintOnZoom: SetFieldOfView(FOV / 2.5)",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -13.0..85.0 + socket pitch",
+   "classes": [
+    "BP_AGS-17_Weapon_Optic -> BP_30mm_VOG19_Proj (no MaxSpeed)",
+    "BP_AGS-17_Weapon -> BP_30mm_VOG19_Proj (no MaxSpeed)"
+   ]
+  }
+ },
+ "AGS-17 · emplacement · no optic": {
+  "velocity": 185.0,
+  "gravity_scale": 1.8,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.85,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -12.15,
+   85.85
+  ],
+  "sources": {
+   "weapon": "Vehicles/Emplaced_AGS-17/BP_AGS-17_Weapon_Optic",
+   "projectile": "Vehicles/Emplaced_AGS-17/BP_30mm_VOG19_Proj",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_AGS-17:Attach_Muzzle_Scoped 0.85",
+   "mount": "Vehicles/Emplaced_AGS-17/BP_Emplaced_AGS-17_Optic_Tripod",
+   "camera": "FirstPersonVehicleCam 0.0 on GunMountComponent",
+   "zoom": "normal view, the game's FOV",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -13.0..85.0 + socket pitch",
+   "classes": [
+    "BP_AGS-17_Weapon_Optic -> BP_30mm_VOG19_Proj (no MaxSpeed)"
+   ]
+  }
+ },
+ "AGS-17 · iron sights emplacement": {
+  "velocity": 185.0,
+  "gravity_scale": 1.8,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 4.5,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -8.5,
+   89.5
+  ],
+  "sources": {
+   "weapon": "Vehicles/Emplaced_AGS-17/BP_AGS-17_Weapon",
+   "projectile": "Vehicles/Emplaced_AGS-17/BP_30mm_VOG19_Proj",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_AGS-17:Attach_Muzzle 4.5",
+   "mount": "Vehicles/Emplaced_AGS-17/BP_Emplaced_AGS-17_Tripod",
+   "camera": "FirstPersonVehicleCam 0.0 on GunMountComponent",
+   "zoom": "normal view, the game's FOV",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -13.0..85.0 + socket pitch",
+   "classes": [
+    "BP_AGS-17_Weapon -> BP_30mm_VOG19_Proj (no MaxSpeed)"
+   ]
+  }
+ },
+ "QLZ87": {
+  "velocity": 190.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.7738,
+  "zoom": 3.0,
+  "elevation_limits": [
+   -23.4,
+   44.1
+  ],
+  "sources": {
+   "weapon": "Vehicles/Emplaced_QLZ87/BP_QLZ87_Weapon",
+   "projectile": "Blueprints/Items/Projectiles/Explosives/BP_35MM_Proj_QLZ87_HEDP",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_QLZ87_Weapon:Attach_Muzzle -0.9",
+   "mount": "Vehicles/Emplaced_QLZ87/BP_EmplacedQLZ87_Tripod",
+   "camera": "AdsCamera1pPositionComponent -1.6738 on GunMountComponent",
+   "zoom": "BP_QLZ87_Weapon BlueprintOnZoom: SetFieldOfView(FOV / 3)",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -22.5..45.0 + socket pitch",
+   "classes": [
+    "BP_QLZ87_Weapon -> BP_35MM_Proj_QLZ87_HEDP (no MaxSpeed)",
+    "BP_QLZ-87_AGL_Parent -> BP_35MM_Proj_QLZ87_HEDP (no MaxSpeed)",
+    "BP_QLZ87_OpenTurret_Weapon -> BP_35MM_Proj_QLZ87_HEDP (no MaxSpeed)"
+   ]
+  }
+ },
+ "QLZ87 · no optic": {
+  "velocity": 190.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": -0.9,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -23.4,
+   44.1
+  ],
+  "sources": {
+   "weapon": "Vehicles/Emplaced_QLZ87/BP_QLZ87_Weapon",
+   "projectile": "Blueprints/Items/Projectiles/Explosives/BP_35MM_Proj_QLZ87_HEDP",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_QLZ87_Weapon:Attach_Muzzle -0.9",
+   "mount": "Vehicles/Emplaced_QLZ87/BP_EmplacedQLZ87_Tripod",
+   "camera": "FirstPersonVehicleCam 0.0 on GunMountComponent",
+   "zoom": "normal view, the game's FOV",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -22.5..45.0 + socket pitch",
+   "classes": [
+    "BP_QLZ87_Weapon -> BP_35MM_Proj_QLZ87_HEDP (no MaxSpeed)"
+   ]
+  }
+ },
+ "QLZ87 · Lynx / CSK131": {
+  "velocity": 190.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.85,
+  "zoom": 3.0,
+  "elevation_limits": [
+   -13.15,
+   55.85
+  ],
+  "view_variants": {
+   "Vehicles/ZBL08/Turrets/Cupola_QLZ87/BP_QLZ87_ZBL08_OpenTop_Turret": {
+    "elevation_limits": [
+     -11.65,
+     68.35
+    ],
+    "barrel": "SK_QLZ87_Weapon_Turret:Attach_Muzzle 0.85",
+    "camera": "AdsCamera1pPositionComponent 0.0 on GunMountComponent"
+   }
+  },
+  "sources": {
+   "weapon": "Vehicles/Lynx_8x8/Weapons/BP_QLZ87_Weapon_Lynx8x8",
+   "projectile": "Blueprints/Items/Projectiles/Explosives/BP_35MM_Proj_QLZ87_HEDP",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_QLZ87_Weapon_Turret:Attach_Muzzle 0.85",
+   "mount": "Vehicles/Lynx_8x8/Weapons/BP_QLZ87_Lynx8x8_OpenTop_Turret",
+   "camera": "AdsCamera1pPositionComponent 0.0 on GunMountComponent",
+   "zoom": "BP_QLZ87_Weapon_Lynx8x8 BlueprintOnZoom: SetFieldOfView(FOV / 3)",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -14.0..55.0 + socket pitch",
+   "same_view": [
+    "Vehicles/CSK131/Weapons/BP_QLZ87_CSK_OpenTop_Turret",
+    "Vehicles/WZ551/Turrets/QLZ87/BP_QLZ87_WZ551_OpenTop_Turret"
+   ],
+   "classes": [
+    "BP_QLZ87_Weapon_Lynx8x8 -> BP_35MM_Proj_QLZ87_HEDP (no MaxSpeed)",
+    "BP_QLZ87_OpenTurret_Weapon -> BP_35MM_Proj_QLZ87_HEDP (no MaxSpeed)",
+    "BP_QLZ87_Weapon_WZ551 -> BP_35MM_Proj_QLZ87_HEDP (no MaxSpeed)",
+    "BP_QLZ87_Weapon_ZBL08 -> BP_35MM_Proj_QLZ87_HEDP (no MaxSpeed)"
+   ]
+  }
+ },
+ "QLZ87 · Lynx / CSK131 · no optic": {
+  "velocity": 190.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.85,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -13.15,
+   55.85
+  ],
+  "view_variants": {
+   "Vehicles/ZBL08/Turrets/Cupola_QLZ87/BP_QLZ87_ZBL08_OpenTop_Turret": {
+    "elevation_limits": [
+     -11.65,
+     68.35
+    ],
+    "barrel": "SK_QLZ87_Weapon_Turret:Attach_Muzzle 0.85",
+    "camera": "Camera1pPositionComponent 0.0 on GunMountComponent"
+   }
+  },
+  "sources": {
+   "weapon": "Vehicles/Lynx_8x8/Weapons/BP_QLZ87_Weapon_Lynx8x8",
+   "projectile": "Blueprints/Items/Projectiles/Explosives/BP_35MM_Proj_QLZ87_HEDP",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_QLZ87_Weapon_Turret:Attach_Muzzle 0.85",
+   "mount": "Vehicles/Lynx_8x8/Weapons/BP_QLZ87_Lynx8x8_OpenTop_Turret",
+   "camera": "Camera1pPositionComponent 0.0 on GunMountComponent",
+   "zoom": "normal view, the game's FOV",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -14.0..55.0 + socket pitch",
+   "same_view": [
+    "Vehicles/CSK131/Weapons/BP_QLZ87_CSK_OpenTop_Turret",
+    "Vehicles/WZ551/Turrets/QLZ87/BP_QLZ87_WZ551_OpenTop_Turret"
+   ],
+   "classes": [
+    "BP_QLZ87_Weapon_Lynx8x8 -> BP_35MM_Proj_QLZ87_HEDP (no MaxSpeed)",
+    "BP_QLZ87_OpenTurret_Weapon -> BP_35MM_Proj_QLZ87_HEDP (no MaxSpeed)",
+    "BP_QLZ87_Weapon_WZ551 -> BP_35MM_Proj_QLZ87_HEDP (no MaxSpeed)",
+    "BP_QLZ87_Weapon_ZBL08 -> BP_35MM_Proj_QLZ87_HEDP (no MaxSpeed)"
+   ]
+  }
+ },
+ "AGS-30 / BTR-4 AGS": {
+  "velocity": 190.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 1.6,
+  "zoom": 3.0,
+  "elevation_limits": [
+   -3.3,
+   46.7
+  ],
+  "sources": {
+   "weapon": "Vehicles/BTR4/Weapons/BP_BTR4_KBA117",
+   "projectile": "Vehicles/BMP-2M/Weapons/BP_AGS30_40MM_VOG_Proj",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_BTR4_Gun:BarrelStart_AGS 1.7",
+   "mount": "Vehicles/BTR4/Turrets/BP_BTR4_Turret",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_BTR4_Turret.ZoomLevels[0] of [3.0, 9.0]",
+   "elevation": "TurretMovement.RotationConstraints.PitchInterval -5.0..45.0 + socket pitch",
+   "classes": [
+    "BP_BTR4_KBA117 -> BP_AGS30_40MM_VOG_Proj (no MaxSpeed)"
+   ]
+  }
+ },
+ "AGS-30 (BMP-1TS)": {
+  "velocity": 190.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 1.55,
+  "zoom": 3.0,
+  "elevation_limits": [
+   -3.35,
+   46.65
+  ],
+  "sources": {
+   "weapon": "Vehicles/BMP1TS_AFU/Weapons/BP_BMP1TS_KBA117",
+   "projectile": "Vehicles/BMP-2M/Weapons/BP_AGS30_40MM_VOG_Proj",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_BMP1TS_Gun:BarrelStart_AGS 1.65",
+   "mount": "Vehicles/BMP1TS_AFU/Turrets/BP_BMP1TS_Turret",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_BMP1TS_Turret.ZoomLevels[0] of [3.0, 9.0]",
+   "elevation": "TurretMovement.RotationConstraints.PitchInterval -5.0..45.0 + socket pitch",
+   "classes": [
+    "BP_BMP1TS_KBA117 -> BP_AGS30_40MM_VOG_Proj (no MaxSpeed)"
+   ]
+  }
+ },
+ "AGS-30 (BMP-2M)": {
+  "velocity": 190.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 1.55,
+  "zoom": 1.5,
+  "elevation_limits": [
+   -3.45,
+   75.55
+  ],
+  "sources": {
+   "weapon": "Vehicles/BMP-2M/Weapons/Woodland/BP_BMP2M_AGS30",
+   "projectile": "Vehicles/BMP-2M/Weapons/BP_AGS30_40MM_VOG_Proj",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_BMP2M_Gun:BarrelStart_AGS 1.55",
+   "mount": "Vehicles/BMP-2M/Turrets/BP_BMP2M_Turret",
+   "camera": "FirstPersonCamera 0.0 on GunAttachPoint",
+   "zoom": "BP_BMP2M_Turret.ZoomLevels[0] of [1.5, 6.0]",
+   "elevation": "TurretMovement.RotationConstraints.PitchInterval -5.0..74.0 + socket pitch",
+   "same_view": [
+    "Vehicles/BMP-2M/Turrets/BP_BMP2M_Turret_Desert"
+   ],
+   "classes": [
+    "BP_BMP2M_AGS30 -> BP_AGS30_40MM_VOG_Proj (no MaxSpeed)"
+   ]
+  }
+ },
+ "M72A7 LAW / RPG-26": {
+  "velocity": 144.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": null,
+  "bore_assumed": true,
+  "zoom_assumed": true,
+  "sources": {
+   "weapon": "Blueprints/Items/RocketLaunchers/BP_M72A7_M72A5_2mags",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_M72A5_Rocket_Proj",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
+   "classes": [
+    "BP_M72A7_M72A5_2mags -> BP_M72A5_Rocket_Proj (no MaxSpeed)",
+    "BP_RPG26_2mags -> BP_RPG26_Rocket_Proj2 (no MaxSpeed)",
+    "BP_HAR66_2mags -> BP_M72A7_Rocket_Proj2 (no MaxSpeed)"
+   ]
+  }
+ },
+ "AT-4": {
+  "velocity": 290.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": null,
+  "bore_assumed": true,
+  "zoom_assumed": true,
+  "sources": {
+   "weapon": "Blueprints/Items/RocketLaunchers/BP_M136AT4",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_AT4_Rocket_Proj2",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
+   "classes": [
+    "BP_M136AT4 -> BP_AT4_Rocket_Proj2 (no MaxSpeed)"
+   ]
+  }
+ },
+ "MK153 SMAW": {
+  "velocity": 220.0,
+  "gravity_scale": 1.0,
+  "max_speed": 220.0,
+  "acceleration": 150.0,
+  "acceleration_timeout": 0.8,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": null,
+  "bore_assumed": true,
+  "zoom_assumed": true,
+  "sources": {
+   "weapon": "Blueprints/Items/RocketLaunchers/SMAW/BP_SMAW_HEAT_2mags",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_SMAW_Heat_Proj2",
+   "defaults": "native default: ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
+   "classes": [
+    "BP_SMAW_HEAT_2mags -> BP_SMAW_Heat_Proj2 (MaxSpeed 220 m/s)",
+    "BP_SMAW_Tandem_2mags -> BP_SMAW_Tandem_Heat_Proj2 (MaxSpeed 220 m/s)"
+   ]
+  }
+ },
+ "PF98 · Tandem": {
+  "velocity": 310.0,
+  "gravity_scale": 1.0,
+  "max_speed": 310.0,
+  "acceleration": 230.0,
+  "acceleration_timeout": 1.5,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": null,
+  "bore_assumed": true,
+  "zoom_assumed": true,
+  "sources": {
+   "weapon": "Blueprints/Items/RocketLaunchers/PF-98/BP_PF-98_Tandem_2mags",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_PF-98_Tandem_Proj",
+   "defaults": "native default: ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
+   "classes": [
+    "BP_PF-98_Tandem_2mags -> BP_PF-98_Tandem_Proj (MaxSpeed 310 m/s)"
+   ]
+  }
+ },
+ "PF98 · HE-I": {
+  "velocity": 220.0,
+  "gravity_scale": 1.0,
+  "max_speed": 220.0,
+  "acceleration": 180.0,
+  "acceleration_timeout": 1.5,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": null,
+  "bore_assumed": true,
+  "zoom_assumed": true,
+  "sources": {
+   "weapon": "Blueprints/Items/RocketLaunchers/PF-98/BP_PF-98_HE_2mags",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_PF-98_HE_Proj",
+   "defaults": "native default: ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
+   "classes": [
+    "BP_PF-98_HE_2mags -> BP_PF-98_HE_Proj (MaxSpeed 220 m/s)"
+   ]
+  }
+ },
+ "RPG-29": {
+  "velocity": 280.0,
+  "gravity_scale": 1.0,
+  "max_speed": 280.0,
+  "acceleration": 80.0,
+  "acceleration_timeout": 1.1,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": null,
+  "bore_assumed": true,
+  "zoom_assumed": true,
+  "sources": {
+   "weapon": "Blueprints/Items/RocketLaunchers/BP_RPG29",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_RPG29_Tandem_Heat_Proj2",
+   "defaults": "native default: ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
+   "classes": [
+    "BP_RPG29 -> BP_RPG29_Tandem_Heat_Proj2 (MaxSpeed 280 m/s)"
+   ]
+  }
+ },
+ "RPG-7 · PG-7V HEAT / OG-7V": {
+  "velocity": 117.0,
+  "gravity_scale": 1.0,
+  "max_speed": 250.0,
+  "acceleration": 150.0,
+  "acceleration_timeout": 0.8,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": null,
+  "bore_assumed": true,
+  "zoom_assumed": true,
+  "sources": {
+   "weapon": "Blueprints/Items/RocketLaunchers/RPG7/RPG7/BP_RPG7_Heat",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_RPG7_Heat_Proj2",
+   "defaults": "native default: ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
+   "classes": [
+    "BP_RPG7_Heat -> BP_RPG7_Heat_Proj2 (MaxSpeed 250 m/s)",
+    "BP_RPG7_Frag -> BP_RPG7_Frag_Proj2 (MaxSpeed 250 m/s)"
+   ]
+  }
+ },
+ "RPG-7 · PG-7VR Tandem": {
+  "velocity": 63.0,
+  "gravity_scale": 1.0,
+  "max_speed": 160.0,
+  "acceleration": 45.0,
+  "acceleration_timeout": 0.6,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": null,
+  "bore_assumed": true,
+  "zoom_assumed": true,
+  "sources": {
+   "weapon": "Blueprints/Items/RocketLaunchers/RPG7/RPG7/BP_RPG7_Tandem",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_RPG7_Tandem_Heat_Proj2",
+   "defaults": "native default: ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
+   "classes": [
+    "BP_RPG7_Tandem -> BP_RPG7_Tandem_Heat_Proj2 (MaxSpeed 160 m/s)"
+   ]
+  }
+ },
+ "RPG-7 · TBG-7V Thermobaric": {
+  "velocity": 63.0,
+  "gravity_scale": 1.0,
+  "max_speed": 160.0,
+  "acceleration": 150.0,
+  "acceleration_timeout": 0.6,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": null,
+  "bore_assumed": true,
+  "zoom_assumed": true,
+  "sources": {
+   "weapon": "Blueprints/Items/RocketLaunchers/RPG7/RPG7/BP_RPG7_Thermo",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_RPG7_Thermo_Proj2",
+   "defaults": "native default: ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
+   "classes": [
+    "BP_RPG7_Thermo -> BP_RPG7_Thermo_Proj2 (MaxSpeed 160 m/s)"
+   ]
+  }
+ },
+ "RPG-7V1 · HEAT": {
+  "velocity": 117.0,
+  "gravity_scale": 1.0,
+  "max_speed": 250.0,
+  "acceleration": 150.0,
+  "acceleration_timeout": 0.8,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": null,
+  "bore_assumed": true,
+  "zoom_assumed": true,
+  "sources": {
+   "weapon": "Blueprints/Items/RocketLaunchers/RPG7/RPG7V1/BP_RPG7V1_Heat",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_RPG7_Heat_Proj2",
+   "defaults": "native default: ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
+   "classes": [
+    "BP_RPG7V1_Heat -> BP_RPG7_Heat_Proj2 (MaxSpeed 250 m/s)",
+    "BP_RPG7V1_Frag -> BP_RPG7_Frag_Proj2 (MaxSpeed 250 m/s)"
+   ]
+  }
+ },
+ "M3 MAAWS · HEAT / Smoke": {
+  "velocity": 63.0,
+  "gravity_scale": 1.0,
+  "max_speed": 230.0,
+  "acceleration": 230.0,
+  "acceleration_timeout": 1.5,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": null,
+  "bore_assumed": true,
+  "zoom_assumed": true,
+  "sources": {
+   "weapon": "Blueprints/Items/RocketLaunchers/M3MAAWS/BP_M3MAAWS_Heat",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_M3MAAWS_Heat_Proj2",
+   "defaults": "native default: ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
+   "classes": [
+    "BP_M3MAAWS_Heat -> BP_M3MAAWS_Heat_Proj2 (MaxSpeed 230 m/s)",
+    "BP_M3MAAWS_Smoke -> BP_M3MAAWS_Smoke_Proj2 (MaxSpeed 230 m/s)"
+   ]
+  }
+ },
+ "M3 MAAWS · Tandem": {
+  "velocity": 63.0,
+  "gravity_scale": 1.0,
+  "max_speed": 230.0,
+  "acceleration": 230.0,
+  "acceleration_timeout": 1.5,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": null,
+  "bore_assumed": true,
+  "zoom_assumed": true,
+  "sources": {
+   "weapon": "Blueprints/Items/RocketLaunchers/M3MAAWS/BP_M3MAAWS_Tandem",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_M3MAAWS_Tandem_Heat_Proj2",
+   "defaults": "native default: ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
+   "classes": [
+    "BP_M3MAAWS_Tandem -> BP_M3MAAWS_Tandem_Heat_Proj2 (MaxSpeed 230 m/s)"
+   ]
+  }
+ },
+ "Carl Gustav M2 · FFV551 HEAT": {
+  "velocity": 310.0,
+  "gravity_scale": 1.0,
+  "max_speed": 310.0,
+  "acceleration": 150.0,
+  "acceleration_timeout": 0.8,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": null,
+  "bore_assumed": true,
+  "zoom_assumed": true,
+  "sources": {
+   "weapon": "Blueprints/Items/RocketLaunchers/BP_CarlGustavM2_Parent",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_FFV551_Rocket_Proj2",
+   "defaults": "native default: ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
+   "classes": [
+    "BP_CarlGustavM2_Parent -> BP_FFV551_Rocket_Proj2 (MaxSpeed 310 m/s)"
+   ]
+  }
+ },
+ "Carl Gustav M2 · FFV441D HE": {
+  "velocity": 255.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 0.8,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": null,
+  "bore_assumed": true,
+  "zoom_assumed": true,
+  "sources": {
+   "weapon": "Blueprints/Items/RocketLaunchers/BP_CarlGustavM2_FFV441D_No78Mk1",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_FFV441D_Rocket_Proj",
+   "defaults": "native default: ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
+   "classes": [
+    "BP_CarlGustavM2_FFV441D_No78Mk1 -> BP_FFV441D_Rocket_Proj (no MaxSpeed)"
+   ]
+  }
+ },
+ "Carl Gustav M2 · FFV751 Tandem": {
+  "velocity": 255.0,
+  "gravity_scale": 1.0,
+  "max_speed": 230.0,
+  "acceleration": 230.0,
+  "acceleration_timeout": 1.5,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": null,
+  "bore_assumed": true,
+  "zoom_assumed": true,
+  "sources": {
+   "weapon": "Blueprints/Items/RocketLaunchers/BP_CarlGustavM2_FFV751_No78Mk1",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_FFV751_Tandem_Heat_Proj2",
+   "defaults": "native default: ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
+   "classes": [
+    "BP_CarlGustavM2_FFV751_No78Mk1 -> BP_FFV751_Tandem_Heat_Proj2 (MaxSpeed 230 m/s)"
+   ]
+  }
+ },
+ "NLAW": {
+  "velocity": 40.0,
+  "gravity_scale": 1.0,
+  "max_speed": 250.0,
+  "acceleration": 350.0,
+  "acceleration_timeout": 0.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": true,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": null,
+  "bore_assumed": true,
+  "zoom_assumed": true,
+  "sources": {
+   "weapon": "Blueprints/Items/RocketLaunchers/NLAW/BP_NLAW",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/GuidedMissiles/BP_NLAW_Proj",
+   "defaults": "native default: ConstantAccelerationTimeout, ProjectileGravityScale, bRotationFollowsVelocity",
+   "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
+   "classes": [
+    "BP_NLAW -> BP_NLAW_Proj (MaxSpeed 250 m/s)"
+   ]
+  }
+ },
+ "SPG-9 · HEAT": {
+  "velocity": 435.0,
+  "gravity_scale": 1.2,
+  "max_speed": 330.0,
+  "acceleration": 100.0,
+  "acceleration_timeout": 1.1,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.13,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -9.87,
+   10.13
+  ],
+  "sources": {
+   "weapon": "Vehicles/Emplaced_SPG9/BP_EmplacedSPG9",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_SPG9_pg9v_Heat_Proj2",
+   "defaults": "native default: bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "spg9_ironsight_weapon:Attach_Muzzle_Ironsight 0.13",
+   "mount": "Vehicles/Emplaced_SPG9/BP_EmplacedSPG9_Tripod",
+   "camera": "FirstPersonVehicleCam 0.0 on GunMountComponent",
+   "zoom": "normal view, the game's FOV",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -10.0..10.0 + socket pitch",
+   "classes": [
+    "BP_EmplacedSPG9 -> BP_SPG9_pg9v_Heat_Proj2 (MaxSpeed 330 m/s)",
+    "BP_SPG9 -> BP_SPG9_pg9v_Heat_Proj2 (MaxSpeed 330 m/s)"
+   ]
+  }
+ },
+ "SPG-9 · HEAT · scope": {
+  "velocity": 435.0,
+  "gravity_scale": 1.2,
+  "max_speed": 330.0,
+  "acceleration": 100.0,
+  "acceleration_timeout": 1.1,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 2.34,
+  "zoom": 4.0,
+  "elevation_limits": [
+   -7.66,
+   12.34
+  ],
+  "sources": {
+   "weapon": "Vehicles/Emplaced_SPG9/BP_EmplacedSPG9Scope",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_SPG9_pg9v_Heat_Proj2",
+   "defaults": "native default: bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "spg9_weapon:Attach_Muzzle 2.34",
+   "mount": "Vehicles/Emplaced_SPG9/BP_EmplacedSPG9_TripodScope",
+   "camera": "AdsCamera1pPositionComponent 0.0 on GunMountComponent",
+   "zoom": "BP_EmplacedSPG9Scope BlueprintOnZoom: SetFieldOfView(FOV / 4)",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -10.0..10.0 + socket pitch",
+   "same_view": [
+    "Vehicles/Technical/Turrets/BP_Technical_Turret_SPG9"
+   ],
+   "classes": [
+    "BP_EmplacedSPG9Scope -> BP_SPG9_pg9v_Heat_Proj2 (MaxSpeed 330 m/s)",
+    "BP_SPG9 -> BP_SPG9_pg9v_Heat_Proj2 (MaxSpeed 330 m/s)"
+   ]
+  }
+ },
+ "SPG-9 · HEAT · scope · no optic": {
+  "velocity": 435.0,
+  "gravity_scale": 1.2,
+  "max_speed": 330.0,
+  "acceleration": 100.0,
+  "acceleration_timeout": 1.1,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 2.34,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -7.66,
+   12.34
+  ],
+  "sources": {
+   "weapon": "Vehicles/Emplaced_SPG9/BP_EmplacedSPG9Scope",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_SPG9_pg9v_Heat_Proj2",
+   "defaults": "native default: bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "spg9_weapon:Attach_Muzzle 2.34",
+   "mount": "Vehicles/Emplaced_SPG9/BP_EmplacedSPG9_TripodScope",
+   "camera": "FirstPersonVehicleCam 0.0 on GunMountComponent",
+   "zoom": "normal view, the game's FOV",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -10.0..10.0 + socket pitch",
+   "classes": [
+    "BP_EmplacedSPG9Scope -> BP_SPG9_pg9v_Heat_Proj2 (MaxSpeed 330 m/s)"
+   ]
+  }
+ },
+ "SPG-9 · FRAG": {
+  "velocity": 315.0,
+  "gravity_scale": 1.2,
+  "max_speed": 250.0,
+  "acceleration": 100.0,
+  "acceleration_timeout": 1.1,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.13,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -9.87,
+   10.13
+  ],
+  "sources": {
+   "weapon": "Vehicles/Emplaced_SPG9/BP_EmplacedSPG9_Frag",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_SPG9_og9v_Frag_Proj2",
+   "defaults": "native default: bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "spg9_ironsight_weapon:Attach_Muzzle_Ironsight 0.13",
+   "mount": "Vehicles/Emplaced_SPG9/BP_EmplacedSPG9_Tripod",
+   "camera": "FirstPersonVehicleCam 0.0 on GunMountComponent",
+   "zoom": "normal view, the game's FOV",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -10.0..10.0 + socket pitch",
+   "classes": [
+    "BP_EmplacedSPG9_Frag -> BP_SPG9_og9v_Frag_Proj2 (MaxSpeed 250 m/s)",
+    "BP_SPG9_Frag -> BP_SPG9_og9v_Frag_Proj2 (MaxSpeed 250 m/s)"
+   ]
+  }
+ },
+ "SPG-9 · FRAG · scope": {
+  "velocity": 315.0,
+  "gravity_scale": 1.2,
+  "max_speed": 250.0,
+  "acceleration": 100.0,
+  "acceleration_timeout": 1.1,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 2.34,
+  "zoom": 4.0,
+  "elevation_limits": [
+   -7.66,
+   12.34
+  ],
+  "sources": {
+   "weapon": "Vehicles/Emplaced_SPG9/BP_EmplacedSPG9_FragScope",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_SPG9_og9v_Frag_Proj2",
+   "defaults": "native default: bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "spg9_weapon:Attach_Muzzle 2.34",
+   "mount": "Vehicles/Emplaced_SPG9/BP_EmplacedSPG9_TripodScope",
+   "camera": "AdsCamera1pPositionComponent 0.0 on GunMountComponent",
+   "zoom": "BP_EmplacedSPG9_FragScope BlueprintOnZoom: SetFieldOfView(FOV / 4)",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -10.0..10.0 + socket pitch",
+   "same_view": [
+    "Vehicles/Technical/Turrets/BP_Technical_Turret_SPG9"
+   ],
+   "classes": [
+    "BP_EmplacedSPG9_FragScope -> BP_SPG9_og9v_Frag_Proj2 (MaxSpeed 250 m/s)",
+    "BP_SPG9_Frag -> BP_SPG9_og9v_Frag_Proj2 (MaxSpeed 250 m/s)"
+   ]
+  }
+ },
+ "SPG-9 · FRAG · scope · no optic": {
+  "velocity": 315.0,
+  "gravity_scale": 1.2,
+  "max_speed": 250.0,
+  "acceleration": 100.0,
+  "acceleration_timeout": 1.1,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 2.34,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -7.66,
+   12.34
+  ],
+  "sources": {
+   "weapon": "Vehicles/Emplaced_SPG9/BP_EmplacedSPG9_FragScope",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_SPG9_og9v_Frag_Proj2",
+   "defaults": "native default: bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "spg9_weapon:Attach_Muzzle 2.34",
+   "mount": "Vehicles/Emplaced_SPG9/BP_EmplacedSPG9_TripodScope",
+   "camera": "FirstPersonVehicleCam 0.0 on GunMountComponent",
+   "zoom": "normal view, the game's FOV",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -10.0..10.0 + socket pitch",
+   "classes": [
+    "BP_EmplacedSPG9_FragScope -> BP_SPG9_og9v_Frag_Proj2 (MaxSpeed 250 m/s)"
+   ]
+  }
+ },
+ "2A28 Grom (BMP-1 / BMD-1) · HEAT": {
+  "velocity": 435.0,
+  "gravity_scale": 1.2,
+  "max_speed": 330.0,
+  "acceleration": 100.0,
+  "acceleration_timeout": 1.1,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 1.4,
+  "zoom": 1.5,
+  "elevation_limits": [
+   -2.5,
+   34.5
+  ],
+  "sources": {
+   "weapon": "Vehicles/BMP-1/Weapons/BP_BMP1_2A28_HEAT",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_SPG9_pg9v_Heat_Proj2",
+   "defaults": "native default: bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "bmp1_gun:BarrelStart 1.5",
+   "mount": "Vehicles/BMP-1/Turrets/BP_BMP1_Turret_MEI",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_BMP1_Turret_MEI.ZoomLevels[0] of [1.5, 6.0]",
+   "elevation": "TurretMovement.RotationConstraints.PitchInterval -4.0..33.0 + socket pitch",
+   "same_view": [
+    "Vehicles/Technical2Seater/Turrets/BP_BMP1_Turret_Technical"
+   ],
+   "classes": [
+    "BP_BMP1_2A28_HEAT -> BP_SPG9_pg9v_Heat_Proj2 (MaxSpeed 330 m/s)",
+    "BP_BMD1M_2A28_HEAT -> BP_SPG9_pg9v_Heat_Proj2 (MaxSpeed 330 m/s)",
+    "BP_Technical_BMP1_2A28_HEAT -> BP_SPG9_pg9v_Heat_Proj2 (MaxSpeed 330 m/s)"
+   ]
+  }
+ },
+ "2A28 Grom (BMD-1M) · HEAT": {
+  "velocity": 435.0,
+  "gravity_scale": 1.2,
+  "max_speed": 330.0,
+  "acceleration": 100.0,
+  "acceleration_timeout": 1.1,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 1.57,
+  "zoom": 1.5,
+  "elevation_limits": [
+   -5.33,
+   21.67
+  ],
+  "sources": {
+   "weapon": "Vehicles/BMD-1M/Weapons/BP_BMD1M_2A28_HEAT",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_SPG9_pg9v_Heat_Proj2",
+   "defaults": "native default: bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "bmd1m_gun:BarrelStart 1.67",
+   "mount": "Vehicles/BMD-1M/Turrets/BP_BMD1M_Turret",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_BMD1M_Turret.ZoomLevels[0] of [1.5, 6.0]",
+   "elevation": "TurretMovement.RotationConstraints.PitchInterval -7.0..20.0 + socket pitch",
+   "classes": [
+    "BP_BMD1M_2A28_HEAT -> BP_SPG9_pg9v_Heat_Proj2 (MaxSpeed 330 m/s)"
+   ]
+  }
+ },
+ "2A28 Grom (BMP-1 / BMD-1) · FRAG": {
+  "velocity": 290.0,
+  "gravity_scale": 1.2,
+  "max_speed": 250.0,
+  "acceleration": 100.0,
+  "acceleration_timeout": 1.1,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 1.4,
+  "zoom": 1.5,
+  "elevation_limits": [
+   -2.5,
+   34.5
+  ],
+  "sources": {
+   "weapon": "Vehicles/BMP-1/Weapons/BP_BMP1_2A28_Frag",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_SPG9_og9v_Frag_Proj2",
+   "defaults": "native default: bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "bmp1_gun:BarrelStart 1.5",
+   "mount": "Vehicles/BMP-1/Turrets/BP_BMP1_Turret_MEI",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_BMP1_Turret_MEI.ZoomLevels[0] of [1.5, 6.0]",
+   "elevation": "TurretMovement.RotationConstraints.PitchInterval -4.0..33.0 + socket pitch",
+   "same_view": [
+    "Vehicles/Technical2Seater/Turrets/BP_BMP1_Turret_Technical"
+   ],
+   "classes": [
+    "BP_BMP1_2A28_Frag -> BP_SPG9_og9v_Frag_Proj2 (MaxSpeed 250 m/s)",
+    "BP_BMD1M_2A28_Frag -> BP_SPG9_og9v_Frag_Proj2 (MaxSpeed 250 m/s)",
+    "BP_Technical_BMP1_2A28_Frag -> BP_SPG9_og9v_Frag_Proj2 (MaxSpeed 250 m/s)"
+   ]
+  }
+ },
+ "2A28 Grom (BMD-1M) · FRAG": {
+  "velocity": 290.0,
+  "gravity_scale": 1.2,
+  "max_speed": 250.0,
+  "acceleration": 100.0,
+  "acceleration_timeout": 1.1,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 1.57,
+  "zoom": 1.5,
+  "elevation_limits": [
+   -5.33,
+   21.67
+  ],
+  "sources": {
+   "weapon": "Vehicles/BMD-1M/Weapons/BP_BMD1M_2A28_Frag",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_SPG9_og9v_Frag_Proj2",
+   "defaults": "native default: bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "bmd1m_gun:BarrelStart 1.67",
+   "mount": "Vehicles/BMD-1M/Turrets/BP_BMD1M_Turret",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_BMD1M_Turret.ZoomLevels[0] of [1.5, 6.0]",
+   "elevation": "TurretMovement.RotationConstraints.PitchInterval -7.0..20.0 + socket pitch",
+   "classes": [
+    "BP_BMD1M_2A28_Frag -> BP_SPG9_og9v_Frag_Proj2 (MaxSpeed 250 m/s)"
+   ]
+  }
+ },
+ "2A70 100mm (BMP-3 / BMD-4 / ZBD04A) · FRAG": {
+  "velocity": 355.0,
+  "gravity_scale": 2.0,
+  "max_speed": 850.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": false,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.575,
+  "zoom": 2.5,
+  "elevation_limits": [
+   -5.325,
+   60.675
+  ],
+  "sources": {
+   "weapon": "Vehicles/BMP-3M/Weapons/BP_BMP3M_2A70_HEFrag",
+   "projectile": "Blueprints/Items/Projectiles/BP_Projectile_100mm_Frag",
+   "defaults": "native default: ConstantAcceleration, bIgnoreGravityDuringConstantAcceleration",
+   "barrel": "SK_BMP3M_Gun:socket_muzzle 0.675",
+   "mount": "Vehicles/BMP-3M/Turrets/BP_BMP3M_Turret",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_BMP3M_Turret.ZoomLevels[0] of [2.5, 4.0, 14.0]",
+   "elevation": "TurretMovement.RotationConstraints.PitchInterval -6.0..60.0 + socket pitch",
+   "classes": [
+    "BP_BMP3M_2A70_HEFrag -> BP_Projectile_100mm_Frag (MaxSpeed 850 m/s)",
+    "BP_BMD4M_2A70_HEFrag -> BP_Projectile_100mm_Frag (MaxSpeed 850 m/s)",
+    "BP_ZBD04A_2A70_HEFrag -> BP_Projectile_100mm_Frag (MaxSpeed 850 m/s)"
+   ]
+  }
+ },
+ "2A70 100mm (ZBD-04A) · FRAG": {
+  "velocity": 355.0,
+  "gravity_scale": 2.0,
+  "max_speed": 850.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": false,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.95,
+  "zoom": 2.5,
+  "elevation_limits": [
+   -1.95,
+   61.05
+  ],
+  "sources": {
+   "weapon": "Vehicles/ZBD04A/Weapons/BP_ZBD04A_2A70_HEFrag",
+   "projectile": "Blueprints/Items/Projectiles/BP_Projectile_100mm_Frag",
+   "defaults": "native default: ConstantAcceleration, bIgnoreGravityDuringConstantAcceleration",
+   "barrel": "ZBD04A_Gun:socket_muzzle 1.05",
+   "mount": "Vehicles/ZBD04A/Turrets/BP_ZBD04A_Turret",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_ZBD04A_Turret.ZoomLevels[0] of [2.5, 4.0, 14.0]",
+   "elevation": "TurretMovement.RotationConstraints.PitchInterval -3.0..60.0 + socket pitch",
+   "classes": [
+    "BP_ZBD04A_2A70_HEFrag -> BP_Projectile_100mm_Frag (MaxSpeed 850 m/s)"
+   ]
+  }
+ },
+ "2A70 100mm (BMD-4M) · FRAG": {
+  "velocity": 355.0,
+  "gravity_scale": 2.0,
+  "max_speed": 850.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": false,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.575,
+  "zoom": 2.5,
+  "elevation_limits": [
+   -5.325,
+   60.675
+  ],
+  "sources": {
+   "weapon": "Vehicles/BMD-4M/Weapons/BP_BMD4M_2A70_HEFrag",
+   "projectile": "Blueprints/Items/Projectiles/BP_Projectile_100mm_Frag",
+   "defaults": "native default: ConstantAcceleration, bIgnoreGravityDuringConstantAcceleration",
+   "barrel": "BMD4M_Gun:socket_muzzle 0.675",
+   "mount": "Vehicles/BMD-4M/Turrets/BP_BMD4M_Turret",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_BMD4M_Turret.ZoomLevels[0] of [2.5, 5.0, 14.0]",
+   "elevation": "TurretMovement.RotationConstraints.PitchInterval -6.0..60.0 + socket pitch",
+   "classes": [
+    "BP_BMD4M_2A70_HEFrag -> BP_Projectile_100mm_Frag (MaxSpeed 850 m/s)"
+   ]
+  }
+ },
+ "ZiS-3": {
+  "velocity": 700.0,
+  "gravity_scale": 2.0,
+  "max_speed": 700.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": false,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.4,
+  "zoom": 4.0,
+  "elevation_limits": [
+   -14.6,
+   37.4
+  ],
+  "sources": {
+   "weapon": "Vehicles/Emplaced_ZiS3_Cannon/Weapons/BP_ZiS3_Weapon_HEAT",
+   "projectile": "Vehicles/Emplaced_ZiS3_Cannon/Weapons/BP_Projectile_76mm_HEAT",
+   "defaults": "native default: ConstantAcceleration, bIgnoreGravityDuringConstantAcceleration",
+   "barrel": "ZiS3_Gun:AttachMuzzle 0.4",
+   "mount": "Vehicles/Emplaced_ZiS3_Cannon/BP_ZiS3_Base",
+   "camera": "AdsCamera1pPositionComponent 0.0 on GunMountComponent",
+   "zoom": "BP_ZiS3_Base.ZoomLevels[1] of [1.0, 4.0]",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -15.0..37.0 + socket pitch",
+   "classes": [
+    "BP_ZiS3_Weapon_HEAT -> BP_Projectile_76mm_HEAT (MaxSpeed 700 m/s)",
+    "BP_ZiS3_Weapon_Frag -> BP_Projectile_76mm_Frag (MaxSpeed 700 m/s)"
+   ]
+  }
+ },
+ "ZiS-3 · no optic": {
+  "velocity": 700.0,
+  "gravity_scale": 2.0,
+  "max_speed": 700.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": false,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.4,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -14.6,
+   37.4
+  ],
+  "sources": {
+   "weapon": "Vehicles/Emplaced_ZiS3_Cannon/Weapons/BP_ZiS3_Weapon_HEAT",
+   "projectile": "Vehicles/Emplaced_ZiS3_Cannon/Weapons/BP_Projectile_76mm_HEAT",
+   "defaults": "native default: ConstantAcceleration, bIgnoreGravityDuringConstantAcceleration",
+   "barrel": "ZiS3_Gun:AttachMuzzle 0.4",
+   "mount": "Vehicles/Emplaced_ZiS3_Cannon/BP_ZiS3_Base",
+   "camera": "FirstPersonVehicleCam 0.0 on GunMountComponent",
+   "zoom": "BP_ZiS3_Base.ZoomLevels[0] of [1.0, 4.0]",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -15.0..37.0 + socket pitch",
+   "classes": [
+    "BP_ZiS3_Weapon_HEAT -> BP_Projectile_76mm_HEAT (MaxSpeed 700 m/s)",
+    "BP_ZiS3_Weapon_Frag -> BP_Projectile_76mm_Frag (MaxSpeed 700 m/s)"
+   ]
+  }
+ },
+ "Tank AP · 2A46 / ZPT98 / 2A20 / 2A45 / KBA3": {
+  "velocity": 1300.0,
+  "gravity_scale": 2.5,
+  "max_speed": 1500.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.28,
+  "zoom": 4.0,
+  "elevation_limits": [
+   -5.62,
+   14.38
+  ],
+  "view_variants": {
+   "Vehicles/Sprut-SDM1/Turrets/BP_Sprut_Turret": {
+    "bore": 0.29,
+    "elevation_limits": [
+     -5.61,
+     14.39
+    ],
+    "barrel": "Sprut_Gun:socket_muzzle 0.39",
+    "camera": "FirstPersonCamera 0.1 on GunAttachPoint"
+   }
+  },
+  "sources": {
+   "weapon": "Vehicles/T72B3/Weapons/BP_2A46_AP",
+   "projectile": "Blueprints/Items/Projectiles/BP_Projectile_120mm_AP",
+   "defaults": "native default: ConstantAcceleration, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "T72B3_gun:socket_muzzle 0.38",
+   "mount": "Vehicles/T72B3/Turrets/BP_T72B3_Turret",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_T72B3_Turret.ZoomLevels[0] of [4.0, 12.0]",
+   "elevation": "TurretMovement curves T72B3_YawToMinPitch / T72B3_YawToMaxPitch: -6.0..14.0 (yaw 0: -6.0..14.0) + socket pitch",
+   "same_view": [
+    "Vehicles/T72A/Turrets/BP_T72A_IMF_Turret",
+    "Vehicles/T72AV/Turrets/BP_T72S_GFI_Turret",
+    "Vehicles/T90A/Turrets/BP_T90A_Turret"
+   ],
+   "classes": [
+    "BP_2A46_AP -> BP_Projectile_120mm_AP (MaxSpeed 1500 m/s)",
+    "BP_2A46_T72A_AP -> BP_Projectile_120mm_AP (MaxSpeed 1500 m/s)",
+    "BP_2A46_T72S_AP -> BP_Projectile_120mm_AP (MaxSpeed 1500 m/s)",
+    "BP_2A46M_AP -> BP_Projectile_120mm_AP (MaxSpeed 1500 m/s)",
+    "BP_2A45_AP -> BP_Projectile_120mm_AP (MaxSpeed 1500 m/s)",
+    "BP_ZPT-98_AP -> BP_Projectile_120mm_AP (MaxSpeed 1500 m/s)",
+    "BP_2A20_AP -> BP_Projectile_120mm_AP (MaxSpeed 1500 m/s)",
+    "BP_KBA3_AP -> BP_Projectile_120mm_AP (MaxSpeed 1500 m/s)"
+   ]
+  }
+ },
+ "Tank AP · T-62 (2A20)": {
+  "velocity": 1300.0,
+  "gravity_scale": 2.5,
+  "max_speed": 1500.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.05,
+  "zoom": 3.5,
+  "elevation_limits": [
+   -5.85,
+   16.15
+  ],
+  "sources": {
+   "weapon": "Vehicles/T62/Weapons/BP_2A20_AP",
+   "projectile": "Blueprints/Items/Projectiles/BP_Projectile_120mm_AP",
+   "defaults": "native default: ConstantAcceleration, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "T62_gun:socket_muzzle 0.15",
+   "mount": "Vehicles/T62/Turrets/BP_T62_Turret",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_T62_Turret.ZoomLevels[0] of [3.5, 7.0]",
+   "elevation": "TurretMovement.RotationConstraints.PitchInterval -6.0..16.0 + socket pitch",
+   "classes": [
+    "BP_2A20_AP -> BP_Projectile_120mm_AP (MaxSpeed 1500 m/s)"
+   ]
+  }
+ },
+ "Tank AP · T-64BM2 (KBA3)": {
+  "velocity": 1300.0,
+  "gravity_scale": 2.5,
+  "max_speed": 1500.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.29,
+  "zoom": 2.7,
+  "elevation_limits": [
+   -5.61,
+   14.39
+  ],
+  "sources": {
+   "weapon": "Vehicles/T64_BM2/Weapons/BP_KBA3_AP",
+   "projectile": "Blueprints/Items/Projectiles/BP_Projectile_120mm_AP",
+   "defaults": "native default: ConstantAcceleration, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_T64_BM2_Gun:socket_muzzle 0.39",
+   "mount": "Vehicles/T64_BM2/Turrets/BP_T64BM2_Turret",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_T64BM2_Turret.ZoomLevels[0] of [2.7, 12.0]",
+   "elevation": "TurretMovement curves T72B3_YawToMinPitch / T72B3_YawToMaxPitch: -6.0..14.0 (yaw 0: -6.0..14.0) + socket pitch",
+   "classes": [
+    "BP_KBA3_AP -> BP_Projectile_120mm_AP (MaxSpeed 1500 m/s)"
+   ]
+  }
+ },
+ "Tank AP · ZTZ-99 (ZPT-98)": {
+  "velocity": 1300.0,
+  "gravity_scale": 2.5,
+  "max_speed": 1500.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.1,
+  "zoom": 4.0,
+  "elevation_limits": [
+   -5.8,
+   14.2
+  ],
+  "sources": {
+   "weapon": "Vehicles/ZTZ99/Weapons/BP_ZPT-98_AP",
+   "projectile": "Blueprints/Items/Projectiles/BP_Projectile_120mm_AP",
+   "defaults": "native default: ConstantAcceleration, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "ZTZ99_Gun:socket_muzzle 0.2",
+   "mount": "Vehicles/ZTZ99/Turrets/BP_ZTZ99_Turret",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_ZTZ99_Turret.ZoomLevels[0] of [4.0, 12.0]",
+   "elevation": "TurretMovement curves T72B3_YawToMinPitch / T72B3_YawToMaxPitch: -6.0..14.0 (yaw 0: -6.0..14.0) + socket pitch",
+   "same_view": [
+    "Vehicles/ZTZ99/Turrets/BP_ZTZ99_Turret_Cage"
+   ],
+   "classes": [
+    "BP_ZPT-98_AP -> BP_Projectile_120mm_AP (MaxSpeed 1500 m/s)"
+   ]
+  }
+ },
+ "Tank AP · M256 / Rh120": {
+  "velocity": 1200.0,
+  "gravity_scale": 2.5,
+  "max_speed": 1500.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.31,
+  "zoom": 3.0,
+  "elevation_limits": [
+   -9.59,
+   20.41
+  ],
+  "sources": {
+   "weapon": "Vehicles/M1A2/Weapons/BP_M256A1_AP",
+   "projectile": "Blueprints/Items/Projectiles/BP_Projectile_120mm_AP",
+   "defaults": "native default: ConstantAcceleration, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "m1a2_maingun:socket_muzzle 0.41",
+   "mount": "Vehicles/M1A2/Turrets/BP_M1A2_Turret",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_M1A2_Turret.ZoomLevels[0] of [3.0, 6.0, 12.0]",
+   "elevation": "TurretMovement curves M1A2_YawToMinPitch / M1A2_YawToMaxPitch: -10.0..20.0 (yaw 0: -10.0..20.0) + socket pitch",
+   "same_view": [
+    "Vehicles/AUS_M1A1/Turrets/BP_AUS_M1A1_Turret"
+   ],
+   "classes": [
+    "BP_M256A1_AP -> BP_Projectile_120mm_AP (MaxSpeed 1500 m/s)",
+    "BP_M256A1_AP_ADF -> BP_Projectile_120mm_AP (MaxSpeed 1500 m/s)",
+    "BP_L55_AP -> BP_Projectile_120mm_AP (MaxSpeed 1500 m/s)",
+    "BP_MG253_AP -> BP_Projectile_120mm_AP (MaxSpeed 1500 m/s)"
+   ]
+  }
+ },
+ "Tank AP · Leopard 2A6 (Rh120)": {
+  "velocity": 1200.0,
+  "gravity_scale": 2.5,
+  "max_speed": 1500.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.25,
+  "zoom": 3.0,
+  "elevation_limits": [
+   -9.65,
+   20.35
+  ],
+  "sources": {
+   "weapon": "Vehicles/Leopard2/Weapons/BP_L55_AP",
+   "projectile": "Blueprints/Items/Projectiles/BP_Projectile_120mm_AP",
+   "defaults": "native default: ConstantAcceleration, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "2a6_gun:socket_muzzle 0.35",
+   "mount": "Vehicles/Leopard2/Turrets/BP_2A6_Turret_Woodland",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_2A6_Turret_Woodland.ZoomLevels[0] of [3.0, 12.0]",
+   "elevation": "TurretMovement curves M1A2_YawToMinPitch / M1A2_YawToMaxPitch: -10.0..20.0 (yaw 0: -10.0..20.0) + socket pitch",
+   "classes": [
+    "BP_L55_AP -> BP_Projectile_120mm_AP (MaxSpeed 1500 m/s)"
+   ]
+  }
+ },
+ "Tank AP · M60T (MG253)": {
+  "velocity": 1200.0,
+  "gravity_scale": 2.5,
+  "max_speed": 1500.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.5,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -8.4,
+   20.6
+  ],
+  "sources": {
+   "weapon": "Vehicles/M60T/Weapons/BP_MG253_AP",
+   "projectile": "Blueprints/Items/Projectiles/BP_Projectile_120mm_AP",
+   "defaults": "native default: ConstantAcceleration, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_M60T_Gun:socket_muzzle 0.6",
+   "mount": "Vehicles/M60T/Turrets/BP_M60T_Turret",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_M60T_Turret.ZoomLevels[0] of [1.0, 3.0, 8.0]",
+   "elevation": "TurretMovement curves M60T_YawToMinPitch / M60T_YawToMaxPitch: -9.0..20.0 (yaw 0: -9.0..20.0) + socket pitch",
+   "same_view": [
+    "Vehicles/M60T_WPMC/Turrets/BP_M60T_Turret_WPMC"
+   ],
+   "classes": [
+    "BP_MG253_AP -> BP_Projectile_120mm_AP (MaxSpeed 1500 m/s)",
+    "BP_MG253_AP_WPMC -> BP_Projectile_120mm_AP (MaxSpeed 1500 m/s)"
+   ]
+  }
+ },
+ "Tank AP · L30A1 (Challenger 2) / M68A2": {
+  "velocity": 1500.0,
+  "gravity_scale": 2.5,
+  "max_speed": 1500.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.31,
+  "zoom": 1.5,
+  "elevation_limits": [
+   -9.59,
+   20.41
+  ],
+  "sources": {
+   "weapon": "Vehicles/FV4034/Weapons/BP_L30A1_AP",
+   "projectile": "Blueprints/Items/Projectiles/BP_Projectile_120mm_AP",
+   "defaults": "native default: ConstantAcceleration, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "FV4034_Gun:socket_muzzle 0.41",
+   "mount": "Vehicles/FV4034/Turrets/BP_FV4034_Turret",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_FV4034_Turret.ZoomLevels[0] of [1.5, 4.0, 10.0]",
+   "elevation": "TurretMovement curves FV4034_YawToMinPitch / FV4034_YawToMaxPitch: -10.0..20.0 (yaw 0: -10.0..20.0) + socket pitch",
+   "classes": [
+    "BP_L30A1_AP -> BP_Projectile_120mm_AP (MaxSpeed 1500 m/s)",
+    "BP_M68A2_AP -> BP_Projectile_120mm_AP (MaxSpeed 1500 m/s)"
+   ]
+  }
+ },
+ "Tank AP · M1128 MGS (M68A2)": {
+  "velocity": 1500.0,
+  "gravity_scale": 2.5,
+  "max_speed": 1500.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.6,
+  "zoom": 3.0,
+  "elevation_limits": [
+   -4.3,
+   15.7
+  ],
+  "sources": {
+   "weapon": "Vehicles/M1128_MGS/Weapons/BP_M68A2_AP",
+   "projectile": "Blueprints/Items/Projectiles/BP_Projectile_120mm_AP",
+   "defaults": "native default: ConstantAcceleration, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "MGS_Gun:socket_muzzle 0.7",
+   "mount": "Vehicles/M1128_MGS/Turrets/BP_M1128_Turret",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_M1128_Turret.ZoomLevels[0] of [3.0, 8.0]",
+   "elevation": "TurretMovement.RotationConstraints.PitchInterval -5.0..15.0 + socket pitch",
+   "classes": [
+    "BP_M68A2_AP -> BP_Projectile_120mm_AP (MaxSpeed 1500 m/s)"
+   ]
+  }
+ },
+ "Tank HEAT/HE · M256 / Rh120 / 2A46 / ZPT98 / 2A20 / M68A2": {
+  "velocity": 1100.0,
+  "gravity_scale": 2.0,
+  "max_speed": 850.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": false,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.28,
+  "zoom": 4.0,
+  "elevation_limits": [
+   -5.62,
+   14.38
+  ],
+  "view_variants": {
+   "Vehicles/Sprut-SDM1/Turrets/BP_Sprut_Turret": {
+    "bore": 0.29,
+    "elevation_limits": [
+     -5.61,
+     14.39
+    ],
+    "barrel": "Sprut_Gun:socket_muzzle 0.39",
+    "camera": "FirstPersonCamera 0.1 on GunAttachPoint"
+   }
+  },
+  "variants": {
+   "Vehicles/M1A2/Weapons/BP_M256A1_HEAT": {
+    "max_speed": 800.0,
+    "projectile": "Blueprints/Items/Projectiles/BP_Projectile_120mm_HEAT"
+   },
+   "Vehicles/Leopard2/Weapons/BP_L55_HEAT": {
+    "max_speed": 800.0,
+    "projectile": "Blueprints/Items/Projectiles/BP_Projectile_120mm_HEAT"
+   },
+   "Vehicles/M1128_MGS/Weapons/BP_M68A2_HEAT": {
+    "max_speed": 800.0,
+    "projectile": "Blueprints/Items/Projectiles/BP_Projectile_120mm_HEAT"
+   }
+  },
+  "sources": {
+   "weapon": "Vehicles/T72B3/Weapons/BP_2A46_HEAT",
+   "projectile": "Blueprints/Items/Projectiles/BP_Projectile_125mm_HEAT",
+   "defaults": "native default: ConstantAcceleration, bIgnoreGravityDuringConstantAcceleration",
+   "barrel": "T72B3_gun:socket_muzzle 0.38",
+   "mount": "Vehicles/T72B3/Turrets/BP_T72B3_Turret",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_T72B3_Turret.ZoomLevels[0] of [4.0, 12.0]",
+   "elevation": "TurretMovement curves T72B3_YawToMinPitch / T72B3_YawToMaxPitch: -6.0..14.0 (yaw 0: -6.0..14.0) + socket pitch",
+   "same_view": [
+    "Vehicles/T72A/Turrets/BP_T72A_IMF_Turret",
+    "Vehicles/T72AV/Turrets/BP_T72S_GFI_Turret",
+    "Vehicles/T90A/Turrets/BP_T90A_Turret"
+   ],
+   "classes": [
+    "BP_2A46_HEAT -> BP_Projectile_125mm_HEAT (MaxSpeed 850 m/s)",
+    "BP_2A46_Frag -> BP_Projectile_125mm_Frag (MaxSpeed 850 m/s)",
+    "BP_2A46_T72A_HEAT -> BP_Projectile_125mm_HEAT (MaxSpeed 850 m/s)",
+    "BP_2A46_T72A_Frag -> BP_Projectile_125mm_Frag (MaxSpeed 850 m/s)",
+    "BP_2A46_T72S_HEAT -> BP_Projectile_125mm_HEAT (MaxSpeed 850 m/s)",
+    "BP_2A46_T72S_Frag -> BP_Projectile_125mm_Frag (MaxSpeed 850 m/s)",
+    "BP_2A46M_HEAT -> BP_Projectile_125mm_HEAT (MaxSpeed 850 m/s)",
+    "BP_2A46M_Frag -> BP_Projectile_125mm_Frag (MaxSpeed 850 m/s)",
+    "BP_2A45_HEAT -> BP_Projectile_125mm_HEAT (MaxSpeed 850 m/s)",
+    "BP_2A45_Frag -> BP_Projectile_125mm_Frag (MaxSpeed 850 m/s)",
+    "BP_M256A1_HEAT -> BP_Projectile_120mm_HEAT (MaxSpeed 800 m/s)",
+    "BP_L55_HEAT -> BP_Projectile_120mm_HEAT (MaxSpeed 800 m/s)",
+    "BP_ZPT-98_HEAT -> BP_Projectile_125mm_HEAT (MaxSpeed 850 m/s)",
+    "BP_ZPT-98_HE -> BP_Projectile_125mm_Frag (MaxSpeed 850 m/s)",
+    "BP_2A20_HEAT -> BP_Projectile_115mm_HEAT (MaxSpeed 850 m/s)",
+    "BP_2A20_Frag -> BP_Projectile_125mm_Frag (MaxSpeed 850 m/s)",
+    "BP_M68A2_HEAT -> BP_Projectile_120mm_HEAT (MaxSpeed 800 m/s)",
+    "BP_MG253_Frag -> BP_Projectile_125mm_Frag (MaxSpeed 850 m/s)"
+   ]
+  }
+ },
+ "Tank HEAT/HE · M1A1 / M1A2 (M256)": {
+  "velocity": 1100.0,
+  "gravity_scale": 2.0,
+  "max_speed": 800.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.31,
+  "zoom": 3.0,
+  "elevation_limits": [
+   -9.59,
+   20.41
+  ],
+  "sources": {
+   "weapon": "Vehicles/M1A2/Weapons/BP_M256A1_HEAT",
+   "projectile": "Blueprints/Items/Projectiles/BP_Projectile_120mm_HEAT",
+   "defaults": "native default: ConstantAcceleration, bIgnoreGravityDuringConstantAcceleration",
+   "barrel": "m1a2_maingun:socket_muzzle 0.41",
+   "mount": "Vehicles/M1A2/Turrets/BP_M1A2_Turret",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_M1A2_Turret.ZoomLevels[0] of [3.0, 6.0, 12.0]",
+   "elevation": "TurretMovement curves M1A2_YawToMinPitch / M1A2_YawToMaxPitch: -10.0..20.0 (yaw 0: -10.0..20.0) + socket pitch",
+   "same_view": [
+    "Vehicles/AUS_M1A1/Turrets/BP_AUS_M1A1_Turret"
+   ],
+   "classes": [
+    "BP_M256A1_HEAT -> BP_Projectile_120mm_HEAT (MaxSpeed 800 m/s)"
+   ]
+  }
+ },
+ "Tank HEAT/HE · Leopard 2A6 (Rh120)": {
+  "velocity": 1100.0,
+  "gravity_scale": 2.0,
+  "max_speed": 800.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.25,
+  "zoom": 3.0,
+  "elevation_limits": [
+   -9.65,
+   20.35
+  ],
+  "sources": {
+   "weapon": "Vehicles/Leopard2/Weapons/BP_L55_HEAT",
+   "projectile": "Blueprints/Items/Projectiles/BP_Projectile_120mm_HEAT",
+   "defaults": "native default: ConstantAcceleration, bIgnoreGravityDuringConstantAcceleration",
+   "barrel": "2a6_gun:socket_muzzle 0.35",
+   "mount": "Vehicles/Leopard2/Turrets/BP_2A6_Turret_Woodland",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_2A6_Turret_Woodland.ZoomLevels[0] of [3.0, 12.0]",
+   "elevation": "TurretMovement curves M1A2_YawToMinPitch / M1A2_YawToMaxPitch: -10.0..20.0 (yaw 0: -10.0..20.0) + socket pitch",
+   "classes": [
+    "BP_L55_HEAT -> BP_Projectile_120mm_HEAT (MaxSpeed 800 m/s)"
+   ]
+  }
+ },
+ "Tank HEAT/HE · M1128 MGS (M68A2)": {
+  "velocity": 1100.0,
+  "gravity_scale": 2.0,
+  "max_speed": 800.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.6,
+  "zoom": 3.0,
+  "elevation_limits": [
+   -4.3,
+   15.7
+  ],
+  "sources": {
+   "weapon": "Vehicles/M1128_MGS/Weapons/BP_M68A2_HEAT",
+   "projectile": "Blueprints/Items/Projectiles/BP_Projectile_120mm_HEAT",
+   "defaults": "native default: ConstantAcceleration, bIgnoreGravityDuringConstantAcceleration",
+   "barrel": "MGS_Gun:socket_muzzle 0.7",
+   "mount": "Vehicles/M1128_MGS/Turrets/BP_M1128_Turret",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_M1128_Turret.ZoomLevels[0] of [3.0, 8.0]",
+   "elevation": "TurretMovement.RotationConstraints.PitchInterval -5.0..15.0 + socket pitch",
+   "classes": [
+    "BP_M68A2_HEAT -> BP_Projectile_120mm_HEAT (MaxSpeed 800 m/s)"
+   ]
+  }
+ },
+ "Tank HEAT/HE · M60T (MG253)": {
+  "velocity": 1100.0,
+  "gravity_scale": 2.0,
+  "max_speed": 850.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": false,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.5,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -8.4,
+   20.6
+  ],
+  "sources": {
+   "weapon": "Vehicles/M60T/Weapons/BP_MG253_Frag",
+   "projectile": "Blueprints/Items/Projectiles/BP_Projectile_125mm_Frag",
+   "defaults": "native default: ConstantAcceleration, bIgnoreGravityDuringConstantAcceleration",
+   "barrel": "SK_M60T_Gun:socket_muzzle 0.6",
+   "mount": "Vehicles/M60T/Turrets/BP_M60T_Turret",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_M60T_Turret.ZoomLevels[0] of [1.0, 3.0, 8.0]",
+   "elevation": "TurretMovement curves M60T_YawToMinPitch / M60T_YawToMaxPitch: -9.0..20.0 (yaw 0: -9.0..20.0) + socket pitch",
+   "same_view": [
+    "Vehicles/M60T_WPMC/Turrets/BP_M60T_Turret_WPMC"
+   ],
+   "classes": [
+    "BP_MG253_Frag -> BP_Projectile_125mm_Frag (MaxSpeed 850 m/s)",
+    "BP_MG253_Frag_WPMC -> BP_Projectile_125mm_Frag (MaxSpeed 850 m/s)"
+   ]
+  }
+ },
+ "Tank HEAT/HE · ZTZ-99 (ZPT-98)": {
+  "velocity": 1100.0,
+  "gravity_scale": 2.0,
+  "max_speed": 850.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": false,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.1,
+  "zoom": 4.0,
+  "elevation_limits": [
+   -5.8,
+   14.2
+  ],
+  "sources": {
+   "weapon": "Vehicles/ZTZ99/Weapons/BP_ZPT-98_HEAT",
+   "projectile": "Blueprints/Items/Projectiles/BP_Projectile_125mm_HEAT",
+   "defaults": "native default: ConstantAcceleration, bIgnoreGravityDuringConstantAcceleration",
+   "barrel": "ZTZ99_Gun:socket_muzzle 0.2",
+   "mount": "Vehicles/ZTZ99/Turrets/BP_ZTZ99_Turret",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_ZTZ99_Turret.ZoomLevels[0] of [4.0, 12.0]",
+   "elevation": "TurretMovement curves T72B3_YawToMinPitch / T72B3_YawToMaxPitch: -6.0..14.0 (yaw 0: -6.0..14.0) + socket pitch",
+   "same_view": [
+    "Vehicles/ZTZ99/Turrets/BP_ZTZ99_Turret_Cage"
+   ],
+   "classes": [
+    "BP_ZPT-98_HEAT -> BP_Projectile_125mm_HEAT (MaxSpeed 850 m/s)",
+    "BP_ZPT-98_HE -> BP_Projectile_125mm_Frag (MaxSpeed 850 m/s)"
+   ]
+  }
+ },
+ "Tank HEAT/HE · T-62 (2A20)": {
+  "velocity": 1100.0,
+  "gravity_scale": 2.0,
+  "max_speed": 850.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": false,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.05,
+  "zoom": 3.5,
+  "elevation_limits": [
+   -5.85,
+   16.15
+  ],
+  "sources": {
+   "weapon": "Vehicles/T62/Weapons/BP_2A20_HEAT",
+   "projectile": "Blueprints/Items/Projectiles/BP_Projectile_115mm_HEAT",
+   "defaults": "native default: ConstantAcceleration, bIgnoreGravityDuringConstantAcceleration",
+   "barrel": "T62_gun:socket_muzzle 0.15",
+   "mount": "Vehicles/T62/Turrets/BP_T62_Turret",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_T62_Turret.ZoomLevels[0] of [3.5, 7.0]",
+   "elevation": "TurretMovement.RotationConstraints.PitchInterval -6.0..16.0 + socket pitch",
+   "classes": [
+    "BP_2A20_HEAT -> BP_Projectile_115mm_HEAT (MaxSpeed 850 m/s)",
+    "BP_2A20_Frag -> BP_Projectile_125mm_Frag (MaxSpeed 850 m/s)"
+   ]
+  }
+ },
+ "Tank HEAT/HE · T-64BM2 (KBA3)": {
+  "velocity": 1100.0,
+  "gravity_scale": 2.0,
+  "max_speed": 850.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": false,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.29,
+  "zoom": 2.7,
+  "elevation_limits": [
+   -5.61,
+   14.39
+  ],
+  "sources": {
+   "weapon": "Vehicles/T64_BM2/Weapons/BP_KBA3_HEAT",
+   "projectile": "Blueprints/Items/Projectiles/BP_Projectile_125mm_HEAT",
+   "defaults": "native default: ConstantAcceleration, bIgnoreGravityDuringConstantAcceleration",
+   "barrel": "SK_T64_BM2_Gun:socket_muzzle 0.39",
+   "mount": "Vehicles/T64_BM2/Turrets/BP_T64BM2_Turret",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_T64BM2_Turret.ZoomLevels[0] of [2.7, 12.0]",
+   "elevation": "TurretMovement curves T72B3_YawToMinPitch / T72B3_YawToMaxPitch: -6.0..14.0 (yaw 0: -6.0..14.0) + socket pitch",
+   "classes": [
+    "BP_KBA3_HEAT -> BP_Projectile_125mm_HEAT (MaxSpeed 850 m/s)",
+    "BP_KBA3_Frag -> BP_Projectile_125mm_Frag (MaxSpeed 850 m/s)"
+   ]
+  }
+ },
+ "Tank HESH · L30A1 (Challenger 2)": {
+  "velocity": 670.0,
+  "gravity_scale": 2.0,
+  "max_speed": 800.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.31,
+  "zoom": 1.5,
+  "elevation_limits": [
+   -9.59,
+   20.41
+  ],
+  "sources": {
+   "weapon": "Vehicles/FV4034/Weapons/BP_L30A1_HESH",
+   "projectile": "Blueprints/Items/Projectiles/BP_Projectile_120mm_HEAT",
+   "defaults": "native default: ConstantAcceleration, bIgnoreGravityDuringConstantAcceleration",
+   "barrel": "FV4034_Gun:socket_muzzle 0.41",
+   "mount": "Vehicles/FV4034/Turrets/BP_FV4034_Turret",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_FV4034_Turret.ZoomLevels[0] of [1.5, 4.0, 10.0]",
+   "elevation": "TurretMovement curves FV4034_YawToMinPitch / FV4034_YawToMaxPitch: -10.0..20.0 (yaw 0: -10.0..20.0) + socket pitch",
+   "classes": [
+    "BP_L30A1_HESH -> BP_Projectile_120mm_HEAT (MaxSpeed 800 m/s)",
+    "BP_L30A1_Smoke -> BP_Projectile_120mm_Smoke (MaxSpeed 800 m/s)"
+   ]
+  }
+ },
+ "ZPL-98A 105mm (ZTD-05) · AP": {
+  "velocity": 1110.0,
+  "gravity_scale": 2.5,
+  "max_speed": 1500.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.02,
+  "zoom": 3.5,
+  "elevation_limits": [
+   -5.88,
+   16.12
+  ],
+  "sources": {
+   "weapon": "Vehicles/ZTD05/Weapons/BP_ZTD05_ZPL-98A_AP",
+   "projectile": "Blueprints/Items/Projectiles/BP_Projectile_105mm_AP",
+   "defaults": "native default: ConstantAcceleration, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_ZTD05_Gun:socket_muzzle 0.12",
+   "mount": "Vehicles/ZTD05/Turrets/BP_ZTD05_Turret",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_ZTD05_Turret.ZoomLevels[0] of [3.5, 7.0]",
+   "elevation": "TurretMovement.RotationConstraints.PitchInterval -6.0..16.0 + socket pitch",
+   "same_view": [
+    "Vehicles/ZTD05/Turrets/BP_ZTD05_Turret_WoodLand"
+   ],
+   "classes": [
+    "BP_ZTD05_ZPL-98A_AP -> BP_Projectile_105mm_AP (MaxSpeed 1500 m/s)"
+   ]
+  }
+ },
+ "ZPL-98A 105mm (ZTD-05) · HEAT / HE": {
+  "velocity": 730.0,
+  "gravity_scale": 2.0,
+  "max_speed": 850.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": false,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.02,
+  "zoom": 3.5,
+  "elevation_limits": [
+   -5.88,
+   16.12
+  ],
+  "sources": {
+   "weapon": "Vehicles/ZTD05/Weapons/BP_ZTD05_ZPL-98A_HEAT",
+   "projectile": "Blueprints/Items/Projectiles/BP_Projectile_115mm_HEAT",
+   "defaults": "native default: ConstantAcceleration, bIgnoreGravityDuringConstantAcceleration",
+   "barrel": "SK_ZTD05_Gun:socket_muzzle 0.12",
+   "mount": "Vehicles/ZTD05/Turrets/BP_ZTD05_Turret",
+   "camera": "FirstPersonCamera 0.1 on GunAttachPoint",
+   "zoom": "BP_ZTD05_Turret.ZoomLevels[0] of [3.5, 7.0]",
+   "elevation": "TurretMovement.RotationConstraints.PitchInterval -6.0..16.0 + socket pitch",
+   "same_view": [
+    "Vehicles/ZTD05/Turrets/BP_ZTD05_Turret_WoodLand"
+   ],
+   "classes": [
+    "BP_ZTD05_ZPL-98A_HEAT -> BP_Projectile_115mm_HEAT (MaxSpeed 850 m/s)",
+    "BP_ZTD05_ZPL-98A_Frag -> BP_Projectile_125mm_Frag (MaxSpeed 850 m/s)"
+   ]
+  }
+ },
+ "Mortar (M252 / 2B14 / L16 / Type 63)": {
+  "velocity": 110.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 0.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": null,
+  "zoom": null,
+  "elevation_limits": null,
+  "sources": {
+   "weapon": "Vehicles/BP_GenericMortarWeapon",
+   "projectile": "Blueprints/Items/Projectiles/BP_Mortarround4",
+   "defaults": "native default: ConstantAcceleration, ConstantAccelerationTimeout, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "aimed by elevation: no bore or zoom; the tube is laid by its own readout, so the shot's limits are not derived",
+   "mount": "Vehicles/BP_GenericDeployableMortarVehicle",
+   "mount_limits": "SQTurretMovement.RotationConstraints.PitchInterval 0.0..43.8",
+   "barrel": "m1937mortar_tube2:Attach_Muzzle 49.567 (mesh reference pose)",
+   "classes": [
+    "BP_GenericMortarWeapon -> BP_Mortarround4 (no MaxSpeed)",
+    "BP_M252mortar -> BP_Mortarround4 (no MaxSpeed)",
+    "BP_2b14podnosmortar -> BP_Mortarround4 (no MaxSpeed)",
+    "BP_L16mortar -> BP_Mortarround4 (no MaxSpeed)",
+    "BP_PP87Mortar -> BP_Mortarround4 (no MaxSpeed)",
+    "BP_M1937mortar -> BP_Mortarround4 (no MaxSpeed)",
+    "BP_81mmMortar -> BP_Mortarround4 (no MaxSpeed)"
+   ]
+  }
+ },
+ "Technical Mortar": {
+  "velocity": 110.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 0.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": null,
+  "zoom": null,
+  "elevation_limits": null,
+  "sources": {
+   "weapon": "Vehicles/Technical2Seater/Weapons/BP_Technical_M1937mortar",
+   "projectile": "Blueprints/Items/Projectiles/BP_Mortarround4",
+   "defaults": "native default: ConstantAcceleration, ConstantAccelerationTimeout, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "aimed by elevation: no bore or zoom; the tube is laid by its own readout, so the shot's limits are not derived",
+   "mount": "Vehicles/Technical2Seater/Turrets/BP_Technical_MortarTurret",
+   "mount_limits": "SQTurretMovement.RotationConstraints.PitchInterval 0.0..43.8",
+   "barrel": "m1937mortar_tube2:Attach_Muzzle 49.567 (mesh reference pose)",
+   "classes": [
+    "BP_Technical_M1937mortar -> BP_Mortarround4 (no MaxSpeed)",
+    "BP_Technical_M252mortar -> BP_Mortarround4 (no MaxSpeed)"
+   ]
+  }
+ },
+ "M1064 M121 (120mm)": {
+  "velocity": 142.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 0.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": null,
+  "zoom": null,
+  "elevation_limits": null,
+  "sources": {
+   "weapon": "Vehicles/M1064A3/Weapons/BP_M1064A3_M121mortar",
+   "projectile": "Vehicles/M1064A3/Projectiles/BP_Mortarround_120mm",
+   "defaults": "native default: ConstantAcceleration, ConstantAccelerationTimeout, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "aimed by elevation: no bore or zoom; the tube is laid by its own readout, so the shot's limits are not derived",
+   "mount": "Vehicles/M1064A3/Turrets/BP_M1064A3_MortarTurret",
+   "mount_limits": "SQTurretMovement curves FC_M1064A3_YawToMinPitch / FC_M1064A3_YawToMaxPitch: 0.0..35.0 (yaw 0: 0.0..35.0)",
+   "barrel": "SK_M121_Mortar_Tube:Attach_Muzzle 50.0 (mesh reference pose)",
+   "classes": [
+    "BP_M1064A3_M121mortar -> BP_Mortarround_120mm (no MaxSpeed)",
+    "BP_M1064A3_M121mortar_Airburst -> BP_Mortarround_120mm_Airburst (no MaxSpeed)"
+   ]
+  }
+ },
+ "Hell Cannon": {
+  "velocity": 95.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 0.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": null,
+  "zoom": null,
+  "elevation_limits": null,
+  "sources": {
+   "weapon": "Vehicles/Emplaced_HellCannon/BP_Emplaced_HellCannon",
+   "projectile": "Blueprints/Items/Projectiles/BP_Projectile_Hell_Cannon",
+   "defaults": "native default: ConstantAcceleration, ConstantAccelerationTimeout, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "aimed by elevation: no bore or zoom; the tube is laid by its own readout, so the shot's limits are not derived",
+   "mount": "Vehicles/Emplaced_HellCannon/BP_Emplaced_HellCannon_Base",
+   "mount_limits": "SQTurretMovement.RotationConstraints.PitchInterval -30.0..50.0",
+   "barrel": "SK_HellCannon_Gun:Attach_Muzzle 0.0004 (mesh reference pose)",
+   "classes": [
+    "BP_Emplaced_HellCannon -> BP_Projectile_Hell_Cannon (no MaxSpeed)"
+   ]
+  }
+ },
+ "UB-32 (S-5 rockets)": {
+  "velocity": 300.0,
+  "gravity_scale": 2.0,
+  "max_speed": 300.0,
+  "acceleration": -50.0,
+  "acceleration_timeout": 2.0,
+  "rotation_follows_velocity": false,
+  "ignore_gravity_while_boosting": false,
+  "bore": null,
+  "zoom": null,
+  "elevation_limits": null,
+  "sources": {
+   "weapon": "Vehicles/Emplaced_UB32_RocketArtillery/BP_EmplacedUB32",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_S5_Proj2",
+   "defaults": "native default: bIgnoreGravityDuringConstantAcceleration",
+   "view": "aimed by elevation: no bore or zoom; the tube is laid by its own readout, so the shot's limits are not derived",
+   "mount": "Vehicles/Emplaced_UB32_RocketArtillery/BP_EmplacedUB32_Tripod",
+   "mount_limits": "SQTurretMovement.RotationConstraints.PitchInterval -25.0..35.0",
+   "barrel": "UB-32_Gun:Attach_Muzzle 0.0 (mesh reference pose)",
+   "classes": [
+    "BP_EmplacedUB32 -> BP_S5_Proj2 (MaxSpeed 300 m/s)",
+    "BP_BRDM2_GFI_UB32 -> BP_S5_Proj2 (MaxSpeed 300 m/s)"
+   ]
+  }
+ },
+ "Technical UB-32": {
+  "velocity": 300.0,
+  "gravity_scale": 2.0,
+  "max_speed": 300.0,
+  "acceleration": -50.0,
+  "acceleration_timeout": 2.0,
+  "rotation_follows_velocity": false,
+  "ignore_gravity_while_boosting": false,
+  "bore": null,
+  "zoom": null,
+  "elevation_limits": null,
+  "sources": {
+   "weapon": "Vehicles/Technical/Weapons/BP_UB32",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_S5_Proj2",
+   "defaults": "native default: bIgnoreGravityDuringConstantAcceleration",
+   "view": "aimed by elevation: no bore or zoom; the tube is laid by its own readout, so the shot's limits are not derived",
+   "mount": "Vehicles/Technical/Turrets/BP_Technical_Turret_UB32",
+   "mount_limits": "SQTurretMovement.RotationConstraints.PitchInterval 0.0..50.0",
+   "barrel": "UB-32:Attach_Muzzle 0.0 (mesh reference pose)",
+   "classes": [
+    "BP_UB32 -> BP_S5_Proj2 (MaxSpeed 300 m/s)"
+   ]
+  }
+ },
+ "BM-21 Grad": {
+  "velocity": 200.0,
+  "gravity_scale": 2.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 0.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": null,
+  "zoom": null,
+  "elevation_limits": null,
+  "sources": {
+   "weapon": "Vehicles/Ural375_BM21Grad/Weapons/BP_BM21Grad_Weapon_MEI",
+   "projectile": "Vehicles/Ural375_BM21Grad/Projectiles/BP_BM21_Rocket_Proj2",
+   "defaults": "native default: ConstantAcceleration, ConstantAccelerationTimeout, MaxSpeed, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "aimed by elevation: no bore or zoom; the tube is laid by its own readout, so the shot's limits are not derived",
+   "mount": "Vehicles/Ural375_BM21Grad/Turrets/BP_BM21Grad_Turret_INS",
+   "mount_limits": "PitchMovement.RotationConstraints.PitchInterval 0.0..40.8",
+   "barrel": "SK_BM21_Launcher:Attach_Muzzle 14.2 (mesh reference pose)",
+   "classes": [
+    "BP_BM21Grad_Weapon_MEI -> BP_BM21_Rocket_Proj2 (no MaxSpeed)"
+   ]
+  }
+ }
+}

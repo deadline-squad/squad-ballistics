@@ -2,31 +2,70 @@
 
 Pure functions only (no Qt), so everything here can be unit-tested.
 
-Projectile model, the game's own (Squad build 26005357, USQProjectileMovement
-and the weapon's barrel socket; same model as SquadCalc's squadBallistics.js):
+Projectile model, the game's own (Squad build 26005357; the same model as
+SquadCalc's squadBallistics.js). Addresses are in the Linux server binary
+SquadGameServer (deadline-squad/squad-ballistics#4 has the evidence):
 
 * no air drag; gravity is GRAVITY (DefaultGravityZ = -980 cm/s^2) times the
   projectile's gravity scale;
-* the projectile leaves the muzzle, the barrel socket `Attach_Muzzle`, at
-  `velocity` along the barrel. The barrel pivots `launch_height` above the
-  ground; the muzzle is `muzzle_forward` along the barrel and `muzzle_up`
-  above its axis, so the launch point moves with the elevation;
-* for `acceleration_time` seconds a constant `acceleration` acts along the
-  barrel's axis as it was at launch (rocket motor: positive; UB-32 rockets:
-  negative). The game ends it at ConstantAccelerationTimeout or when the
-  speed reaches the projectile's MaxSpeed, whichever comes first;
-  weapons.json holds that time;
-* between those, the flight is two exact parabolas, so no integration step is
-  needed: the elevation that hits a target is found by root finding on the
-  closed form.
+* the weapon spawns the projectile at the barrel socket `Attach_Muzzle` and
+  sets its InitialSpeed to WeaponConfig.MuzzleVelocity (ASQWeapon spawn
+  0xa750730, vtable slot 0x778 = 0xa7457e0); it leaves at `velocity` along
+  the barrel. The barrel pivots `launch_height` above the ground; the muzzle
+  is `muzzle_forward` along the barrel and `muzzle_up` above its axis, so the
+  launch point moves with the elevation;
+* the game moves the projectile in substeps (UProjectileMovementComponent::
+  TickComponent 0x7cef0c0) of the frame time, at most 0.05 s
+  (MaxSimulationTimeStep, constructor 0x7cee8d0). The dedicated server, whose
+  projectile deals the damage, runs at 50 Hz (NetServerMaxTickRate of the
+  RedpointEOSNetDriver), so a substep is SUBSTEP = 0.02 s. Per substep, with
+  v the velocity and R the projectile's rotation:
+      move   p += v dt + (V(R_before) - v) dt / 2   (Velocity Verlet)
+      then   R = direction of v when `rotation_follows_velocity`
+      then   v = V(R),   V(R) = clamp(v + (A(R) + g) dt) to `max_speed`
+  (ComputeMoveDelta 0x7cf09e0, ComputeVelocity 0x7cf08a0 with GetMaxSpeed
+  0x7d449c0). The move uses the rotation of the substep before: the thrust
+  follows the velocity one substep late;
+* A(R) is the rocket motor (USQProjectileMovement::ComputeAcceleration
+  0xa747770): `acceleration` along the projectile's rotation for the first
+  `acceleration_time` seconds (ConstantAccelerationTimeout; negative:
+  the UB-32's rockets slow down). Every projectile turns with its velocity
+  (the ASQProjectile constructor 0xa731b80 sets bRotationFollowsVelocity), so
+  the motor pushes along the path, unless its Blueprint turns that off
+  (`rotation_follows_velocity` false: the S-5 rocket keeps the barrel's
+  axis);
+* `max_speed` (MaxSpeed) caps the speed at every substep, also on the first
+  one: a shell fired faster than its cap (SPG-9 HEAT 435 -> 330 m/s, tank HE
+  1100 -> 800 or 850 m/s) is slowed to it at once, a motor holds a rocket at
+  it, and a shell coming down faster than it is held there.
+
+The phases that have a closed form are computed exactly: a motor along the
+barrel's axis (two parabolas), the parabola of a coasting shell, and a shell
+coasting at its cap (speed constant, the path angle gamma turns as
+d gamma / dt = -g cos gamma / max_speed; continuous, which the 20 ms substeps
+follow to 1e-5 of the turn). A motor along the path and a capped launch have
+none: they are flown with the game's substeps above. The boost phase is
+tabulated over the barrel elevation (`_BoostTable`) so that the root finding
+stays fast; the game's path between two substeps is a straight segment, and so
+is the model's.
 """
 
 import json
 import math
 from dataclasses import dataclass, field, fields, replace
+from functools import cached_property
 
 # Squad's world gravity in m/s^2: DefaultGravityZ = -980 cm/s^2 in the game.
 GRAVITY = 9.80
+
+# The game's projectile substep on the dedicated server, seconds: one per
+# frame of its 50 Hz tick (see the module docstring).
+SUBSTEP = 0.02
+
+# Barrel elevations between the nodes of a boost table, radians. Four-point
+# Lagrange interpolation between them reproduces the stepped boost to 1e-6 m
+# (to 4e-4 m near the substep where the M3 MAAWS reaches its cap).
+BOOST_NODE_SPACING = math.radians(1.0)
 
 # Squad mortars use the 6400 mil circle.
 MILS_PER_DEGREE = 6400 / 360
@@ -61,6 +100,21 @@ class WeaponDataError(ValueError):
 
 @dataclass(frozen=True)
 class Weapon:
+    """One weapons.json entry: how a weapon fires and is aimed.
+
+    The flight fields follow the game files (see the module docstring):
+    `velocity` m/s, `gravity` (scale of GRAVITY), `acceleration` m/s^2 for
+    `acceleration_time` s, `max_speed` m/s (0: no cap) and
+    `rotation_follows_velocity`; the launch point `launch_height`,
+    `muzzle_forward` and `muzzle_up` m. The aiming fields: `arc`, `aim`
+    ("overlay" mark or "elevation"), `unit`, `angle_offset` (degrees the
+    weapon's readout shows less than the barrel), `elevation_limits` and
+    `min_distance`; the view the mark is drawn for, `bore` (degrees) and
+    `zoom`; a barrel laid by holding a key, `hold_rate` (deg/s) and
+    `hold_elevation`; `category` and `note` for the UI. Build one with
+    `from_dict`, which validates the data.
+    """
+
     name: str
     velocity: float
     gravity: float = 1.0
@@ -70,6 +124,8 @@ class Weapon:
     angle_offset: float = 0.0
     acceleration: float = 0.0
     acceleration_time: float = 0.0
+    max_speed: float = 0.0
+    rotation_follows_velocity: bool = True
     min_distance: float = 0.0
     elevation_limits: tuple = (-90.0, 90.0)
     launch_height: float = 0.0
@@ -124,6 +180,9 @@ class Weapon:
             data.get("deceleration_time", 0.0)
         )
 
+        max_speed = number("max_speed", 0.0)
+        follows = data.get("rotation_follows_velocity", True)
+
         if velocity <= 0:
             raise WeaponDataError(f"{name}: 'velocity' must be > 0")
         if gravity < 0:
@@ -133,6 +192,17 @@ class Weapon:
         if velocity + acceleration * acceleration_time <= 0:
             raise WeaponDataError(
                 f"{name}: deceleration would stop the projectile"
+            )
+        if max_speed < 0:
+            raise WeaponDataError(f"{name}: 'max_speed' must be >= 0 (0: none)")
+        if not isinstance(follows, bool):
+            raise WeaponDataError(
+                f"{name}: 'rotation_follows_velocity' must be true or false"
+            )
+        if gravity == 0 and max_speed and velocity > max_speed:
+            raise WeaponDataError(
+                f"{name}: a projectile without gravity cannot start above "
+                "'max_speed'"
             )
 
         launch_height = number("launch_height", 0.0)
@@ -202,6 +272,8 @@ class Weapon:
             angle_offset=number("angle_offset", 0.0),
             acceleration=acceleration,
             acceleration_time=acceleration_time,
+            max_speed=max_speed,
+            rotation_follows_velocity=follows,
             min_distance=number("min_distance", 0.0),
             elevation_limits=(low, high),
             launch_height=launch_height,
@@ -226,9 +298,71 @@ class Weapon:
         return self.acceleration != 0 and self.acceleration_time > 0
 
     @property
+    def boost_steps(self):
+        """Game substeps the motor acts in: those that start before
+        `acceleration_time` (0 without boost)."""
+        if not self.has_boost:
+            return 0
+
+        return math.ceil(self.acceleration_time / SUBSTEP - 1e-9)
+
+    @property
+    def _cap_binds_on_axis(self):
+        """`max_speed` could clamp a motor along the barrel's axis: the
+        speed of that flight is largest at launch or at the end of the
+        boost (it is the length of an affine function of time), and at the
+        end it is at most |velocity + a T| + g T."""
+        if not self.max_speed:
+            return False
+
+        end = abs(self.velocity + self.acceleration * self.acceleration_time)
+
+        return (
+            self.velocity > self.max_speed
+            or end + self.g * self.acceleration_time > self.max_speed
+        )
+
+    @property
+    def flies_boost_in_steps(self):
+        """The boost has no closed form and is flown with the game's
+        substeps (`_BoostTable`): a motor that turns with the velocity, or
+        one along the barrel that the cap could clamp. A flight without
+        gravity is straight either way."""
+        if not self.has_boost or self.g == 0:
+            return False
+
+        return self.rotation_follows_velocity or self._cap_binds_on_axis
+
+    @property
+    def _launch_clamped(self):
+        """Fired faster than `max_speed` without a motor: the first substep
+        slows the shell to its cap (tank HE)."""
+        return (
+            bool(self.max_speed)
+            and self.velocity > self.max_speed
+            and not self.has_boost
+        )
+
+    @property
+    def _axis_boost_time(self):
+        """Seconds the closed-form motor along the barrel speeds the
+        projectile up: `acceleration_time`, ended earlier by the cap in a
+        straight flight (no gravity: the NLAW reaches its 250 m/s in 0.6 s
+        and is held there). 0 without boost."""
+        if not self.has_boost:
+            return 0.0
+
+        if self.g == 0 and self.max_speed and self.acceleration > 0:
+            to_cap = (self.max_speed - self.velocity) / self.acceleration
+            return min(self.acceleration_time, max(0.0, to_cap))
+
+        return self.acceleration_time
+
+    @property
     def boost_distance(self):
-        """Distance covered along the barrel's axis while the boost acts."""
-        t = self.acceleration_time if self.has_boost else 0.0
+        """Distance a straight (gravity-free) flight covers while the motor
+        speeds it up (`_axis_boost_time`)."""
+        t = self._axis_boost_time
         return self.velocity * t + 0.5 * self.acceleration * t * t
 
     def sight_view(self, fov):
@@ -275,39 +409,24 @@ class Weapon:
 
         return (top - lowest) / self.hold_rate
 
-    def hold_distance(self, held):
-        """Flat-ground range of the barrel after holding the key `held` s.
-
-        The barrel stops at the lowest hold elevation. The shell leaves the
-        muzzle (`launch_point`) with no boost: a parabola from there. NaN
-        without hold.
-        """
-        if not self.has_hold:
-            return math.nan
-
-        lowest, top = self.hold_elevation
-
-        rad = math.radians(max(lowest, top - self.hold_rate * max(0.0, held)))
-
-        start_x, start_y = self.launch_point(rad)
-        vertical = self.velocity * math.sin(rad)
-        flight = (
-            vertical + math.sqrt(vertical ** 2 + 2 * self.g * start_y)
-        ) / self.g
-
-        return start_x + self.velocity * math.cos(rad) * flight
-
     @property
     def cruise_velocity(self):
-        """Speed along the barrel once the boost is over."""
-        return self.velocity + self.acceleration * self.acceleration_time
+        """Speed along the barrel once the motor is done, in a straight
+        (gravity-free) flight: velocity + acceleration * the boost time,
+        held at `max_speed`."""
+        speed = self.velocity + self.acceleration * self._axis_boost_time
+
+        return min(speed, self.max_speed) if self.max_speed else speed
 
     def time_to(self, distance):
-        """Time to cover `distance` metres along the barrel's axis."""
+        """Time a straight (gravity-free) flight takes to cover `distance`
+        metres along the barrel's axis."""
         if distance <= 0:
             return 0.0
 
-        if not self.has_boost:
+        boost = self._axis_boost_time
+
+        if not boost:
             return distance / self.velocity
 
         if distance <= self.boost_distance:
@@ -318,14 +437,12 @@ class Weapon:
                 )
             )
 
-        return (
-            self.acceleration_time
-            + (distance - self.boost_distance) / self.cruise_velocity
-        )
+        return boost + (distance - self.boost_distance) / self.cruise_velocity
 
     def velocity_at(self, distance):
-        """Equivalent constant velocity over `distance` along the axis."""
-        if distance <= 0 or not self.has_boost:
+        """Average speed of a straight (gravity-free) flight over `distance`
+        metres along the axis."""
+        if distance <= 0 or not self._axis_boost_time:
             return self.velocity
 
         return distance / self.time_to(distance)
@@ -345,80 +462,282 @@ class Weapon:
 
     @property
     def is_parabola(self):
-        """The flight is one plain parabola (no boost, no muzzle offset)."""
-        return not (self.has_boost or self.muzzle_forward or self.muzzle_up)
+        """The flight is one plain parabola from the pivot (no boost, no
+        muzzle offset, not fired above its cap), as long as it does not
+        come down faster than `max_speed` (`_clamps_before`)."""
+        return not (
+            self.has_boost or self.muzzle_forward or self.muzzle_up
+            or self._launch_clamped
+        )
+
+    def _clamps_before(self, height):
+        """A plain parabola from the pivot comes down faster than
+        `max_speed` before it reaches a target `height` m above the
+        weapon's ground: the speed there is sqrt(v^2 + 2 g drop), and the
+        lowest point on the way to the target is the pivot or the target."""
+        if not self.max_speed:
+            return False
+
+        drop = self.launch_height - height
+
+        return self.velocity ** 2 + 2 * self.g * drop > self.max_speed ** 2
+
+    @cached_property
+    def _boost_table(self):
+        """The `_BoostTable` of this weapon's flight (shared by every
+        Weapon with the same projectile)."""
+        key = (
+            self.velocity, self.g, self.acceleration, self.acceleration_time,
+            self.max_speed, self.rotation_follows_velocity,
+        )
+        table = _BOOST_TABLES.get(key)
+
+        if table is None:
+            table = _BOOST_TABLES[key] = _BoostTable(self)
+
+        return table
+
+    def _clamped_launch(self, cos, sin):
+        """(x, y, vx, vy) after the first substep of a shell fired above its
+        cap, relative to the muzzle: ComputeVelocity clamps v0 + g dt to
+        `max_speed`, and the move is the average of the two velocities."""
+        v0, cap = self.velocity, self.max_speed
+        vx, vy = v0 * cos, v0 * sin - self.g * SUBSTEP
+        scale = cap / math.hypot(vx, vy)
+        vx, vy = vx * scale, vy * scale
+
+        return (
+            0.5 * (v0 * cos + vx) * SUBSTEP,
+            0.5 * (v0 * sin + vy) * SUBSTEP,
+            vx,
+            vy,
+        )
+
+    def _coast_height(self, x, y, vx, vy, ahead):
+        """Height at `ahead` m of a projectile coasting from (x, y) at
+        (vx, vy), all relative to the muzzle: the parabola, and once it comes
+        down faster than `max_speed` the capped coast (module docstring).
+        Far past where the capped coast turns straight down (it never gets
+        there) the height is a very large negative number."""
+        g = self.g
+        tau = (ahead - x) / vx
+        cap = self.max_speed
+
+        if cap and g:
+            onset = max(0.0, (vy + math.sqrt(max(0.0, cap * cap - vx * vx))) / g)
+
+            if tau > onset:
+                y += onset * (vy - 0.5 * g * onset)
+                radius = cap * cap / g
+                cos_onset = min(1.0, vx / cap)
+                turn = math.acos(cos_onset) + (ahead - x - vx * onset) / radius
+                return y + radius * math.log(max(math.cos(turn), 1e-300) / cos_onset)
+
+        return y + tau * (vy - 0.5 * g * tau)
+
+    def _coast_at(self, x, y, vx, vy, t, ahead):
+        """(height, time, path angle in radians) at `ahead` m of the coast
+        `_coast_height` flies, started at time `t`."""
+        g = self.g
+        tau = (ahead - x) / vx
+        cap = self.max_speed
+
+        if cap and g:
+            onset = max(0.0, (vy + math.sqrt(max(0.0, cap * cap - vx * vx))) / g)
+
+            if tau > onset:
+                y += onset * (vy - 0.5 * g * onset)
+                radius = cap * cap / g
+                cos_onset = min(1.0, vx / cap)
+                turn = math.acos(cos_onset) + (ahead - x - vx * onset) / radius
+
+                if turn >= math.pi / 2:
+                    return -math.inf, math.inf, -math.pi / 2
+
+                # t = (cap / g) (atanh sin gamma_onset - atanh sin gamma)
+                since = (cap / g) * (
+                    math.atanh(math.sin(turn))
+                    - math.atanh(math.sqrt(max(0.0, 1 - cos_onset * cos_onset)))
+                )
+                return (
+                    y + radius * math.log(math.cos(turn) / cos_onset),
+                    t + onset + since,
+                    -turn,
+                )
+
+        return (
+            y + tau * (vy - 0.5 * g * tau),
+            t + tau,
+            math.atan2(vy - g * tau, vx),
+        )
 
     def flight_height(self, rad, distance):
         """Height above the ground of the projectile when it is `distance`
         metres ahead of the pivot, fired at a barrel elevation of `rad`.
 
-        Closed form of the game's motion (see the module docstring), exact
-        for the model. A distance behind the muzzle extrapolates the same
-        equations backwards.
+        The game's motion (module docstring): closed forms, and the stepped
+        boost tabulated over the elevation. A distance behind the muzzle
+        extrapolates the first phase backwards. `flight_at` gives the time
+        and the path angle as well; this is the fast path of the searches.
         """
         cos, sin = math.cos(rad), math.sin(rad)
-        v0, g, a = self.velocity, self.g, self.acceleration
-        boost = self.acceleration_time
         start_x, start_y = self.launch_point(rad)
         ahead = distance - start_x
-        reach = cos * (v0 * boost + 0.5 * a * boost * boost)
+        v0, g = self.velocity, self.g
 
-        if boost == 0 or ahead <= reach:
-            along = ahead / cos
-            t = 2 * along / (v0 + math.sqrt(max(0.0, v0 * v0 + 2 * a * along)))
-            return start_y + sin * along - 0.5 * g * t * t
+        if self.flies_boost_in_steps:
+            table = self._boost_table
+            weights, nodes = table.stencil(rad)
+            x, y, vx, vy = table.end(weights, nodes)
 
-        end_speed = v0 + a * boost
-        after = (ahead - reach) / (cos * end_speed)
+            if ahead < x:
+                _, (xa, ya), (xb, yb) = table.segment(weights, nodes, ahead)
+                return start_y + ya + (yb - ya) * (ahead - xa) / (xb - xa)
 
-        return (
-            start_y
-            + sin * (v0 * boost + 0.5 * a * boost * boost)
-            - 0.5 * g * boost * boost
-            + (sin * end_speed - g * boost) * after
-            - 0.5 * g * after * after
+            return start_y + self._coast_height(x, y, vx, vy, ahead)
+
+        if self.has_boost:
+            a, boost = self.acceleration, self._axis_boost_time
+            length = v0 * boost + 0.5 * a * boost * boost
+
+            if ahead <= cos * length:
+                along = ahead / cos
+                t = 2 * along / (v0 + math.sqrt(max(0.0, v0 * v0 + 2 * a * along)))
+                return start_y + sin * along - 0.5 * g * t * t
+
+            end_speed = v0 + a * boost
+            return start_y + self._coast_height(
+                cos * length, sin * length - 0.5 * g * boost * boost,
+                cos * end_speed, sin * end_speed - g * boost, ahead,
+            )
+
+        if self._launch_clamped:
+            x, y, vx, vy = self._clamped_launch(cos, sin)
+
+            if ahead < x:
+                return start_y + y * ahead / x
+
+            return start_y + self._coast_height(x, y, vx, vy, ahead)
+
+        return start_y + self._coast_height(0.0, 0.0, v0 * cos, v0 * sin, ahead)
+
+    def flight_at(self, rad, distance):
+        """(height, time, path angle) of the projectile when it is
+        `distance` metres ahead of the pivot, fired at a barrel elevation of
+        `rad`: metres above the ground, seconds after launch, radians above
+        the horizontal (negative: coming down). Inside a substep the path is
+        the game's straight segment. Time and angle are 0 behind the muzzle;
+        a point the capped coast never reaches is (-inf, inf, -pi/2).
+        """
+        cos, sin = math.cos(rad), math.sin(rad)
+        start_x, start_y = self.launch_point(rad)
+        ahead = distance - start_x
+        v0, g = self.velocity, self.g
+
+        if self.flies_boost_in_steps:
+            table = self._boost_table
+            weights, nodes = table.stencil(rad)
+            x, y, vx, vy = table.end(weights, nodes)
+
+            if ahead < x:
+                step, (xa, ya), (xb, yb) = table.segment(weights, nodes, ahead)
+                part = (ahead - xa) / (xb - xa)
+                return (
+                    start_y + ya + (yb - ya) * part,
+                    max(0.0, (step + part) * SUBSTEP),
+                    math.atan2(yb - ya, xb - xa),
+                )
+
+            height, t, angle = self._coast_at(
+                x, y, vx, vy, table.steps * SUBSTEP, ahead
+            )
+            return start_y + height, t, angle
+
+        if self.has_boost:
+            a, boost = self.acceleration, self._axis_boost_time
+            length = v0 * boost + 0.5 * a * boost * boost
+
+            if ahead <= cos * length:
+                along = ahead / cos
+                t = 2 * along / (v0 + math.sqrt(max(0.0, v0 * v0 + 2 * a * along)))
+                speed = v0 + a * t
+                return (
+                    start_y + sin * along - 0.5 * g * t * t,
+                    max(0.0, t),
+                    math.atan2(sin * speed - g * t, cos * speed),
+                )
+
+            end_speed = v0 + a * boost
+            height, t, angle = self._coast_at(
+                cos * length, sin * length - 0.5 * g * boost * boost,
+                cos * end_speed, sin * end_speed - g * boost, boost, ahead,
+            )
+            return start_y + height, t, angle
+
+        if self._launch_clamped:
+            x, y, vx, vy = self._clamped_launch(cos, sin)
+
+            if ahead < x:
+                return (
+                    start_y + y * ahead / x,
+                    max(0.0, SUBSTEP * ahead / x),
+                    math.atan2(y, x),
+                )
+
+            height, t, angle = self._coast_at(x, y, vx, vy, SUBSTEP, ahead)
+            return start_y + height, t, angle
+
+        height, t, angle = self._coast_at(
+            0.0, 0.0, v0 * cos, v0 * sin, 0.0, ahead
         )
+        return start_y + height, max(0.0, t), angle
 
     def flight_time(self, rad, distance):
         """Seconds after launch when the projectile is `distance` metres
         ahead of the pivot, fired at a barrel elevation of `rad`."""
-        cos = math.cos(rad)
-        start_x, _ = self.launch_point(rad)
-        ahead = distance - start_x
+        return self.flight_at(rad, distance)[1]
 
-        if ahead <= 0:
-            return 0.0
-
-        return self.time_to(ahead / cos)
-
-    def flight_state(self, rad, t):
-        """(x, y, vx, vy) of the projectile `t` seconds after launch."""
+    def apex_height(self, rad, distance):
+        """Highest height above the ground the projectile passes before it
+        is `distance` metres ahead of the pivot, fired at a barrel elevation
+        of `rad` (-inf if it only comes down after the muzzle). The capped
+        coast only comes down, so the top is in the boost or on the
+        parabola after it."""
         cos, sin = math.cos(rad), math.sin(rad)
-        v0, g, a = self.velocity, self.g, self.acceleration
-        boost = self.acceleration_time
         start_x, start_y = self.launch_point(rad)
+        ahead = distance - start_x
+        v0, g = self.velocity, self.g
+        top = -math.inf
 
-        if t <= boost:
-            along = v0 * t + 0.5 * a * t * t
-            speed = v0 + a * t
-            return (
-                start_x + cos * along,
-                start_y + sin * along - 0.5 * g * t * t,
-                cos * speed,
-                sin * speed - g * t,
-            )
+        if self.flies_boost_in_steps:
+            table = self._boost_table
+            weights, nodes = table.stencil(rad)
+            for x, y in table.points(weights, nodes):
+                if x > ahead:
+                    break
+                top = max(top, y)
+            x, y, vx, vy = table.end(weights, nodes)
+        elif self.has_boost:
+            a, boost = self.acceleration, self._axis_boost_time
+            length = v0 * boost + 0.5 * a * boost * boost
+            # Vertical speed sin (v0 + a t) - g t is zero once, on the way up.
+            denominator = g - sin * a
+            if denominator > 0:
+                rising = sin * v0 / denominator
+                if 0 < rising <= boost and cos * (v0 * rising + 0.5 * a * rising ** 2) <= ahead:
+                    top = sin * (v0 * rising + 0.5 * a * rising ** 2) - 0.5 * g * rising ** 2
+            end_speed = v0 + a * boost
+            x, y = cos * length, sin * length - 0.5 * g * boost * boost
+            vx, vy = cos * end_speed, sin * end_speed - g * boost
+        elif self._launch_clamped:
+            x, y, vx, vy = self._clamped_launch(cos, sin)
+        else:
+            x, y, vx, vy = 0.0, 0.0, v0 * cos, v0 * sin
 
-        after = t - boost
-        along = v0 * boost + 0.5 * a * boost * boost
-        end_speed = v0 + a * boost
+        if vy > 0 and g and x + vx * vy / g <= ahead:
+            top = max(top, y + vy * vy / (2 * g))
 
-        return (
-            start_x + cos * (along + end_speed * after),
-            start_y + sin * along - 0.5 * g * boost * boost
-            + (sin * end_speed - g * boost) * after - 0.5 * g * after * after,
-            cos * end_speed,
-            sin * end_speed - g * t,
-        )
+        return start_y + top
 
     def elevations_to(self, distance, height):
         """Barrel elevations (low, high) in radians that land the projectile
@@ -434,7 +753,7 @@ class Weapon:
         """
         g, v = self.g, self.velocity
 
-        if self.is_parabola:
+        if self.is_parabola and not self._clamps_before(height):
             rise = height - self.launch_height
             discriminant = v ** 4 - g * (g * distance ** 2 + 2 * rise * v ** 2)
             if discriminant < 0:
@@ -482,11 +801,19 @@ class Weapon:
     def max_range(self):
         """Maximum range on flat ground (the ground of the pivot), inf
         without gravity."""
+        return self._max_range[0]
+
+    @cached_property
+    def _max_range(self):
+        """(maximum range on flat ground, the elevation in radians that
+        reaches it; inf and NaN without gravity), computed once: the
+        largest distance whose highest shot (`peak_elevation`) still comes
+        down to the ground there, by doubling and then bisection to 1 mm."""
         if self.g == 0:
-            return math.inf
+            return math.inf, math.nan
 
         if self.is_parabola and not self.launch_height:
-            return self.velocity ** 2 / self.g
+            return self.velocity ** 2 / self.g, math.pi / 4
 
         def reachable(distance):
             return self.flight_height(self.peak_elevation(distance), distance) >= 0
@@ -505,7 +832,31 @@ class Weapon:
             else:
                 high = mid
 
-        return low
+        return low, self.peak_elevation(low)
+
+    def flat_low_elevation(self, distance):
+        """Low-arc barrel elevation (radians) that lands on flat ground
+        `distance` metres away, NaN beyond `max_range`: `elevations_to`
+        for a target at the pivot's ground, without its search for the
+        highest shot. The shot that reaches the maximum range passes above
+        the ground at every shorter distance, so its elevation bounds the
+        low root from above. The range ladder solves dozens of ranges in a
+        row; this keeps it fast."""
+        if self.is_parabola and not self._clamps_before(0.0):
+            return self.elevations_to(distance, 0.0)[0]
+
+        longest, top = self._max_range
+
+        if distance > longest:
+            return math.nan
+
+        def error(rad):
+            return self.flight_height(rad, distance)
+
+        if error(top) < 0:
+            return math.nan
+
+        return _find_root(error, top, -1)
 
 
 # Keys of a weapons.json entry: the Weapon fields, plus the older spelling of
@@ -533,6 +884,146 @@ BRACKET_STEP = 0.02
 MAX_ITERATIONS = 200
 
 _GOLDEN = (math.sqrt(5) - 1) / 2
+
+
+def _fly_boost(weapon, rad):
+    """The boost of `weapon` fired at `rad` radians, flown with the game's
+    substeps (module docstring) from the muzzle: ([(x, y)] at the start of
+    every substep and at the end, end velocity (vx, vy)), metres and m/s
+    relative to the muzzle."""
+    dt, g, a, cap = SUBSTEP, weapon.g, weapon.acceleration, weapon.max_speed
+    cap_squared = cap * cap
+    follows = weapon.rotation_follows_velocity
+    cos, sin = math.cos(rad), math.sin(rad)
+    vx, vy = weapon.velocity * cos, weapon.velocity * sin
+    # The projectile's rotation: the barrel's at spawn.
+    ax, ay = a * cos, a * sin
+    x = y = 0.0
+    points = [(0.0, 0.0)]
+
+    for _ in range(weapon.boost_steps):
+        # Move: the velocity this substep would end with, under the
+        # rotation of the substep before.
+        mx, my = vx + ax * dt, vy + (ay - g) * dt
+        if cap:
+            speed_squared = mx * mx + my * my
+            if speed_squared > cap_squared:
+                scale = cap / math.sqrt(speed_squared)
+                mx, my = mx * scale, my * scale
+        x += 0.5 * (vx + mx) * dt
+        y += 0.5 * (vy + my) * dt
+
+        if follows:
+            speed = math.hypot(vx, vy)
+            ax, ay = a * vx / speed, a * vy / speed
+
+        vx, vy = vx + ax * dt, vy + (ay - g) * dt
+        if cap:
+            speed_squared = vx * vx + vy * vy
+            if speed_squared > cap_squared:
+                scale = cap / math.sqrt(speed_squared)
+                vx, vy = vx * scale, vy * scale
+
+        points.append((x, y))
+
+    return points, (vx, vy)
+
+
+class _BoostTable:
+    """A stepped boost (`Weapon.flies_boost_in_steps`) tabulated over the
+    barrel elevation: nodes every BOOST_NODE_SPACING from -90 to +90
+    degrees, each flown by `_fly_boost` the first time it is needed, and
+    four-point Lagrange interpolation between them. The searches evaluate
+    the flight thousands of times per solution; a node costs a whole
+    boost, an interpolated point a few multiplications."""
+
+    def __init__(self, weapon):
+        self.weapon = weapon
+        self.steps = weapon.boost_steps
+        self.count = round(math.pi / BOOST_NODE_SPACING) + 1
+        self.nodes = [None] * self.count
+
+    def node(self, index):
+        """(xs, ys, vx, vy) of node `index`: the substep points and the
+        end velocity at elevation -90 deg + index * spacing."""
+        node = self.nodes[index]
+
+        if node is None:
+            points, (vx, vy) = _fly_boost(
+                self.weapon, -math.pi / 2 + index * BOOST_NODE_SPACING
+            )
+            node = self.nodes[index] = (
+                tuple(p[0] for p in points), tuple(p[1] for p in points), vx, vy
+            )
+
+        return node
+
+    def stencil(self, rad):
+        """(weights, nodes) of the four nodes that interpolate `rad`: the
+        two on each side, shifted inwards at the ends of the table."""
+        at = (rad + math.pi / 2) / BOOST_NODE_SPACING
+        first = min(max(int(at) - 1, 0), self.count - 4)
+        u = at - first
+        weights = (
+            -(u - 1) * (u - 2) * (u - 3) / 6,
+            u * (u - 2) * (u - 3) / 2,
+            -u * (u - 1) * (u - 3) / 2,
+            u * (u - 1) * (u - 2) / 6,
+        )
+
+        return weights, tuple(self.node(first + i) for i in range(4))
+
+    def end(self, weights, nodes):
+        """(x, y, vx, vy) at the end of the boost."""
+        w0, w1, w2, w3 = weights
+        n0, n1, n2, n3 = nodes
+
+        return (
+            w0 * n0[0][-1] + w1 * n1[0][-1] + w2 * n2[0][-1] + w3 * n3[0][-1],
+            w0 * n0[1][-1] + w1 * n1[1][-1] + w2 * n2[1][-1] + w3 * n3[1][-1],
+            w0 * n0[2] + w1 * n1[2] + w2 * n2[2] + w3 * n3[2],
+            w0 * n0[3] + w1 * n1[3] + w2 * n2[3] + w3 * n3[3],
+        )
+
+    def segment(self, weights, nodes, ahead):
+        """(k, start, end) of the substep whose straight segment holds the
+        distance `ahead` from the muzzle (the first one for a distance
+        behind the muzzle, the last one at its end): binary search on the
+        interpolated x of the substep points."""
+        w0, w1, w2, w3 = weights
+        (x0, y0, _, _), (x1, y1, _, _), (x2, y2, _, _), (x3, y3, _, _) = nodes
+        low, high = 0, self.steps
+
+        while high - low > 1:
+            mid = (low + high) // 2
+            if w0 * x0[mid] + w1 * x1[mid] + w2 * x2[mid] + w3 * x3[mid] <= ahead:
+                low = mid
+            else:
+                high = mid
+
+        def point(k):
+            return (
+                w0 * x0[k] + w1 * x1[k] + w2 * x2[k] + w3 * x3[k],
+                w0 * y0[k] + w1 * y1[k] + w2 * y2[k] + w3 * y3[k],
+            )
+
+        return low, point(low), point(low + 1)
+
+    def points(self, weights, nodes):
+        """The interpolated substep points (x, y), from the muzzle on."""
+        w0, w1, w2, w3 = weights
+        (x0, y0, _, _), (x1, y1, _, _), (x2, y2, _, _), (x3, y3, _, _) = nodes
+
+        for k in range(self.steps + 1):
+            yield (
+                w0 * x0[k] + w1 * x1[k] + w2 * x2[k] + w3 * x3[k],
+                w0 * y0[k] + w1 * y1[k] + w2 * y2[k] + w3 * y3[k],
+            )
+
+
+# Boost tables by flight parameters, shared by the Weapons that fly alike
+# (renamed copies, `dataclasses.replace` for another launch height).
+_BOOST_TABLES = {}
 
 
 def _find_root(error, top, direction):
@@ -579,6 +1070,13 @@ def _find_root(error, top, direction):
 
 @dataclass
 class Solution:
+    """A firing solution from `solve`: whether the target can be hit on the
+    requested arc, the elevation and what it takes to get there (sight angle,
+    mils, flight time, apex, impact angle, hold time), or why it cannot
+    (`reason_code`: "too_close", "out_of_range", "elevation_limit" or
+    "hold_limit", and a readable `reason`). `alternatives` maps the arcs that
+    can be fired to their elevation in degrees."""
+
     reachable: bool
     arc: str
     distance: float
@@ -600,6 +1098,8 @@ class Solution:
 
 
 def resolve_arc(weapon, arc):
+    """The arc to solve for: `arc` ("low" or "high"), or the weapon's own
+    arc for None, "" or "auto". Raises ValueError for any other value."""
     if arc in (None, "", "auto"):
         return weapon.arc
     if arc not in ARCS:
@@ -706,45 +1206,18 @@ def solve(weapon, distance, height_diff=0.0, arc=None):
     # horizon, so aiming at it already raises the barrel by that much.
     result.sight_angle = angle - math.degrees(math.atan2(rise, distance))
 
-    if weapon.g == 0:
-        result.time_of_flight = distance / (result.velocity * math.cos(rad))
-        result.apex = max(0.0, rise) + weapon.launch_height
-        result.impact_angle = -math.degrees(rad)
-        return result
-
-    flight = weapon.flight_time(rad, distance)
+    _, flight, impact = weapon.flight_at(rad, distance)
     start_x, start_y = weapon.launch_point(rad)
-    _, _, impact_vx, impact_vy = weapon.flight_state(rad, flight)
 
     result.time_of_flight = flight
+    # Average speed along the barrel's direction to the target.
     result.velocity = (distance - start_x) / (math.cos(rad) * flight)
-    result.impact_angle = -math.degrees(math.atan2(impact_vy, impact_vx))
+    result.impact_angle = -math.degrees(impact)
     result.apex = max(
-        start_y, height_diff, _apex_height(weapon, rad, flight)
+        start_y, height_diff, weapon.apex_height(rad, distance)
     )
 
     return result
-
-
-def _apex_height(weapon, rad, until):
-    """Highest height of the flight before `until` seconds, NaN if it only
-    descends (the vertical speed is zero at most once, on the way up)."""
-    g, boost = weapon.g, weapon.acceleration_time
-    sin = math.sin(rad)
-
-    # Vertical speed: sin * (v0 + a t) - g t while boosting, then
-    # sin * end_speed - g t.
-    denominator = g - sin * weapon.acceleration
-    top = math.nan
-    if boost > 0 and denominator > 0:
-        top = sin * weapon.velocity / denominator
-    if not 0 < top <= boost:
-        top = sin * weapon.cruise_velocity / g
-
-    if not 0 < top < until:
-        return math.nan
-
-    return weapon.flight_state(rad, top)[1]
 
 
 def trajectory(weapon, solution, points=64):
@@ -979,14 +1452,22 @@ def range_ladder(weapon, fov, screen_width, first, spacing, reach, scale=1.0,
     if weapon.aim != "overlay" or weapon.g == 0:
         return []
 
-    def offset_at(distance):
-        solution = solve(weapon, distance, 0.0, "low")
+    low_limit, high_limit = weapon.elevation_limits
 
-        if not solution.reachable:
+    def offset_at(distance):
+        # solve(weapon, distance, 0.0, "low").sight_angle, unless it is
+        # unreachable or beyond the elevation limits (flat_low_elevation)
+        rad = weapon.flat_low_elevation(distance)
+        angle = math.degrees(rad) - weapon.angle_offset
+
+        if not low_limit <= angle <= high_limit:
             return None
 
+        rise = -weapon.launch_height
+        sight_angle = angle - math.degrees(math.atan2(rise, distance))
+
         return mark_offset(
-            weapon, solution.sight_angle, fov, screen_width, scale, trim
+            weapon, sight_angle, fov, screen_width, scale, trim
         )
 
     ticks = []
@@ -1043,6 +1524,10 @@ def load_weapons(path):
 
 
 def parse_weapons(raw):
+    """{name: Weapon} from the parsed weapons.json object `raw`, in its
+    order, skipping the keys that start with "_" (comments). Raises
+    WeaponDataError when `raw` is not an object, defines no weapon or has an
+    invalid entry (`Weapon.from_dict`)."""
     if not isinstance(raw, dict):
         raise WeaponDataError("weapons.json must contain an object")
 

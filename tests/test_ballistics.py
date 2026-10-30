@@ -418,16 +418,16 @@ def test_only_rmb_sights_have_a_no_optic_twin():
 # (weapon, round zero range in m): the zero each view comes out at
 # is a round number, which is what the tilt was built for; a model that put
 # a view elsewhere would not land on one. Not here: the open-sight SPG-9
-# (0.13 degrees, zero 73 m HEAT / 38 m FRAG) and the AGS-17 optic (0.85
+# (0.13 degrees, zero 47 m HEAT / 27 m FRAG) and the AGS-17 optic (0.85
 # degrees, 58 m) have no round zero; the AGS-17 optic is confirmed instead
-# by the hold fit, whose top 85.87 is the mount's 85 + 0.85.
+# by the hold fit, whose top 85.87 is the mount's 85 + 0.85. Nor the SPG-9's
+# PGO-9 scope: its 2.34 degrees zero the HEAT shell at 765 m and the FRAG
+# shell at 440 m, because MaxSpeed slows them to 330 and 250 m/s at launch;
+# at the full muzzle velocity they would be 1313 and 688 m, close to round
+# (deadline-squad/squad-ballistics#4).
 ROUND_ZEROS = [
     ("MK19 · emplacement / C16 / L134A1", 330),
     ("AGS-17 · iron sights emplacement", 300),
-    ("SPG-9 · HEAT · scope", 1300),
-    ("SPG-9 · HEAT · scope · no optic", 1300),
-    ("SPG-9 · FRAG · scope", 700),
-    ("SPG-9 · FRAG · scope · no optic", 700),
     ("ZiS-3", 350),
     ("ZiS-3 · no optic", 350),
 ]
@@ -666,7 +666,8 @@ def test_sight_angle_follows_the_riflemans_rule(name):
     weapon = WEAPONS[name]
     flat = solve(weapon, 800, 0).sight_angle
 
-    for height in (-120, -40, 40, 120):
+    # Within the mounts' limits (the SPG-9 tripod: +-10 degrees)
+    for height in (-80, -40, 40, 80):
         solution = solve(weapon, 800, height)
 
         assert solution.sight_angle == pytest.approx(flat, rel=0.05)
@@ -847,18 +848,38 @@ def test_hold_fields_are_validated():
     assert not Weapon.from_dict("y", {"velocity": 230}).has_hold
 
 
+def lob_range(weapon, held):
+    """Flat-ground range (m) of a hold weapon's lob after holding the key
+    `held` seconds from the top of the hold: the barrel stops at the lowest
+    hold elevation, and the range is where the descending path comes back
+    to the ground (bisection on the distance past the apex)."""
+    lowest, top = weapon.hold_elevation
+    rad = math.radians(max(lowest, top - weapon.hold_rate * max(0.0, held)))
+    near, far = weapon.velocity ** 2 / weapon.g * math.sin(2 * rad) / 2, 1e4
+
+    for _ in range(80):
+        middle = (near + far) / 2
+        if weapon.flight_height(rad, middle) > 0:
+            near = middle
+        else:
+            far = middle
+
+    return near
+
+
 def test_ags17_hold_distance_matches_in_game_measurements():
     errors = [
-        AGS17.hold_distance(held) - distance
+        lob_range(AGS17, held) - distance
         for held, distance in AGS17_HOLD_TABLE
     ]
 
     # Same model as the hold time: ~7 m RMS over the 67 measurements.
     assert math.sqrt(sum(e * e for e in errors) / len(errors)) < 8
-    assert AGS17.hold_distance(0) == pytest.approx(279.5, abs=1)
-    assert AGS17.hold_distance(99) == AGS17.hold_distance(AGS17.max_hold_time())
-    assert AGS17.hold_distance(-1) == AGS17.hold_distance(0)
-    assert math.isnan(WEAPONS["RPG-29"].hold_distance(1))
+    assert lob_range(AGS17, 0) == pytest.approx(279.5, abs=1)
+    # The lob of the hold time solve() gives lands on its target.
+    for distance in (400, 1000, 1800):
+        lob = solve(AGS17, distance, 0, "high")
+        assert lob_range(AGS17, lob.hold_time) == pytest.approx(distance, abs=1e-3)
 
 
 def test_renamed_weapons_point_at_current_names():
@@ -992,9 +1013,13 @@ def test_the_mortar_reaches_1236_9_m_from_its_barrel_socket():
     assert not solve(mortar, 1237, 0, "high").reachable
 
 
-def test_a_boosted_rocket_flies_the_exact_two_phase_parabola():
+def test_a_motor_along_the_barrel_flies_the_exact_two_phase_parabola():
+    """A rocket whose rotation keeps the barrel's axis (the S-5's
+    rotation_follows_velocity false): constant acceleration on each phase,
+    which the game's Velocity Verlet substeps follow exactly."""
     rocket = Weapon.from_dict(
-        "r", {"velocity": 100, "acceleration": 50, "acceleration_time": 1.0}
+        "r", {"velocity": 100, "acceleration": 50, "acceleration_time": 1.0,
+              "rotation_follows_velocity": False}
     )
     rad = math.radians(10)
 
@@ -1004,7 +1029,148 @@ def test_a_boosted_rocket_flies_the_exact_two_phase_parabola():
         math.sin(rad) * 125 - 0.5 * GRAVITY
         + (math.sin(rad) * 150 - GRAVITY) * 2 - 0.5 * GRAVITY * 4
     )
+    climb = math.atan2(math.sin(rad) * 150 - 3 * GRAVITY, math.cos(rad) * 150)
 
+    assert not rocket.flies_boost_in_steps
     assert rocket.flight_height(rad, distance) == pytest.approx(height)
     assert rocket.flight_time(rad, distance) == pytest.approx(3.0)
-    assert rocket.flight_state(rad, 3.0)[:2] == pytest.approx((distance, height))
+    assert rocket.flight_at(rad, distance) == pytest.approx((height, 3.0, climb))
+
+
+# The game's flight (review 1.6.0 slice 2, deadline-squad/squad-ballistics#4):
+# 20 ms substeps, MaxSpeed clamped every substep, a motor along the path. The
+# oracle is tests/flight.py, which flies the game's rules substep by substep
+# from the game snapshot tests/data/game_weapons.json, without ballistics.py.
+
+def _game_flight(name):
+    import json
+
+    import flight
+
+    with open(os.path.join(ROOT, "tests", "data", "game_weapons.json"), encoding="utf-8") as stream:
+        game = json.load(stream)[name]
+    with open(os.path.join(ROOT, "weapons.json"), encoding="utf-8") as stream:
+        raw = json.load(stream)[name]
+
+    return flight, flight.Shot(game, raw)
+
+
+@pytest.mark.parametrize("name", [
+    "RPG-7 · PG-7V HEAT / OG-7V",
+    "M3 MAAWS · HEAT / Smoke",
+    "PF98 · HE-I",
+    "SPG-9 · HEAT",
+    "Carl Gustav M2 · FFV751 Tandem",
+    "Tank HEAT/HE · M256 / Rh120 / 2A46 / ZPT98 / 2A20 / M68A2",
+])
+@pytest.mark.parametrize("distance", [200, 500, 800])
+def test_the_elevation_lands_where_the_game_flies_it(name, distance):
+    """Claim 2 and #4: the motor turns with the velocity and MaxSpeed caps
+    the speed, so the old model (motor along the barrel, no cap) landed the
+    RPG-7 metres low and tank HE hundreds of metres long."""
+    flight, shot = _game_flight(name)
+
+    for height in (-20, 0, 20):
+        solution = solve(WEAPONS[name], distance, height, "low")
+        miss = flight.miss(shot, math.radians(solution.raw_angle), distance, height)
+
+        assert miss.distance < 0.02, (height, miss)
+
+
+def test_a_shell_fired_faster_than_its_cap_is_slowed_in_the_first_substep():
+    """Tank HE leaves at 1100 m/s with a 850 m/s cap: the first 20 ms
+    substep ends at 850 m/s and moves by the mean of the two, then the shell
+    flies at the cap (its path turning down very slowly when level)."""
+    shell = WEAPONS["Tank HEAT/HE · M256 / Rh120 / 2A46 / ZPT98 / 2A20 / M68A2"]
+    first = (1100 + 850) / 2 * 0.02
+
+    assert shell.max_speed == 850
+    assert shell.flight_time(0.0, first) == pytest.approx(0.02, rel=1e-6)
+    assert shell.flight_time(0.0, first / 2) == pytest.approx(0.01, rel=1e-6)
+    assert shell.flight_time(0.0, 1000.0) == pytest.approx(0.02 + (1000 - first) / 850, rel=1e-3)
+    assert solve(shell, 1000.0, 0.0).time_of_flight > 1000.0 / 1100 + 0.2
+
+
+def test_a_shell_coming_down_faster_than_its_cap_is_held_at_it():
+    """A plain parabola until the speed reaches the cap, the capped coast
+    after it: lower than the parabola from there on."""
+    capped = Weapon.from_dict("c", {"velocity": 300, "max_speed": 310})
+    free = Weapon.from_dict("f", {"velocity": 300})
+    rad = math.radians(30)
+    # The speed reaches 310 m/s sqrt(310^2 - 300^2) / g after the apex
+    apex_x = 300 ** 2 * math.sin(2 * rad) / (2 * GRAVITY)
+    onset_x = apex_x + 300 * math.cos(rad) * math.sqrt(310 ** 2 - (300 * math.cos(rad)) ** 2) / GRAVITY
+
+    assert capped.flight_height(rad, onset_x - 1) == pytest.approx(free.flight_height(rad, onset_x - 1))
+    # Held at the cap it takes longer to get there and falls further
+    assert capped.flight_height(rad, onset_x + 500) < free.flight_height(rad, onset_x + 500) - 0.1
+    # 1500 m down the shell would reach 345 m/s: the cap changes the aim
+    low = capped.elevations_to(5000, -1500)[0]
+    assert low != pytest.approx(free.elevations_to(5000, -1500)[0], abs=1e-4)
+    assert capped.flight_height(low, 5000) == pytest.approx(-1500, abs=1e-6)
+
+
+@pytest.mark.parametrize("name", [
+    "RPG-7 · PG-7V HEAT / OG-7V", "M3 MAAWS · HEAT / Smoke", "SPG-9 · HEAT", "PF98 · Tandem",
+])
+def test_the_boost_table_reproduces_the_stepped_boost(name):
+    """The searches read the stepped boost from a table over the elevation
+    (nodes every degree, 4-point interpolation): within 1 mm of flying it."""
+    from ballistics import _fly_boost
+
+    weapon = WEAPONS[name]
+    assert weapon.flies_boost_in_steps
+
+    for degrees in (-7.3, 0.4, 3.77, 12.5, 33.3, 61.9):
+        rad = math.radians(degrees)
+        points, _ = _fly_boost(weapon, rad)
+        start_x, start_y = weapon.launch_point(rad)
+
+        for x, y in points[1::7]:
+            assert weapon.flight_height(rad, start_x + x) == pytest.approx(start_y + y, abs=1e-3)
+
+
+@pytest.mark.parametrize("name", ["M3 MAAWS · HEAT / Smoke", "Tank HEAT/HE · M1A1 / M1A2 (M256)"])
+def test_the_range_ladder_is_the_solution_at_each_tick(name):
+    weapon = WEAPONS[name]
+    ladder = range_ladder(weapon, 90, 1920, 100, 18, 1500)
+
+    assert ladder
+    for distance, offset in ladder:
+        sight_angle = solve(weapon, distance, 0.0, "low").sight_angle
+        assert offset == pytest.approx(mark_offset(weapon, sight_angle, 90, 1920))
+
+
+def test_the_flight_time_starts_at_the_muzzle():
+    """Claim 10: the time of flight counts from the muzzle, 2 m ahead of the
+    pivot here, not from the pivot."""
+    gun = Weapon.from_dict("g", {"velocity": 100, "gravity": 0, "muzzle_forward": 2.0})
+
+    assert gun.flight_time(0.0, 102.0) == pytest.approx(1.0)
+    assert solve(gun, 102.0, 0.0).time_of_flight == pytest.approx(1.0)
+
+
+@pytest.mark.parametrize("data, match", [
+    ({"velocity": 100, "max_speed": -1}, "max_speed"),
+    ({"velocity": 100, "rotation_follows_velocity": "no"}, "rotation_follows_velocity"),
+    ({"velocity": 300, "gravity": 0, "max_speed": 250}, "max_speed"),
+])
+def test_invalid_flight_fields_are_rejected(data, match):
+    with pytest.raises(WeaponDataError, match=match):
+        Weapon.from_dict("x", data)
+
+
+def test_every_public_item_of_the_model_is_documented():
+    """Claim 9 of the 1.6.0 review."""
+    import inspect
+
+    import ballistics
+
+    for name, item in vars(ballistics).items():
+        if name.startswith("_") or getattr(item, "__module__", None) != "ballistics":
+            continue
+        if inspect.isclass(item) or inspect.isfunction(item):
+            assert inspect.getdoc(item), name
+            for member, value in vars(item).items() if inspect.isclass(item) else ():
+                if not member.startswith("_") and (inspect.isfunction(value) or isinstance(value, property)):
+                    assert inspect.getdoc(value), f"{name}.{member}"

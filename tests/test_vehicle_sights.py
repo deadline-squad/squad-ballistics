@@ -36,10 +36,13 @@ WEAPONS = load_weapons(os.path.join(ROOT, "weapons.json"))
 # whenever the weapon is not zoomed (its ZoomLevels [3.0] are only applied by
 # the vehicle zoom key and reset within 0.3 s), and RMB divides the FOV by 3
 # (BP_QLZ87_OpenTurret_Weapon: SetFieldOfView(UserSettings.FOV / 3.0)); both
-# cameras sit at 0 on the gun mount. Zero ranges that come out round
-# (AGS-30 200 m, BMP-1 FRAG 350 m, MK19 on the M113 300 m, T-72 HEAT 600 m,
-# Challenger 2 AP 1000 m) confirm the model; the others are what the game's
-# socket and camera give.
+# cameras sit at 0 on the gun mount. The zero ranges are what the game's
+# socket, camera and flight give. Some come out round (AGS-30 200 m, MK19 on
+# the M113 300 m, Challenger 2 AP 1000 m). The shells the projectile's
+# MaxSpeed slows at launch (Grom and tank HEAT/HE) were round without that
+# clamp (BMP-1 FRAG 350 m, T-72 HEAT 600 m), as if the sights had been set
+# for the muzzle velocity; deadline-squad/squad-ballistics#4 and #5 (D3)
+# have that question.
 VEHICLE_SIGHTS = [
     ("MK19", 1.0, 0.0, None),
     ("MK19 · PARS III RWS", 1.0, 0.95, 180),
@@ -48,12 +51,14 @@ VEHICLE_SIGHTS = [
     ("MK19 · M1151 / RHIB open turret", 1.0, 1.72, 325),
     ("QLZ87 · Lynx / CSK131", 3.0, 0.85, 110),
     ("QLZ87 · Lynx / CSK131 · no optic", 1.0, 0.85, 110),
-    ("AGS-30 / BTR-4 AGS", 3.0, 1.58, 205),
+    ("MK19 · emplacement / C16 / L134A1 · no sights", 1.0, 0.0, None),
+    ("AGS-30 / BTR-4 AGS", 3.0, 1.6, 205),
+    ("AGS-30 (BMP-1TS)", 3.0, 1.55, 200),
     ("AGS-30 (BMP-2M)", 1.5, 1.55, 200),
-    ("2A28 Grom (BMP-1 / BMD-1) · HEAT", 1.5, 1.4, 790),
-    ("2A28 Grom (BMD-1M) · HEAT", 1.5, 1.57, 885),
-    ("2A28 Grom (BMP-1 / BMD-1) · FRAG", 1.5, 1.4, 350),
-    ("2A28 Grom (BMD-1M) · FRAG", 1.5, 1.57, 395),
+    ("2A28 Grom (BMP-1 / BMD-1) · HEAT", 1.5, 1.4, 460),
+    ("2A28 Grom (BMD-1M) · HEAT", 1.5, 1.57, 515),
+    ("2A28 Grom (BMP-1 / BMD-1) · FRAG", 1.5, 1.4, 265),
+    ("2A28 Grom (BMD-1M) · FRAG", 1.5, 1.57, 295),
     ("2A70 100mm (BMP-3 / BMD-4 / ZBD04A) · FRAG", 2.5, 0.58, 130),
     ("2A70 100mm (BMD-4M) · FRAG", 2.5, 0.57, 130),
     ("2A70 100mm (ZBD-04A) · FRAG", 2.5, 0.95, 215),
@@ -66,14 +71,14 @@ VEHICLE_SIGHTS = [
     ("Tank AP · M60T (MG253)", 1.0, 0.5, 1030),
     ("Tank AP · L30A1 (Challenger 2) / M68A2", 1.5, 0.31, 995),
     ("Tank AP · M1128 MGS (M68A2)", 3.0, 0.6, 1925),
-    ("Tank HEAT/HE · M256 / Rh120 / 2A46 / ZPT98 / 2A20 / M68A2", 4.0, 0.28, 605),
-    ("Tank HEAT/HE · M1A1 / M1A2 (M256)", 3.0, 0.31, 670),
-    ("Tank HEAT/HE · Leopard 2A6 (Rh120)", 3.0, 0.25, 540),
-    ("Tank HEAT/HE · M1128 MGS (M68A2)", 3.0, 0.6, 1295),
-    ("Tank HEAT/HE · M60T (MG253)", 1.0, 0.5, 1080),
-    ("Tank HEAT/HE · ZTZ-99 (ZPT-98)", 4.0, 0.1, 215),
-    ("Tank HEAT/HE · T-62 (2A20)", 3.5, 0.05, 110),
-    ("Tank HEAT/HE · T-64BM2 (KBA3)", 2.7, 0.29, 625),
+    ("Tank HEAT/HE · M256 / Rh120 / 2A46 / ZPT98 / 2A20 / M68A2", 4.0, 0.28, 375),
+    ("Tank HEAT/HE · M1A1 / M1A2 (M256)", 3.0, 0.31, 370),
+    ("Tank HEAT/HE · Leopard 2A6 (Rh120)", 3.0, 0.25, 300),
+    ("Tank HEAT/HE · M1128 MGS (M68A2)", 3.0, 0.6, 700),
+    ("Tank HEAT/HE · M60T (MG253)", 1.0, 0.5, 655),
+    ("Tank HEAT/HE · ZTZ-99 (ZPT-98)", 4.0, 0.1, 140),
+    ("Tank HEAT/HE · T-62 (2A20)", 3.5, 0.05, 76),
+    ("Tank HEAT/HE · T-64BM2 (KBA3)", 2.7, 0.29, 385),
     ("Tank HESH · L30A1 (Challenger 2)", 1.5, 0.31, 250),
     ("ZPL-98A 105mm (ZTD-05) · AP", 3.5, 0.02, 35),
     ("ZPL-98A 105mm (ZTD-05) · HEAT / HE", 3.5, 0.02, 20),
