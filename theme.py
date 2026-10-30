@@ -53,8 +53,7 @@ def contrast(first, second):
 
 def on_accent(accent):
     """Text color for an `accent` background: the usual light text, or the
-    dark background color when the accent is too light for it (amber,
-    green, sand)."""
+    dark background color when the accent is too light for it."""
     return TEXT if contrast(TEXT, accent) >= MIN_TEXT_CONTRAST else BG
 
 
