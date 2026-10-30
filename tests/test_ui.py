@@ -123,7 +123,7 @@ def test_overlay_mark_follows_the_weapon_aim(window):
     assert not window.overlay.mark_visible
 
     # Direct fire and the AGS-17 (its direct-fire aim) are aimed with the mark
-    for name in ("SPG-9 · HEAT", "AGS-17 · emplacement"):
+    for name in ("SPG-9 · HEAT", "AGS-17 · emplacement · optic (RMB ×2.5)"):
         window.select_weapon(name)
         window.distance_entry.setText("500")
         window.calculate()
@@ -418,7 +418,7 @@ def test_switching_map_render_asks_for_restart(window, monkeypatch):
     assert config.load_config()["map_render"] == "software"
 
 
-AGS17 = "AGS-17 · emplacement"
+AGS17 = "AGS-17 · emplacement · optic (RMB ×2.5)"
 
 
 def test_ags17_lob_is_laid_by_holding_s(window):
@@ -569,7 +569,7 @@ def test_map_target_fills_the_inputs(window):
     bearing = f"{271.25:.1f}"
     assert bearing in window.map_label.text()
     assert window.current_steps[0] == tr("how_bearing", b=bearing)
-    assert window.overlay.info_text.startswith("1234 ")
+    assert window.overlay.info_text.startswith(tr("info_view_optic", zoom="2.5") + "  ·  1234 ")
     assert f"{bearing}°" in window.overlay.info_text
 
     # The same list again changes nothing; an empty list keeps the inputs.
@@ -876,7 +876,7 @@ def test_weapon_picked_here_is_selected_on_the_embedded_map(window, monkeypatch)
     # A page like SquadCalc: selectWeapon() only accepts the weapons it has.
     html = (
         "data:text/html;charset=utf-8,<script>"
-        "var known=['QLZ87','AT-4'];var current='AT-4';var calls=[];"
+        "var known=['QLZ87 · optic (RMB ×3)','AT-4'];var current='AT-4';var calls=[];"
         "window.squadBallistics={version:3,"
         "targets:()=>[{distance:500,heightDiff:0,bearing:0}],"
         "weapon:()=>current,"
@@ -885,7 +885,7 @@ def test_weapon_picked_here_is_selected_on_the_embedded_map(window, monkeypatch)
     )
     monkeypatch.setitem(webmap.MAP_SOURCES, "deadline", html)
 
-    window.select_weapon("QLZ87")
+    window.select_weapon("QLZ87 · optic (RMB ×3)")
     window.set_page(3)
     page = window.map_page
 
@@ -905,9 +905,9 @@ def test_weapon_picked_here_is_selected_on_the_embedded_map(window, monkeypatch)
     # The app's weapon goes to the page once it answers; the page's own
     # starting weapon does not switch the app.
     assert wait_for(lambda: page.bridge_found)
-    assert wait_for(lambda: page_value("current") == "QLZ87")
-    assert wait_for(lambda: page.last_weapon == "QLZ87")
-    assert window.picker.current == "QLZ87"
+    assert wait_for(lambda: page_value("current") == "QLZ87 · optic (RMB ×3)")
+    assert wait_for(lambda: page.last_weapon == "QLZ87 · optic (RMB ×3)")
+    assert window.picker.current == "QLZ87 · optic (RMB ×3)"
 
     # Picked here while the page runs.
     window.select_weapon("AT-4")
@@ -916,8 +916,8 @@ def test_weapon_picked_here_is_selected_on_the_embedded_map(window, monkeypatch)
     assert window.picker.current == "AT-4"
 
     # Picked on the page: followed here.
-    page_value("current = 'QLZ87'")
-    assert wait_for(lambda: window.picker.current == "QLZ87")
+    page_value("current = 'QLZ87 · optic (RMB ×3)'")
+    assert wait_for(lambda: window.picker.current == "QLZ87 · optic (RMB ×3)")
 
     # A weapon the page does not have: the page keeps its own and does not
     # switch the app back (no ping-pong).
@@ -926,8 +926,24 @@ def test_weapon_picked_here_is_selected_on_the_embedded_map(window, monkeypatch)
     for _ in range(20):
         QCoreApplication.processEvents()
     page.poll_targets()
-    assert wait_for(lambda: page_value("current") == "QLZ87")
+    assert wait_for(lambda: page_value("current") == "QLZ87 · optic (RMB ×3)")
     assert window.picker.current == "RPG-29"
+
+
+def test_an_older_squadcalc_page_sending_the_bare_name_selects_the_optic_entry(window):
+    """Before the optic names, SquadCalc's "QLZ87" was the optic's entry and
+    the plain-view twin had its own name: the bare name never means the
+    normal view."""
+    window.config["map_follow"] = True
+    window.select_weapon("QLZ87 · no optic")
+
+    window.on_map_weapon("QLZ87")
+
+    assert window.picker.current == "QLZ87 · optic (RMB ×3)"
+
+    window.on_map_weapon("QLZ87 · no optic")
+
+    assert window.picker.current == "QLZ87 · no optic"
 
 
 def test_embedded_bridge_reads_a_page_without_the_weapon(window, monkeypatch):
@@ -1454,8 +1470,12 @@ def test_long_weapon_name_is_elided_in_the_picker(window):
     assert "…" in picker.text()
     assert picker.sizeHint().width() <= picker.width()
 
+    window.select_weapon("RPG-29")
+    assert picker.text() == "RPG-29   ▾"
+
+    # The end of an RMB sight's name says which view it is: it stays.
     window.select_weapon(AGS17)
-    assert picker.text() == f"{AGS17}   ▾"
+    assert picker.text().endswith("optic (RMB ×2.5)   ▾")
 
 
 def test_crosshair_page_fits_the_minimum_window(window):
@@ -2031,7 +2051,7 @@ def test_optic_view_moves_the_mark_and_the_ladder(window):
     from ballistics import mark_offset
 
     window.overlay.setGeometry(0, 0, 1920, 1080)
-    window.select_weapon("QLZ87")
+    window.select_weapon("QLZ87 · optic (RMB ×3)")
     window.distance_entry.setText("400")
     window.height_entry.setText("0")
     window.fov_entry.setText("90")
@@ -2050,6 +2070,52 @@ def test_optic_view_moves_the_mark_and_the_ladder(window):
     window.calculate()
     assert window.overlay.ladder != optic_ladder
     assert window.current_weapon().sight_view(90) == (90, 0.0)
+
+
+def test_the_view_of_an_rmb_sight_is_said_in_the_header_the_overlay_and_the_steps(window):
+    """The QLZ87 trap: used from the normal view, the optic's mark flew
+    hundreds of metres past the target and nothing on screen said which view
+    the entry was for. The header, the overlay's info line and the how-to
+    steps name it for both entries of every RMB sight."""
+    window.overlay.setGeometry(0, 0, 1920, 1080)
+    window.distance_entry.setText("300")
+    window.height_entry.setText("0")
+    window.fov_entry.setText("120")
+
+    for name, line, tag, step in [
+        ("QLZ87 · optic (RMB ×3)", tr("view_optic", zoom="3"), tr("info_view_optic", zoom="3"),
+         "hold RMB (zoom ×3)"),
+        ("QLZ87 · no optic", tr("view_plain"), tr("info_view_plain"), "do not press RMB"),
+    ]:
+        window.select_weapon(name)
+        window.calculate()
+
+        assert window.view_label.text() == line
+        assert not window.view_label.isHidden()
+        assert window.overlay.info_text.startswith(tag + "  ·  300 ")
+        assert any(step in text for text in window.current_steps)
+
+    window.select_weapon("M203 / M320 / GP-25 / HK79 / SL40")
+    window.calculate()
+
+    assert window.view_label.isHidden()
+    assert not window.overlay.info_text.startswith(tr("info_view_plain"))
+    assert not any("RMB" in text for text in window.current_steps)
+
+
+def test_each_view_step_names_the_other_entry(window):
+    window.fov_entry.setText("120")
+    window.distance_entry.setText("300")
+
+    for name, other in [
+        ("QLZ87 · optic (RMB ×3)", "QLZ87 · no optic"),
+        ("QLZ87 · no optic", "QLZ87 · optic (RMB ×3)"),
+        ("ZiS-3 · no optic", "ZiS-3 · optic (RMB ×4)"),
+    ]:
+        window.select_weapon(name)
+        window.calculate()
+
+        assert any(f'"{other}"' in text for text in window.current_steps)
 
 
 def test_fov_edit_moves_the_ladder_without_a_distance(window):
@@ -2071,7 +2137,7 @@ def test_fov_edit_moves_the_ladder_without_a_distance(window):
 def test_small_fov_through_the_optic_neither_raises_nor_stops_the_app(window):
     """FOV 2 through the QLZ87's x3 optic is a view under 1 degree."""
     window.overlay.setGeometry(0, 0, 1920, 1080)
-    window.select_weapon("QLZ87")
+    window.select_weapon("QLZ87 · optic (RMB ×3)")
     window.distance_entry.setText("300")
     window.fov_entry.setText("2")
     window.calculate()
@@ -2097,8 +2163,8 @@ def painted_rows(overlay, width=25):
 
 @pytest.mark.parametrize("name, zero", [
     ("MK19 · emplacement / C16 / L134A1", 330),
-    ("SPG-9 · HEAT · scope", 765),
-    ("ZiS-3", 350),
+    ("SPG-9 · HEAT · scope · optic (RMB ×4)", 765),
+    ("ZiS-3 · optic (RMB ×4)", 350),
 ])
 def test_emplaced_mark_is_drawn_where_the_view_puts_it(window, name, zero):
     """The painted mark is `mark_offset` below the centre and the ladder of

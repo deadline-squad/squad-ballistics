@@ -49,7 +49,7 @@ VEHICLE_SIGHTS = [
     ("MK19 · TAPV C16 RWS", 1.0, 1.55, 295),
     ("MK19 · M113 open turret", 1.0, 1.6, 300),
     ("MK19 · M1151 / RHIB open turret", 1.0, 1.72, 325),
-    ("QLZ87 · Lynx / CSK131", 3.0, 0.85, 110),
+    ("QLZ87 · Lynx / CSK131 · optic (RMB ×3)", 3.0, 0.85, 110),
     ("QLZ87 · Lynx / CSK131 · no optic", 1.0, 0.85, 110),
     ("MK19 · emplacement / C16 / L134A1 · no sights", 1.0, 0.0, None),
     ("AGS-30 / BTR-4 AGS", 3.0, 1.6, 205),

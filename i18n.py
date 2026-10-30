@@ -77,6 +77,15 @@ STRINGS = {
         "Your in-game FOV must be {fov}° (the game's setting, not the sight's). "
         "The mark is for the sight's view, zoom ×{zoom}."
     ),
+    "how_view_optic": (
+        "Aim through the optic: hold RMB (zoom ×{zoom}). Without it pick "
+        "\"{twin}\". Your in-game FOV must be {fov}° (the game's setting, "
+        "not the sight's)."
+    ),
+    "how_view_plain": (
+        "Aim without the optic: do not press RMB (no zoom). Through the optic "
+        "pick \"{twin}\". Your in-game FOV must be {fov}°."
+    ),
     "how_overlay_2": "Your in-game FOV must be {fov}°.",
     "how_overlay_offscreen": (
         "The mark is off-screen: raise the barrel {angle} above the target "
@@ -175,6 +184,10 @@ STRINGS = {
     "chip_range_inf": "no drop",
     "chip_boost": "boost {a:+g} m/s² · {t:g} s",
     "chip_min": "from {m} m",
+    "view_optic": "Aim through the optic: hold RMB (×{zoom})",
+    "view_plain": "Aim without the optic: do not press RMB",
+    "info_view_optic": "optic ×{zoom} (RMB)",
+    "info_view_plain": "no optic",
 
     # Categories
     "cat_grenade_launchers": "Grenade launchers",

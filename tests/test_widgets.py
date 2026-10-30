@@ -11,7 +11,7 @@ from widgets import NumberEdit, Segmented, WeaponPicker
 
 GROUPS = [
     ("launchers", ["RPG-7V1 · HEAT", "RPG-29", "AT-4"]),
-    ("agl", ["MK19", "AGS-17 · emplacement"]),
+    ("agl", ["MK19", "AGS-17 · emplacement · optic (RMB ×2.5)"]),
 ]
 
 
@@ -49,13 +49,13 @@ def test_the_search_lists_only_matching_weapons(qapp):
     picker = picker_with_data(recent=["MK19"])
     picker.open_popup()
 
-    assert listed(picker) == ["MK19", "RPG-7V1 · HEAT", "RPG-29", "AT-4", "MK19", "AGS-17 · emplacement"]
+    assert listed(picker) == ["MK19", "RPG-7V1 · HEAT", "RPG-29", "AT-4", "MK19", "AGS-17 · emplacement · optic (RMB ×2.5)"]
 
     picker.popup.search.setText("rpg")
     assert listed(picker) == ["RPG-7V1 · HEAT", "RPG-29"]
 
     picker.popup.search.setText("AGS")
-    assert listed(picker) == ["AGS-17 · emplacement"]
+    assert listed(picker) == ["AGS-17 · emplacement · optic (RMB ×2.5)"]
 
     picker.popup.search.setText("no such gun")
     assert listed(picker) == []

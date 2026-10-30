@@ -230,20 +230,31 @@ def nearest_mark_color(rgb):
 
 
 @functools.lru_cache(maxsize=1)
-def file_hold_rates():
-    """{weapon name: hold rate} of the weapons in weapons.json laid by
-    holding a key (`lay_rates` replaces these); empty when the file cannot
-    be read, which the app reports on its own."""
+def file_weapons():
+    """The weapons of weapons.json; empty when the file cannot be read,
+    which the app reports on its own."""
     try:
-        weapons = load_weapons(resource_path("weapons.json"))
+        return load_weapons(resource_path("weapons.json"))
     except (OSError, WeaponDataError):
         return {}
 
+
+def file_hold_rates():
+    """{weapon name: hold rate} of the weapons in weapons.json laid by
+    holding a key (`lay_rates` replaces these)."""
     return {
         name: weapon.hold_rate
-        for name, weapon in weapons.items()
+        for name, weapon in file_weapons().items()
         if weapon.has_hold and weapon.aim == "elevation"
     }
+
+
+def plain_view_name(name):
+    """The entry of the normal view (RMB not held) of weapon `name`: the
+    "· no optic" twin of an RMB sight, else `name` itself."""
+    weapon = file_weapons().get(name)
+
+    return weapon.twin if weapon is not None and weapon.twin else name
 
 
 def _valid_lay_rates(loaded):
@@ -278,7 +289,9 @@ def _valid_mark_trims(loaded):
 
     Versions with a view switch kept one trim per weapon and view, under
     "<weapon name>|plain", "|optic" or "|optic2". The plain (unzoomed) one
-    becomes the weapon's trim; the others are dropped.
+    becomes the trim of the weapon's plain view: the "· no optic" twin of an
+    RMB sight (the plain name now means the sight's optic), else the weapon
+    itself; the others are dropped.
     """
     trims = {}
 
@@ -302,7 +315,12 @@ def _valid_mark_trims(loaded):
         trim = clamp_trim(trim)
 
         if trim:
-            trims[current_weapon_name(name)] = trim
+            name = current_weapon_name(name)
+
+            if bar:
+                name = plain_view_name(name)
+
+            trims[name] = trim
 
     return trims
 

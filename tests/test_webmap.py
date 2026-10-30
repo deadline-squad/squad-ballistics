@@ -472,8 +472,8 @@ def test_a_new_page_start_takes_the_pages_weapon_as_a_baseline(bridge_page):
         assert fake.pending == []
 
     # A change made on the page afterwards is followed.
-    bridge_page.on_bridge_result(dict(BRIDGE_ANSWER, weapon="QLZ87"))
-    assert received == ["QLZ87"]
+    bridge_page.on_bridge_result(dict(BRIDGE_ANSWER, weapon="QLZ87 · optic (RMB ×3)"))
+    assert received == ["QLZ87 · optic (RMB ×3)"]
 
 
 def test_a_page_without_the_bridge_yet_does_not_take_the_baseline(bridge_page):

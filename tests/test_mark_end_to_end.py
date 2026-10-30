@@ -464,19 +464,19 @@ def print_report(request):
 # NOT weapons.json's, so an entry whose zoom or bore is for another view of
 # the same gun fails here.
 GAME_VIEWS = [
-    "QLZ87",
+    "QLZ87 · optic (RMB ×3)",
     "QLZ87 · no optic",
-    "QLZ87 · Lynx / CSK131",
+    "QLZ87 · Lynx / CSK131 · optic (RMB ×3)",
     "QLZ87 · Lynx / CSK131 · no optic",
-    "AGS-17 · emplacement",
+    "AGS-17 · emplacement · optic (RMB ×2.5)",
     "AGS-17 · emplacement · no optic",
     "MK19 · emplacement / C16 / L134A1",
     "MK19 · emplacement / C16 / L134A1 · no sights",
-    "SPG-9 · HEAT · scope",
+    "SPG-9 · HEAT · scope · optic (RMB ×4)",
     "SPG-9 · HEAT · scope · no optic",
-    "SPG-9 · FRAG · scope",
+    "SPG-9 · FRAG · scope · optic (RMB ×4)",
     "SPG-9 · FRAG · scope · no optic",
-    "ZiS-3",
+    "ZiS-3 · optic (RMB ×4)",
     "ZiS-3 · no optic",
 ]
 
@@ -515,16 +515,41 @@ def test_the_optic_mark_from_the_normal_view_flies_past(rig):
     mark is three times too far below the centre for the game's FOV, the
     barrel goes up that much more and the shell lands far past the target
     (FOV 120, 1920 px: 200 m -> 362 m, 300 m -> 828 m)."""
-    shot = game_shot("QLZ87")
+    shot = game_shot("QLZ87 · optic (RMB ×3)")
 
     for distance, lands in ((200, 362), (300, 828)):
-        rig.aim("QLZ87", 120, 100, distance, 0, "low", 1920)
+        rig.aim("QLZ87 · optic (RMB ×3)", 120, 100, distance, 0, "low", 1920)
         pixels = rig.mark_row() - rig.overlay.center_y
         elevation = flight.barrel_elevation(
-            RAW["QLZ87"], flight.view(GAME["QLZ87 · no optic"]), 120, 1920, pixels, distance, 0
+            RAW["QLZ87 · optic (RMB ×3)"], flight.view(GAME["QLZ87 · no optic"]), 120, 1920, pixels, distance, 0
         )
 
         assert flight.range_at(shot, elevation, 0) == pytest.approx(lands, abs=2)
+
+
+@pytest.mark.parametrize("distance", [100, 400, 500, 600, 800, 1000, 1200])
+def test_the_qlz87_optic_mark_lands_on_the_target_far_out(rig, distance):
+    """The owner's second report: "in the optic it is wrong beyond 400 m".
+    The rendered mark of the ×3 optic, laid by the game's own rules (FOV / 3
+    horizontal, the barrel 0.774 degrees above the view axis, 20 ms substeps),
+    lands on the target from 100 m to 1200 m (the mark leaves a 1080p screen at 1539 m), where a one-pixel row is worth
+    0.5 m at 100 m and 3 m at 800 m: nothing in the data makes the optic's
+    mark drift with range, so a shot that misses by more is not this model."""
+    name = "QLZ87 · optic (RMB ×3)"
+    shot = game_shot(name)
+
+    rig.aim(name, 120, 100, distance, 0, "low", 1920)
+    pixels = rig.mark_row() - rig.overlay.center_y
+    elevation = flight.barrel_elevation(
+        RAW[name], flight.view(GAME[name]), 120, 1920, pixels, distance, 0
+    )
+    one_pixel = abs(
+        flight.range_at(shot, flight.barrel_elevation(
+            RAW[name], flight.view(GAME[name]), 120, 1920, pixels + 1, distance, 0
+        ), 0) - distance
+    )
+
+    assert flight.range_at(shot, elevation, 0) == pytest.approx(distance, abs=max(1.0, one_pixel))
 
 
 # ---------------------------------------------------------------------------
@@ -887,7 +912,7 @@ def test_a_mark_off_the_screen_becomes_an_arrow_at_the_edge(rig):
     assert mass and all(ov.height() - 24 <= r <= ov.height() - 7 for r, _ in mass)
 
     # Far above: a strong optic at a narrow FOV, aimed closer than its zero
-    rig.aim("SPG-9 · HEAT · scope", 20, 100, 30, 0, "auto", 1920)
+    rig.aim("SPG-9 · HEAT · scope · optic (RMB ×4)", 20, 100, 30, 0, "auto", 1920)
     assert ov.is_offscreen(ov.offset) and ov.offset < 0
     rows = rig.grab(int(ov.center_x) - 20, int(ov.center_x) + 20)
     mass = [(r, w) for r, w in enumerate(rows) if w]
@@ -902,7 +927,7 @@ def test_unreachable_ranges_are_unreachable_for_the_game_too(rig):
     for name, distance, height in (
         ("M203 / M320 / GP-25 / HK79 / SL40", 700, 0),
         ("RPG-7 · PG-7V HEAT / OG-7V", 6000, 0),
-        ("AGS-17 · emplacement", 2500, 0),
+        ("AGS-17 · emplacement · optic (RMB ×2.5)", 2500, 0),
     ):
         rig.aim(name, 90, 100, distance, height)
         solution = rig.window.last_solution

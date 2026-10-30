@@ -111,6 +111,12 @@ def stylesheet():
         font-size: 11px;
     }}
 
+    QLabel[role="view"] {{
+        color: {accent};
+        font-size: 12px;
+        font-weight: 600;
+    }}
+
     QLabel[role="big"] {{
         color: {accent};
         font-size: 40px;
