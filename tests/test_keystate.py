@@ -204,3 +204,140 @@ def test_ctypes_char_buffer_bit_order():
 
     assert keystate._bit(buffer.raw, 39)
     assert not keystate._bit(buffer.raw, 38)
+
+
+# ---------- evdev hotplug (#3 item 24), on fake devices ----------
+
+class FakeInput:
+    """/dev/input stand-in: os.open, os.close and fcntl.ioctl of keystate
+    over devices that can be plugged in and out."""
+
+    def __init__(self, monkeypatch):
+        self.devices = {}  # path -> {"keys": capabilities, "down": set, "gone": bool}
+        self.fds = {}      # fd -> path
+        self.opened = 0
+        self.next_fd = 100
+        self.now = 0.0
+
+        monkeypatch.setattr(keystate.os, "open", self.open)
+        monkeypatch.setattr(keystate.os, "close", self.close)
+        monkeypatch.setattr(keystate.fcntl, "ioctl", self.ioctl)
+
+    def plug(self, path, keyboard=True):
+        keys = {KEY_S, KEY_W, KEY_F8} if keyboard else {KEY_F8}
+        self.devices[path] = {"keys": keys, "down": set(), "gone": False}
+
+    def unplug(self, path):
+        # The node goes away; an fd still open on it answers ENODEV
+        self.devices.pop(path)["gone"] = True
+
+    def paths(self):
+        return sorted(self.devices)
+
+    def clock(self):
+        return self.now
+
+    def open(self, path, flags):
+        if path not in self.devices:
+            raise FileNotFoundError(path)
+
+        self.opened += 1
+        self.next_fd += 1
+        self.fds[self.next_fd] = (path, self.devices[path])
+        return self.next_fd
+
+    def close(self, fd):
+        self.fds.pop(fd)
+
+    def ioctl(self, fd, request, buffer):
+        _path, device = self.fds[fd]
+
+        if device["gone"]:
+            raise OSError(19, "No such device")
+
+        bits = device["keys"] if request == EVIOCGBIT_KEY else device["down"]
+
+        for code in bits:
+            buffer[code // 8] |= 1 << (code % 8)
+
+
+@pytest.fixture
+def fake_input(monkeypatch):
+    return FakeInput(monkeypatch)
+
+
+def make_reader(fake_input):
+    return keystate.EvdevReader(fake_input.paths, fake_input.clock)
+
+
+def test_a_keyboard_plugged_in_later_is_read(fake_input):
+    fake_input.plug("/dev/input/event0", keyboard=False)
+    reader = make_reader(fake_input)
+    assert not reader.available
+
+    fake_input.plug("/dev/input/event5")
+    fake_input.devices["/dev/input/event5"]["down"].add(KEY_S)
+
+    # Not before the next scan, then without a restart
+    fake_input.now += keystate.RESCAN_SECONDS / 2
+    assert not reader(KEY_S)
+
+    fake_input.now += keystate.RESCAN_SECONDS
+    assert reader(KEY_S)
+    assert reader.available
+
+
+def test_an_unplugged_keyboard_is_dropped_and_its_return_is_read(fake_input):
+    fake_input.plug("/dev/input/event3")
+    reader = make_reader(fake_input)
+    assert reader.available
+
+    fake_input.unplug("/dev/input/event3")
+    assert not reader(KEY_S)
+    assert not reader.available, "available says the keyboard is gone"
+    assert fake_input.fds == {}, "the dead fd is closed"
+
+    # Reconnected (a new node): found soon, well before the periodic scan
+    fake_input.plug("/dev/input/event7")
+    fake_input.devices["/dev/input/event7"]["down"].add(KEY_W)
+    fake_input.now += keystate.FAILURE_RESCAN_SECONDS
+    assert reader(KEY_W)
+    assert reader.available
+
+
+def test_keys_are_read_on_any_of_several_keyboards(fake_input):
+    fake_input.plug("/dev/input/event1")
+    fake_input.plug("/dev/input/event2")
+    reader = make_reader(fake_input)
+
+    fake_input.devices["/dev/input/event2"]["down"].add(KEY_F8)
+
+    assert reader(KEY_F8)
+    assert not reader(KEY_S)
+
+    # One of them unplugged: the other still works
+    fake_input.unplug("/dev/input/event1")
+    assert reader(KEY_F8)
+    assert reader.available
+
+
+def test_scans_do_not_reopen_known_devices(fake_input):
+    fake_input.plug("/dev/input/event1")
+    reader = make_reader(fake_input)
+    opened = fake_input.opened
+
+    for _ in range(5):
+        fake_input.now += keystate.RESCAN_SECONDS
+        reader(KEY_S)
+
+    assert fake_input.opened == opened
+    assert len(fake_input.fds) == 1
+
+
+def test_evdev_reader_needs_a_keyboard_at_the_start(fake_input):
+    fake_input.plug("/dev/input/event0", keyboard=False)
+    assert keystate.evdev_reader(["/dev/input/event0"]) is None
+
+    fake_input.plug("/dev/input/event1")
+    reader = keystate.evdev_reader(["/dev/input/event0", "/dev/input/event1"])
+    assert isinstance(reader, keystate.EvdevReader) and reader.available

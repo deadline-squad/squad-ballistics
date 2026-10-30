@@ -88,22 +88,35 @@ class Toggle(QAbstractButton):
 
     def sizeHint(self):
         width = self.fontMetrics().horizontalAdvance(self.text())
-        return QSize(width + 52, 26)
+        return QSize(width + 55, 26)
 
     def paintEvent(self, event):
         painter = QPainter(self)
 
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        track = QRectF(0, 4, 34, 18)
+        # 3 px clear on the left for the focus ring
+        track = QRectF(3, 4, 34, 18)
+
+        if self.isChecked():
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor(theme.ACCENT))
+        else:
+            # The dark off track alone is 1.3:1 against the card: its
+            # outline gives the switch the 3:1 a control's edge needs
+            # (WCAG 1.4.11).
+            painter.setPen(QPen(QColor(theme.MUTED), 1))
+            painter.setBrush(QColor(theme.BORDER))
+
+        painter.drawRoundedRect(track.adjusted(0.5, 0.5, -0.5, -0.5), 9, 9)
+
+        if self.hasFocus():
+            # Keyboard focus (Tab, then Space toggles)
+            painter.setPen(QPen(QColor(theme.ACCENT), 2))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawRoundedRect(track.adjusted(-2, -2, 2, 2), 11, 11)
 
         painter.setPen(Qt.PenStyle.NoPen)
-
-        painter.setBrush(
-            QColor(theme.ACCENT) if self.isChecked() else QColor(theme.BORDER)
-        )
-
-        painter.drawRoundedRect(track, 9, 9)
 
         knob_x = track.right() - 16 if self.isChecked() else track.left() + 2
 
@@ -114,7 +127,7 @@ class Toggle(QAbstractButton):
         painter.setPen(QColor(theme.TEXT))
 
         painter.drawText(
-            QRectF(46, 0, self.width() - 46, self.height()),
+            QRectF(49, 0, self.width() - 49, self.height()),
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
             self.text()
         )
@@ -242,10 +255,13 @@ class NumberEdit(QLineEdit):
         self.set_value(value)
 
     def keyPressEvent(self, event):
+        """A "-" typed after the number flips its sign; over a selection it
+        replaces the selection like any other key (select all, "-5": -5)."""
         flip = (
             self.allow_negative
             and event.text() in ("-",) + tuple(NumberValidator.MINUSES)
             and self.cursorPosition() > 0
+            and not self.hasSelectedText()
             and self.value() is not None
         )
 
@@ -288,6 +304,15 @@ class NumberEdit(QLineEdit):
 
 
 class _PickerPopup(QFrame):
+    """The weapon picker's list with its search field.
+
+    The search finds a weapon by its name, and also by a word of its note
+    (the vehicles and mounts it covers): typing "M1117" lists "MK19". Name
+    matches come first, by category; weapons found only in their note
+    follow under their own header. The names are never changed, so the
+    SquadCalc bridge, which maps weapons by name, is not affected.
+    """
+
     picked = pyqtSignal(str)
 
     def __init__(self, parent):
@@ -328,10 +353,27 @@ class _PickerPopup(QFrame):
 
         self.groups = []
         self.recent = []
+        self.notes = {}
 
     def set_data(self, groups, recent):
+        """`groups`: [(category, [names])]; `recent`: names shown on top
+        while the search is empty."""
         self.groups = groups
         self.recent = recent
+
+    def set_notes(self, notes):
+        """`notes` maps a weapon name to the text it is also found by."""
+        self.notes = notes
+
+    def note_matches(self, name, query):
+        """Whether a word of `name`'s note starts with `query` (lower case).
+
+        Only at a word start: "ap" finds "AP" but not "map", so a short
+        query does not list every weapon whose note happens to contain it.
+        """
+        note = self.notes.get(name, "").lower()
+
+        return re.search(r"(?<![0-9a-z])" + re.escape(query), note) is not None
 
     def header(self, text):
         item = QListWidgetItem(text.upper())
@@ -360,11 +402,22 @@ class _PickerPopup(QFrame):
         if not query and self.recent:
             sections.append((tr("recent"), self.recent))
 
+        in_notes = []
+
         for category, names in self.groups:
             matching = [n for n in names if query in n.lower()]
 
             if matching:
                 sections.append((category_name(category), matching))
+
+            if query:
+                in_notes += [
+                    n for n in names
+                    if n not in matching and self.note_matches(n, query)
+                ]
+
+        if in_notes:
+            sections.append((tr("found_in_notes"), in_notes))
 
         for title, names in sections:
             self.header(title)
@@ -453,7 +506,12 @@ class WeaponPicker(QPushButton):
         self.clicked.connect(self.open_popup)
 
     def set_data(self, groups, recent):
+        """The weapons by category and the recent ones (see _PickerPopup)."""
         self.popup.set_data(groups, recent)
+
+    def set_notes(self, notes):
+        """Text each weapon is also found by: {name: note}."""
+        self.popup.set_notes(notes)
 
     def set_current(self, name, emit=True):
         self.current = name
@@ -553,6 +611,9 @@ class Swatches(QWidget):
             button.setChecked(name == current)
 
             button.setToolTip(name.capitalize())
+
+            # The button has no text: screen readers need its colour name
+            button.setAccessibleName(name.capitalize())
 
             button.setStyleSheet(f"background: rgb({r}, {g}, {b});")
 

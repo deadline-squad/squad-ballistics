@@ -4,7 +4,6 @@ import os
 import pytest
 
 pytest.importorskip("PyQt6.QtWidgets")
-pytest.importorskip("qtawesome")
 
 from PyQt6.QtWidgets import QApplication, QLabel, QPushButton
 
@@ -1657,7 +1656,8 @@ def inventory(window, page_index):
         "switches": keys(Toggle),
         "sliders": keys(SliderRow),
         "segmented": [[b.text() for b in row.buttons.values()] for row in page.findChildren(Segmented)],
-        "dropdowns": len(page.findChildren(QComboBox)),
+        # The monitor choice exists with one monitor too, hidden
+        "dropdowns": len([c for c in page.findChildren(QComboBox) if c.isVisibleTo(page)]),
         "swatches": [list(row.buttons) for row in page.findChildren(Swatches)],
         "buttons": [b.text() for b in inside],
     }

@@ -32,3 +32,23 @@ def test_linux_beep_uses_the_first_player_found(monkeypatch, tmp_path):
 
     monkeypatch.setattr(beep.shutil, "which", lambda name: None)
     assert beep.linux_beep_command() is None
+
+
+def test_the_beep_file_is_made_once_and_deleted_at_exit(monkeypatch, tmp_path):
+    """#3 item 27: no squad-ballistics-*.wav is left behind per run."""
+    registered = []
+    monkeypatch.setattr(beep.shutil, "which", {"paplay": "/usr/bin/paplay"}.get)
+    monkeypatch.setattr(beep, "_beep_file", None)
+    monkeypatch.setattr(beep.tempfile, "tempdir", str(tmp_path))
+    monkeypatch.setattr(beep.atexit, "register", registered.append)
+
+    first = beep.linux_beep_command()[1]
+    assert beep.linux_beep_command()[1] == first
+    assert registered == [beep.remove_beep_file]
+    assert os.listdir(tmp_path) == [os.path.basename(first)]
+
+    registered[0]()
+    assert os.listdir(tmp_path) == []
+
+    # Twice, or with the file already gone: no error
+    beep.remove_beep_file()

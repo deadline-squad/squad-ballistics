@@ -28,8 +28,9 @@ from keystate import KEY_S, KEY_W
 
 POLL_INTERVAL_MS = 10
 
-# A longer gap between two polls means the UI was frozen: the key state in
-# between is unknown, so at most this much of the gap is counted.
+# A longer gap between two polls means the UI was frozen. A key that changed
+# across the gap changed at an unknown moment, so at most this much of such a
+# gap is counted; S held down (and W up) on both sides counts the whole gap.
 MAX_POLL_GAP = 0.05
 
 
@@ -58,6 +59,12 @@ class HoldTimer(QObject):
         self.held = 0.0
         self.target = None
 
+        # `counting`: False while the keys are not counted (see `suspend`).
+        # `measures_lay`: whether `held` is the S time of a lay from the
+        # top; False from `suspend` to the next W.
+        self.counting = True
+        self.measures_lay = True
+
         self._w_was_down = False
         self._last_poll = None
 
@@ -71,7 +78,9 @@ class HoldTimer(QObject):
 
     @property
     def available(self):
-        return self.key_reader is not None
+        """Whether the keys can be read now: a reader exists and, for one
+        that knows (keystate.EvdevReader), a keyboard is plugged in."""
+        return self.key_reader is not None and getattr(self.key_reader, "available", True)
 
     @property
     def active(self):
@@ -122,11 +131,15 @@ class HoldTimer(QObject):
             self.auto_hold.stop()
 
     def set_active(self, active):
-        """Start or stop watching the keys (no effect without a reader)."""
+        """Start or stop watching the keys (no effect without a reader).
+
+        A reader whose keyboards are unplugged right now is still polled:
+        polling is what finds them again when they come back.
+        """
         if not active:
             self.stop_auto_hold()
 
-        if not active or not self.available:
+        if not active or self.key_reader is None:
             self.poll_timer.stop()
             self._last_poll = None
             self.s_down = self.w_down = False
@@ -155,18 +168,40 @@ class HoldTimer(QObject):
     def reset(self):
         """W pressed: the barrel is back at the top, start counting anew."""
         self.held = 0.0
+        self.measures_lay = True
 
         self.changed.emit()
+
+    def suspend(self):
+        """Stop counting the keys: the app is about to press W and S itself
+        in taps (the lay on the mortar's sight), which do not lay from the
+        top. Until the next W after `resume`, `held` is not a lay's hold
+        time (`measures_lay` is False), so it cannot calibrate the rate."""
+        self.counting = False
+        self.measures_lay = False
+
+    def resume(self):
+        """Count the keys again (after `suspend`)."""
+        self.counting = True
 
     def advance(self, elapsed, s_down, w_down, own_w=False):
         """Account for `elapsed` seconds with the given key states.
 
         `own_w`: W is the app's own reset (mortar auto-lay), which restarts
-        the count without cancelling the auto-hold it belongs to.
+        the count without cancelling the auto-hold it belongs to. While
+        suspended the key states are followed but nothing is counted.
         """
         keys_changed = (s_down, w_down) != (self.s_down, self.w_down)
 
         self.s_down, self.w_down = s_down, w_down
+
+        if not self.counting:
+            self._w_was_down = w_down
+
+            if keys_changed:
+                self.changed.emit()
+
+            return
 
         if w_down and not self._w_was_down:
             if not own_w:
@@ -193,10 +228,12 @@ class HoldTimer(QObject):
 
         resetting = self.auto_resetting
 
-        self.advance(
-            min(elapsed, MAX_POLL_GAP),
-            # The reader may not see our own synthetic keys (evdev).
-            self.key_reader(KEY_S) or self.auto_pressing,
-            self.key_reader(KEY_W) or resetting,
-            own_w=resetting
-        )
+        # The reader may not see our own synthetic keys (evdev).
+        s_down = self.key_reader(KEY_S) or self.auto_pressing
+        w_down = self.key_reader(KEY_W) or resetting
+
+        # S held through a UI freeze: the whole gap was held
+        if not (s_down and self.s_down and not w_down and not self.w_down):
+            elapsed = min(elapsed, MAX_POLL_GAP)
+
+        self.advance(elapsed, s_down, w_down, own_w=resetting)
