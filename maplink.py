@@ -3,7 +3,7 @@
 The calculator takes the target geometry from the SquadCalc map and solves it
 itself, so the map only needs the weapon and target markers. The Deadline
 SquadCalc build exposes `window.squadBallistics.targets()` and `.weapon()`,
-which `webmap.MapPage` polls (see `BRIDGE_SCRIPT`); `parse_bridge` reads the
+which `webmap.MapPage` polls (see `bridge_script`); `parse_bridge` reads the
 result. `.weapon()` tells which weapon is selected on the map, by its name in
 weapons.json (null when the weapon has no counterpart here); the calculator
 then switches to it. The other way, `.selectWeapon(name)` (bridge version 3)
@@ -18,6 +18,19 @@ The page is not trusted: every number is bounded (`MAX_DISTANCE`,
 The answer is read on the GUI thread every poll, so its size is bounded
 too: only the newest target (the last one) is sent and parsed, and its
 profile has at most `MAX_PROFILE_HEIGHTS` heights.
+
+Cheap polls. A target's profile has up to 10001 heights, so the answer is
+parsed only when it changed. A page with the optional change counter
+(`revision`, a number or a function returning one, which grows with every
+change of the targets) is asked with that counter, and sends the target
+again only when the counter differs from the one the app already has; the
+page may also give the newest target alone (`lastTarget()`, the target or
+null) so that it does not build every target's profile. A page without the
+counter sends everything each poll and the app compares the raw answer
+before parsing it. A page that announces a change with
+`console.info("sb:changed")` (see `CHANGE_MESSAGE`) is asked at once
+instead of at the next poll; `WATCH_SCRIPT` makes a page with the counter
+do so.
 """
 
 import json
@@ -30,6 +43,10 @@ from typing import Optional, Tuple
 # and absurd numbers overflow the ballistics.
 MAX_DISTANCE = 10000
 MAX_HEIGHT = 3000
+
+# A poll answer longer than this (characters of JSON) is not read: the real
+# one, with the longest profile, is about 100 000.
+MAX_ANSWER_CHARS = 1000000
 
 # Profile heights are at least this far apart (a finer profile from a hostile
 # page would only cost memory and time), in metres.
@@ -47,18 +64,61 @@ MAX_WEAPON_NAME = 200
 # private and unassigned code points, line and paragraph separators.
 NAME_REJECTED_CATEGORIES = frozenset({"Cc", "Cf", "Cs", "Co", "Cn", "Zl", "Zp"})
 
-# Script polled on the embedded page: {targets, weapon}, or null on SquadCalc
-# builds without the bridge. Builds before the weapon export give no weapon.
-# Only the newest target (the last) is sent: it is the only one used, and a
-# long list would be converted on the GUI thread at every poll.
-BRIDGE_SCRIPT = (
-    "(function (bridge) {"
+# The console message a page prints when its targets or weapon changed.
+CHANGE_MESSAGE = "sb:changed"
+
+# The script polled on the embedded page (see `bridge_script`): {targets,
+# weapon} as JSON text, or null on SquadCalc builds without the bridge, with
+# `revision` (the page's change counter, null without one). Builds before
+# the weapon export give no weapon. Only the newest target (the last) is
+# sent: it is the only one used, and a long list would be converted on the
+# GUI thread at every poll. A page with the counter leaves "targets" out
+# while the counter is still `known`. "@KNOWN@" is replaced by the counter
+# the app has, or null.
+_POLL_SCRIPT = (
+    "(function (bridge, known) {"
     " if (!bridge || typeof bridge.targets !== 'function') return null;"
-    " var targets = bridge.targets();"
-    " return {targets: Array.isArray(targets) ? targets.slice(-1) : targets,"
+    " var revision = bridge.revision;"
+    " if (typeof revision === 'function') revision = revision.call(bridge);"
+    " if (typeof revision !== 'number') revision = null;"
+    " var answer = {revision: revision,"
     " weapon: typeof bridge.weapon === 'function' ? bridge.weapon() : null};"
-    "})(window.squadBallistics)"
+    " if (revision === null || revision !== known) {"
+    "  var targets;"
+    "  if (typeof bridge.lastTarget === 'function') {"
+    "   var last = bridge.lastTarget();"
+    "   targets = last ? [last] : [];"
+    "  } else {"
+    "   targets = bridge.targets();"
+    "   if (Array.isArray(targets)) targets = targets.slice(-1);"
+    "  }"
+    "  answer.targets = targets;"
+    " }"
+    " return JSON.stringify(answer);"
+    "})(window.squadBallistics, @KNOWN@)"
 )
+
+# Injected into the map page (the page's own JavaScript world): prints
+# CHANGE_MESSAGE when the page's change counter or weapon changes, so a
+# change reaches the app within one tick instead of at the next poll. A page
+# without the counter is left alone: finding out what changed there means
+# building every target's profile.
+WATCH_SCRIPT = (
+    "(function () {"
+    " var seen = null, weapon = null;"
+    " setInterval(function () {"
+    "  var bridge = window.squadBallistics;"
+    "  if (!bridge) return;"
+    "  var revision = bridge.revision;"
+    "  if (typeof revision === 'function') revision = revision.call(bridge);"
+    "  if (typeof revision !== 'number') return;"
+    "  var name = typeof bridge.weapon === 'function' ? bridge.weapon() : null;"
+    "  if (revision === seen && name === weapon) return;"
+    "  seen = revision; weapon = name;"
+    "  console.info(%s);"
+    " }, 40);"
+    "})()"
+) % json.dumps(CHANGE_MESSAGE)
 
 
 @dataclass(frozen=True)
@@ -155,7 +215,7 @@ def parse_bridge_targets(value):
 
     The page returns a list of {"distance", "heightDiff", "bearing",
     "profile"} (profile since bridge version 4) in the order they were
-    placed. Only the last one is parsed (BRIDGE_SCRIPT already sends only
+    placed. Only the last one is parsed (the poll script already sends only
     that one): [target], or [] when the list is empty, not a list, or its
     last entry is invalid (an older target is not used in its place).
     """
@@ -175,6 +235,33 @@ def parse_bridge_targets(value):
     )
 
     return [] if target is None else [target]
+
+
+def bridge_script(known_revision=None):
+    """The script that polls the page: JSON text of {revision, weapon,
+    targets}, null without the bridge.
+
+    `known_revision` is the page's change counter the app already has (a
+    number, or None): while the page's counter is still that, the answer
+    has no "targets" and nothing is parsed again.
+    """
+    known = "null" if known_revision is None else json.dumps(known_revision)
+
+    return _POLL_SCRIPT.replace("@KNOWN@", known)
+
+
+def parse_revision(value):
+    """The change counter in a decoded poll answer: an int, None when the
+    page has none (or sends anything else)."""
+    revision = value.get("revision") if isinstance(value, dict) else None
+
+    if isinstance(revision, bool) or not isinstance(revision, (int, float)):
+        return None
+
+    if not math.isfinite(revision) or revision != int(revision):
+        return None
+
+    return int(revision)
 
 
 def select_weapon_script(name):
@@ -213,7 +300,7 @@ def parse_weapon_name(value):
 
 
 def parse_bridge(value):
-    """(targets, weapon) from the result of `BRIDGE_SCRIPT`.
+    """(targets, weapon) from a decoded poll answer (see `bridge_script`).
 
     None means the page has no bridge. `weapon` is None when the page does
     not tell it (older build, or a weapon without a name here).

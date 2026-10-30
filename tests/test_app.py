@@ -285,7 +285,7 @@ def main_parts(monkeypatch, excepthook):
     monkeypatch.setattr(app, "QApplication", StubApp)
     monkeypatch.setattr(app, "acquire_instance_lock", lambda: lock)
     monkeypatch.setattr(app, "install_signal_handlers", lambda application, window: None)
-    monkeypatch.setattr(app, "configure_environment", lambda mode: None)
+    monkeypatch.setattr(app, "configure_environment", lambda mode, probe=None: None)
     monkeypatch.setattr(app, "prefer_x11", lambda: None)
     monkeypatch.setattr(sys, "argv", ["app.py"])
     return lock
@@ -340,6 +340,9 @@ def test_an_unreadable_settings_file_is_kept_and_reported(main_parts, monkeypatc
         def show(self):
             pass
 
+        def preload_map(self):
+            pass
+
     monkeypatch.setattr(crosshair, "MainWindow", Window)
 
     assert app.main() == 0
@@ -370,6 +373,9 @@ def test_the_lock_is_released_when_quitting_begins(main_parts, monkeypatch, dial
         def show(self):
             pass
 
+        def preload_map(self):
+            pass
+
     monkeypatch.setattr(app, "QApplication", App)
     monkeypatch.setattr(crosshair, "MainWindow", Window)
 
@@ -379,6 +385,46 @@ def test_the_lock_is_released_when_quitting_begins(main_parts, monkeypatch, dial
         slot()
     assert not main_parts.locked
     assert dialogs == []
+
+
+def test_the_map_is_created_after_the_window_is_shown_and_looks_at_opengl(main_parts, monkeypatch, dialogs, tmp_path):
+    """The first open of the map used to freeze the window for 100-340 ms
+    (measured); main() has the window create it once it is up, and lets
+    "auto" look at Qt's OpenGL first (software OpenGL runs the map without
+    the GPU path)."""
+    import crosshair
+
+    monkeypatch.setattr(config, "CONFIG_PATH", str(tmp_path / "config.json"))
+    events = []
+
+    class Window:
+        def __init__(self, weapons):
+            pass
+
+        def show(self):
+            events.append("show")
+
+        def preload_map(self):
+            events.append("preload")
+
+    monkeypatch.setattr(crosshair, "MainWindow", Window)
+    monkeypatch.setattr(
+        app, "configure_environment",
+        lambda mode, probe=None: events.append(("configure", mode, probe))
+    )
+    monkeypatch.setattr(
+        app.QTimer, "singleShot",
+        lambda delay, slot: events.append(("later", delay)) or slot()
+    )
+
+    assert app.main() == 0
+
+    assert events == [
+        ("configure", "auto", app.probe_gl_renderer),
+        "show",
+        ("later", app.MAP_PRELOAD_DELAY_MS),
+        "preload",
+    ]
 
 
 HOLDER = """

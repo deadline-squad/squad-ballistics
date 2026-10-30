@@ -26,7 +26,7 @@ def quiet_qt_logging(environ=None):
 
 quiet_qt_logging()
 
-from PyQt6.QtCore import QLockFile, QSocketNotifier  # noqa: E402
+from PyQt6.QtCore import QLockFile, QSocketNotifier, QTimer  # noqa: E402
 
 from PyQt6.QtWidgets import (  # noqa: E402
     QApplication,
@@ -50,7 +50,7 @@ from i18n import tr  # noqa: E402
 from utils import resource_path  # noqa: E402
 from splash import SplashScreen  # noqa: E402
 
-from webmap import configure_environment  # noqa: E402
+from webmap import configure_environment, probe_gl_renderer  # noqa: E402
 
 # crash.log is moved to crash.log.1 (replacing the older one) once it is
 # bigger than this, so a crash loop cannot fill the disk.
@@ -61,6 +61,11 @@ CRASH_LOG_LIMIT = 256 * 1024
 INSTANCE_LOCK_WAIT_MS = 5000
 
 INSTANCE_LOCK_NAME = "instance.lock"
+
+# How long after the window is shown the embedded map is created (see
+# `MainWindow.preload_map`): the window has painted by then and the user has
+# not yet reached for the map.
+MAP_PRELOAD_DELAY_MS = 300
 
 
 def prefer_x11(environ=None):
@@ -359,8 +364,10 @@ def main():
 
     settings, bad_config = read_config()
 
-    # Browser switches must be set before QApplication.
-    configure_environment(settings["map_render"])
+    # Browser switches must be set before QApplication. "auto" looks at
+    # Qt's OpenGL (a few hundred milliseconds) to run the map without the
+    # GPU path where OpenGL itself is software.
+    configure_environment(settings["map_render"], probe=probe_gl_renderer)
 
     app = QApplication(sys.argv)
 
@@ -404,6 +411,8 @@ def main():
         app.signal_wakeup = install_signal_handlers(app, window)
 
         window.show()
+
+        QTimer.singleShot(MAP_PRELOAD_DELAY_MS, window.preload_map)
     finally:
         # An error in MainWindow goes to the crash dialog, which the splash
         # (always on top) would otherwise cover.

@@ -319,8 +319,15 @@ STRINGS = {
     "s_map_render_auto": "Normal",
     "s_map_render_software": "Compatible",
     "s_map_render_hint": (
-        "Compatible — if the map is black or flickers: draws without the GPU, "
-        "a bit slower. Applied after a restart."
+        "Compatible — if the map is black, flickers or lags: draws without the "
+        "GPU, a bit slower. Applied after a restart."
+    ),
+    "s_map_render_in_use": "In use now: {mode}.",
+    "s_map_render_in_use_hardware": "with the GPU",
+    "s_map_render_in_use_software": "without the GPU (compatible)",
+    "s_map_render_in_use_auto_software": (
+        "without the GPU, picked automatically: Qt's OpenGL runs on the CPU "
+        "({renderer})"
     ),
     "s_map_external": "Open the map in the regular browser",
     "s_map_clear": "Clear map cache",
