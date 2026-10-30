@@ -310,12 +310,13 @@ def cases(name):
 RESULTS = {}
 
 
-def measure_case(rig, name, case):
-    """Drive the window through `case`, render the mark and fly the shot.
-    Returns (miss m, pixel floor m or None, on_screen)."""
+def measure_case(rig, name, case, view=None):
+    """Drive the window through `case`, render the mark and fly the shot
+    with the barrel laid in `view` = (zoom, bore), by default the one
+    weapons.json gives. Returns (miss m, pixel floor m or None, on_screen)."""
     arc, fov, width, scale, distance, height = case
     entry = RAW[name]
-    view = flight.view(entry)
+    view = view or flight.view(entry)
 
     rig.aim(name, fov, scale, distance, height, arc, width)
 
@@ -401,6 +402,84 @@ def print_report(request):
     print("\nworst miss per weapon and view (m, % of range, pixel floor m, shots, off screen or unreachable)")
     for name, (miss, percent, floor, checked, off) in RESULTS.items():
         print(f"{name} | {miss:.4f} m | {percent:.5f} % | {floor:.1f} m | {checked} | {off}")
+
+
+# ---------------------------------------------------------------------------
+# One entry per view: the view each is flown in comes from the game files
+# ---------------------------------------------------------------------------
+
+# (zoom, bore in degrees) of the view the player actually sees, written down
+# from the game files (build 26005357) and NOT read from weapons.json, so an
+# entry whose zoom or bore is for another view of the same gun fails here.
+# zoom: what the weapon's RMB handler does to the camera
+# (BlueprintOnZoom: SetFieldOfView(UserSettings.FOV / k); without RMB the
+# game's FOV; the ZiS-3's sight is its ZoomLevels [1, 4]). bore: the barrel
+# socket's pitch (Attach_Muzzle*) minus the camera's pitch on the gun mount:
+# FirstPersonVehicleCam at 0, AdsCamera1pPositionComponent at -1.6738187 on
+# the QLZ87 tripod and at 0 on the others.
+QLZ87_SOCKET = -0.9
+QLZ87_ADS_CAMERA = -1.6738187
+
+GAME_VIEWS = {
+    "QLZ87": (3.0, QLZ87_SOCKET - QLZ87_ADS_CAMERA),
+    "QLZ87 · no optic": (1.0, QLZ87_SOCKET),
+    "QLZ87 · Lynx / CSK131": (3.0, 0.85),
+    "QLZ87 · Lynx / CSK131 · no optic": (1.0, 0.85),
+    "AGS-17 · emplacement": (2.5, 0.85),
+    "AGS-17 · emplacement · no optic": (1.0, 0.85),
+    "SPG-9 · HEAT · scope": (4.0, 2.34),
+    "SPG-9 · HEAT · scope · no optic": (1.0, 2.34),
+    "SPG-9 · FRAG · scope": (4.0, 2.34),
+    "SPG-9 · FRAG · scope · no optic": (1.0, 2.34),
+    "ZiS-3": (4.0, 0.4),
+    "ZiS-3 · no optic": (1.0, 0.4),
+}
+
+
+def view_cases():
+    """(arc, fov, width, scale, distance, height): both ends of the game's
+    FOV slider at 150, 300 and 450 m, the widths and heights rotated."""
+    return [
+        ("low", fov, WIDTHS[k % 2], 100, distance, HEIGHTS[k % 3])
+        for k, (fov, distance) in enumerate(
+            (fov, distance) for fov in (90, 120) for distance in (150, 300, 450)
+        )
+    ]
+
+
+@pytest.mark.parametrize("name", GAME_VIEWS)
+def test_the_mark_lands_in_the_view_the_game_shows(rig, name):
+    """The rendered mark, laid in the view the game shows for this entry
+    (RMB sight or normal view), puts the shell on the target."""
+    checked = 0
+
+    for case in view_cases():
+        result = measure_case(rig, name, case, GAME_VIEWS[name])
+
+        if result is None:
+            continue
+
+        check_measurement(name, case, result)
+        checked += 1
+
+    assert checked >= 4, (name, "too few shots on the screen")
+
+
+def test_the_optic_mark_from_the_normal_view_flies_past(rig):
+    """The owner's report: the QLZ87 optic entry (×3) used without RMB. Its
+    mark is three times too far below the centre for the game's FOV, the
+    barrel goes up that much more and the shell lands far past the target
+    (FOV 120, 1920 px: 200 m -> 362 m, 300 m -> 828 m)."""
+    shot = flight.Shot(RAW["QLZ87"])
+
+    for distance, lands in ((200, 362), (300, 828)):
+        rig.aim("QLZ87", 120, 100, distance, 0, "low", 1920)
+        pixels = rig.mark_row() - rig.overlay.center_y
+        elevation = flight.barrel_elevation(
+            RAW["QLZ87"], GAME_VIEWS["QLZ87 · no optic"], 120, 1920, pixels, distance, 0
+        )
+
+        assert flight.range_at(shot, elevation, 0) == pytest.approx(lands, abs=2)
 
 
 # ---------------------------------------------------------------------------
