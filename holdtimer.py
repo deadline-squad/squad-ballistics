@@ -20,8 +20,7 @@ import time
 
 from PyQt6.QtCore import (
     QObject,
-    QTimer,
-    pyqtSignal
+    QTimer
 )
 
 from keystate import KEY_S, KEY_W
@@ -42,9 +41,6 @@ class HoldTimer(QObject):
     is out of range still resets the count. `advance` holds the logic and
     is driven by the poll timer; tests call it directly.
     """
-
-    # Held time, target or key state changed (redraw the readouts).
-    changed = pyqtSignal()
 
     def __init__(self, key_reader=None, parent=None, clock=time.perf_counter):
         super().__init__(parent)
@@ -122,8 +118,6 @@ class HoldTimer(QObject):
         else:
             started = self.auto_hold.start(self.target - self.held)
 
-        self.changed.emit()
-
         return started
 
     def stop_auto_hold(self):
@@ -163,14 +157,10 @@ class HoldTimer(QObject):
 
         self.target = seconds
 
-        self.changed.emit()
-
     def reset(self):
         """W pressed: the barrel is back at the top, start counting anew."""
         self.held = 0.0
         self.measures_lay = True
-
-        self.changed.emit()
 
     def suspend(self):
         """Stop counting the keys: the app is about to press W and S itself
@@ -191,24 +181,16 @@ class HoldTimer(QObject):
         the count without cancelling the auto-hold it belongs to. While
         suspended the key states are followed but nothing is counted.
         """
-        keys_changed = (s_down, w_down) != (self.s_down, self.w_down)
-
         self.s_down, self.w_down = s_down, w_down
 
         if not self.counting:
             self._w_was_down = w_down
-
-            if keys_changed:
-                self.changed.emit()
-
             return
 
         if w_down and not self._w_was_down:
             if not own_w:
                 self.stop_auto_hold()
             self.reset()
-        elif keys_changed:
-            self.changed.emit()
 
         self._w_was_down = w_down
 
@@ -216,8 +198,6 @@ class HoldTimer(QObject):
             return
 
         self.held += elapsed
-
-        self.changed.emit()
 
     def poll(self):
         now = self.clock()
