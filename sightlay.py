@@ -170,17 +170,23 @@ class Sight:
 
 
 class ScreenSight:
-    """Grabs the scale region of the overlay's screen around its centre."""
+    """Grabs the scale region of the overlay's screen around the screen
+    centre (not the aligned crosshair)."""
 
     def __init__(self, overlay):
         self.overlay = overlay
 
     def region(self):
         """(left, top, right, bottom) of the grab in the screen's logical
-        pixels, or None."""
+        pixels, or None.
+
+        The game draws the sight at the screen's centre, wherever the
+        overlay's crosshair has been aligned (`center_offset_x`/`_y` move
+        only the drawn mark), so the grab is around the screen centre.
+        """
         overlay = self.overlay
         height = overlay.height()
-        centre_x, centre_y = overlay.center_x, overlay.center_y
+        centre_x, centre_y = overlay.width() / 2, height / 2
         left = max(0, round(centre_x - GRAB_LEFT * height))
         right = round(centre_x - GRAB_RIGHT * height)
         top = max(0, round(centre_y - GRAB_HALF_HEIGHT * height))
@@ -220,10 +226,11 @@ class ScreenSight:
         # Device pixels per logical pixel (display scaling)
         ratio = image.width() / (right - left)
 
+        # The screen centre, as in region()
         return Sight(
             GrayImage.from_qimage(image),
-            round((self.overlay.center_x - left) * ratio),
-            round((self.overlay.center_y - top) * ratio),
+            round((self.overlay.width() / 2 - left) * ratio),
+            round((self.overlay.height() / 2 - top) * ratio),
             self.overlay.height() * ratio / REFERENCE_HEIGHT
         )
 

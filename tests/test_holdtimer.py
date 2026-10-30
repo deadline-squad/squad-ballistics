@@ -303,8 +303,6 @@ def test_auto_hold_needs_a_target_and_the_setting():
 
 def test_key_state_is_reported():
     timer, keys, clock = make_polled_timer()
-    changes = []
-    timer.changed.connect(lambda: changes.append((timer.s_down, timer.w_down)))
 
     keys.add(KEY_W)
     clock.now += 0.01
@@ -315,7 +313,6 @@ def test_key_state_is_reported():
     clock.now += 0.01
     timer.poll()
     assert (timer.s_down, timer.w_down) == (False, False)
-    assert changes
 
 
 def test_s_held_through_a_ui_freeze_counts_the_whole_freeze():

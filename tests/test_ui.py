@@ -1742,7 +1742,17 @@ def test_window_fits_the_screen(window):
     assert window.height() == max(600, min(780, available.height() - 40))
 
 
-LONG_INFO = "1150 m  ·  1016 mil  ·  S 3.53 s  ·  S held 1.23 of 2.13 s  ·  sight 1041.5 mil (+4.6)"
+# The longest line show_overlay_info writes: a mortar's solution with an
+# obstacle and the map bearing, then the compass and the sight readings.
+LONG_INFO = "  ·  ".join([
+    "1150 m",
+    "1016 mil",
+    "S 3.53 s",
+    tr("blocked_short", d="640"),
+    "47.5°",
+    tr("compass_reading_left", deg="46.9", left="+0.6"),
+    tr("sight_reading_left", mils="1041.5", left="+4.6"),
+])
 
 
 def ink_box(overlay, left):
@@ -2250,3 +2260,137 @@ def test_a_weapon_with_one_view_keeps_the_old_off_screen_text(window):
 
     assert window.overlay.is_offscreen(window.overlay.offset)
     assert window.current_steps[0].startswith("The mark is off-screen: raise the barrel")
+
+
+# Review 1.6.0, slice 1 #4-#8
+def test_the_other_arc_tile_reads_as_the_main_result(window):
+    """An overlay weapon's direct fire is read over the line of sight (as
+    its "direct fire" text), its lob by the hold; mortars to the horizon,
+    in the chosen unit."""
+    window.select_weapon(AGS17)
+    window.on_arc_changed("high")
+    window.fov_entry.setText("90")
+    window.height_entry.setText("40")
+    window.distance_entry.setText("600")
+    window.calculate()
+
+    unit = window.primary_unit(window.current_weapon())
+    direct = format_angle(window.direct_solution.sight_angle, unit)
+    assert window.stats["stat_alt"].value.text() == direct
+    assert tr("direct_short", angle=direct) in window.overlay.info_text
+
+    window.on_arc_changed("low")
+    hold = solve(window.current_weapon(), 600, 40, "high").hold_time
+    assert window.stats["stat_alt"].value.text() == f"S {hold:.2f} {tr('unit_s')}"
+
+    for mode in ("mil", "deg"):
+        window.set_unit_mode(mode)
+        assert window.stats["stat_alt"].value.text() == f"S {hold:.2f} {tr('unit_s')}"
+
+        window.on_arc_changed("high")
+        direct = format_angle(window.direct_solution.sight_angle, mode)
+        assert window.stats["stat_alt"].value.text() == direct, mode
+        window.on_arc_changed("low")
+
+    window.select_weapon("Hell Cannon")
+    window.on_arc_changed("auto")
+    window.height_entry.setText("0")
+    window.distance_entry.setText("600")
+
+    for mode in ("mil", "deg"):
+        window.set_unit_mode(mode)
+        assert window.last_solution.arc == "high"
+        alt = window.last_solution.alternatives["low"]
+        assert window.stats["stat_alt"].value.text() == format_angle(alt, mode), mode
+
+
+def test_reset_clears_the_target_for_good(window):
+    """Reset (F9) clears the distance and the map target: a later arc,
+    trim or alignment change does not bring the mark back."""
+    from maplink import MapTarget
+
+    window.select_weapon("M203 / M320 / GP-25 / HK79 / SL40")
+    window.on_map_targets([MapTarget(300, 0, 90.0)])
+    assert window.overlay.offset > 0
+
+    window.reset_offset()
+    assert window.distance_entry.text() == ""
+    assert window.map_target is None
+    assert window.overlay.offset == 0
+
+    window.on_arc_changed("low")
+    window.set_trim(0.5)
+    window.controls["center_offset_y"].slider.setValue(10)
+    assert window.last_solution is None
+    assert window.overlay.offset == 0
+    assert window.overlay.info_text == ""
+
+
+def test_the_alignment_caption_names_the_reset_key(window):
+    assert "F9 clears the target" in window.align_caption.text()
+
+    window.set_hotkey("reset_offset", "PgUp")
+    assert "PgUp clears the target" in window.align_caption.text()
+    assert "F9" not in window.align_caption.text()
+
+    window.set_hotkey("reset_offset", "")
+    assert f"{tr('reset_aim')} clears the target" in window.align_caption.text()
+
+
+def test_the_distance_step_applies_to_the_landed_distance_too(window):
+    assert window.config["distance_step"] != 50
+    window.set_distance_step(50)
+
+    assert window.distance_entry.step == 50
+    assert window.landed_entry.step == 50
+
+
+def test_the_ladder_ends_at_the_screen_edge_below_the_aligned_centre(window):
+    overlay = window.overlay
+    overlay.setGeometry(0, 0, 1920, 1080)
+
+    window.controls["center_offset_y"].slider.setValue(100)
+
+    _first, _spacing, reach = overlay.ladder_bounds()
+    assert overlay.center_y == 640
+    assert reach == 1080 - overlay.EDGE_MARGIN - 640
+
+
+def test_editing_the_fov_keeps_the_map_target(window):
+    from maplink import MapTarget
+
+    window.on_map_targets([MapTarget(600, 5, 90.0)])
+
+    window.fov_entry.setText("80")
+    window.fov_entry.textEdited.emit("80")
+    assert window.map_target is not None
+
+    window.height_entry.textEdited.emit("3")
+    assert window.map_target is None
+
+
+@pytest.mark.parametrize("change", ["slider", "weapon"])
+def test_the_ladder_is_computed_once_per_change(window, monkeypatch, change):
+    """range_ladder takes ~14 ms for the RPG-7: one call per slider tick or
+    weapon change, not two."""
+    import crosshair
+
+    calls = []
+    real = crosshair.range_ladder
+
+    def counted(*args, **kwargs):
+        calls.append(args[0].name)
+        return real(*args, **kwargs)
+
+    window.select_weapon("M203 / M320 / GP-25 / HK79 / SL40")
+    window.distance_entry.setText("300")
+    window.calculate()
+    monkeypatch.setattr(crosshair, "range_ladder", counted)
+
+    if change == "slider":
+        window.controls["center_offset_y"].slider.setValue(30)
+    else:
+        window.select_weapon("RPG-7 · PG-7V HEAT / OG-7V")
+
+    assert len(calls) == 1
+    assert window.overlay.ladder

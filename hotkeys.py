@@ -97,6 +97,10 @@ def _start_polling(window, items, reader):
 
 
 def setup_hotkeys(window):
+    """Bind the window's hotkeys (`bindings`): polled from the physical keys
+    when `window.key_reader` is set, so they work while the game has focus,
+    otherwise as application shortcuts of the window. Call `teardown_hotkeys`
+    before binding again."""
     items = bindings(window)
     local = items
 
@@ -126,6 +130,8 @@ def setup_hotkeys(window):
 
 
 def teardown_hotkeys(window):
+    """Stop the key polling and remove the shortcuts that `setup_hotkeys` made;
+    safe to call when nothing is bound."""
     poller = getattr(window, "_hotkey_poller", None)
 
     if poller is not None:

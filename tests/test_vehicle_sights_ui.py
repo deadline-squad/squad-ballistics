@@ -22,7 +22,6 @@ def window(app, tmp_path, monkeypatch):
     from crosshair import MainWindow
 
     win = MainWindow(load_weapons(os.path.join(ROOT, "weapons.json")))
-    win.config["animated"] = False
     yield win
     win.close()
 
