@@ -2501,15 +2501,7 @@ class MainWindow(QMainWindow):
             lambda checked: self.calc_button.setVisible(not checked)
         )
 
-        self.add_toggle(
-            layout,
-            tr(
-                "s_auto_hold",
-                key=self.config["hotkeys"].get("auto_hold") or tr("hk_none")
-            ),
-            "auto_hold",
-            self.set_auto_hold
-        )
+        self.add_toggle(layout, self.auto_hold_label(), "auto_hold", self.set_auto_hold)
 
         auto_hint = label(tr("s_auto_hold_hint"), "small")
 
@@ -2617,16 +2609,18 @@ class MainWindow(QMainWindow):
 
         keys = [("", tr("hk_none"))] + [(key, key) for key in KEYS]
 
+        self.hotkey_boxes = {}
+
         for action in ACTIONS:
-            self.setting_row(
-                layout,
-                tr(f"hk_{action}"),
-                self.combo(
-                    keys,
-                    self.config["hotkeys"].get(action, ""),
-                    lambda key, a=action: self.set_hotkey(a, key)
-                )
+            box = self.combo(
+                keys,
+                self.config["hotkeys"].get(action, ""),
+                lambda key, a=action: self.set_hotkey(a, key)
             )
+
+            self.hotkey_boxes[action] = box
+
+            self.setting_row(layout, tr(f"hk_{action}"), box)
 
         hint = label(tr("s_hotkeys_hint"), "small")
 
@@ -2720,7 +2714,15 @@ class MainWindow(QMainWindow):
 
         self.recalculate_if_ready()
 
+    def auto_hold_label(self):
+        """The auto-hold setting's text, which names its key."""
+        return tr("s_auto_hold", key=self.config["hotkeys"].get("auto_hold") or tr("hk_none"))
+
     def set_hotkey(self, action, key):
+        """Bind `key` to `action` (a key does one thing: another action
+        that had it loses it) and show the bindings where they are named,
+        without rebuilding the pages: the settings keep their scroll and the
+        statuses stay."""
         teardown_hotkeys(self)
 
         # A key can only do one thing.
@@ -2734,7 +2736,18 @@ class MainWindow(QMainWindow):
 
         self.schedule_save()
 
-        self.rebuild()
+        for name, box in self.hotkey_boxes.items():
+            box.blockSignals(True)
+            box.setCurrentIndex(max(0, box.findData(self.config["hotkeys"].get(name, ""))))
+            box.blockSignals(False)
+
+        self.controls["auto_hold"].setText(self.auto_hold_label())
+        self.controls["auto_hold"].updateGeometry()
+
+        self.update_hotkey_hint()
+
+        # The steps name the keys (overlay on/off, auto-lay)
+        self.recalculate_if_ready()
 
     def reset_settings(self):
         answer = QMessageBox.question(

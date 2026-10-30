@@ -609,3 +609,31 @@ def test_the_main_window_module_does_not_import_qtawesome():
 
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "[]"
+
+
+# ---------- item 16: a hotkey change does not rebuild the pages ----------
+
+def test_a_hotkey_change_keeps_the_pages_and_names_the_new_key(window):
+    settings = window.pages.widget(2)
+    status = window.auto_hold_status
+    status.setText("kept")
+    window.select_weapon("SPG-9 · HEAT")
+    window.distance_entry.setText("400")
+    window.calculate()
+
+    window.set_hotkey("toggle_overlay", "F11")
+
+    assert window.pages.widget(2) is settings, "no rebuild"
+    assert window.auto_hold_status is status and status.text() == "kept"
+    assert "F11" in window.hotkey_hint.text()
+    assert window.current_steps[0].startswith(tr("how_overlay_on", hotkey="F11"))
+
+    # The key moves from another action: that one's choice shows None
+    window.set_hotkey("auto_hold", "F11")
+    assert window.hotkey_boxes["toggle_overlay"].currentData() == ""
+    assert window.hotkey_boxes["auto_hold"].currentData() == "F11"
+    assert window.controls["auto_hold"].text() == tr("s_auto_hold", key="F11")
+    assert window.config["hotkeys"]["toggle_overlay"] == ""
+
+    window.set_hotkey("auto_hold", "")
+    assert window.controls["auto_hold"].text() == tr("s_auto_hold", key=tr("hk_none"))

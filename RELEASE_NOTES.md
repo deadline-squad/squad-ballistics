@@ -41,6 +41,7 @@
 - **Калибровка после наводки по прицелу:** короткие нажатия W и S наводки по прицелу сбрасывали счёт удержания, и «Calibrate» после неё мог сохранить неверную скорость. Теперь такие нажатия не считаются, а калибровка просит сначала нажать W и навести без прицела.
 - **Удержание S при подвисании интерфейса:** S, зажатая до и после подвисания окна на 300 мс, теряла 250 мс счёта; теперь подвисание засчитывается целиком.
 - **Клавиатура, подключённая позже:** список клавиатур evdev больше не фиксируется при запуске: подключённая или переподключённая клавиатура (KVM, док-станция, Bluetooth) подхватывается за несколько секунд, а отключённая больше не оставляет горячие клавиши молча мёртвыми.
+- **Смена горячей клавиши не перестраивает окно:** раньше все страницы создавались заново (прокрутка настроек сбрасывалась, статусы пропадали); теперь обновляются только места, где названа клавиша.
 - **Ввод «-5» поверх выделения:** в поле высоты «выделить всё», затем «-5» давало -12.55 вместо -5.
 - **Монитор в настройках:** если сохранённого монитора больше нет, список показывает монитор, на котором на самом деле оверлей (основной), и обновляется при подключении и отключении мониторов.
 - **Карта:** имя оружия со страницы с управляющими символами отбрасывается; новый опрос карты не отправляется, пока страница не ответила на прежний; после падения страницы опрос останавливается, а после неудачной загрузки строка состояния больше не пишет, что цели передаются.
@@ -97,6 +98,7 @@
 - **Calibration after a lay on the sight:** the short W and S taps of a lay on the sight reset the hold count, so *Calibrate* after one could save a wrong rate. Those taps are no longer counted, and calibration asks for W and a lay without the sight first.
 - **Holding S through a UI hitch:** S held before and after a 300 ms freeze of the window lost 250 ms of the count; the whole freeze counts now.
 - **Keyboards plugged in later:** the evdev keyboard list is no longer fixed at the start: a keyboard plugged in or reconnected (KVM switch, dock, Bluetooth) is picked up within a few seconds, and an unplugged one no longer leaves the hotkeys silently dead.
+- **A hotkey change no longer rebuilds the window:** every page used to be recreated (the settings scrolled back to the top, statuses were lost); now only the places that name the key are updated.
 - **"-5" over a selection:** in the height field, select all then "-5" gave -12.55 instead of -5.
 - **Monitor in the settings:** when the saved monitor is gone, the list shows the monitor the overlay is really on (the primary one), and it follows monitors being plugged in and out.
 - **Map:** a weapon name from the page with control characters is dropped; a new map poll is not sent before the page answered the last one; the poll stops after the page crashed, and after a failed load the status no longer says targets go through.
