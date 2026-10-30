@@ -2069,7 +2069,7 @@ def painted_rows(overlay, width=25):
 
 @pytest.mark.parametrize("name, zero", [
     ("MK19 · emplacement / C16 / L134A1", 330),
-    ("SPG-9 · HEAT · scope", 1300),
+    ("SPG-9 · HEAT · scope", 765),
     ("ZiS-3", 350),
 ])
 def test_emplaced_mark_is_drawn_where_the_view_puts_it(window, name, zero):

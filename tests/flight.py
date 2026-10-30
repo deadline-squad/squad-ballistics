@@ -1,45 +1,64 @@
 """Independent oracle for the end-to-end proof of the aim-by-mark system.
 
-Nothing here imports ballistics.py or any other module of the app: it reads
-raw weapons.json entries (plain dicts) and applies the game's rules as written
-down in the decompiled server (Squad build 26005357, USQProjectileMovement):
+Nothing here imports ballistics.py or any other module of the app. The flight
+values come from tests/data/game_weapons.json, the snapshot
+tools/game_weapons.py writes from the game files (not from weapons.json); the
+launch geometry (pivot height, muzzle offset) from the raw weapons.json entry.
+The flight is the game's own integration, written down from the decompiled
+server (Squad build 26005357), step by step as the game takes them, not
+solved in closed form:
 
-* gravity = ProjectileGravityScale * 9.80 m/s^2 (DefaultGravityZ = -980 cm/s^2),
-  no drag;
-* the projectile starts at the barrel socket `Attach_Muzzle`: `muzzle_forward`
+* the dedicated server ticks at 50 Hz (NetServerMaxTickRate of its
+  RedpointEOSNetDriver) and the projectile moves once per tick: substeps of
+  SUBSTEP = 0.02 s (UProjectileMovementComponent::TickComponent 0x7cef0c0;
+  its MaxSimulationTimeStep 0.05 s is never reached);
+* each substep (ComputeMoveDelta 0x7cf09e0, ComputeVelocity 0x7cf08a0): the
+  move is v dt + (V - v) dt / 2, V the velocity the substep ends with under
+  the projectile's rotation from the substep before; then the rotation turns
+  to the old velocity's direction when bRotationFollowsVelocity is set
+  (ASQProjectile's constructor sets it, 0xa731eb8; the UB-32's S-5 clears
+  it); then the velocity becomes V under the new rotation;
+* V = v + (A + gravity) dt, clamped to MaxSpeed (every substep, the first one
+  too; 0 = no cap). gravity = ProjectileGravityScale * 9.80 m/s^2
+  (DefaultGravityZ = -980 cm/s^2), no drag. A
+  (USQProjectileMovement::ComputeAcceleration 0xa747770) is
+  ConstantAcceleration along the projectile's rotation while the time since
+  spawn, counted at the start of the substep, is under
+  ConstantAccelerationTimeout (0: the whole flight); gravity is left out while
+  A acts when bIgnoreGravityDuringConstantAcceleration is set (NLAW);
+* the projectile starts at the barrel socket `Attach_Muzzle`, `muzzle_forward`
   along the barrel and `muzzle_up` above its axis, the barrel pivoting
-  `launch_height` above the ground, at `velocity` along the barrel;
-* ConstantAcceleration, rotated by the projectile's rotation, which stays the
-  barrel's at launch (bRotationFollowsVelocity is off for every boosted
-  projectile), acts for ConstantAccelerationTimeout seconds or until MaxSpeed;
-  weapons.json stores the shorter of the two as `acceleration_time`;
+  `launch_height` above the ground, at MuzzleVelocity along the barrel
+  (InitializeComponent 0x7ceea60 does not clamp it; the first substep does);
+  between two substeps it moves along the straight segment of the move;
 * the camera is rectilinear with the horizontal FOV, so a point `p` pixels
   below the centre of an image `W` pixels wide is
   atan(p / ((W / 2) / tan(fov / 2))) below the view axis; the shot leaves
   `bore` degrees above that axis and the weapon's sight divides the FOV by
   its zoom.
-
-The flight is integrated with classical Runge-Kutta 4 at a 1 ms step (the
-acceleration is piecewise constant, so RK4 is exact between the switch at the
-end of the boost, which the steps land on; the tests also check the result is
-the same at a 0.25 ms step).
 """
 
 import math
 
 GRAVITY_Z = 9.80
 
-STEP = 0.001
+SUBSTEP = 0.02
 
 
 class Shot:
-    """How a weapon fires, from its raw weapons.json entry."""
+    """How a weapon fires: the flight from its game snapshot entry (a dict
+    of tests/data/game_weapons.json), the launch geometry from its raw
+    weapons.json entry (absent: from the ground, no muzzle offset)."""
 
-    def __init__(self, entry):
-        self.velocity = float(entry["velocity"])
-        self.gravity = GRAVITY_Z * float(entry.get("gravity", 1.0))
-        self.acceleration = float(entry.get("acceleration", 0.0))
-        self.boost_time = float(entry.get("acceleration_time", 0.0))
+    def __init__(self, game, entry=None):
+        entry = entry or {}
+        self.velocity = float(game["velocity"])
+        self.gravity = GRAVITY_Z * float(game.get("gravity_scale", 1.0))
+        self.max_speed = float(game.get("max_speed", 0.0))
+        self.acceleration = float(game.get("acceleration", 0.0))
+        self.timeout = float(game.get("acceleration_timeout", 0.0))
+        self.follows = bool(game.get("rotation_follows_velocity", True))
+        self.ignore_gravity = bool(game.get("ignore_gravity_while_boosting", False))
         self.pivot_height = float(entry.get("launch_height", 0.0))
         self.muzzle_forward = float(entry.get("muzzle_forward", 0.0))
         self.muzzle_up = float(entry.get("muzzle_up", 0.0))
@@ -54,11 +73,11 @@ class Shot:
         )
 
 
-def view(entry):
-    """(zoom, bore in degrees) of the view a raw entry is aimed through: the
-    sight's own magnification (`zoom`, the FOV divisor; absent = 1) and the
-    degrees above the view axis the shot leaves (`bore`)."""
-    return float(entry.get("zoom", 1.0)), float(entry.get("bore", 0.0))
+def view(game):
+    """(zoom, bore in degrees) of the view a game snapshot entry is aimed
+    through: the FOV divisor of its sight (null: the game's FOV) and the
+    degrees above the view axis the shot leaves (null: 0)."""
+    return float(game.get("zoom") or 1.0), float(game.get("bore") or 0.0)
 
 
 def focal_length(width, fov, zoom=1.0):
@@ -81,10 +100,10 @@ def barrel_elevation(entry, view, fov, width, pixels_below_centre, distance,
 
     `scale` is the overlay's calibration: it multiplies the offset below the
     centre, so the pixels to convert are the drawn ones divided by it. The
-    eye is taken at the barrel's pivot. The target is seen
-    atan2(height - pivot, distance) above the horizon and the mark pitch
-    below the view axis, so the view axis is at the sum; the barrel is `bore`
-    above the axis.
+    eye is taken at the barrel's pivot (`launch_height` of the raw entry).
+    The target is seen atan2(height - pivot, distance) above the horizon and
+    the mark pitch below the view axis, so the view axis is at the sum; the
+    barrel is `bore` above the axis.
     """
     zoom, bore = view
     below = pitch_of_pixel(pixels_below_centre / scale, width, fov, zoom)
@@ -93,106 +112,91 @@ def barrel_elevation(entry, view, fov, width, pixels_below_centre, distance,
     return line_of_sight + below + math.radians(bore)
 
 
-def _rk4(x, y, vx, vy, ax, ay, h):
-    """One classical Runge-Kutta 4 step of the motion
-    d(x, y)/dt = (vx, vy), d(vx, vy)/dt = (ax, ay).
-
-    The acceleration depends on neither the state nor the time inside the
-    step (the caller never lets a step straddle the end of the boost), so the
-    four stages differ only in the velocity they sample.
-    """
-    k1x, k1y = vx, vy
-    k2x, k2y = vx + ax * h / 2, vy + ay * h / 2
-    k3x, k3y = vx + ax * h / 2, vy + ay * h / 2
-    k4x, k4y = vx + ax * h, vy + ay * h
-
-    return (
-        x + h / 6 * (k1x + 2 * k2x + 2 * k3x + k4x),
-        y + h / 6 * (k1y + 2 * k2y + 2 * k3y + k4y),
-        vx + ax * h,
-        vy + ay * h,
-    )
-
-
 class _Flight:
-    """A shot being integrated: its state and the acceleration that applies
-    to the next step."""
+    """A shot being flown substep by substep: position, velocity, the
+    projectile's rotation (a unit vector) and the substeps taken."""
 
     def __init__(self, shot, elevation):
         self.shot = shot
         c, s = math.cos(elevation), math.sin(elevation)
-        self.boost = (shot.acceleration * c, shot.acceleration * s - shot.gravity)
-        self.coast = (0.0, -shot.gravity)
         self.x, self.y = shot.muzzle(elevation)
         self.vx, self.vy = shot.velocity * c, shot.velocity * s
-        self.t = 0.0
+        self.rx, self.ry = c, s
+        self.steps = 0
 
-    def acceleration(self, h):
-        """Acceleration over the next step of length `h`: boosting while the
-        step lies before the end of the boost."""
-        if self.t + h / 2 < self.shot.boost_time:
-            return self.boost
-        return self.coast
+    @property
+    def t(self):
+        return self.steps * SUBSTEP
 
-    def step_length(self, h):
-        """`h`, shortened so that a step ends exactly at the end of the boost."""
-        end = self.shot.boost_time
-        if self.t < end < self.t + h * (1 - 1e-9):
-            return end - self.t
-        return h
-
-    def advance(self, h):
-        ax, ay = self.acceleration(h)
-        self.x, self.y, self.vx, self.vy = _rk4(
-            self.x, self.y, self.vx, self.vy, ax, ay, h
+    def _velocity_after(self, rx, ry):
+        """The velocity this substep ends with under the rotation (rx, ry)."""
+        shot = self.shot
+        thrusting = shot.acceleration != 0 and (
+            shot.timeout <= 0 or self.steps * SUBSTEP < shot.timeout - 1e-9
         )
-        self.t += h
+        ax = ay = 0.0
+        gravity = shot.gravity
+
+        if thrusting:
+            ax, ay = shot.acceleration * rx, shot.acceleration * ry
+            if shot.ignore_gravity:
+                gravity = 0.0
+
+        vx = self.vx + ax * SUBSTEP
+        vy = self.vy + (ay - gravity) * SUBSTEP
+        speed = math.hypot(vx, vy)
+
+        if shot.max_speed and speed > shot.max_speed:
+            vx, vy = vx * shot.max_speed / speed, vy * shot.max_speed / speed
+
+        return vx, vy
+
+    def advance(self):
+        """One substep of the game."""
+        end_vx, end_vy = self._velocity_after(self.rx, self.ry)
+        self.x += self.vx * SUBSTEP + (end_vx - self.vx) * SUBSTEP / 2
+        self.y += self.vy * SUBSTEP + (end_vy - self.vy) * SUBSTEP / 2
+
+        if self.shot.follows:
+            speed = math.hypot(self.vx, self.vy)
+            self.rx, self.ry = self.vx / speed, self.vy / speed
+
+        self.vx, self.vy = self._velocity_after(self.rx, self.ry)
+        self.steps += 1
 
 
-def fly_to(shot, elevation, distance, step=STEP):
-    """Integrate a shot fired at barrel `elevation` (radians) until it is
+def fly_to(shot, elevation, distance):
+    """Fly a shot fired at barrel `elevation` (radians) until it is
     `distance` m ahead of the pivot.
 
-    Returns (height, slope, curvature, time): the height above the ground,
-    dy/dx, d2y/dx2 there and the flight time, or None when it never gets
-    there (it lands first, or the speed is exhausted).
+    Returns (height, slope, curvature, time): the height above the ground
+    and the time there (on the substep's straight segment), the segment's
+    dy/dx and d2y/dx2 from it and the next segment; or None when it never
+    gets there (it falls 100 km or flies 600 s first).
     """
     flight = _Flight(shot, elevation)
 
-    while flight.x < distance:
-        h = flight.step_length(step)
-        ax, ay = flight.acceleration(h)
-        x, y, vx, vy = _rk4(flight.x, flight.y, flight.vx, flight.vy, ax, ay, h)
+    while True:
+        x0, y0, step = flight.x, flight.y, flight.steps
+        flight.advance()
 
-        if x >= distance:
-            # Bisect the last step down to the distance.
-            low, high = 0.0, h
-            for _ in range(60):
-                mid = (low + high) / 2
-                reached = _rk4(
-                    flight.x, flight.y, flight.vx, flight.vy, ax, ay, mid
-                )[0]
-                if reached < distance:
-                    low = mid
-                else:
-                    high = mid
-            flight.advance((low + high) / 2)
+        if flight.x >= distance:
             break
-
-        flight.x, flight.y, flight.vx, flight.vy = x, y, vx, vy
-        flight.t += h
 
         if flight.y < -1e5 or flight.t > 600:
             return None
 
-    ax, ay = flight.acceleration(0.0)
-    slope = flight.vy / flight.vx
+    x1, y1 = flight.x, flight.y
+    flight.advance()
+    slope = (y1 - y0) / (x1 - x0)
+    following = (flight.y - y1) / (flight.x - x1)
+    part = (distance - x0) / (x1 - x0)
 
     return (
-        flight.y,
+        y0 + (y1 - y0) * part,
         slope,
-        (ay - slope * ax) / (flight.vx * flight.vx),
-        flight.t,
+        (following - slope) / ((flight.x - x0) / 2),
+        max(0.0, (step + part) * SUBSTEP),
     )
 
 
@@ -219,11 +223,11 @@ class Miss:
                 f" ground={self.ground:.4g})")
 
 
-def miss(shot, elevation, distance, height, step=STEP):
+def miss(shot, elevation, distance, height):
     """The Miss of a shot at barrel `elevation` (radians) against the
     ground `height` m above the weapon's, `distance` m away; infinite when
     the shot never gets there."""
-    flight = fly_to(shot, elevation, distance, step)
+    flight = fly_to(shot, elevation, distance)
 
     if flight is None:
         return Miss(math.inf, math.inf, math.inf)
@@ -248,29 +252,25 @@ def miss(shot, elevation, distance, height, step=STEP):
     return Miss(closest, error, ground)
 
 
-def range_at(shot, elevation, height, step=STEP, limit=200000.0):
+def range_at(shot, elevation, height, limit=200000.0):
     """Horizontal distance at which the path first comes down to `height`
-    after its apex, found by integrating until it does (flat-ground range).
+    after its apex, found by flying it until it does (flat-ground range).
     Used for the largest range of a weapon and for the range one pixel of
     elevation is worth."""
     flight = _Flight(shot, elevation)
 
-    while flight.vy > 0 or flight.y > height:
+    while True:
         x, y = flight.x, flight.y
-        flight.advance(flight.step_length(step))
+        flight.advance()
 
-        if flight.y <= height and flight.vy < 0:
-            # Linear interpolation inside the last (1 ms) step.
-            fraction = (y - height) / (y - flight.y)
-            return x + fraction * (flight.x - x)
+        if flight.y <= height < y:
+            return x + (y - height) / (y - flight.y) * (flight.x - x)
 
         if flight.x > limit or flight.t > 600:
             return math.inf
 
-    return flight.x
 
-
-def highest_at(shot, distance, reaches=math.inf, step=STEP):
+def highest_at(shot, distance, reaches=math.inf):
     """The greatest height the shot can have when it is `distance` m ahead of
     the pivot, over every barrel elevation: the height is unimodal in the
     elevation, so a golden-section search finds it (to 1e-5 rad, which is
@@ -279,7 +279,7 @@ def highest_at(shot, distance, reaches=math.inf, step=STEP):
     golden = (math.sqrt(5) - 1) / 2
 
     def height(elevation):
-        flight = fly_to(shot, elevation, distance, step)
+        flight = fly_to(shot, elevation, distance)
         return -math.inf if flight is None else flight[0]
 
     low, high = math.radians(-5.0), math.radians(89.9)
