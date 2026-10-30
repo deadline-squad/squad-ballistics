@@ -245,13 +245,13 @@ ENTRIES = {
     "MK19 · emplacement / C16 / L134A1 · no sights": ([V + "Emplaced_Mk19/BP_Mk19_Weapon", V + "Emplaced_Mk19/BP_Weapon_C16", V + "Emplaced_Mk19/BP_Weapon_L134A1"],
                                                       dict(MK19_TRIPOD, camera=TRIPOD_PLAIN, zoom=("plain",))),
     # AGS-17 tripods: the optic gun (Attach_Muzzle_Scoped) and the open-sight gun (Attach_Muzzle).
-    "AGS-17 · emplacement": ([V + "Emplaced_AGS-17/BP_AGS-17_Weapon_Optic", V + "Emplaced_AGS-17/BP_AGS-17_Weapon"], view(AGS17_OPTIC_TRIPOD, ADS, ("rmb",))),
+    "AGS-17 · emplacement · optic (RMB ×2.5)": ([V + "Emplaced_AGS-17/BP_AGS-17_Weapon_Optic", V + "Emplaced_AGS-17/BP_AGS-17_Weapon"], view(AGS17_OPTIC_TRIPOD, ADS, ("rmb",))),
     "AGS-17 · emplacement · no optic": ([V + "Emplaced_AGS-17/BP_AGS-17_Weapon_Optic"], view(AGS17_OPTIC_TRIPOD, TRIPOD_PLAIN, ("plain",))),
     "AGS-17 · iron sights emplacement": ([V + "Emplaced_AGS-17/BP_AGS-17_Weapon"], view(AGS17_TRIPOD, TRIPOD_PLAIN, ("plain",))),
     # QLZ87 tripod and the open turrets of the Lynx, CSK131, WZ551 and ZBL-08.
-    "QLZ87": ([V + "Emplaced_QLZ87/BP_QLZ87_Weapon", GL + "QLZ-87/BP_QLZ-87_AGL_Parent", V + "CSK131/Weapons/BP_QLZ87_OpenTurret_Weapon"], view(QLZ_TRIPOD, ADS, ("rmb",))),
+    "QLZ87 · optic (RMB ×3)": ([V + "Emplaced_QLZ87/BP_QLZ87_Weapon", GL + "QLZ-87/BP_QLZ-87_AGL_Parent", V + "CSK131/Weapons/BP_QLZ87_OpenTurret_Weapon"], view(QLZ_TRIPOD, ADS, ("rmb",))),
     "QLZ87 · no optic": ([V + "Emplaced_QLZ87/BP_QLZ87_Weapon"], view(QLZ_TRIPOD, TRIPOD_PLAIN, ("plain",))),
-    "QLZ87 · Lynx / CSK131": (QLZ_CLASSES, view(V + "Lynx_8x8/Weapons/BP_QLZ87_Lynx8x8_OpenTop_Turret", ADS, ("rmb",), also=QLZ_TURRETS)),
+    "QLZ87 · Lynx / CSK131 · optic (RMB ×3)": (QLZ_CLASSES, view(V + "Lynx_8x8/Weapons/BP_QLZ87_Lynx8x8_OpenTop_Turret", ADS, ("rmb",), also=QLZ_TURRETS)),
     "QLZ87 · Lynx / CSK131 · no optic": (QLZ_CLASSES, view(V + "Lynx_8x8/Weapons/BP_QLZ87_Lynx8x8_OpenTop_Turret", OPEN_PLAIN, ("plain",), also=QLZ_TURRETS)),
     # AGS-30 / KBA-117 gunner's sights (socket BarrelStart_AGS).
     "AGS-30 / BTR-4 AGS": ([V + "BTR4/Weapons/BP_BTR4_KBA117"], tank(V + "BTR4/Turrets/BP_BTR4_Turret")),
@@ -277,11 +277,11 @@ ENTRIES = {
     # SPG-9: open-sight tripod (no RMB zoom), scope tripod (RMB x4); the technical's SPG-9
     # has the scope gun's socket and RMB divisor.
     "SPG-9 · HEAT": ([V + "Emplaced_SPG9/BP_EmplacedSPG9", V + "Technical/Weapons/BP_SPG9"], view(SPG9_TRIPOD, TRIPOD_PLAIN, ("plain",))),
-    "SPG-9 · HEAT · scope": ([V + "Emplaced_SPG9/BP_EmplacedSPG9Scope", V + "Technical/Weapons/BP_SPG9"],
+    "SPG-9 · HEAT · scope · optic (RMB ×4)": ([V + "Emplaced_SPG9/BP_EmplacedSPG9Scope", V + "Technical/Weapons/BP_SPG9"],
                              view(SPG9_SCOPE_TRIPOD, ADS, ("rmb",), also=((SPG9_TECHNICAL, V + "Technical/Weapons/BP_SPG9"),))),
     "SPG-9 · HEAT · scope · no optic": ([V + "Emplaced_SPG9/BP_EmplacedSPG9Scope"], view(SPG9_SCOPE_TRIPOD, TRIPOD_PLAIN, ("plain",))),
     "SPG-9 · FRAG": ([V + "Emplaced_SPG9/BP_EmplacedSPG9_Frag", V + "Technical/Weapons/BP_SPG9_Frag"], view(SPG9_TRIPOD, TRIPOD_PLAIN, ("plain",))),
-    "SPG-9 · FRAG · scope": ([V + "Emplaced_SPG9/BP_EmplacedSPG9_FragScope", V + "Technical/Weapons/BP_SPG9_Frag"],
+    "SPG-9 · FRAG · scope · optic (RMB ×4)": ([V + "Emplaced_SPG9/BP_EmplacedSPG9_FragScope", V + "Technical/Weapons/BP_SPG9_Frag"],
                              view(SPG9_SCOPE_TRIPOD, ADS, ("rmb",), also=((SPG9_TECHNICAL, V + "Technical/Weapons/BP_SPG9_Frag"),))),
     "SPG-9 · FRAG · scope · no optic": ([V + "Emplaced_SPG9/BP_EmplacedSPG9_FragScope"], view(SPG9_SCOPE_TRIPOD, TRIPOD_PLAIN, ("plain",))),
     # 2A28 Grom: BMP-1 (and the BMP-1 technical), BMD-1M.
@@ -296,7 +296,7 @@ ENTRIES = {
     "2A70 100mm (ZBD-04A) · FRAG": ([V + "ZBD04A/Weapons/BP_ZBD04A_2A70_HEFrag"], tank(V + "ZBD04A/Turrets/BP_ZBD04A_Turret")),
     "2A70 100mm (BMD-4M) · FRAG": ([V + "BMD-4M/Weapons/BP_BMD4M_2A70_HEFrag"], tank(V + "BMD-4M/Turrets/BP_BMD4M_Turret")),
     # ZiS-3: RMB sight = ZoomLevels[1] (x4), normal view = ZoomLevels[0] (x1).
-    "ZiS-3": ([V + "Emplaced_ZiS3_Cannon/Weapons/BP_ZiS3_Weapon_HEAT", V + "Emplaced_ZiS3_Cannon/Weapons/BP_ZiS3_Weapon_Frag"], view(ZIS3, ADS, ("levels", 1))),
+    "ZiS-3 · optic (RMB ×4)": ([V + "Emplaced_ZiS3_Cannon/Weapons/BP_ZiS3_Weapon_HEAT", V + "Emplaced_ZiS3_Cannon/Weapons/BP_ZiS3_Weapon_Frag"], view(ZIS3, ADS, ("levels", 1))),
     "ZiS-3 · no optic": ([V + "Emplaced_ZiS3_Cannon/Weapons/BP_ZiS3_Weapon_HEAT", V + "Emplaced_ZiS3_Cannon/Weapons/BP_ZiS3_Weapon_Frag"], view(ZIS3, TRIPOD_PLAIN, ("levels", 0))),
     # Tanks, AP: the T-72B3 view also covers the T-72A, T-72S, T-90A and Sprut-SDM1.
     "Tank AP · 2A46 / ZPT98 / 2A20 / 2A45 / KBA3": ([V + "T72B3/Weapons/BP_2A46_AP"] + [f[1] for f in T72_FAMILY] + [V + "ZTZ99/Weapons/BP_ZPT-98_AP", V + "T62/Weapons/BP_2A20_AP", V + "T64_BM2/Weapons/BP_KBA3_AP"],

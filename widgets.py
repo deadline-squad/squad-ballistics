@@ -509,8 +509,10 @@ class _PickerPopup(QFrame):
 class WeaponPicker(QPushButton):
     """Button showing the current weapon; opens a searchable list.
 
-    A name too long for the button is elided ("…") while the button is
-    shown; the full name is in the tooltip and in `current`.
+    A name too long for the button is elided in the middle ("…") while the
+    button is shown, so the end of a name, which says whether an RMB sight's
+    entry is for the optic, stays; the full name is in the tooltip and in
+    `current`.
     """
 
     changed = pyqtSignal(str)
@@ -567,7 +569,7 @@ class WeaponPicker(QPushButton):
         room = self.width() - overhead - metrics.horizontalAdvance(self.ARROW)
 
         if metrics.horizontalAdvance(self.current) > room:
-            name = metrics.elidedText(self.current, Qt.TextElideMode.ElideRight, room)
+            name = metrics.elidedText(self.current, Qt.TextElideMode.ElideMiddle, room)
             self.setText(f"{name}{self.ARROW}")
 
     def resizeEvent(self, event):

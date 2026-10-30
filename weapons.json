@@ -1,5 +1,5 @@
 {
-    "_comment": "velocity m/s, gravity = projectile gravity scale. Optional: acceleration (m/s^2, negative = slows down) + acceleration_time (s, the game's ConstantAccelerationTimeout: the motor acts in the 20 ms flight substeps that start before it), max_speed (m/s, the projectile's MaxSpeed: the speed is capped at every substep, the first one too; omitted or 0 = no cap), rotation_follows_velocity (default true: the motor pushes along the path; false: along the barrel's axis at launch, the UB-32's S-5), arc low/high, aim overlay/elevation, unit deg/mil, angle_offset, min_distance, elevation_limits [min,max], bore (deg: how far above the screen centre the shot leaves in the view the weapon is aimed through; the game fires along the barrel socket Attach_Muzzle, tilted against the camera), zoom (FOV divisor of that view: a scope, an optic or the gunner's sight; omitted = ×1; a weapon whose RMB sight zooms the screen has a second '<name> · no optic' entry for its normal view, with that camera's bore and no zoom), launch_height + muzzle_forward + muzzle_up (m: the barrel pivot above the ground and the barrel socket along and above the barrel), hold_rate + hold_elevation (a barrel laid by holding a key), category, note. Sources: velocity, gravity, rocket motor, speed cap, view and the elevation limits of the direct-fire mounts read from the game files (Squad build 26005357: WeaponConfig.MuzzleVelocity; the projectile's ProjectileGravityScale, ConstantAcceleration/Timeout, MaxSpeed and bRotationFollowsVelocity; the mount's pitch limits plus the barrel socket's pitch; snapshot tests/data/game_weapons.json, written by tools/game_weapons.py); the other elevation limits, arcs and the AGS-17 hold model from in-game measurements, the official Squad wiki (squad.fandom.com) and SquadCalc (github.com/sh4rkman/SquadCalc).",
+    "_comment": "velocity m/s, gravity = projectile gravity scale. Optional: acceleration (m/s^2, negative = slows down) + acceleration_time (s, the game's ConstantAccelerationTimeout: the motor acts in the 20 ms flight substeps that start before it), max_speed (m/s, the projectile's MaxSpeed: the speed is capped at every substep, the first one too; omitted or 0 = no cap), rotation_follows_velocity (default true: the motor pushes along the path; false: along the barrel's axis at launch, the UB-32's S-5), arc low/high, aim overlay/elevation, unit deg/mil, angle_offset, min_distance, elevation_limits [min,max], bore (deg: how far above the screen centre the shot leaves in the view the weapon is aimed through; the game fires along the barrel socket Attach_Muzzle, tilted against the camera), zoom (FOV divisor of that view: a scope, an optic or the gunner's sight; omitted = ×1; a weapon whose RMB sight zooms the screen has two entries: '<base> · optic (RMB ×N)' for the sight and '<base> · no optic' for its normal view, with that camera's bore and no zoom), view ('optic' on the RMB sight, 'plain' on its normal-view twin; the app shows it next to the weapon) + twin (on an optic entry: the name of its plain twin), launch_height + muzzle_forward + muzzle_up (m: the barrel pivot above the ground and the barrel socket along and above the barrel), hold_rate + hold_elevation (a barrel laid by holding a key), category, note. Sources: velocity, gravity, rocket motor, speed cap, view and the elevation limits of the direct-fire mounts read from the game files (Squad build 26005357: WeaponConfig.MuzzleVelocity; the projectile's ProjectileGravityScale, ConstantAcceleration/Timeout, MaxSpeed and bRotationFollowsVelocity; the mount's pitch limits plus the barrel socket's pitch; snapshot tests/data/game_weapons.json, written by tools/game_weapons.py); the other elevation limits, arcs and the AGS-17 hold model from in-game measurements, the official Squad wiki (squad.fandom.com) and SquadCalc (github.com/sh4rkman/SquadCalc).",
     "M203 / M320 / GP-25 / HK79 / SL40": {
         "velocity": 76,
         "gravity": 1,
@@ -34,7 +34,7 @@
         "velocity": 230,
         "gravity": 1,
         "category": "agl",
-        "note": "Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m. The tripod MK19 (and C16 / L134A1) fires faster: pick \"MK19 · emplacement / C16 / L134A1\" (or its \"· no sights\" entry without RMB); for the AGS-17 pick \"AGS-17 · emplacement\". M1117 and AAVP-7A1: the gunner's sight at ×1; the barrel and the camera are aligned (the shot leaves through the screen centre). M113, M1151 and RHIB open turrets without RMB: this entry (their camera is on the barrel's axis). For the other vehicles pick their own entry.",
+        "note": "Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m. The tripod MK19 (and C16 / L134A1) fires faster: pick \"MK19 · emplacement / C16 / L134A1\" (or its \"· no sights\" entry without RMB); for the AGS-17 pick \"AGS-17 · emplacement · optic (RMB ×2.5)\". M1117 and AAVP-7A1: the gunner's sight at ×1; the barrel and the camera are aligned (the shot leaves through the screen centre). M113, M1151 and RHIB open turrets without RMB: this entry (their camera is on the barrel's axis). For the other vehicles pick their own entry.",
         "bore": 0.0,
         "elevation_limits": [
             -15.0,
@@ -107,7 +107,7 @@
             20.0
         ]
     },
-    "AGS-17 · emplacement": {
+    "AGS-17 · emplacement · optic (RMB ×2.5)": {
         "velocity": 185,
         "gravity": 1.8,
         "launch_height": 1,
@@ -124,6 +124,8 @@
         ],
         "bore": 0.85,
         "zoom": 2.5,
+        "view": "optic",
+        "twin": "AGS-17 · emplacement · no optic",
         "category": "agl",
         "note": "AGS-17 with the PAG-17 optic, aimed through the optic (RMB, ×2.5). High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark, which accounts for the optic's 0.85° socket (zero ~58 m); from the normal view, without RMB, pick \"AGS-17 · emplacement · no optic\". Velocity 185 m/s and gravity ×1.8 come from the game files; the hold rate and the top of the mount are fitted on 67 in-game hold-time measurements (280–1930 m, 7 m RMS error), the same as the Deadline SquadCalc. The fitted top, 85.87°, is the mount's 85° limit plus this optic's 0.85°, so the fit is of the optic gun; for the open-sight gun pick \"AGS-17 · iron sights emplacement\". The game files give 9.00°/s (keyboard pitch ×15 × turret input ×0.6), which fits the same measurements as well (top 85.69°, 5.5 m RMS); deadline-squad/squad-ballistics#5 (D6) settles which."
     },
@@ -143,8 +145,9 @@
             85.87
         ],
         "bore": 0.85,
+        "view": "plain",
         "category": "agl",
-        "note": "AGS-17 with the PAG-17 optic, aimed from the normal view: no RMB, no zoom (×1). High arc: the same hold as \"AGS-17 · emplacement\": W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark; the shot leaves 0.85° above the screen centre (zero ~58 m), as through the optic. Aiming through the optic (RMB, ×2.5)? Pick \"AGS-17 · emplacement\"."
+        "note": "AGS-17 with the PAG-17 optic, aimed from the normal view: no RMB, no zoom (×1). High arc: the same hold as \"AGS-17 · emplacement · optic (RMB ×2.5)\": W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark; the shot leaves 0.85° above the screen centre (zero ~58 m), as through the optic. Aiming through the optic (RMB, ×2.5)? Pick \"AGS-17 · emplacement · optic (RMB ×2.5)\"."
     },
     "AGS-17 · iron sights emplacement": {
         "velocity": 185,
@@ -163,13 +166,15 @@
         ],
         "bore": 4.5,
         "category": "agl",
-        "note": "AGS-17 with open sights. Its barrel socket is tilted 4.5° up (the optic gun's is 0.85°), so the same mount angle shoots 3.65° higher: the top of the hold is 89.52° (the mount's 85° limit + 4.5°) and a target 33 m away can be lobbed. High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark; the sights are zeroed at ~300 m. Velocity, gravity and the hold rate are those of \"AGS-17 · emplacement\"; the top is derived from the game files, not measured in game."
+        "note": "AGS-17 with open sights. Its barrel socket is tilted 4.5° up (the optic gun's is 0.85°), so the same mount angle shoots 3.65° higher: the top of the hold is 89.52° (the mount's 85° limit + 4.5°) and a target 33 m away can be lobbed. High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark; the sights are zeroed at ~300 m. Velocity, gravity and the hold rate are those of \"AGS-17 · emplacement · optic (RMB ×2.5)\"; the top is derived from the game files, not measured in game."
     },
-    "QLZ87": {
+    "QLZ87 · optic (RMB ×3)": {
         "velocity": 190,
         "gravity": 1,
         "bore": 0.774,
         "zoom": 3,
+        "view": "optic",
+        "twin": "QLZ87 · no optic",
         "category": "agl",
         "note": "Tripod QLZ87 aimed through its optic (RMB, ×3). The optic is zeroed at 100 m: the shot leaves 0.774° above the screen centre. Aiming from the normal view, without RMB? Pick \"QLZ87 · no optic\": this mark is for the ×3 view and overshoots there. Fire short bursts; minimum arming range ~30 m.",
         "elevation_limits": [
@@ -181,18 +186,21 @@
         "velocity": 190,
         "gravity": 1,
         "bore": -0.9,
+        "view": "plain",
         "category": "agl",
-        "note": "Tripod QLZ87 aimed from the normal view: no RMB, no zoom (×1). The barrel points 0.9° below the screen centre, so the shot leaves 0.9° under it and the view has no zero range. Aiming through the optic (RMB, ×3)? Pick \"QLZ87\". Fire short bursts; minimum arming range ~30 m.",
+        "note": "Tripod QLZ87 aimed from the normal view: no RMB, no zoom (×1). The barrel points 0.9° below the screen centre, so the shot leaves 0.9° under it and the view has no zero range. Aiming through the optic (RMB, ×3)? Pick \"QLZ87 · optic (RMB ×3)\". Fire short bursts; minimum arming range ~30 m.",
         "elevation_limits": [
             -23.4,
             44.1
         ]
     },
-    "QLZ87 · Lynx / CSK131": {
+    "QLZ87 · Lynx / CSK131 · optic (RMB ×3)": {
         "velocity": 190,
         "gravity": 1,
         "bore": 0.85,
         "zoom": 3,
+        "view": "optic",
+        "twin": "QLZ87 · Lynx / CSK131 · no optic",
         "category": "agl",
         "note": "QLZ87 on the Lynx, CSK131, WZ551 and ZBL-08 aimed through the optic (RMB, ×3). The shot leaves 0.85° above the screen centre (zero ~110 m). Aiming from the normal view, without RMB? Pick \"QLZ87 · Lynx / CSK131 · no optic\". Fire short bursts; minimum arming range ~30 m.",
         "elevation_limits": [
@@ -204,8 +212,9 @@
         "velocity": 190,
         "gravity": 1,
         "bore": 0.85,
+        "view": "plain",
         "category": "agl",
-        "note": "QLZ87 on the Lynx, CSK131, WZ551 and ZBL-08 aimed from the normal view: no RMB, no zoom (×1). The shot leaves 0.85° above the screen centre (zero ~110 m), as through the optic. Aiming through the optic (RMB, ×3)? Pick \"QLZ87 · Lynx / CSK131\". Fire short bursts; minimum arming range ~30 m.",
+        "note": "QLZ87 on the Lynx, CSK131, WZ551 and ZBL-08 aimed from the normal view: no RMB, no zoom (×1). The shot leaves 0.85° above the screen centre (zero ~110 m), as through the optic. Aiming through the optic (RMB, ×3)? Pick \"QLZ87 · Lynx / CSK131 · optic (RMB ×3)\". Fire short bursts; minimum arming range ~30 m.",
         "elevation_limits": [
             -13.15,
             55.85
@@ -384,13 +393,13 @@
         "max_speed": 330,
         "bore": 0.13,
         "category": "guns",
-        "note": "SPG-9 with open sights: the shot leaves 0.13° above the screen centre (zero ~47 m). HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. With the PGO-9 scope pick \"SPG-9 · HEAT · scope\".",
+        "note": "SPG-9 with open sights: the shot leaves 0.13° above the screen centre (zero ~47 m). HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. With the PGO-9 scope pick \"SPG-9 · HEAT · scope · optic (RMB ×4)\".",
         "elevation_limits": [
             -9.87,
             10.13
         ]
     },
-    "SPG-9 · HEAT · scope": {
+    "SPG-9 · HEAT · scope · optic (RMB ×4)": {
         "velocity": 435,
         "gravity": 1.2,
         "acceleration": 100,
@@ -398,6 +407,8 @@
         "max_speed": 330,
         "bore": 2.34,
         "zoom": 4,
+        "view": "optic",
+        "twin": "SPG-9 · HEAT · scope · no optic",
         "category": "guns",
         "note": "SPG-9 with the PGO-9 scope, aimed through the scope (RMB, ×4). The scope's barrel socket is 2.34° above the screen centre (zero ~765 m); the mark accounts for it. Aiming from the normal view, without RMB? Pick \"SPG-9 · HEAT · scope · no optic\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded.",
         "elevation_limits": [
@@ -412,8 +423,9 @@
         "acceleration_time": 1.1,
         "max_speed": 330,
         "bore": 2.34,
+        "view": "plain",
         "category": "guns",
-        "note": "SPG-9 with the PGO-9 scope, aimed from the normal view: no RMB, no zoom (×1). The barrel socket is 2.34° above the screen centre (zero ~765 m), as through the scope. Aiming through the scope (RMB, ×4)? Pick \"SPG-9 · HEAT · scope\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded.",
+        "note": "SPG-9 with the PGO-9 scope, aimed from the normal view: no RMB, no zoom (×1). The barrel socket is 2.34° above the screen centre (zero ~765 m), as through the scope. Aiming through the scope (RMB, ×4)? Pick \"SPG-9 · HEAT · scope · optic (RMB ×4)\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded.",
         "elevation_limits": [
             -7.66,
             12.34
@@ -427,13 +439,13 @@
         "max_speed": 250,
         "bore": 0.13,
         "category": "guns",
-        "note": "SPG-9 with open sights: the shot leaves 0.13° above the screen centre (zero ~27 m). HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. With the PGO-9 scope pick \"SPG-9 · FRAG · scope\".",
+        "note": "SPG-9 with open sights: the shot leaves 0.13° above the screen centre (zero ~27 m). HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. With the PGO-9 scope pick \"SPG-9 · FRAG · scope · optic (RMB ×4)\".",
         "elevation_limits": [
             -9.87,
             10.13
         ]
     },
-    "SPG-9 · FRAG · scope": {
+    "SPG-9 · FRAG · scope · optic (RMB ×4)": {
         "velocity": 315,
         "gravity": 1.2,
         "acceleration": 100,
@@ -441,6 +453,8 @@
         "max_speed": 250,
         "bore": 2.34,
         "zoom": 4,
+        "view": "optic",
+        "twin": "SPG-9 · FRAG · scope · no optic",
         "category": "guns",
         "note": "SPG-9 with the PGO-9 scope, aimed through the scope (RMB, ×4). The scope's barrel socket is 2.34° above the screen centre (zero ~440 m); the mark accounts for it. Aiming from the normal view, without RMB? Pick \"SPG-9 · FRAG · scope · no optic\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded.",
         "elevation_limits": [
@@ -455,8 +469,9 @@
         "acceleration_time": 1.1,
         "max_speed": 250,
         "bore": 2.34,
+        "view": "plain",
         "category": "guns",
-        "note": "SPG-9 with the PGO-9 scope, aimed from the normal view: no RMB, no zoom (×1). The barrel socket is 2.34° above the screen centre (zero ~440 m), as through the scope. Aiming through the scope (RMB, ×4)? Pick \"SPG-9 · FRAG · scope\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded.",
+        "note": "SPG-9 with the PGO-9 scope, aimed from the normal view: no RMB, no zoom (×1). The barrel socket is 2.34° above the screen centre (zero ~440 m), as through the scope. Aiming through the scope (RMB, ×4)? Pick \"SPG-9 · FRAG · scope · optic (RMB ×4)\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded.",
         "elevation_limits": [
             -7.66,
             12.34
@@ -561,12 +576,14 @@
             60.675
         ]
     },
-    "ZiS-3": {
+    "ZiS-3 · optic (RMB ×4)": {
         "velocity": 700,
         "gravity": 2,
         "max_speed": 700,
         "bore": 0.4,
         "zoom": 4,
+        "view": "optic",
+        "twin": "ZiS-3 · no optic",
         "category": "guns",
         "note": "ZiS-3 aimed through the sight (RMB, ×4). The shot leaves 0.4° above the screen centre (zero ~350 m). The sight's zoom level (×4) comes from the vehicle's zoom levels in the game files, not from a zoom script: if the mark is off, enter the FOV you see instead. Aiming from the normal view, without RMB? Pick \"ZiS-3 · no optic\".",
         "elevation_limits": [
@@ -579,8 +596,9 @@
         "gravity": 2,
         "max_speed": 700,
         "bore": 0.4,
+        "view": "plain",
         "category": "guns",
-        "note": "ZiS-3 aimed from the normal view: no RMB, no zoom (×1). This view is the first of the vehicle's zoom levels in the game files. The shot leaves 0.4° above the screen centre (zero ~350 m), as through the sight. Aiming through the sight (RMB, ×4)? Pick \"ZiS-3\".",
+        "note": "ZiS-3 aimed from the normal view: no RMB, no zoom (×1). This view is the first of the vehicle's zoom levels in the game files. The shot leaves 0.4° above the screen centre (zero ~350 m), as through the sight. Aiming through the sight (RMB, ×4)? Pick \"ZiS-3 · optic (RMB ×4)\".",
         "elevation_limits": [
             -14.6,
             37.4

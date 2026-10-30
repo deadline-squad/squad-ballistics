@@ -564,6 +564,12 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(self.picker)
 
+        self.view_label = label("", "view")
+
+        self.view_label.setWordWrap(True)
+
+        layout.addWidget(self.view_label)
+
         self.weapon_info = label("", "small")
 
         self.weapon_info.setWordWrap(True)
@@ -853,8 +859,13 @@ class MainWindow(QMainWindow):
         self.recalculate_if_ready()
 
     def update_weapon_info(self, weapon):
-        """The chips under the picker: muzzle velocity, gravity, range, boost
+        """The view line and the chips under the picker: which view an RMB
+        sight's entry is for, and the muzzle velocity, gravity, range, boost
         and minimum distance of `weapon`."""
+        self.view_label.setText(self.view_line(weapon))
+
+        self.view_label.setVisible(bool(weapon.view))
+
         parts = [
             tr("chip_velocity", v=f"{weapon.velocity:g}"),
             tr("chip_gravity", g=f"{weapon.gravity:g}"),
@@ -881,6 +892,30 @@ class MainWindow(QMainWindow):
             parts.append(tr("chip_min", m=f"{weapon.min_distance:g}"))
 
         self.weapon_info.setText("  ·  ".join(parts))
+
+    @staticmethod
+    def view_line(weapon):
+        """What the player must do for the mark of `weapon` to be right: hold
+        RMB for an optic entry, leave it for its plain twin; "" for a weapon
+        without an RMB sight."""
+        if weapon.view == "optic":
+            return tr("view_optic", zoom=f"{weapon.zoom:g}")
+
+        if weapon.view == "plain":
+            return tr("view_plain")
+
+        return ""
+
+    @staticmethod
+    def view_tag(weapon):
+        """The short form of `view_line` for the overlay's info line."""
+        if weapon.view == "optic":
+            return tr("info_view_optic", zoom=f"{weapon.zoom:g}")
+
+        if weapon.view == "plain":
+            return tr("info_view_plain")
+
+        return ""
 
     def current_trim(self, weapon):
         """The trim (degrees) set for `weapon`."""
@@ -1414,6 +1449,9 @@ class MainWindow(QMainWindow):
             readout = format_angle(aimed, unit)
 
         info = f"{solution.distance:.0f} {m}  ·  {readout}"
+
+        if weapon.view:
+            info = self.view_tag(weapon) + "  ·  " + info
 
         if trim:
             info += "  ·  " + tr("info_trim", trim=f"{trim:+g}")
@@ -2332,7 +2370,23 @@ class MainWindow(QMainWindow):
 
     def how_overlay_view(self, weapon, fov):
         """The how-to step about the in-game FOV and the view the mark is
-        for."""
+        for: for an RMB sight, whether to hold RMB, and the other view's
+        entry."""
+        if weapon.view == "optic":
+            return tr(
+                "how_view_optic",
+                zoom=f"{weapon.zoom:g}",
+                twin=weapon.twin,
+                fov=f"{fov:g}"
+            )
+
+        if weapon.view == "plain":
+            optic = next(
+                name for name, other in self.weapons.items() if other.twin == weapon.name
+            )
+
+            return tr("how_view_plain", twin=optic, fov=f"{fov:g}")
+
         if weapon.zoom:
             return tr("how_overlay_optic", fov=f"{fov:g}", zoom=f"{weapon.zoom:g}")
 

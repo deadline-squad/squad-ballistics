@@ -23,8 +23,8 @@ WEAPONS = load_weapons(os.path.join(ROOT, "weapons.json"))
 
 M203 = "M203 / M320 / GP-25 / HK79 / SL40"
 RPG7 = "RPG-7 · PG-7V HEAT / OG-7V"
-AGS = "AGS-17 · emplacement"
-QLZ87 = "QLZ87"
+AGS = "AGS-17 · emplacement · optic (RMB ×2.5)"
+QLZ87 = "QLZ87 · optic (RMB ×3)"
 MORTAR = "Mortar (M252 / 2B14 / L16 / Type 63)"
 
 
@@ -108,7 +108,7 @@ def test_range_ladder_follows_the_trim():
         assert offset == pytest.approx(mark_offset(weapon, sight, 90, 1920, trim=0.4))
 
 
-@pytest.mark.parametrize("name", [M203, RPG7, AGS, QLZ87, "AT-4", "ZiS-3"])
+@pytest.mark.parametrize("name", [M203, RPG7, AGS, QLZ87, "AT-4", "ZiS-3 · optic (RMB ×4)"])
 @pytest.mark.parametrize("height", [0.0, -15.0, -40.0])
 @pytest.mark.parametrize("error", [0.4, -0.7])
 def test_trim_for_landing_round_trip(name, height, error):
@@ -256,7 +256,42 @@ def test_a_trim_per_view_from_an_older_file_keeps_only_the_plain_one():
         "|plain": 1.0,
     }})
 
-    assert merged["mark_trim"] == {M203: 0.35, QLZ87: TRIM_LIMIT}
+    # The sight's name is the optic's now: a trim of the plain view goes to
+    # the "· no optic" twin, not to the entry for the other view.
+    assert merged["mark_trim"] == {M203: 0.35, "QLZ87 · no optic": TRIM_LIMIT}
+
+
+def test_a_config_saved_before_the_optic_names_keeps_its_meaning():
+    """Settings written by the version whose "QLZ87" was the ×3 optic's entry
+    (and by the one with the view switch): the bare name is still the optic,
+    its plain-view trim goes to the "· no optic" twin."""
+    old = {
+        "last_weapon": "QLZ87",
+        "recent_weapons": ["AGS-17 · emplacement", "ZiS-3", "RPG-29", "QLZ87"],
+        "mark_trim": {
+            "QLZ87": 0.4,
+            "QLZ87|plain": 0.9,
+            "QLZ87|optic": -0.2,
+            "SPG-9 · HEAT · scope|plain": 0.1,
+            "QLZ87 · Lynx / CSK131": 0.3,
+        },
+    }
+
+    merged = config._merge(old)
+
+    assert merged["last_weapon"] == "QLZ87 · optic (RMB ×3)"
+    assert merged["recent_weapons"] == [
+        "AGS-17 · emplacement · optic (RMB ×2.5)",
+        "ZiS-3 · optic (RMB ×4)",
+        "RPG-29",
+        "QLZ87 · optic (RMB ×3)",
+    ]
+    assert merged["mark_trim"] == {
+        "QLZ87 · optic (RMB ×3)": 0.4,
+        "QLZ87 · no optic": 0.9,
+        "SPG-9 · HEAT · scope · no optic": 0.1,
+        "QLZ87 · Lynx / CSK131 · optic (RMB ×3)": 0.3,
+    }
 
 
 def test_mark_trim_follows_renamed_weapons():

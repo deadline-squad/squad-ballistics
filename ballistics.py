@@ -74,6 +74,9 @@ ARCS = ("low", "high")
 UNITS = ("deg", "mil")
 AIMS = ("overlay", "elevation")
 
+# The views of an RMB sight (`Weapon.view`); "" is a weapon without one.
+VIEWS = ("", "optic", "plain")
+
 
 # Weapons renamed when their data was checked against the game files (Squad build
 # 26005357): old weapons.json name -> current name. Settings saved by older
@@ -86,6 +89,14 @@ RENAMED_WEAPONS = {
     "Carl Gustav / M3 MAAWS · Tandem": "M3 MAAWS · Tandem",
     "Tank AP · 2A46 / ZPT98 / 2A20 / M68A2": "Tank AP · 2A46 / ZPT98 / 2A20 / 2A45 / KBA3",
     "Tank AP · L30A1 (Challenger 2)": "Tank AP · L30A1 (Challenger 2) / M68A2",
+    # The RMB sights that have a normal-view twin: the plain name used to be
+    # the optic's, so it stays the optic's (a saved weapon keeps its meaning).
+    "QLZ87": "QLZ87 · optic (RMB ×3)",
+    "QLZ87 · Lynx / CSK131": "QLZ87 · Lynx / CSK131 · optic (RMB ×3)",
+    "AGS-17 · emplacement": "AGS-17 · emplacement · optic (RMB ×2.5)",
+    "SPG-9 · HEAT · scope": "SPG-9 · HEAT · scope · optic (RMB ×4)",
+    "SPG-9 · FRAG · scope": "SPG-9 · FRAG · scope · optic (RMB ×4)",
+    "ZiS-3": "ZiS-3 · optic (RMB ×4)",
 }
 
 
@@ -111,7 +122,10 @@ class Weapon:
     weapon's readout shows less than the barrel), `elevation_limits` and
     `min_distance`; the view the mark is drawn for, `bore` (degrees) and
     `zoom`; a barrel laid by holding a key, `hold_rate` (deg/s) and
-    `hold_elevation`; `category` and `note` for the UI. Build one with
+    `hold_elevation`; `category` and `note` for the UI. An RMB sight that
+    zooms the screen comes as two entries, `view` "optic" (through the
+    sight, RMB held) and its `twin`, `view` "plain" (the normal view, RMB
+    not held); the other weapons have no `view`. Build one with
     `from_dict`, which validates the data.
     """
 
@@ -137,6 +151,8 @@ class Weapon:
     hold_elevation: tuple = ()
     category: str = "other"
     note: str = ""
+    view: str = ""
+    twin: str = ""
 
     @classmethod
     def from_dict(cls, name, data):
@@ -239,6 +255,20 @@ class Weapon:
         if zoom and zoom < 1:
             raise WeaponDataError(f"{name}: 'zoom' must be >= 1 (or 0: none)")
 
+        view = data.get("view", "")
+        twin = data.get("twin", "")
+        if view not in VIEWS:
+            raise WeaponDataError(f"{name}: 'view' must be one of {VIEWS[1:]}")
+        if view == "optic" and not zoom:
+            raise WeaponDataError(f"{name}: an 'optic' view needs a 'zoom'")
+        if view == "plain" and zoom:
+            raise WeaponDataError(f"{name}: a 'plain' view has no 'zoom'")
+        if not isinstance(twin, str) or bool(twin) != (view == "optic"):
+            raise WeaponDataError(
+                f"{name}: 'twin' (the plain view's name) goes with "
+                "the 'optic' view, and only there"
+            )
+
         hold_rate = number("hold_rate", 0.0)
         if hold_rate < 0:
             raise WeaponDataError(f"{name}: 'hold_rate' must be >= 0")
@@ -285,6 +315,8 @@ class Weapon:
             hold_elevation=hold_elevation,
             category=str(data.get("category", "other")),
             note=str(data.get("note", "")),
+            view=view,
+            twin=twin,
         )
 
     @property
@@ -1541,4 +1573,25 @@ def parse_weapons(raw):
     if not weapons:
         raise WeaponDataError("weapons.json does not define any weapons")
 
+    _check_twins(weapons)
+
     return weapons
+
+
+def _check_twins(weapons):
+    """Raise WeaponDataError unless every "optic" entry names a "plain"
+    entry as its twin and every "plain" entry is the twin of one."""
+    twins = [weapon.twin for weapon in weapons.values() if weapon.view == "optic"]
+
+    for weapon in weapons.values():
+        if weapon.view == "optic" and (
+            weapon.twin not in weapons or weapons[weapon.twin].view != "plain"
+        ):
+            raise WeaponDataError(
+                f"{weapon.name}: its 'twin' {weapon.twin!r} is not a 'plain' entry"
+            )
+
+        if weapon.view == "plain" and twins.count(weapon.name) != 1:
+            raise WeaponDataError(
+                f"{weapon.name}: a 'plain' entry must be the 'twin' of one 'optic' entry"
+            )

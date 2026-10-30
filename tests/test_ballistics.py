@@ -37,7 +37,7 @@ def test_database_loads():
         "MK19 / AGS-17 / AGS-30",
         "RPG-29",
         "SPG-9 · HEAT",
-        "ZiS-3",
+        "ZiS-3 · optic (RMB ×4)",
         "Rifle grenade",
         "M203 / M320 / GP-25 / HK79 / MKE MGL",
     ):
@@ -45,7 +45,7 @@ def test_database_loads():
 
     # Original values are kept.
     assert WEAPONS["SPG-9 · HEAT"].gravity == 1.2
-    assert WEAPONS["ZiS-3"].velocity == 700
+    assert WEAPONS["ZiS-3 · optic (RMB ×4)"].velocity == 700
 
 
 def test_every_weapon_has_known_category():
@@ -204,7 +204,7 @@ def test_screen_offset_invalid_fov(fov):
 @pytest.mark.parametrize("name", [
     "M203 / M320 / GP-25 / HK79 / SL40",
     "RPG-7 · PG-7V HEAT / OG-7V",
-    "AGS-17 · emplacement",
+    "AGS-17 · emplacement · optic (RMB ×2.5)",
     "SPG-9 · FRAG",
 ])
 def test_range_ladder_matches_the_mark(name):
@@ -232,7 +232,7 @@ def test_range_ladder_is_as_dense_as_the_spacing_allows():
     """Each tick is the nearest range that clears the previous one by
     `spacing` pixels, rounded up to a round step that grows with range:
     the QLZ87's optic gets a tick every 50 m, not every 200 m."""
-    weapon = WEAPONS["QLZ87"]
+    weapon = WEAPONS["QLZ87 · optic (RMB ×3)"]
     ticks = range_ladder(weapon, 90, 1920, 20, 18, 520)
     distances = [d for d, _ in ticks]
 
@@ -279,8 +279,8 @@ def test_range_ladder_starts_past_the_minimum_distance():
 # against the camera zeroes the weapon's view at a round range (game files,
 # build 26005357): there the mark is on the screen centre.
 @pytest.mark.parametrize("name, zero", [
-    ("QLZ87", 100),
-    ("QLZ87 · Lynx / CSK131", 110),
+    ("QLZ87 · optic (RMB ×3)", 100),
+    ("QLZ87 · Lynx / CSK131 · optic (RMB ×3)", 110),
 ])
 def test_views_are_zeroed_where_the_game_puts_them(name, zero):
     weapon = WEAPONS[name]
@@ -322,19 +322,19 @@ def zero_range(weapon, bore):
 RMB, PLAIN = "rmb", "plain"
 
 EMPLACED_GEOMETRY = {
-    "QLZ87": (-0.9, -1.6738, 3.0, RMB),
+    "QLZ87 · optic (RMB ×3)": (-0.9, -1.6738, 3.0, RMB),
     "QLZ87 · no optic": (-0.9, -1.6738, 3.0, PLAIN),
     "MK19 · emplacement / C16 / L134A1": (0.0, -1.6738, 1.0, RMB),
-    "AGS-17 · emplacement": (0.85, 0.0, 2.5, RMB),
+    "AGS-17 · emplacement · optic (RMB ×2.5)": (0.85, 0.0, 2.5, RMB),
     "AGS-17 · emplacement · no optic": (0.85, 0.0, 2.5, PLAIN),
     "AGS-17 · iron sights emplacement": (4.5, None, None, PLAIN),
     "SPG-9 · HEAT": (0.13, None, None, PLAIN),
     "SPG-9 · FRAG": (0.13, None, None, PLAIN),
-    "SPG-9 · HEAT · scope": (2.34, 0.0, 4.0, RMB),
+    "SPG-9 · HEAT · scope · optic (RMB ×4)": (2.34, 0.0, 4.0, RMB),
     "SPG-9 · HEAT · scope · no optic": (2.34, 0.0, 4.0, PLAIN),
-    "SPG-9 · FRAG · scope": (2.34, 0.0, 4.0, RMB),
+    "SPG-9 · FRAG · scope · optic (RMB ×4)": (2.34, 0.0, 4.0, RMB),
     "SPG-9 · FRAG · scope · no optic": (2.34, 0.0, 4.0, PLAIN),
-    "ZiS-3": (0.4, 0.0, 4.0, RMB),
+    "ZiS-3 · optic (RMB ×4)": (0.4, 0.0, 4.0, RMB),
     "ZiS-3 · no optic": (0.4, 0.0, 4.0, PLAIN),
 }
 
@@ -358,6 +358,11 @@ def test_weapons_json_matches_the_tripod_geometry(name):
 NO_OPTIC = " · no optic"
 
 
+def optic_suffix(weapon):
+    """The end of an RMB sight's name: the view and its zoom."""
+    return f" · optic (RMB ×{weapon.zoom:g})"
+
+
 def aimed_through_rmb(weapon):
     """Whether the note says the entry is for the sight RMB zooms to its
     `zoom` (not merely that such a sight exists)."""
@@ -371,12 +376,12 @@ RMB_SIGHTS = [name for name, weapon in WEAPONS.items() if weapon.zoom > 1 and ai
 
 def test_the_rmb_sights_are_the_known_ones():
     assert sorted(RMB_SIGHTS) == sorted([
-        "QLZ87",
-        "QLZ87 · Lynx / CSK131",
-        "AGS-17 · emplacement",
-        "SPG-9 · HEAT · scope",
-        "SPG-9 · FRAG · scope",
-        "ZiS-3",
+        "QLZ87 · optic (RMB ×3)",
+        "QLZ87 · Lynx / CSK131 · optic (RMB ×3)",
+        "AGS-17 · emplacement · optic (RMB ×2.5)",
+        "SPG-9 · HEAT · scope · optic (RMB ×4)",
+        "SPG-9 · FRAG · scope · optic (RMB ×4)",
+        "ZiS-3 · optic (RMB ×4)",
     ])
 
 
@@ -391,30 +396,79 @@ def test_every_zoomed_entry_names_its_view(name):
 
 
 @pytest.mark.parametrize("name", RMB_SIGHTS)
-def test_every_rmb_sight_has_a_no_optic_twin(name):
-    """The QLZ87 trap: an entry for the ×3 optic used from the normal view
-    puts the mark three times too low and the shot far past the target. The
-    twin has the same gun and only the normal view's bore and zoom."""
-    optic = WEAPONS[name]
-    twin = WEAPONS[name + NO_OPTIC]
+def test_the_name_of_an_rmb_sight_says_optic_and_rmb(name):
+    """The QLZ87 trap: a bare "QLZ87" was the ×3 optic's entry, and a player
+    who fired from the normal view with it overshot by hundreds of metres
+    without being told. The name itself says that RMB is held, with the zoom."""
+    weapon = WEAPONS[name]
 
-    assert f'"{name + NO_OPTIC}"' in optic.note
+    assert name.endswith(optic_suffix(weapon))
+    assert weapon.view == "optic"
+    assert "optic" in name and "RMB" in name
+
+
+@pytest.mark.parametrize("name", RMB_SIGHTS)
+def test_every_rmb_sight_has_a_no_optic_twin(name):
+    """An entry for the ×3 optic used from the normal view puts the mark
+    three times too low and the shot far past the target. The twin has the
+    same gun and only the normal view's bore and zoom."""
+    optic = WEAPONS[name]
+    base = name[: -len(optic_suffix(optic))]
+    twin = WEAPONS[base + NO_OPTIC]
+
+    assert optic.twin == twin.name
+    assert twin.view == "plain"
+    assert f'"{twin.name}"' in optic.note
     assert f'"{name}"' in twin.note
     assert "aimed from the normal view: no RMB, no zoom (×1)" in twin.note
     assert f"(RMB, ×{optic.zoom:g})" in twin.note
     assert twin.zoom == 0
     assert twin.sight_view(120) == (120, twin.bore)
 
-    same_gun = {"name", "bore", "zoom", "note"}
+    same_gun = {"name", "bore", "zoom", "note", "view", "twin"}
     for field in optic.__dataclass_fields__:
         if field not in same_gun:
             assert getattr(twin, field) == getattr(optic, field), field
 
 
-def test_only_rmb_sights_have_a_no_optic_twin():
-    twins = [name for name in WEAPONS if name.endswith(NO_OPTIC)]
+def test_only_rmb_sights_have_a_view_and_a_twin():
+    optics = {name for name, weapon in WEAPONS.items() if weapon.view == "optic"}
+    plains = {name for name, weapon in WEAPONS.items() if weapon.view == "plain"}
 
-    assert sorted(name[: -len(NO_OPTIC)] for name in twins) == sorted(RMB_SIGHTS)
+    assert optics == set(RMB_SIGHTS)
+    assert plains == {WEAPONS[name].twin for name in RMB_SIGHTS}
+    assert {name for name in WEAPONS if name.endswith(NO_OPTIC)} == plains
+
+
+def test_a_twin_must_exist_and_be_the_plain_view():
+    entry = {"velocity": 190, "zoom": 3, "view": "optic"}
+
+    with pytest.raises(WeaponDataError, match="'twin'"):
+        parse_weapons({"A": entry})
+
+    with pytest.raises(WeaponDataError, match="not a 'plain' entry"):
+        parse_weapons({"A": {**entry, "twin": "B"}, "B": {"velocity": 190}})
+
+    with pytest.raises(WeaponDataError, match="must be the 'twin' of one"):
+        parse_weapons({"A": {"velocity": 190, "view": "plain"}})
+
+    with pytest.raises(WeaponDataError, match="needs a 'zoom'"):
+        parse_weapons({"A": {"velocity": 190, "view": "optic", "twin": "B"}, "B": {"velocity": 190, "view": "plain"}})
+
+    with pytest.raises(WeaponDataError, match="has no 'zoom'"):
+        parse_weapons({"A": {"velocity": 190, "zoom": 2, "view": "plain"}})
+
+    with pytest.raises(WeaponDataError, match="'view' must be"):
+        parse_weapons({"A": {"velocity": 190, "view": "ads"}})
+
+    with pytest.raises(WeaponDataError, match="'twin'"):
+        parse_weapons({"A": {"velocity": 190, "twin": "B"}})
+
+    pair = {
+        "A": {**entry, "twin": "B"},
+        "B": {"velocity": 190, "view": "plain"},
+    }
+    assert parse_weapons(pair)["A"].twin == "B"
 
 
 # (weapon, round zero range in m): the zero each view comes out at
@@ -430,7 +484,7 @@ def test_only_rmb_sights_have_a_no_optic_twin():
 ROUND_ZEROS = [
     ("MK19 · emplacement / C16 / L134A1", 330),
     ("AGS-17 · iron sights emplacement", 300),
-    ("ZiS-3", 350),
+    ("ZiS-3 · optic (RMB ×4)", 350),
     ("ZiS-3 · no optic", 350),
 ]
 
@@ -467,7 +521,7 @@ def test_the_mk19_sight_does_not_zoom_but_looks_below_the_barrel():
 
 def test_the_scope_spg9_has_a_deeper_view_than_the_open_sights():
     iron = WEAPONS["SPG-9 · HEAT"]
-    scope = WEAPONS["SPG-9 · HEAT · scope"]
+    scope = WEAPONS["SPG-9 · HEAT · scope · optic (RMB ×4)"]
 
     assert (iron.velocity, iron.g) == (scope.velocity, scope.g)
     assert iron.sight_view(90) == (90, 0.13)
@@ -478,7 +532,7 @@ def test_the_iron_sight_ags17_lobs_closer_than_the_optic_one():
     """Same mount, but the open-sight socket is 3.65 degrees higher: its top
     of the hold is that much higher and it lobs where the optic gun fires
     directly."""
-    optic = WEAPONS["AGS-17 · emplacement"]
+    optic = WEAPONS["AGS-17 · emplacement · optic (RMB ×2.5)"]
     iron = WEAPONS["AGS-17 · iron sights emplacement"]
 
     assert iron.hold_elevation[1] - optic.hold_elevation[1] == pytest.approx(4.5 - 0.85, abs=0.01)
@@ -491,7 +545,7 @@ def test_the_iron_sight_ags17_lobs_closer_than_the_optic_one():
 def test_a_fov_below_the_zoom_is_held_at_one_degree():
     """A small FOV through a strong optic is a view narrower than the
     narrowest screen_offset takes: it must not raise."""
-    weapon = WEAPONS["QLZ87"]
+    weapon = WEAPONS["QLZ87 · optic (RMB ×3)"]
     sight_angle = solve(weapon, 300, 0.0, "low").sight_angle
 
     assert mark_offset(weapon, sight_angle, 2, 1920) == pytest.approx(
@@ -503,7 +557,7 @@ def test_a_fov_below_the_zoom_is_held_at_one_degree():
 
 
 def test_the_optic_view_narrows_the_fov_by_its_zoom():
-    weapon = WEAPONS["QLZ87"]
+    weapon = WEAPONS["QLZ87 · optic (RMB ×3)"]
     sight_angle = solve(weapon, 400, 0.0, "low").sight_angle
 
     assert weapon.sight_view(90) == (30, 0.774)
@@ -517,7 +571,7 @@ def test_the_tripod_qlz87_fires_below_the_centre_without_the_optic():
     degrees under the camera: the mark is that much lower than for a barrel
     on the centre, and far higher than the optic's mark at the same FOV."""
     plain = WEAPONS["QLZ87 · no optic"]
-    optic = WEAPONS["QLZ87"]
+    optic = WEAPONS["QLZ87 · optic (RMB ×3)"]
     sight_angle = solve(plain, 300, 0.0, "low").sight_angle
 
     assert plain.sight_view(120) == (120, -0.9)
@@ -539,7 +593,7 @@ def test_a_weapon_without_an_optic_is_aimed_through_the_plain_view():
 
 
 def test_the_optic_ladder_starts_past_the_zero_and_matches_the_mark():
-    weapon = WEAPONS["QLZ87"]
+    weapon = WEAPONS["QLZ87 · optic (RMB ×3)"]
     ticks = range_ladder(weapon, 90, 1920, 20, 18, 520)
 
     assert ticks and ticks[0][0] > 100
@@ -649,7 +703,7 @@ def test_sight_angle_is_measured_from_the_line_of_sight():
         assert solve(WEAPONS["NLAW"], 400, height).sight_angle == pytest.approx(0)
 
     # The muzzle height counts: the line of sight starts there too.
-    ags = WEAPONS["AGS-17 · emplacement"]
+    ags = WEAPONS["AGS-17 · emplacement · optic (RMB ×2.5)"]
     low = solve(ags, 400, 0, "low")
     assert low.sight_angle == pytest.approx(
         low.angle - math.degrees(math.atan2(-ags.launch_height, 400))
@@ -744,7 +798,7 @@ AGS17_HOLD_TABLE = [
     (3.840, 1900), (3.950, 1915), (4.100, 1930),
 ]
 
-AGS17 = WEAPONS["AGS-17 · emplacement"]
+AGS17 = WEAPONS["AGS-17 · emplacement · optic (RMB ×2.5)"]
 
 
 def test_ags17_hold_time_matches_in_game_measurements():
@@ -893,11 +947,20 @@ def test_renamed_weapons_point_at_current_names():
     assert current_weapon_name("RPG-29") == "RPG-29"
 
 
+def test_every_rmb_sight_keeps_its_old_name_as_the_optic():
+    """The bare name was the optic's entry: a saved weapon, a recent list or
+    a SquadCalc page that still sends it must land on the optic, never on
+    the normal view."""
+    for old in ("QLZ87", "QLZ87 · Lynx / CSK131", "AGS-17 · emplacement",
+                "SPG-9 · HEAT · scope", "SPG-9 · FRAG · scope", "ZiS-3"):
+        assert WEAPONS[current_weapon_name(old)].view == "optic"
+
+
 # Values read from the game files (Squad build 26005357): WeaponConfig.MuzzleVelocity,
 # the projectile's ProjectileGravityScale, and its ConstantAcceleration for
 # ConstantAccelerationTimeout, stopped at MaxSpeed.
 @pytest.mark.parametrize("name, velocity, gravity, cruise", [
-    ("AGS-17 · emplacement", 185, 1.8, 185),
+    ("AGS-17 · emplacement · optic (RMB ×2.5)", 185, 1.8, 185),
     ("MK19", 230, 1, 230),
     ("MK19 · emplacement / C16 / L134A1", 235, 1, 235),
     ("MGL / M32", 75, 1, 75),

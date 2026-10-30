@@ -364,7 +364,7 @@
    ]
   }
  },
- "AGS-17 · emplacement": {
+ "AGS-17 · emplacement · optic (RMB ×2.5)": {
   "velocity": 185.0,
   "gravity_scale": 1.8,
   "max_speed": 0.0,
@@ -449,7 +449,7 @@
    ]
   }
  },
- "QLZ87": {
+ "QLZ87 · optic (RMB ×3)": {
   "velocity": 190.0,
   "gravity_scale": 1.0,
   "max_speed": 0.0,
@@ -507,7 +507,7 @@
    ]
   }
  },
- "QLZ87 · Lynx / CSK131": {
+ "QLZ87 · Lynx / CSK131 · optic (RMB ×3)": {
   "velocity": 190.0,
   "gravity_scale": 1.0,
   "max_speed": 0.0,
@@ -1087,7 +1087,7 @@
    ]
   }
  },
- "SPG-9 · HEAT · scope": {
+ "SPG-9 · HEAT · scope · optic (RMB ×4)": {
   "velocity": 435.0,
   "gravity_scale": 1.2,
   "max_speed": 330.0,
@@ -1176,7 +1176,7 @@
    ]
   }
  },
- "SPG-9 · FRAG · scope": {
+ "SPG-9 · FRAG · scope · optic (RMB ×4)": {
   "velocity": 315.0,
   "gravity_scale": 1.2,
   "max_speed": 250.0,
@@ -1444,7 +1444,7 @@
    ]
   }
  },
- "ZiS-3": {
+ "ZiS-3 · optic (RMB ×4)": {
   "velocity": 700.0,
   "gravity_scale": 2.0,
   "max_speed": 700.0,
