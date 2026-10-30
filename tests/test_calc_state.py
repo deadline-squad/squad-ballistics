@@ -284,6 +284,26 @@ def test_a_bearing_that_stops_short_says_why_and_the_elevation_follows(window, m
     assert reason in window.overlay.info_text
 
 
+def test_a_bearing_lay_that_ends_on_an_error_does_not_lay_the_elevation(window, monkeypatch):
+    """The bearing's lay raised (the keys or the screen failed): the
+    elevation's lay is not started on the same keys and screen, the reason
+    is shown."""
+    enable_auto_hold(window, monkeypatch)
+    window.select_weapon(MORTAR)
+    window.config["arc"] = "high"
+    window.on_map_targets([MapTarget(900, 4.0, 123.4)])
+    monkeypatch.setattr(window.screen_sight, "grab_compass", lambda: compass_at(120.0))
+    monkeypatch.setattr(window.screen_sight, "grab", lambda: sight_at(1100.0))
+
+    window.auto_hold()
+    assert window.bearing_layer.active
+    window.bearing_layer.finish(False, "error")
+
+    assert not window.sight_layer.active
+    assert not window.laying()
+    assert tr("lay_failed", what=tr("lay_bearing"), why=tr("lay_why_error")) in window.overlay.info_text
+
+
 def test_no_cross_after_the_player_stops_the_lay(window, monkeypatch):
     enable_auto_hold(window, monkeypatch)
     window.select_weapon(MORTAR)

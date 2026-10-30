@@ -13,16 +13,28 @@ elevation in mils, D/A for the bearing in degrees, which wraps at 360):
    key is released when the target is about to be reached. A hold ends
    without the target when the reading stops moving (the barrel's end) or
    takes far longer than the error needs;
-3. after the barrel stops, the rest is covered by taps timed with the
-   measured rate, until the sight is within TOLERANCE of the target.
+3. after the barrel stops (two readings that agree again), the rest is
+   covered by taps timed with the measured rate, until the sight is within
+   TOLERANCE of the target, or of half the game's frame step when that is
+   larger (at most the axis' `max_tolerance`).
+
+The rate, the shortest tap and the frame step are learned afresh on every
+lay (the frame rate, and with it the rate, may have changed since the
+last); only the release lead, the time a key takes to reach the game, is
+kept between lays.
 
 The compass strip lags behind a turn, so the bearing is read from the
 number alone while the barrel moves; the strip confirms it only when the
 barrel is still (the confirm and settle phases).
 
 Everything runs on the GUI thread (screen grabs are GUI-thread only) from
-Qt timers; a reading takes a few tens of milliseconds. Whatever goes wrong
-inside a timer callback releases the key before the error is raised.
+Qt timers; a reading takes a few tens of milliseconds. Releases too: a key
+is let go from a timer on the GUI thread, so a GUI thread busy elsewhere (a
+slow reading, a redraw) lets it go late and the barrel moves on for as long
+(not measured in the game; the tap's rate is learned from the real
+press-to-release time, a hold's overshoot corrects the lead, and the lay
+taps back). Whatever goes wrong inside a timer callback releases the key
+before the error is raised.
 """
 
 import time
@@ -33,7 +45,14 @@ from dataclasses import dataclass
 from PyQt6.QtCore import QObject, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QGuiApplication
 
-from compassreader import SEARCH_TOP, STILL_TOLERANCE, STRIP_HALF_WIDTH, TICK_TOLERANCE, read_compass
+from compassreader import (
+    SEARCH_TOP,
+    STILL_TENTHS_TOLERANCE,
+    STILL_TOLERANCE,
+    STRIP_HALF_WIDTH,
+    TICK_TOLERANCE,
+    read_compass
+)
 from sightreader import REFERENCE_HEIGHT, GrayImage, read_scale
 
 # Done when the sight is this close to the target (mils).
@@ -77,14 +96,26 @@ MAX_TAP = 0.25
 MIN_MOVE = 0.2
 MAX_MOVES = 12
 
+# A game frame at 60 fps (s): the frame step is learned only from taps of
+# STEP_TAP or less, about two such frames (a longer tap moves several
+# steps); a tap that moved more than RATE_STEPS frame steps refreshes the
+# rate (a step is taken as the rate times GAME_FRAME until it is learned).
+GAME_FRAME = 1 / 60
+STEP_TAP = 0.035
+RATE_STEPS = 2
+
 # Readings in a row that may fail (the scale hidden by smoke, a flash)
-# before the lay gives up.
+# before the lay gives up; also the most readings of a still barrel in a
+# row that may disagree with the one before them.
 MAX_MISSES = 5
 
 # Two readings this close (mils) confirm the first one; a reading this
-# far from the one expected is a misread and is skipped.
+# far from the one expected is a misread and is skipped. The two are taken
+# at least CONFIRM_GAP seconds apart (the timer's interval): two grabs of
+# the screen, each of a frame of its own at 34 fps or more.
 CONFIRM = 1.0
 MAX_JUMP = 15.0
+CONFIRM_GAP = READ_INTERVAL_MS / 1000
 
 # Where the scale is grabbed, in screen heights from the centre: left,
 # right (left of the centre), and above/below the centre line.
@@ -106,6 +137,8 @@ class Axis:
     `max_jump`, `min_move`: as TOLERANCE, CONFIRM, MAX_JUMP and MIN_MOVE
     for the elevation; `max_rate`: the fastest the game can move it (units
     per second), which bounds a reading's jump until the rate is measured;
+    `max_tolerance`: the most half a frame step may widen `tolerance` to
+    (a step measured wrong must not call a barrel far off on the target);
     `period`: values wrap at it (bearings at 360), None for none.
     """
 
@@ -116,6 +149,7 @@ class Axis:
     max_jump: float
     min_move: float
     max_rate: float
+    max_tolerance: float
     period: float | None = None
 
     def difference(self, a, b):
@@ -131,6 +165,8 @@ class Axis:
 # The mortar's barrel turns a fixed step for every game frame W or S is
 # down, up to 25 degrees/s (USQTurretMovementComponent MaxPitch of the
 # mortar, decompiled from the game server): 6400 mils / 360 degrees * 25.
+# The step is 0.77 mil at 46 mil/s and 60 fps: half of a step up to 2 mils
+# widens the tolerance, no more.
 ELEVATION = Axis(
     value=lambda reading: reading.mils,
     default_rate=DEFAULT_RATE,
@@ -139,14 +175,16 @@ ELEVATION = Axis(
     max_jump=MAX_JUMP,
     min_move=MIN_MOVE,
     max_rate=444.0,
+    max_tolerance=1.0,
 )
 
 # The mortar turns a fixed step for every game frame A or D is down
 # (USQTurretMovementComponent of the mortar, decompiled from the game
 # server: 0.25 degree times the view's sensitivity, up to MaxYaw 50
 # degrees/s), so its rate grows with the frame rate: 15 degrees/s at 60
-# fps. The lay measures the rate and the step and stops within half of the
-# step.
+# fps. The lay measures the rate and the step and stops within 0.1 degree
+# or half of the step, at most 0.25 degree (a step of 0.5 degree, a view
+# sensitivity of 2).
 BEARING = Axis(
     value=lambda reading: reading.degrees,
     default_rate=15.0,
@@ -155,6 +193,7 @@ BEARING = Axis(
     max_jump=10.0,
     min_move=0.05,
     max_rate=50.0,
+    max_tolerance=0.25,
     period=360.0,
 )
 
@@ -288,17 +327,20 @@ class CompassReader:
         """The compass reading (compassreader.CompassReading) on `sight`,
         or None. `moving` tells whether the barrel is turning: the strip
         lags behind a turn, so then (True) the number is taken alone; when
-        it is still (False) the strip must confirm the number closely;
-        None (not known) allows for a lagging strip."""
+        it is still (False) the strip must confirm the number closely
+        (within STILL_TENTHS_TOLERANCE of a number with tenths, the
+        mortar's view); None (not known) allows for a lagging strip."""
         if sight is None:
             return None
 
         if moving is None:
-            tolerance = TICK_TOLERANCE
-        else:
-            tolerance = None if moving else STILL_TOLERANCE
+            return read_compass(sight.image, sight.centre_x, sight.scale, self.digits, TICK_TOLERANCE)
 
-        return read_compass(sight.image, sight.centre_x, sight.scale, self.digits, tolerance)
+        if moving:
+            return read_compass(sight.image, sight.centre_x, sight.scale, self.digits, None)
+
+        return read_compass(sight.image, sight.centre_x, sight.scale, self.digits,
+                            STILL_TOLERANCE, STILL_TENTHS_TOLERANCE)
 
 
 def read_sight(sight, templates):
@@ -321,7 +363,9 @@ class SightLayer(QObject):
     `clock` gives the time in seconds.
     """
 
-    # Every reading while laying (sightreader.Reading).
+    # Every reading while laying: whatever the reader returns
+    # (sightreader.Reading on the elevation, compassreader.CompassReading
+    # on the bearing).
     read = pyqtSignal(object)
 
     # The lay ended: the last reading (None if the sight was lost) and
@@ -341,8 +385,9 @@ class SightLayer(QObject):
         self.axis = axis
         self.reader = reader or (lambda sight, moving: read_sight(sight, self.templates))
 
-        # Rate (units/s), the shortest tap that moves the barrel (s) and its
-        # move (the game's frame step), measured and kept between lays.
+        # Rate (units/s), the shortest tap that moves the barrel (s) and the
+        # game's frame step (units), measured on every lay (see start); the
+        # release lead (s) is kept between lays.
         self.rate = axis.default_rate
         self.rate_measured = False
         self.short_tap = MIN_TAP
@@ -364,6 +409,11 @@ class SightLayer(QObject):
         self.hold_error = 0.0
         self.hold_rate = 0.0
         self.still_ticks = 0
+
+        # A reading of the still barrel waiting for the next to agree with
+        # it, as (time, reading), and how many in a row did not
+        self.pending = None
+        self.disagreements = 0
 
         # The last move: (time pressed, value then, direction, time released)
         self.move = None
@@ -412,7 +462,13 @@ class SightLayer(QObject):
 
     def start(self):
         """Begin a lay; False if the sight is not seen or there is no
-        target (the caller can fall back to the timed lay)."""
+        target (the caller can fall back to the timed lay).
+
+        What the last lay learned of the rate, the shortest tap and the
+        frame step is dropped: a lay whose taps moved nothing (the keys did
+        not reach the game, the barrel at its end) left the shortest tap at
+        MAX_TAP, and the frame rate may have changed.
+        """
         if self.active or self.target() is None:
             return False
 
@@ -421,8 +477,16 @@ class SightLayer(QObject):
         if first is None:
             return False
 
+        self.rate = self.axis.default_rate
+        self.rate_measured = False
+        self.hold_rate = 0.0
+        self.short_tap = MIN_TAP
+        self.step_size = 0.0
+
         self.last = first
         self.last_time = now
+        self.pending = (now, first)
+        self.disagreements = 0
         self.stopped = False
         self.failure = None
         self.moves = 0
@@ -544,57 +608,98 @@ class SightLayer(QObject):
         self.misses = 0
         self.read.emit(reading)
 
-        if self.phase == "confirm":
-            confirmed = abs(self.difference(self.value(reading), self.value(self.last))) \
-                <= self.axis.confirm
-            self.last = reading
-            self.last_time = now
-
-            if confirmed:
-                self.aim(target, now)
-        elif self.phase == "hold":
+        if self.phase == "hold":
             self.hold(reading, target, now)
-        elif self.phase == "settle":
+            return
+
+        # Confirm and settle: the barrel is still, two readings must agree
+        if not self.agrees(reading, now):
+            return
+
+        if self.phase == "settle":
             self.settled(reading, target)
-            self.last_time = now
-            self.aim(target, now)
+        else:
+            self.last = reading
+
+        self.last_time = now
+        self.aim(target, now)
+
+    def agrees(self, reading, now):
+        """Whether `reading` agrees with the pending one (within the axis'
+        `confirm`) taken CONFIRM_GAP or more before it: two grabs of the
+        screen, so a misread of one frame (a flash, a frame drawn halfway)
+        is not acted on. A reading that does not agree waits for the next
+        in its place; more than MAX_MISSES in a row end the lay ("lost").
+        """
+        if self.pending is None:
+            self.pending = (now, reading)
+            return False
+
+        since, pending = self.pending
+
+        if now - since < CONFIRM_GAP:
+            return False
+
+        if abs(self.difference(self.value(reading), self.value(pending))) <= self.axis.confirm:
+            self.pending = None
+            self.disagreements = 0
+            return True
+
+        self.pending = (now, reading)
+        self.disagreements += 1
+
+        if self.disagreements > MAX_MISSES:
+            self.finish(False, "lost")
+
+        return False
 
     def settled(self, reading, target):
         """The barrel stopped after a move: learn the release lead from a
-        hold's overshoot, the rate and the frame step from a tap."""
+        hold's overshoot, the rate and the frame step from a tap.
+
+        The step is the move of a tap of STEP_TAP or less (one or two game
+        frames), the smallest seen; the rate is the move over the time the
+        key was really down (the release may come late on a busy GUI
+        thread), from a tap that moved more than RATE_STEPS steps (a tap
+        moves a whole number of steps, so a shorter one gives a rough
+        rate).
+        """
         moved = abs(self.difference(self.value(reading), self.value(self.last)))
         self.last = reading
+        pressed, _, direction, released = self.move
 
         if not self.tap:
-            _, _, direction, _ = self.move
             overshoot = direction * self.difference(self.value(reading), target)
             self.lead = min(MAX_LEAD, max(0.0, self.lead + overshoot / self.rate))
             return
-
-        shortest = self.tap <= self.short_tap
 
         if moved < self.axis.min_move:
             # Too short for a game frame: longer next time
             self.short_tap = min(MAX_TAP, 2 * max(self.tap, self.short_tap))
             return
 
-        if shortest:
-            self.step_size = moved
+        if self.tap <= STEP_TAP:
+            self.step_size = min(self.step_size or moved, moved)
 
-        if not self.rate_measured:
-            self.rate = moved / self.tap
+        held = released - pressed
+        step = self.step_size or self.rate * GAME_FRAME
+
+        if moved > RATE_STEPS * step and held > 0:
+            self.rate = moved / held
+            self.rate_measured = True
 
     def aim(self, target, now):
         """The barrel is still: done, hold or tap towards the target.
 
-        Done within the axis' tolerance, or within half the move of the
-        shortest tap (the game's frame step) or of the reading's resolution
-        when that is larger.
+        Done within the axis' tolerance, or within half the game's frame
+        step (at most the axis' `max_tolerance`) or half the reading's
+        resolution when that is larger.
         """
         error = self.difference(target, self.value(self.last))
+        half_step = min(self.step_size / 2, self.axis.max_tolerance)
 
         # A reading shown in whole degrees cannot tell more than half of one
-        if abs(error) <= max(self.axis.tolerance, self.step_size / 2, self.last.resolution / 2):
+        if abs(error) <= max(self.axis.tolerance, half_step, self.last.resolution / 2):
             self.finish(True)
             return
 
@@ -680,9 +785,16 @@ class SightLayer(QObject):
         self.rate_measured = True
 
     def end_move(self):
-        """Release the key, then read once the barrel has stopped."""
+        """Release the key, then read once the barrel has stopped.
+
+        Runs on the GUI thread from the release timer, like every reading:
+        a GUI thread busy elsewhere releases the key late, which the rate
+        and the lead learned from the move allow for (see settled).
+        """
         with self.failsafe():
             self.release()
             self.phase = "settle"
             self.settle_until = self.clock() + SETTLE_MS / 1000
+            self.pending = None
+            self.disagreements = 0
             self.timer.start()
