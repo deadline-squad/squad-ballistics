@@ -6,12 +6,19 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # A fixed image rather than ubuntu-latest, which moves to a new release
+    # (and new system library names) on GitHub's schedule.
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # The oldest Python the pinned wheels support, and the newest tested.
+        python-version: ["3.10", "3.12"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
       - name: Install system libraries for Qt
         # libxcb-cursor0 and the other libxcb-* libraries: Qt's xcb platform
         # (the X11 tests); xcompmgr: the overlay test with a compositor.
@@ -28,9 +35,10 @@ jobs:
         run: pip install -r requirements-dev.txt
       - name: Pyflakes
         # Only the two deliberate imports may be reported: QtWebEngine has to
-        # be imported before QApplication is created.
+        # be imported before QApplication is created. Syntax errors go to
+        # stderr, so it is captured too.
         run: |
-          pyflakes *.py tests > pyflakes.txt || true
+          pyflakes *.py tests > pyflakes.txt 2>&1 || true
           cat pyflakes.txt
           cat > pyflakes-expected.txt <<'EOF'
           app.py: 'PyQt6.QtWebEngineWidgets' imported but unused
