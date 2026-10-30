@@ -31,7 +31,12 @@ WEAPONS = load_weapons(os.path.join(ROOT, "weapons.json"))
 # name, zoom (FOV divisor, 1.0: the plain view), bore in degrees, zero range of
 # the sight in metres (flat ground, where the mark is on the screen centre).
 # Each entry has one view: the vehicle gunner's first (widest) zoom level, or
-# for the open-turret MK19s and the QLZ87 the RMB sight. Zero ranges that come out round
+# for the open-turret MK19s and the QLZ87 the RMB sight. The open-turret QLZ87
+# also has its normal view: the turret's ResetZoom puts the game's FOV back
+# whenever the weapon is not zoomed (its ZoomLevels [3.0] are only applied by
+# the vehicle zoom key and reset within 0.3 s), and RMB divides the FOV by 3
+# (BP_QLZ87_OpenTurret_Weapon: SetFieldOfView(UserSettings.FOV / 3.0)); both
+# cameras sit at 0 on the gun mount. Zero ranges that come out round
 # (AGS-30 200 m, BMP-1 FRAG 350 m, MK19 on the M113 300 m, T-72 HEAT 600 m,
 # Challenger 2 AP 1000 m) confirm the model; the others are what the game's
 # socket and camera give.
@@ -42,6 +47,7 @@ VEHICLE_SIGHTS = [
     ("MK19 · M113 open turret", 1.0, 1.6, 300),
     ("MK19 · M1151 / RHIB open turret", 1.0, 1.72, 325),
     ("QLZ87 · Lynx / CSK131", 3.0, 0.85, 110),
+    ("QLZ87 · Lynx / CSK131 · no optic", 1.0, 0.85, 110),
     ("AGS-30 / BTR-4 AGS", 3.0, 1.58, 205),
     ("AGS-30 (BMP-2M)", 1.5, 1.55, 200),
     ("2A28 Grom (BMP-1 / BMD-1) · HEAT", 1.5, 1.4, 790),
