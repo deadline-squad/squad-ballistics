@@ -2,8 +2,6 @@
 
 import glob
 import os
-import shutil
-import subprocess
 import time
 
 import pytest
@@ -177,31 +175,14 @@ def test_nothing_to_hold():
 
 
 @pytest.fixture
-def xvfb(monkeypatch):
-    if not (shutil.which("Xvfb") and (
+def xvfb(monkeypatch, xvfb_display):
+    if not (
         os.path.exists("/usr/lib/x86_64-linux-gnu/libXtst.so.6")
         or glob.glob("/usr/lib*/libXtst.so.6")
-    )):
-        pytest.skip("Xvfb and libXtst are not installed")
+    ):
+        pytest.skip("libXtst is not installed")
 
-    server = subprocess.Popen(
-        ["Xvfb", ":96", "-nolisten", "tcp"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
-    )
-
-    try:
-        deadline = time.monotonic() + 10
-        while not os.path.exists("/tmp/.X11-unix/X96"):
-            if time.monotonic() > deadline or server.poll() is not None:
-                pytest.skip("Xvfb did not start")
-            time.sleep(0.05)
-
-        monkeypatch.setenv("DISPLAY", ":96")
-        yield
-    finally:
-        server.terminate()
-        server.wait(5)
+    monkeypatch.setenv("DISPLAY", xvfb_display)
 
 
 def test_xtest_injector_presses_s_on_the_display(xvfb):
@@ -291,8 +272,18 @@ def test_xtest_injector_closes_its_connection_once(xvfb):
     assert injector.display is None
     injector.close()
 
-    # No client is left behind: far more cycles than the server's client limit
+    # No client is left behind: far more cycles than the server's client
+    # limit. A busy server may free a closed client's slot a little late,
+    # so a refused connection is retried; a leak would refuse it for good.
+    def connect():
+        for _ in range(100):
+            try:
+                return keyinject.XTestInjector(KEY_S)
+            except OSError:
+                time.sleep(0.05)
+        pytest.fail("the X server kept refusing connections")
+
     for _ in range(300):
-        keyinject.XTestInjector(KEY_S).close()
+        connect().close()
 
     assert keyinject.XTestInjector(KEY_S).display
