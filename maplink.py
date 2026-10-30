@@ -15,6 +15,9 @@ ridge or a roof first is detected (`ballistics.first_obstacle`).
 
 The page is not trusted: every number is bounded (`MAX_DISTANCE`,
 `MAX_HEIGHT`) and only real numbers are accepted, not strings or booleans.
+The answer is read on the GUI thread every poll, so its size is bounded
+too: only the newest target (the last one) is sent and parsed, and its
+profile has at most `MAX_PROFILE_HEIGHTS` heights.
 """
 
 import json
@@ -32,6 +35,10 @@ MAX_HEIGHT = 3000
 # page would only cost memory and time), in metres.
 MIN_PROFILE_STEP = 0.5
 
+# At most this many profile heights (one per metre over MAX_DISTANCE: the
+# SquadCalc build samples every metre, PROFILE_STEP in smcConnector.js).
+MAX_PROFILE_HEIGHTS = MAX_DISTANCE + 1
+
 # Weapon names longer than this are not weapons.json names (see MAX_DISTANCE).
 MAX_WEAPON_NAME = 200
 
@@ -42,11 +49,14 @@ NAME_REJECTED_CATEGORIES = frozenset({"Cc", "Cf", "Cs", "Co", "Cn", "Zl", "Zp"})
 
 # Script polled on the embedded page: {targets, weapon}, or null on SquadCalc
 # builds without the bridge. Builds before the weapon export give no weapon.
+# Only the newest target (the last) is sent: it is the only one used, and a
+# long list would be converted on the GUI thread at every poll.
 BRIDGE_SCRIPT = (
     "(function (bridge) {"
     " if (!bridge || typeof bridge.targets !== 'function') return null;"
-    " return {targets: bridge.targets(), weapon: typeof bridge.weapon"
-    " === 'function' ? bridge.weapon() : null};"
+    " var targets = bridge.targets();"
+    " return {targets: Array.isArray(targets) ? targets.slice(-1) : targets,"
+    " weapon: typeof bridge.weapon === 'function' ? bridge.weapon() : null};"
     "})(window.squadBallistics)"
 )
 
@@ -86,7 +96,8 @@ def parse_profile(value, distance):
 
     `value` is {"step": metres, "heights": [...]} from SquadCalc; the heights
     must cover the distance to the target (one per step, up to one step
-    short of it) and each be a number within MAX_HEIGHT.
+    short of it), be at most MAX_PROFILE_HEIGHTS, and each be a number
+    within MAX_HEIGHT.
     """
     if not isinstance(value, dict):
         return None, None
@@ -97,7 +108,7 @@ def parse_profile(value, distance):
     if step is None or not MIN_PROFILE_STEP <= step <= distance:
         return None, None
 
-    if not isinstance(heights, list) \
+    if not isinstance(heights, list) or len(heights) > MAX_PROFILE_HEIGHTS \
             or not distance / step <= len(heights) <= distance / step + 2:
         return None, None
 
@@ -140,32 +151,30 @@ def make_target(distance, height=None, bearing=None, profile=None):
 
 
 def parse_bridge_targets(value):
-    """Targets from `window.squadBallistics.targets()`.
+    """The newest target from `window.squadBallistics.targets()`, as a list.
 
     The page returns a list of {"distance", "heightDiff", "bearing",
-    "profile"} (profile since bridge version 4); None means the page has no
-    bridge. Invalid entries are skipped.
+    "profile"} (profile since bridge version 4) in the order they were
+    placed. Only the last one is parsed (BRIDGE_SCRIPT already sends only
+    that one): [target], or [] when the list is empty, not a list, or its
+    last entry is invalid (an older target is not used in its place).
     """
-    if not isinstance(value, list):
+    if not isinstance(value, list) or not value:
         return []
 
-    targets = []
+    item = value[-1]
 
-    for item in value:
-        if not isinstance(item, dict):
-            continue
+    if not isinstance(item, dict):
+        return []
 
-        target = make_target(
-            item.get("distance"),
-            item.get("heightDiff"),
-            item.get("bearing"),
-            item.get("profile")
-        )
+    target = make_target(
+        item.get("distance"),
+        item.get("heightDiff"),
+        item.get("bearing"),
+        item.get("profile")
+    )
 
-        if target is not None:
-            targets.append(target)
-
-    return targets
+    return [] if target is None else [target]
 
 
 def select_weapon_script(name):

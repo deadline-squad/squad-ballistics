@@ -15,7 +15,7 @@ from PyQt6.QtCore import QEventLoop, QTimer
 
 import sightlay
 from compassreader import CompassReading, DigitReader
-from compassimage import draw_compass
+from compassimage import bearing_text, draw_compass
 from sightimage import draw_sight
 from sightlay import Sight, SightLayer
 from sightreader import GrayImage, LabelTemplates, Reading
@@ -38,15 +38,16 @@ class World:
 
 
 class Barrel:
-    """The game's barrel on the world's clock: at every game frame (60 fps)
-    it moves `rate` per second if a key is down, between `low` and `high`
-    (or round a circle of `wrap`); the game sees a key `latency` seconds
-    after it was pressed or released."""
+    """The game's barrel on the world's clock: at every game frame (`fps`,
+    60 by default) it moves `rate` per second if a key is down, between
+    `low` and `high` (or round a circle of `wrap`); the game sees a key
+    `latency` seconds after it was pressed or released."""
 
-    def __init__(self, world, value, rate, low=800.0, high=1580.0, wrap=None, latency=0.0):
+    def __init__(self, world, value, rate, low=800.0, high=1580.0, wrap=None, latency=0.0, fps=60):
         self.world = world
         self.value = value
         self.rate = rate
+        self.frame_time = 1 / fps
         self.low, self.high, self.wrap = low, high, wrap
         self.latency = latency
         self.direction = 0
@@ -61,13 +62,13 @@ class Barrel:
 
     def update(self):
         """Move the barrel up to the world's time."""
-        while self.frame + FRAME <= self.world.now:
-            self.frame += FRAME
+        while self.frame + self.frame_time <= self.world.now:
+            self.frame += self.frame_time
 
             while self.events and self.events[0][0] <= self.frame:
                 self.direction = self.events.pop(0)[1]
 
-            self.value += self.direction * self.rate * FRAME
+            self.value += self.direction * self.rate * self.frame_time
             self.value = self.value % self.wrap if self.wrap else min(self.high, max(self.low, self.value))
             self.frame_moved()
 
@@ -106,7 +107,7 @@ class Turret(Barrel):
             self.strip = self.value
             return
 
-        share = FRAME / (self.smoothing + FRAME)
+        share = self.frame_time / (self.smoothing + self.frame_time)
         self.strip = (self.strip + share * bearing_error(self.value, self.strip)) % 360.0
 
     @property
@@ -250,15 +251,17 @@ def test_lays_with_a_barrel_faster_than_the_default_rate(world, rate, read_time)
     and a sensitivity of 2 it is 12 degrees/s, 220 mil/s. Readings of such a
     barrel are no misreads, even before its rate is known: a gate on 46
     mil/s threw them all away and the lay ended with the rate still
-    unmeasured. (A reading takes 20 to 60 ms on a busy machine.)"""
-    barrel = Barrel(world, 900.0, rate)
+    unmeasured. (A reading takes 20 to 60 ms on a busy machine.) The game
+    runs at 240 fps here, so that its frame step (2 mils at most) is one
+    the lay can be on the target with (ELEVATION.max_tolerance)."""
+    barrel = Barrel(world, 900.0, rate, fps=240)
     layer = fake_sight_layer(world, barrel, lambda: 1400.0, read_time=read_time)
 
     reading, on_target = Run(world, layer).lay()
 
     # Within half the game's frame step, as measured
     assert on_target
-    assert reading.mils == pytest.approx(1400.0, abs=rate * FRAME / 2 + 0.6)
+    assert reading.mils == pytest.approx(1400.0, abs=rate / 240 / 2 + 0.6)
     assert layer.rate == pytest.approx(rate, rel=0.05)
 
 
@@ -548,6 +551,10 @@ class TapBarrel(Barrel):
 
 
 def test_a_tap_that_moved_nothing_is_retried_twice_as_long(world):
+    """A barrel that needs a key down 0.07 s to move moves 5 mils on the
+    retried tap: it can never come within a mil of a target 2.5 mils off,
+    and the lay says so (it used to learn a frame step of 5 mils from the
+    tap and call 2.5 mils off on the target)."""
     barrel = TapBarrel(world, 1100.0, 46.0, shortest=0.07)
     layer = fake_sight_layer(world, barrel, lambda: 1102.5)
 
@@ -555,11 +562,353 @@ def test_a_tap_that_moved_nothing_is_retried_twice_as_long(world):
 
     held = [release - press for (press, _), release in zip(barrel.presses, barrel.releases)]
 
-    assert on_target
-    # The first tap (1.1 mils at 46 mil/s, 0.054 s) was too short for the barrel
+    # The first tap (2.5 mils at 46 mil/s, 0.054 s) was too short for the barrel
     assert held[0] == pytest.approx(0.054, abs=0.002)
     assert held[1] >= 2 * held[0] - 0.002
     assert layer.short_tap >= 2 * held[0] - 0.002
+    assert not on_target
+    assert layer.failure == "moves"
+    assert layer.step_size == 0.0
+
+
+class DeadKeys:
+    """A barrel's keys that can be cut off from the game (its window not
+    focused): the presses are counted, the barrel does not move."""
+
+    def __init__(self, barrel):
+        self.barrel = barrel
+        self.live = True
+
+    def key(self, direction):
+        real = self.barrel.key(direction)
+        keys = self
+
+        class Key:
+            def press(self):
+                if keys.live:
+                    real.press()
+                else:
+                    keys.barrel.presses.append((keys.barrel.world.now, direction))
+
+            def release(self):
+                if keys.live:
+                    real.release()
+
+        return Key()
+
+
+def taps_only_layer(world, barrel, target, axis=sightlay.ELEVATION, keys=None):
+    """A layer reading the barrel's value itself (mils, or tenths of a
+    degree on the bearing), with `keys` (the barrel's own by default)."""
+    keys = keys or barrel
+
+    def grab():
+        world.now += READ_TIME
+        barrel.update()
+
+        return object()
+
+    if axis is sightlay.BEARING:
+        def reader(sight, moving):
+            return CompassReading(round(barrel.value, 1), 0.1, "", 0, 0)
+    else:
+        def reader(sight, moving):
+            return Reading(barrel.value, 1, 1.0, 1.0)
+
+    return SightLayer(grab, None, target, keys.key(1), keys.key(-1), clock=world.clock,
+                      axis=axis, reader=reader)
+
+
+@pytest.mark.parametrize("first", ["dead_keys", "at_the_stop"])
+def test_a_lay_after_one_whose_taps_moved_nothing_lands_on_the_target(world, first):
+    """The first lay's taps move nothing (the keys did not reach the game,
+    or the barrel is at its end): the shortest tap doubles up to MAX_TAP.
+    The next lay used to start with that 0.25 s tap, learn a frame step of
+    11.5 mils from it and call 2.5 mils off on the target."""
+    barrel = Barrel(world, 1578.0 if first == "at_the_stop" else 1100.0, 46.0)
+    keys = DeadKeys(barrel)
+    target = [1583.0 if first == "at_the_stop" else 1103.0]
+    layer = taps_only_layer(world, barrel, lambda: target[0], keys=keys)
+    run = Run(world, layer)
+
+    keys.live = first != "dead_keys"
+    assert layer.start()
+    drive(world, layer)
+    assert run.ends[-1][1] is False
+    assert layer.short_tap == sightlay.MAX_TAP
+
+    keys.live = True
+    barrel.value = 1100.0
+    target[0] = 1109.0
+    world.now += 5.0
+    barrel.frame = world.now
+    assert layer.start()
+    assert layer.short_tap == sightlay.MIN_TAP
+    assert layer.step_size == 0.0
+    drive(world, layer)
+    barrel.update()
+
+    assert run.ends[-1][1], layer.failure
+    assert barrel.value == pytest.approx(target[0], abs=sightlay.TOLERANCE + 0.1)
+    # The frame step, 46 / 60 mil, from a tap of a game frame or two
+    assert layer.step_size == pytest.approx(46.0 / 60, abs=0.01)
+
+
+def test_a_bearing_lay_after_one_whose_taps_moved_nothing_lands_within_half_a_frame_step(world):
+    """The same on the bearing: the frame step at 15 degrees/s and 60 fps
+    is 0.25 degree, the lay stops within half of it (it stopped up to 0.75
+    degree off)."""
+    turret = Turret(world, 100.0, 15.0)
+    keys = DeadKeys(turret)
+    target = [101.0]
+    layer = taps_only_layer(world, turret, lambda: target[0], axis=sightlay.BEARING, keys=keys)
+    run = Run(world, layer)
+
+    keys.live = False
+    assert layer.start()
+    drive(world, layer)
+    assert run.ends[-1][1] is False
+
+    keys.live = True
+    target[0] = 103.0
+    world.now += 5.0
+    turret.frame = world.now
+    assert layer.start()
+    drive(world, layer)
+    turret.update()
+
+    assert run.ends[-1][1], layer.failure
+    assert abs(bearing_error(turret.value, target[0])) <= 0.125 + 0.1
+
+
+def test_a_tap_longer_than_two_game_frames_does_not_set_the_frame_step(world):
+    """The frame step is the move of a tap of a frame or two (STEP_TAP):
+    0.1 s of key moves 6 steps."""
+    barrel = Barrel(world, 1100.0, 46.0)
+    layer = taps_only_layer(world, barrel, lambda: 1104.6)
+
+    assert layer.start()
+    drive_ticks(world, layer, 2)
+    assert layer.phase == "move"
+    assert layer.tap > sightlay.STEP_TAP
+
+    drive(world, layer)
+
+    assert layer.step_size == 0.0 or layer.step_size <= 2 * 46.0 / 60 + 0.01
+
+
+@pytest.mark.parametrize("axis, step", [(sightlay.ELEVATION, 10.0), (sightlay.BEARING, 3.0)])
+def test_half_a_frame_step_widens_the_tolerance_up_to_the_axis_cap(world, axis, step):
+    """However large the frame step a lay measured, it is on the target
+    within at most 1 mil (elevation) or 0.25 degree (bearing)."""
+    barrel = Barrel(world, 1100.0, 0.0) if axis is sightlay.ELEVATION else Turret(world, 100.0, 0.0)
+    off = axis.max_tolerance + 0.1
+    layer = taps_only_layer(world, barrel, lambda: barrel.value + off, axis=axis)
+    layer.start()
+    layer.step_size = step
+    layer.last = layer.reader(None, False)
+
+    layer.aim(barrel.value + off, world.now)
+
+    assert layer.active
+    assert layer.phase == "move"
+    layer.stop()
+
+    layer.start()
+    layer.step_size = step
+    layer.aim(barrel.value + axis.max_tolerance - 0.05, world.now)
+
+    assert not layer.active
+    assert layer.failure is None
+
+
+def test_a_bearing_with_a_large_frame_step_is_never_on_target_past_the_cap(world):
+    """36 degrees/s at 60 fps, a frame step of 0.6 degree (a view
+    sensitivity of 2.4): the lay is on the target within 0.25 degree or
+    says it is not."""
+    for target in (37.1, 37.4, 37.7, 38.0, 38.25):
+        turret = Turret(world, 100.0, 36.0)
+        layer = taps_only_layer(world, turret, lambda: target, axis=sightlay.BEARING)
+
+        _, on_target = Run(world, layer).lay()
+        turret.update()
+
+        if on_target:
+            assert abs(bearing_error(turret.value, target)) <= sightlay.BEARING.max_tolerance + 0.05
+        else:
+            assert layer.failure == "moves"
+
+
+@pytest.mark.parametrize("second_rate, error", [(46.0, 4.0), (40.0, 4.0), (46.0, 2.0)])
+def test_a_taps_only_lay_after_the_frame_rate_changed(world, second_rate, error):
+    """The first lay holds at 30 fps (23 mil/s); the second, at 60 fps (46
+    mil/s, the step per frame is the game's), needs only taps. The rate of
+    the first lay was kept and taps never learned another: the taps were
+    twice too long and the lay ended 3.8 mils off with a cross."""
+    barrel = Barrel(world, 900.0, 23.0)
+    target = [1000.0]
+    layer = taps_only_layer(world, barrel, lambda: target[0])
+    run = Run(world, layer)
+
+    assert layer.start()
+    drive(world, layer)
+    assert run.ends[-1][1], layer.failure
+
+    barrel.rate = second_rate
+    barrel.value = 1100.0
+    target[0] = 1100.0 + error
+    world.now += 5.0
+    barrel.frame = world.now
+    assert layer.start()
+    drive(world, layer)
+    barrel.update()
+
+    assert run.ends[-1][1], layer.failure
+    assert barrel.value == pytest.approx(target[0], abs=sightlay.TOLERANCE + 0.1)
+
+
+def test_a_taps_rate_is_its_move_over_the_time_the_key_was_down(world):
+    """The release timer fires 50 ms late (the GUI thread was busy): the
+    tap moved for 0.14 s, not the 0.09 s planned. The rate was the move over
+    the planned time, 50% high."""
+    barrel = Barrel(world, 900.0, 46.0)
+    layer = taps_only_layer(world, barrel, lambda: 904.0)
+    end_move = layer.end_move
+    late = [0.05]
+    rates = []
+
+    def late_release():
+        world.now += late.pop() if late else 0.0
+        end_move()
+
+    settled = layer.settled
+
+    def recording(reading, target):
+        settled(reading, target)
+        rates.append(layer.rate)
+
+    layer.end_move = late_release
+    layer.settled = recording
+
+    Run(world, layer).lay()
+
+    assert rates[0] == pytest.approx(46.0, rel=0.15)
+
+
+def test_a_misread_of_one_frame_after_a_tap_is_not_acted_on(world):
+    """The first reading after a tap (read 3) says 1105, the target, while
+    the barrel did not move (its keys do nothing): two readings must agree
+    before the lay acts, so it does not call it on target."""
+    barrel = Barrel(world, 1100.0, 0.0)
+    misread = {3: lambda reading: Reading(1105.0, 1, 1.0, 1.0)}
+    layer = fake_sight_layer(world, barrel, lambda: 1105.0, readings=misread)
+
+    _, on_target = Run(world, layer).lay()
+
+    assert not on_target
+    assert layer.failure == "moves"
+
+
+def test_two_readings_agree_only_from_two_grabs_a_timer_interval_apart(world):
+    barrel = Barrel(world, 1100.0, 46.0)
+    layer = fake_sight_layer(world, barrel, lambda: 1105.0)
+    reading = Reading(1100.0, 1, 1.0, 1.0)
+
+    layer.pending = (0.0, reading)
+    assert not layer.agrees(reading, sightlay.CONFIRM_GAP / 2)
+    assert layer.agrees(reading, sightlay.CONFIRM_GAP)
+
+    layer.pending = (0.0, reading)
+    assert not layer.agrees(Reading(1100.0 + 2 * sightlay.CONFIRM, 1, 1.0, 1.0), 1.0)
+
+
+def test_the_first_readings_must_agree_before_the_lay_acts(world):
+    """The second reading of the lay is 3 mils off (a misread): it is not
+    confirmed by the first, so the lay waits for two that agree (it used
+    to take any two readings for the confirm, here calling the barrel on
+    target 3 mils off without a press)."""
+    barrel = Barrel(world, 1100.0, 46.0)
+    misread = {2: lambda reading: Reading(reading.mils + 3.0, 1, 1.0, 1.0)}
+    layer = fake_sight_layer(world, barrel, lambda: 1103.2, readings=misread)
+
+    reading, on_target = Run(world, layer).lay()
+    barrel.update()
+
+    assert on_target
+    assert barrel.presses
+    assert barrel.value == pytest.approx(1103.2, abs=sightlay.ELEVATION.max_tolerance + 0.1)
+
+
+def test_readings_that_never_agree_end_the_lay(world):
+    """A reading that flickers by 2 mils on a still barrel is never
+    confirmed: the lay ends ("lost") after MAX_MISSES in a row."""
+    barrel = Barrel(world, 1100.0, 46.0)
+    flicker = {n: (lambda reading, n=n: Reading(reading.mils + (2.0 if n % 2 else 0.0), 1, 1.0, 1.0))
+               for n in range(1, 100)}
+    layer = fake_sight_layer(world, barrel, lambda: 1110.0, readings=flicker)
+
+    _, on_target = Run(world, layer).lay()
+
+    assert not on_target
+    assert layer.failure == "lost"
+    assert barrel.presses == []
+
+
+class EndBarrel(Barrel):
+    """A barrel that notes the game frame it reached its top at."""
+
+    reached = None
+
+    def frame_moved(self):
+        if self.reached is None and self.value >= self.high:
+            self.reached = self.frame
+
+
+def test_a_hold_at_the_barrels_end_ends_within_the_stall_readings(world):
+    """From the frame the barrel stops at its end, the hold ends within
+    STALL_TICKS readings (and two for the one in flight and the first still
+    one), not at the hold's time limit, seconds later."""
+    barrel = EndBarrel(world, 1500.0, 200.0)
+    layer = fake_sight_layer(world, barrel, lambda: 1700.0)
+
+    _, on_target = Run(world, layer).lay(limit=30.0)
+
+    interval = sightlay.READ_INTERVAL_MS / 1000
+
+    assert not on_target
+    assert layer.failure == "stalled"
+    assert barrel.reached is not None
+    assert world.now - barrel.reached <= (sightlay.STALL_TICKS + 2) * interval
+
+
+def test_a_bearing_lay_with_a_units_digit_misread_by_one_is_not_on_target(world, templates):
+    """The reader sees every 5 of the units digit as a 6, on every frame
+    alike (two readings agree): a still strip within STILL_TOLERANCE (1.5
+    degrees) of the number let 276.x through and the lay ended a degree
+    short of 276.3. The still strip under a number with tenths must be
+    within STILL_TENTHS_TOLERANCE (0.8 degree)."""
+    def misread(text):
+        return text[:2] + "6" + text[3:] if text[2] == "5" else text
+
+    for start in (268.0, 284.0):
+        turret = Turret(world, start, 15.0)
+        target = 276.3
+
+        def grab():
+            world.now += READ_TIME
+            turret.update()
+            shown = misread(bearing_text(turret.value, True))
+            image = draw_compass(turret.value, 1920, 1080, lag=turret.lag, text=shown)
+
+            return Sight(GrayImage.from_qimage(image.copy(0, 1080 - 80, 1920, 80)), 960.0, 0, 1.0)
+
+        layer = SightLayer(grab, templates, lambda: target, turret.key(1), turret.key(-1),
+                           clock=world.clock, axis=sightlay.BEARING,
+                           reader=sightlay.CompassReader(DigitReader(templates)))
+        _, on_target = Run(world, layer).lay()
+        turret.update()
+
+        assert not (on_target and abs(bearing_error(turret.value, target)) > 0.5), start
 
 
 def test_a_lay_cannot_start_over_a_lay(world):
@@ -744,7 +1093,9 @@ def bearing_layer(world, turret, templates, target):
     (200.0, 290.0, 36.0, 0.1),      # right a long way, lagging
 ])
 def test_lays_the_bearing(world, templates, start, target, rate, lag):
-    turret = Turret(world, start, rate, lag=lag)
+    # A frame rate that keeps the frame step at 0.25 degree or less, one
+    # the lay can be on the target with (BEARING.max_tolerance)
+    turret = Turret(world, start, rate, lag=lag, fps=max(60, 4 * rate))
     layer = bearing_layer(world, turret, templates, lambda: target)
 
     reading, on_target = Run(world, layer).lay()

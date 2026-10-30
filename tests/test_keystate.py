@@ -16,15 +16,17 @@ import pytest
 
 import keystate
 from hotkeys import KEYS
-from keystate import EVIOCGBIT_KEY, EVIOCGKEY, KEY_MAX, KEY_S, KEY_W
+from keystate import EVIOCGBIT_KEY, EVIOCGKEY, EVIOCGNAME, KEY_MAX, KEY_S, KEY_W
 
 KEY_F8 = KEYS["F8"]
 
 
 def test_ioctl_numbers_match_linux_input_h():
-    # _IOR('E', 0x18, char[96]) and _IOR('E', 0x20 + EV_KEY, char[96])
+    # _IOR('E', 0x18, char[96]), _IOR('E', 0x20 + EV_KEY, char[96]) and
+    # EVIOCGNAME(256) = _IOC(_IOC_READ, 'E', 0x06, 256)
     assert EVIOCGKEY == 0x80604518
     assert EVIOCGBIT_KEY == 0x80604521
+    assert EVIOCGNAME == 0x81004506
 
 
 def test_key_codes_match_linux_input_event_codes_h():
@@ -208,24 +210,56 @@ def test_ctypes_char_buffer_bit_order():
 
 # ---------- evdev hotplug (#3 item 24), on fake devices ----------
 
+class FakeStat:
+    """The one field of os.stat_result keystate reads."""
+
+    def __init__(self, rdev):
+        self.st_rdev = rdev
+
+
 class FakeInput:
-    """/dev/input stand-in: os.open, os.close and fcntl.ioctl of keystate
-    over devices that can be plugged in and out."""
+    """/dev/input stand-in: os.open, os.close, os.stat, os.fstat and
+    fcntl.ioctl of keystate over devices that can be plugged in and out.
+    Other paths and fds go to the real functions."""
 
     def __init__(self, monkeypatch):
-        self.devices = {}  # path -> {"keys": capabilities, "down": set, "gone": bool}
-        self.fds = {}      # fd -> path
+        # path -> {"keys": capabilities, "down": set, "gone": bool,
+        #          "name": bytes, "rdev": device number}
+        self.devices = {}
+        self.fds = {}      # fd -> (path, device)
         self.opened = 0
+        self.opened_paths = []
         self.next_fd = 100
+        self.next_rdev = 0x0D40
         self.now = 0.0
+
+        real_stat, real_fstat = os.stat, os.fstat
+
+        def stat(path, *args, **kwargs):
+            if path in self.devices:
+                return FakeStat(self.devices[path]["rdev"])
+            if isinstance(path, str) and path.startswith("/dev/input/"):
+                raise FileNotFoundError(path)
+            return real_stat(path, *args, **kwargs)
+
+        def fstat(fd):
+            if fd in self.fds:
+                return FakeStat(self.fds[fd][1]["rdev"])
+            return real_fstat(fd)
 
         monkeypatch.setattr(keystate.os, "open", self.open)
         monkeypatch.setattr(keystate.os, "close", self.close)
+        monkeypatch.setattr(keystate.os, "stat", stat)
+        monkeypatch.setattr(keystate.os, "fstat", fstat)
         monkeypatch.setattr(keystate.fcntl, "ioctl", self.ioctl)
 
-    def plug(self, path, keyboard=True):
+    def plug(self, path, keyboard=True, name=b"AT Translated Set 2 keyboard"):
+        """A new device on `path` (a new device number, like the kernel
+        gives a reconnected device)."""
         keys = {KEY_S, KEY_W, KEY_F8} if keyboard else {KEY_F8}
-        self.devices[path] = {"keys": keys, "down": set(), "gone": False}
+        self.next_rdev += 1
+        self.devices[path] = {"keys": keys, "down": set(), "gone": False,
+                              "name": name, "rdev": self.next_rdev}
 
     def unplug(self, path):
         # The node goes away; an fd still open on it answers ENODEV
@@ -242,6 +276,7 @@ class FakeInput:
             raise FileNotFoundError(path)
 
         self.opened += 1
+        self.opened_paths.append(path)
         self.next_fd += 1
         self.fds[self.next_fd] = (path, self.devices[path])
         return self.next_fd
@@ -254,6 +289,10 @@ class FakeInput:
 
         if device["gone"]:
             raise OSError(19, "No such device")
+
+        if request == EVIOCGNAME:
+            buffer[:len(device["name"]) + 1] = device["name"] + b"\0"
+            return
 
         bits = device["keys"] if request == EVIOCGBIT_KEY else device["down"]
 
@@ -341,3 +380,84 @@ def test_evdev_reader_needs_a_keyboard_at_the_start(fake_input):
     fake_input.plug("/dev/input/event1")
     reader = keystate.evdev_reader(["/dev/input/event0", "/dev/input/event1"])
     assert isinstance(reader, keystate.EvdevReader) and reader.available
+
+
+def test_devices_that_are_not_keyboards_are_not_reopened_at_every_scan(fake_input):
+    """A mouse or a power button is opened once, not every RESCAN_SECONDS
+    (#5, review 1.6.0 slice 5 claim 7)."""
+    fake_input.plug("/dev/input/event0", keyboard=False)
+    fake_input.plug("/dev/input/event1")
+    reader = make_reader(fake_input)
+
+    for _ in range(5):
+        fake_input.now += keystate.RESCAN_SECONDS
+        reader(KEY_S)
+
+    assert fake_input.opened_paths.count("/dev/input/event0") == 1
+    assert list(fake_input.fds.values())[0][0] == "/dev/input/event1"
+
+
+def test_a_new_device_on_a_rejected_path_is_looked_at(fake_input):
+    """The node of a device that was not a keyboard is reused by a keyboard
+    plugged in later: a new device number, so it is opened again."""
+    fake_input.plug("/dev/input/event4", keyboard=False)
+    reader = make_reader(fake_input)
+    assert not reader.available
+
+    fake_input.devices.pop("/dev/input/event4")
+    fake_input.plug("/dev/input/event4")
+    fake_input.devices["/dev/input/event4"]["down"].add(KEY_S)
+    fake_input.now += keystate.RESCAN_SECONDS
+
+    assert reader(KEY_S)
+    assert reader.available
+
+
+def test_a_rejected_path_that_vanished_is_forgotten(fake_input):
+    fake_input.plug("/dev/input/event4", keyboard=False)
+    reader = make_reader(fake_input)
+    assert "/dev/input/event4" in reader.rejected
+
+    fake_input.devices.pop("/dev/input/event4")
+    fake_input.now += keystate.RESCAN_SECONDS
+    reader(KEY_S)
+
+    assert reader.rejected == {}
+
+
+def test_the_apps_own_virtual_keyboards_are_not_read(fake_input):
+    """keyinject's uinput devices report KEY_ESC..KEY_S, so they look like
+    keyboards; their keys are the app's own auto-hold, not the player's
+    (#5, review 1.6.0 slice 5 claim 8)."""
+    fake_input.plug("/dev/input/event9", name=keystate.UINPUT_NAME)
+    fake_input.devices["/dev/input/event9"]["down"].add(KEY_S)
+    fake_input.plug("/dev/input/event1")
+
+    reader = make_reader(fake_input)
+
+    assert not reader(KEY_S)
+    assert list(reader.keyboards) == ["/dev/input/event1"]
+
+    # Not looked at again either.
+    fake_input.now += keystate.RESCAN_SECONDS
+    reader(KEY_S)
+    assert fake_input.opened_paths.count("/dev/input/event9") == 1
+
+
+def test_a_keyboard_whose_node_vanished_is_no_longer_read(fake_input):
+    """The device list is the truth: a node gone from it is dropped at the
+    next scan even if its old fd still answers (#5, review 1.6.0 slice 5
+    claim 10: the drop of vanished paths was not tested)."""
+    fake_input.plug("/dev/input/event3")
+    fake_input.devices["/dev/input/event3"]["down"].add(KEY_S)
+    reader = make_reader(fake_input)
+    assert reader(KEY_S)
+
+    # The node is removed from /dev/input; the open fd still answers.
+    device = fake_input.devices.pop("/dev/input/event3")
+    fake_input.now += keystate.RESCAN_SECONDS
+
+    assert not reader(KEY_S)
+    assert not reader.available
+    assert fake_input.fds == {}
+    assert not device["gone"]

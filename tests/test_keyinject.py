@@ -2,6 +2,11 @@
 
 import glob
 import os
+import signal
+import struct
+import subprocess
+import sys
+import threading
 import time
 
 import pytest
@@ -9,6 +14,7 @@ import pytest
 import keyinject
 import keystate
 from keyinject import AutoHold, hold_key
+from conftest import ROOT
 from keystate import KEY_S
 
 
@@ -162,6 +168,84 @@ def test_cancel_during_the_reset_never_presses_s():
     assert not auto.resetting.is_set()
 
 
+def test_hold_key_releases_when_the_press_fails(clock):
+    """A press that fails halfway (uinput: the key-down written, the
+    SYN_REPORT not) still gets its release, and the error is raised
+    (#5, review 1.6.0 slice 5 claim 9)."""
+    class FailingPress(FakeInjector):
+        def press(self):
+            super().press()
+            raise OSError("write failed")
+
+    injector = FailingPress(clock)
+
+    with pytest.raises(OSError):
+        hold_key(injector, 1.0, clock.event())
+
+    assert [kind for _key, kind, _t in injector.events] == ["press", "release"]
+
+
+def test_stop_waits_until_the_worker_is_done():
+    """stop() returns only once the worker has released the key, however
+    long its key call takes (a stalled X server): the injector is closed
+    right after it (#5, review 1.6.0 slice 5 claim 2)."""
+    unblock = threading.Event()
+    log = []
+
+    class SlowPress(FakeInjector):
+        def press(self):
+            super().press()
+            unblock.wait(10)
+
+    auto = AutoHold(SlowPress(log=log))
+    assert auto.start(5.0)
+    assert wait_until(lambda: log)
+
+    stopped = threading.Event()
+    stopper = threading.Thread(target=lambda: (auto.stop(), stopped.set()))
+    stopper.start()
+
+    # Longer than the 0.5 s the stop used to give up after.
+    assert not stopped.wait(1.0), "stop() returned while the worker was in press()"
+
+    unblock.set()
+    assert stopped.wait(5)
+    stopper.join()
+
+    assert not auto.active
+    assert [kind for _key, kind, _t in log] == ["press", "release"]
+
+
+def test_uinput_close_releases_a_held_key(monkeypatch, tmp_path):
+    """close() sends the key-up before destroying the device, and the key
+    calls do nothing afterwards (#5, review 1.6.0 slice 5 claims 2 and 3)."""
+    writes = []
+    calls = []
+
+    monkeypatch.setattr(keyinject.fcntl, "ioctl", lambda fd, request, arg=0: calls.append(request))
+    monkeypatch.setattr(keyinject.os, "write", lambda fd, data: writes.append(data) or len(data))
+    monkeypatch.setattr(keyinject.os, "close", lambda fd: calls.append("close"))
+
+    device = tmp_path / "uinput"
+    device.touch()
+    injector = keyinject.UinputInjector(KEY_S, str(device))
+    writes.clear()
+
+    injector.press()
+    injector.close()
+
+    events = [struct.unpack("llHHi", data)[3:] for data in writes]
+    key_events = [value for code, value in events if code == KEY_S]
+    assert key_events == [1, 0]
+    assert calls[-2:] == [keyinject._UI_DEV_DESTROY, "close"]
+
+    writes.clear()
+    injector.press()
+    injector.release()
+    injector.close()
+    assert writes == []
+
+
 def test_reset_needs_a_w_injector():
     assert not AutoHold(FakeInjector()).start(1.0, reset_seconds=5.0)
 
@@ -220,7 +304,8 @@ def test_uinput_injector_is_a_real_keyboard():
         if path is None:
             pytest.skip("the virtual keyboard did not appear in /dev/input")
 
-        # The device only has KEY_S, so read it directly.
+        # Read this device alone: keystate's readers skip the app's own
+        # virtual keyboards (UINPUT_NAME).
         import fcntl
 
         def s_down():
@@ -246,8 +331,9 @@ def test_uinput_injector_is_a_real_keyboard():
 
 
 def test_uinput_device_advertises_the_keys_udev_needs_for_a_keyboard(monkeypatch, tmp_path):
-    """udev tags a device as a keyboard only with KEY_ESC..KEY_D set;
-    without the tag the compositor may ignore the injected keys."""
+    """udev tags a device as a keyboard only with KEY_ESC..KEY_S (codes
+    1-31) set; without the tag the compositor may ignore the injected
+    keys."""
     calls = []
     opened = []
 
@@ -287,3 +373,108 @@ def test_xtest_injector_closes_its_connection_once(xvfb):
         connect().close()
 
     assert keyinject.XTestInjector(KEY_S).display
+
+
+def test_xtest_close_releases_a_held_key(xvfb):
+    """The X server keeps an XTest key down after its client goes away, so
+    close() sends the key-up (#5, review 1.6.0 slice 5 claim 3). The
+    reader stays connected, like the window manager and the game: Xvfb
+    left without clients resets and would release the key itself."""
+    reader = keystate.x11_reader()
+    injector = keyinject.XTestInjector(KEY_S)
+
+    injector.press()
+    assert reader(KEY_S)
+
+    injector.close()
+    assert not reader(KEY_S)
+
+
+# Runs in a child process: a key call on a closed display used to crash
+# the process (XTestFakeKeyEvent on NULL).
+CLOSED_DISPLAY_CHILD = r"""
+import sys
+sys.path.insert(0, sys.argv[1])
+import keyinject
+from keystate import KEY_S
+
+injector = keyinject.XTestInjector(KEY_S)
+injector.close()
+injector.press()
+injector.release()
+injector.close()
+print("ok", flush=True)
+"""
+
+
+def test_xtest_key_calls_after_close_do_nothing(xvfb):
+    child = subprocess.run(
+        [sys.executable, "-c", CLOSED_DISPLAY_CHILD, ROOT],
+        env=dict(os.environ), capture_output=True, text=True, timeout=30
+    )
+
+    assert child.returncode == 0, child.stderr[-2000:]
+    assert child.stdout.strip() == "ok"
+
+
+def own_xvfb_pid():
+    """The pid of the Xvfb this test process started (xvfb_display)."""
+    for entry in os.listdir("/proc"):
+        if not entry.isdigit():
+            continue
+
+        try:
+            with open(f"/proc/{entry}/stat") as f:
+                fields = f.read().rsplit(")", 1)[1].split()
+            with open(f"/proc/{entry}/comm") as f:
+                comm = f.read().strip()
+        except OSError:
+            continue
+
+        if comm == "Xvfb" and int(fields[1]) == os.getpid():
+            return int(entry)
+
+    pytest.fail("the test's Xvfb was not found")
+
+
+# What MainWindow.drop_auto_hold does, while the X server does not answer:
+# stop the hold, then close the injector the worker was using.
+STALLED_SERVER_CHILD = r"""
+import os, signal, sys, threading, time
+sys.path.insert(0, sys.argv[1])
+import keyinject
+from keystate import KEY_S
+
+xvfb_pid = int(sys.argv[2])
+injector = keyinject.XTestInjector(KEY_S)
+auto = keyinject.AutoHold(injector)
+
+os.kill(xvfb_pid, signal.SIGSTOP)
+threading.Timer(1.5, os.kill, (xvfb_pid, signal.SIGCONT)).start()
+auto.start(5.0)
+time.sleep(0.1)
+
+auto.stop()
+print("stopped, worker alive:", auto.active, flush=True)
+injector.close()
+os._exit(3 if auto.active else 0)
+"""
+
+
+def test_closing_after_a_stop_on_a_stalled_x_server(xvfb):
+    """The worker is inside press() while the X server is stopped; stop()
+    must wait for it, so close() never runs under the worker: no crash, S
+    not left down (#5, review 1.6.0 slice 5 claim 2)."""
+    reader = keystate.x11_reader()
+    xvfb_pid = own_xvfb_pid()
+
+    try:
+        child = subprocess.run(
+            [sys.executable, "-c", STALLED_SERVER_CHILD, ROOT, str(xvfb_pid)],
+            env=dict(os.environ), capture_output=True, text=True, timeout=30
+        )
+    finally:
+        os.kill(xvfb_pid, signal.SIGCONT)
+
+    assert child.returncode == 0, (child.returncode, child.stdout, child.stderr[-2000:])
+    assert not reader(KEY_S), "S left held"
