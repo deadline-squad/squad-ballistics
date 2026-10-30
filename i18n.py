@@ -313,6 +313,8 @@ STRINGS = {
     "bearing_short": "bearing {b}°",
     "map_bridge_on": "targets go to the calculator",
     "map_bridge_off": "this map does not share targets (use the Deadline SquadCalc)",
+    "map_external_opened": "Opened in the browser: {url}",
+    "map_external_blocked": "Not opened, the map asked without a click: {url}",
     "s_map_render": "Map rendering",
     "s_map_render_auto": "Normal",
     "s_map_render_software": "Compatible",

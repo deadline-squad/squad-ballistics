@@ -825,9 +825,10 @@ def test_embedded_bridge_reads_a_real_page(window, monkeypatch):
     from PyQt6.QtCore import QCoreApplication, QElapsedTimer
 
     html = (
-        "data:text/html;charset=utf-8,<script>window.squadBallistics={version:2,"
+        "data:text/html;charset=utf-8,<script>var current='RPG-7V1 · HEAT';"
+        "window.squadBallistics={version:2,"
         "targets:()=>[{distance:612.4,heightDiff:-8.6,bearing:181}],"
-        "weapon:()=>'RPG-7V1 · HEAT'}"
+        "weapon:()=>current}"
         "</script>"
     )
     monkeypatch.setitem(webmap.MAP_SOURCES, "deadline", html)
@@ -835,17 +836,29 @@ def test_embedded_bridge_reads_a_real_page(window, monkeypatch):
     window.select_weapon("AT-4")
     window.set_page(3)
 
-    clock = QElapsedTimer()
-    clock.start()
-    while window.distance_entry.text() != "612.4" and clock.elapsed() < 15000:
-        QCoreApplication.processEvents()
+    def wait_for(condition):
+        clock = QElapsedTimer()
+        clock.start()
+        while not condition() and clock.elapsed() < 15000:
+            QCoreApplication.processEvents()
+        return condition()
 
-    assert window.distance_entry.text() == "612.4"
+    assert wait_for(lambda: window.distance_entry.text() == "612.4")
     assert window.height_entry.text() == "-8.6"
     assert window.map_page.bridge_found is True
-    assert window.picker.current == "RPG-7V1 · HEAT"
+
+    # The weapon the page starts with is only restored there, not picked:
+    # the app keeps its own and solves for it.
+    assert window.picker.current == "AT-4"
     assert window.last_solution.angle == pytest.approx(
-        solve(window.weapons["RPG-7V1 · HEAT"], 612.4, -8.6, "low").angle
+        solve(window.weapons["AT-4"], 612.4, -8.6, "low").angle
+    )
+
+    # A weapon then selected on the page is followed and solved.
+    window.map_page.page.runJavaScript("current = 'RPG-29';", 0)
+    assert wait_for(lambda: window.picker.current == "RPG-29")
+    assert window.last_solution.angle == pytest.approx(
+        solve(window.weapons["RPG-29"], 612.4, -8.6, "low").angle
     )
 
 
@@ -867,6 +880,7 @@ def test_weapon_picked_here_is_selected_on_the_embedded_map(window, monkeypatch)
     )
     monkeypatch.setitem(webmap.MAP_SOURCES, "deadline", html)
 
+    window.select_weapon("QLZ87")
     window.set_page(3)
     page = window.map_page
 
@@ -883,13 +897,22 @@ def test_weapon_picked_here_is_selected_on_the_embedded_map(window, monkeypatch)
         assert wait_for(lambda: result)
         return result[0]
 
-    # The page's weapon comes first (the bridge is polled).
-    assert wait_for(lambda: window.picker.current == "AT-4" and page.last_weapon == "AT-4")
-
-    window.select_weapon("QLZ87")
+    # The app's weapon goes to the page once it answers; the page's own
+    # starting weapon does not switch the app.
+    assert wait_for(lambda: page.bridge_found)
     assert wait_for(lambda: page_value("current") == "QLZ87")
     assert wait_for(lambda: page.last_weapon == "QLZ87")
     assert window.picker.current == "QLZ87"
+
+    # Picked here while the page runs.
+    window.select_weapon("AT-4")
+    assert wait_for(lambda: page_value("current") == "AT-4")
+    assert wait_for(lambda: page.last_weapon == "AT-4")
+    assert window.picker.current == "AT-4"
+
+    # Picked on the page: followed here.
+    page_value("current = 'QLZ87'")
+    assert wait_for(lambda: window.picker.current == "QLZ87")
 
     # A weapon the page does not have: the page keeps its own and does not
     # switch the app back (no ping-pong).

@@ -14,6 +14,15 @@ cannot be sent:
 * XTest: a fake key event on $DISPLAY, for a game running on X11 or
   XWayland (Squad under Proton).
 
+Every injector remembers whether its key is down and sends the key-up in
+`close()`. A key cannot be released after the process is killed (SIGKILL)
+or crashes: a uinput key goes up with its device, but an XTest key stays
+down on the X server until the key is pressed and released again.
+
+An injector is used by one worker thread (`AutoHold`) and closed from the
+GUI thread: `press`, `release` and `close` are serialized by a lock, and
+after `close` the key calls do nothing.
+
 Synthetic input may be treated as a macro by EasyAntiCheat or by server
 rules; the feature is off unless the user enables it.
 """
@@ -26,7 +35,7 @@ import struct
 import threading
 import time
 
-from keystate import EV_KEY, X11_KEYCODE_OFFSET
+from keystate import EV_KEY, UINPUT_NAME, X11_KEYCODE_OFFSET
 
 # The last milliseconds of a hold are waited for actively: a sleep may wake
 # up late.
@@ -36,25 +45,30 @@ PRECISE_SPIN_SECONDS = 0.003
 # keys (at least a few frames at 30 fps).
 RESET_SETTLE_SECONDS = 0.1
 
-UINPUT_NAME = b"Squad Ballistics auto-hold"
-
 _UI_SET_EVBIT = (1 << 30) | (4 << 16) | (ord("U") << 8) | 100
 _UI_SET_KEYBIT = (1 << 30) | (4 << 16) | (ord("U") << 8) | 101
 _UI_DEV_CREATE = (ord("U") << 8) | 1
 _UI_DEV_DESTROY = (ord("U") << 8) | 2
 
 
-# The keys udev needs on a device (KEY_ESC .. KEY_D, the first 32 codes)
-# before it tags it as a keyboard, which the compositor and the game's
-# input stack then use; the injector still sends only its own key.
+# The keys udev needs on a device before it tags it as a keyboard, which the
+# compositor and the game's input stack then use: KEY_ESC .. KEY_S, codes
+# 1-31, the first 32 bits of the key bitmap without KEY_RESERVED (systemd,
+# src/udev/udev-builtin-input_id.c, test_key). The injector still sends only
+# its own key; UINPUT_NAME keeps keystate from reading the device.
 _KEYBOARD_PROBE_KEYS = range(1, 32)
 
 
 class UinputInjector:
-    """A virtual keyboard that sends one key."""
+    """A virtual keyboard that sends one key (Linux input event `code`).
+
+    Raises OSError when `path` cannot be opened or the device not created.
+    """
 
     def __init__(self, code, path="/dev/uinput"):
         self.code = code
+        self.lock = threading.Lock()
+        self.down = False
         self.fd = os.open(path, os.O_WRONLY | os.O_NONBLOCK | os.O_CLOEXEC)
 
         try:
@@ -77,33 +91,58 @@ class UinputInjector:
             os.close(self.fd)
             raise
 
-    def _key(self, value):
+    def _send(self, value):
         # struct input_event: timeval, type, code, value; then SYN_REPORT.
+        # The caller holds the lock.
         os.write(self.fd, struct.pack("llHHi", 0, 0, EV_KEY, self.code, value))
         os.write(self.fd, struct.pack("llHHi", 0, 0, 0, 0, 0))
 
+        self.down = bool(value)
+
+    def _key(self, value):
+        with self.lock:
+            if self.fd is None:
+                return
+
+            self._send(value)
+
     def press(self):
+        """Key down; nothing once closed. Raises OSError if the write fails."""
         self._key(1)
 
     def release(self):
+        """Key up; nothing once closed. Raises OSError if the write fails."""
         self._key(0)
 
     def close(self):
-        if self.fd is None:
-            return
+        """Release the key if it is down, then destroy the device (once;
+        later calls do nothing). Waits for a press or release in progress."""
+        with self.lock:
+            if self.fd is None:
+                return
 
-        try:
-            fcntl.ioctl(self.fd, _UI_DEV_DESTROY)
-        except OSError:
-            pass
+            if self.down:
+                try:
+                    self._send(0)
+                except OSError:
+                    pass
 
-        os.close(self.fd)
+            try:
+                fcntl.ioctl(self.fd, _UI_DEV_DESTROY)
+            except OSError:
+                pass
 
-        self.fd = None
+            os.close(self.fd)
+
+            self.fd = None
 
 
 class XTestInjector:
-    """Fake key events on $DISPLAY."""
+    """Fake key events on $DISPLAY for one key (Linux input event `code`).
+
+    Raises OSError when the X display cannot be opened. libX11 and libXtst
+    must be installed (ctypes raises OSError otherwise).
+    """
 
     def __init__(self, code):
         xlib = ctypes.CDLL(ctypes.util.find_library("X11") or "libX11.so.6")
@@ -125,27 +164,49 @@ class XTestInjector:
         self.xlib = xlib
         self.xtst = xtst
         self.keycode = code + X11_KEYCODE_OFFSET
+        self.lock = threading.Lock()
+        self.down = False
 
-    def _key(self, down):
+    def _send(self, down):
+        # The caller holds the lock and the display is open: Xlib must never
+        # be called with a closed (NULL) display, it crashes the process.
         self.xtst.XTestFakeKeyEvent(self.display, self.keycode, int(down), 0)
         # XSync, not XFlush: return once the server has applied the event,
         # so the hold is timed from the real press.
         self.xlib.XSync(self.display, 0)
 
+        self.down = down
+
+    def _key(self, down):
+        with self.lock:
+            if self.display is None:
+                return
+
+            self._send(down)
+
     def press(self):
+        """Key down on the X server; nothing once closed."""
         self._key(True)
 
     def release(self):
+        """Key up on the X server; nothing once closed."""
         self._key(False)
 
     def close(self):
-        """Close the connection to the X server (once; later calls do nothing)."""
-        if self.display is None:
-            return
+        """Release the key if it is down, then close the connection to the
+        X server (once; later calls do nothing). The X server does not
+        release an XTest key when its client goes away, so this key-up is
+        the only one. Waits for a press or release in progress."""
+        with self.lock:
+            if self.display is None:
+                return
 
-        self.xlib.XCloseDisplay(self.display)
+            if self.down:
+                self._send(False)
 
-        self.display = None
+            self.xlib.XCloseDisplay(self.display)
+
+            self.display = None
 
 
 def system_key_injector(code):
@@ -168,11 +229,12 @@ def system_key_injector(code):
 def hold_key(injector, seconds, cancel):
     """Hold the key for exactly `seconds` (or until `cancel` is set).
 
-    Runs in a worker thread; the key is always released.
+    Runs in a worker thread; the key is always released, also when the
+    press itself fails halfway (the error is raised after the release).
     """
-    injector.press()
-
     try:
+        injector.press()
+
         deadline = time.perf_counter() + seconds
 
         while not cancel.is_set():
@@ -239,6 +301,7 @@ class AutoHold:
 
     @property
     def active(self):
+        """Whether a hold (or its reset) is running in the worker thread."""
         return self.thread is not None and self.thread.is_alive()
 
     def start(self, seconds, reset_seconds=0.0):
@@ -264,8 +327,15 @@ class AutoHold:
 
         return True
 
-    def stop(self, wait=0.5):
-        """Cancel the hold and wait for the release (the key never sticks)."""
+    def stop(self, wait=None):
+        """Cancel the hold and wait for the worker to release the key and end.
+
+        Cancelling wakes the worker at once; it is then only as slow as its
+        last key call (an X server that does not answer holds it up). By
+        default this waits until the worker is done, so the injectors can
+        be closed right after: a worker still running would use them
+        closed. `wait` (seconds) bounds the wait; then check `active`.
+        """
         if self.thread is None:
             return
 

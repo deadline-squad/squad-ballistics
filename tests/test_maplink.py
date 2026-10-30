@@ -2,6 +2,7 @@ import json
 
 import pytest
 
+import maplink
 from maplink import (
     MapTarget,
     make_target,
@@ -13,22 +14,52 @@ from maplink import (
 )
 
 
-def test_bridge_targets():
-    value = [
-        {"distance": 812.4, "heightDiff": -7.5, "bearing": 45.0},
-        {"distance": 300},
-        {"distance": None, "heightDiff": 1},
-        {"distance": -1},
-        "junk",
-    ]
+def test_bridge_targets_are_the_newest_one():
+    """Only the last (newest) target is used and parsed (#5, review 1.6.0
+    slice 5 claim 6); an invalid newest target is not replaced by an older
+    one."""
+    older = {"distance": 812.4, "heightDiff": -7.5, "bearing": 45.0}
 
-    assert parse_bridge_targets(value) == [
-        MapTarget(812.4, -7.5, 45.0),
-        MapTarget(300.0, None, None),
-    ]
+    assert parse_bridge_targets([older, {"distance": 300}]) == [MapTarget(300.0, None, None)]
+    assert parse_bridge_targets([{"distance": 300}, older]) == [MapTarget(812.4, -7.5, 45.0)]
 
+    for invalid in ({"distance": None, "heightDiff": 1}, {"distance": -1}, "junk"):
+        assert parse_bridge_targets([older, invalid]) == []
+
+    assert parse_bridge_targets([]) == []
     assert parse_bridge_targets(None) == []
     assert parse_bridge_targets({"distance": 5}) == []
+
+
+def test_older_targets_are_not_parsed(monkeypatch):
+    """A page with many targets costs one parse per poll, not one each."""
+    calls = []
+    real = maplink.make_target
+    monkeypatch.setattr(maplink, "make_target", lambda *a: calls.append(a) or real(*a))
+
+    profile = {"step": 1, "heights": [0.0] * 1001}
+    targets = [{"distance": 1000, "heightDiff": 0, "profile": profile}] * 200
+
+    [target] = parse_bridge_targets(targets)
+
+    assert len(calls) == 1
+    assert len(target.profile) == 1001
+
+
+def test_profiles_are_capped():
+    """At most MAX_PROFILE_HEIGHTS heights: one per metre over MAX_DISTANCE,
+    what SquadCalc sends; a finer one is dropped, the target kept."""
+    cap = maplink.MAX_PROFILE_HEIGHTS
+    assert cap == maplink.MAX_DISTANCE + 1
+
+    full = {"step": 1, "heights": [0.0] * cap}
+    assert len(parse_profile(full, 10000)[0]) == cap
+
+    finer = {"step": 0.5, "heights": [0.0] * (2 * 10000 + 1)}
+    assert parse_profile(finer, 10000) == (None, None)
+
+    [target] = parse_bridge_targets([{"distance": 10000, "profile": finer}])
+    assert target.profile is None
 
 
 def test_bridge_with_weapon():

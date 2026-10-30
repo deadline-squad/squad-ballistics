@@ -2,10 +2,11 @@
 
 The tests never touch the developer's files or the network:
 
-* $XDG_CONFIG_HOME and $XDG_CACHE_HOME point into a temporary folder before
-  any app module is imported, so `config.CONFIG_PATH`, `crash.log`, the
-  instance lock and the map's WebEngine profile (cookies, tile cache) live
-  there, not in ~/.config and ~/.cache.
+* $XDG_CONFIG_HOME, $XDG_CACHE_HOME and $XDG_DATA_HOME point into a
+  temporary folder before any app module is imported, so
+  `config.CONFIG_PATH`, `crash.log`, the instance lock and the map's
+  WebEngine profile (cookies, tile cache) live there, not in ~/.config,
+  ~/.cache and ~/.local/share.
 * The map's WebEngine profile refuses every http(s) request
   (`BlockedRequests`): pages load the live SquadCalc only in name, so a
   test still sees which URL was asked for (`requestedUrl()`) without the
@@ -32,6 +33,7 @@ USER_DIRS = tempfile.mkdtemp(prefix="sb-tests-home-")
 
 os.environ["XDG_CONFIG_HOME"] = os.path.join(USER_DIRS, "config")
 os.environ["XDG_CACHE_HOME"] = os.path.join(USER_DIRS, "cache")
+os.environ["XDG_DATA_HOME"] = os.path.join(USER_DIRS, "data")
 
 atexit.register(shutil.rmtree, USER_DIRS, True)
 
