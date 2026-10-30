@@ -2,8 +2,6 @@ import os
 
 import pytest
 
-pytest.importorskip("PyQt6.QtGui")
-
 from PyQt6.QtGui import QColor, QFont, QImage, QPainter
 
 from compassreader import DigitReader, read_compass, strip_ticks

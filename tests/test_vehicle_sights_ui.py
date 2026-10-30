@@ -4,8 +4,6 @@ import os
 
 import pytest
 
-pytest.importorskip("PyQt6.QtWidgets")
-
 import config
 from ballistics import load_weapons, mark_offset
 from conftest import ROOT

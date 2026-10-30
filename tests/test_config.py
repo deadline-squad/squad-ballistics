@@ -305,3 +305,249 @@ def test_language_and_accent_settings_are_ignored(tmp_path):
     assert cfg["fov"] == 60
     assert "language" not in cfg
     assert "accent" not in cfg
+
+
+def test_an_unreadable_file_is_kept_as_bad_and_reported(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_text('{"fov": 100, "mark_size": 120')
+
+    cfg, bad = config.read_config(str(path))
+
+    assert cfg == config.DEFAULT_CONFIG
+    assert bad == str(path) + ".bad"
+    assert (tmp_path / "config.json.bad").read_text() == '{"fov": 100, "mark_size": 120'
+    assert json.loads(path.read_text()) == config.DEFAULT_CONFIG
+
+    # The next start reads the new file and reports nothing.
+    assert config.read_config(str(path)) == (config.DEFAULT_CONFIG, None)
+
+
+@pytest.mark.parametrize("text", [
+    "",
+    "{not json",
+    "[]",
+    "null",
+    '"settings"',
+    "42",
+    "[" * 100000 + "]" * 100000,
+    '{"fov": 1' + "0" * 5000,
+])
+def test_any_unreadable_content_is_kept(tmp_path, text):
+    path = tmp_path / "config.json"
+    path.write_text(text)
+
+    cfg, bad = config.read_config(str(path))
+
+    assert cfg == config.DEFAULT_CONFIG
+    assert bad == str(path) + ".bad"
+    assert (tmp_path / "config.json.bad").read_text() == text
+
+
+def test_a_file_that_is_not_utf8_is_kept(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_bytes(b'{"fov": "\xff\xfe"}')
+
+    cfg, bad = config.read_config(str(path))
+
+    assert cfg == config.DEFAULT_CONFIG
+    assert (tmp_path / "config.json.bad").read_bytes() == b'{"fov": "\xff\xfe"}'
+
+
+def test_a_bad_file_that_cannot_be_moved_is_not_overwritten(tmp_path, monkeypatch):
+    path = tmp_path / "config.json"
+    path.write_text("{broken")
+
+    def refuse(source, target):
+        raise PermissionError(source)
+
+    monkeypatch.setattr(config.os, "replace", refuse)
+
+    cfg, bad = config.read_config(str(path))
+
+    assert cfg == config.DEFAULT_CONFIG
+    assert bad == str(path)
+    assert path.read_text() == "{broken"
+
+
+def test_a_missing_file_is_not_reported(tmp_path):
+    cfg, bad = config.read_config(str(tmp_path / "config.json"))
+
+    assert (cfg, bad) == (config.DEFAULT_CONFIG, None)
+
+
+NUMERIC_SETTINGS = [
+    key for key, value in config.DEFAULT_CONFIG.items()
+    if isinstance(value, (int, float)) and not isinstance(value, bool)
+]
+
+
+@pytest.mark.parametrize("key", NUMERIC_SETTINGS)
+@pytest.mark.parametrize("junk", ["NaN", "Infinity", "-Infinity", "1" + "0" * 400])
+def test_a_non_finite_number_falls_back_to_its_default_alone(tmp_path, key, junk):
+    """Python's json reads NaN and Infinity, and a 400-digit integer does
+    not fit a float: none of them may crash or clamp to a range end."""
+    other = "mark_size" if key != "mark_size" else "fov"
+    path = tmp_path / "config.json"
+    path.write_text(f'{{"{key}": {junk}, "{other}": 120}}')
+
+    cfg = config.load_config(str(path))
+
+    assert cfg[key] == config.DEFAULT_CONFIG[key]
+    assert cfg[other] == 120
+
+
+@pytest.mark.parametrize("key", [k for k in NUMERIC_SETTINGS if k not in config.FRACTIONAL_SETTINGS])
+def test_a_fraction_for_a_whole_number_setting_falls_back_to_its_default(tmp_path, key):
+    low, high = config.RANGES[key]
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({key: (low + high) / 2 + 0.5, "fov": 100}))
+
+    cfg = config.load_config(str(path))
+
+    assert cfg[key] == config.DEFAULT_CONFIG[key]
+    assert type(cfg[key]) is int
+    assert cfg["fov"] == 100
+
+
+def test_the_fov_keeps_its_fraction(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({"fov": 103.5}))
+
+    assert config.load_config(str(path))["fov"] == 103.5
+
+
+def test_lay_rates_and_colours_reject_numbers_that_do_not_fit_a_float(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_text(
+        '{"lay_rates": {"A": Infinity, "B": 1' + "0" * 400 + ', "C": 2.5},'
+        ' "color": [1e308, 0, 0]}'
+    )
+
+    cfg = config.load_config(str(path))
+
+    assert cfg["lay_rates"] == {"C": 2.5}
+    assert cfg["color"] == "red"
+
+
+def test_an_old_colour_with_a_non_finite_part_falls_back(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_text('{"color": [Infinity, 0, 0]}')
+
+    assert config.load_config(str(path))["color"] == config.DEFAULT_CONFIG["color"]
+
+
+def random_json(rng, depth=0):
+    """Any JSON value, with the numbers and strings that break parsers."""
+    kind = rng.randrange(9 if depth < 3 else 6)
+
+    if kind == 0:
+        return None
+    if kind == 1:
+        return rng.choice([True, False])
+    if kind == 2:
+        return rng.choice([0, -1, 1, 7, 15, 16, 100, 10 ** 30, -10 ** 30, 10 ** 400])
+    if kind == 3:
+        return rng.choice([0.5, -0.0, 1e308, -1e308, 5e-324, 90.0, 179.9, float("nan"), float("inf"), float("-inf")])
+    if kind == 4:
+        return rng.choice(["", "F8", "Ins", "auto", "red", "dot", "\ud800", "\x00", "Ctrl+Q", "MK19", "x" * 10000])
+    if kind == 5:
+        return rng.choice(list(config.DEFAULT_CONFIG.values()))
+    if kind == 6:
+        return [random_json(rng, depth + 1) for _ in range(rng.randrange(5))]
+
+    keys = list(config.DEFAULT_CONFIG) + list(config.DEFAULT_CONFIG["hotkeys"]) + ["", "MK19", "x|plain"]
+    return {rng.choice(keys): random_json(rng, depth + 1) for _ in range(rng.randrange(6))}
+
+
+def assert_valid(cfg):
+    """Every setting has its default's type and lies in its range or choices."""
+    assert cfg.keys() == config.DEFAULT_CONFIG.keys()
+
+    for key, default in config.DEFAULT_CONFIG.items():
+        value = cfg[key]
+
+        if isinstance(default, bool):
+            assert type(value) is bool, key
+        elif isinstance(default, (int, float)):
+            assert isinstance(value, (int, float)) and not isinstance(value, bool), key
+            assert value == value and abs(value) != float("inf"), key
+            if key not in config.FRACTIONAL_SETTINGS:
+                assert type(value) is int, key
+            if key in config.RANGES:
+                low, high = config.RANGES[key]
+                assert low <= value <= high, key
+        elif key in config.CHOICES:
+            assert value in config.CHOICES[key], key
+        else:
+            assert isinstance(value, type(default)), key
+
+    assert all(isinstance(v, str) for v in cfg["hotkeys"].values())
+    assert all(isinstance(v, str) for v in cfg["recent_weapons"])
+    for table in ("lay_rates", "mark_trim"):
+        assert all(
+            isinstance(v, float) and v == v and abs(v) != float("inf")
+            for v in cfg[table].values()
+        ), table
+    json.dumps(cfg, allow_nan=False)
+
+
+def test_any_json_gives_valid_settings(tmp_path):
+    import random
+
+    rng = random.Random(20261030)
+    path = tmp_path / "config.json"
+
+    for _ in range(2000):
+        document = {}
+        for key in rng.sample(list(config.DEFAULT_CONFIG), rng.randrange(1, 8)):
+            document[key] = random_json(rng)
+
+        path.write_text(json.dumps(document))
+        cfg, bad = config.read_config(str(path))
+
+        assert bad is None, document
+        assert_valid(cfg)
+
+
+def test_the_app_starts_from_any_settings_file(qapp, tmp_path, monkeypatch):
+    """Whatever the settings file holds, the main window opens, calculates
+    and saves (hostile values per setting, then random documents)."""
+    import random
+
+    from ballistics import load_weapons
+    from conftest import ROOT
+    from crosshair import MainWindow
+
+    weapons = load_weapons(os.path.join(ROOT, "weapons.json"))
+    path = tmp_path / "config.json"
+    monkeypatch.setattr(config, "CONFIG_PATH", str(path))
+
+    hostile = [
+        '{"last_weapon": "\\ud800", "recent_weapons": ["\\ud800", "\\u0000", "MK19"],'
+        ' "hotkeys": {"toggle_overlay": "\\ud800", "reset_offset": "F8"}}',
+        '{"fov": NaN, "mark_size": Infinity, "monitor": 1' + "0" * 400 + ', "offset_scale": 75.5}',
+        '{"color": [1e308, -1e308, NaN], "mark_style": ["dot"], "lay_rates": {"MK19": -1}}',
+        '{"mark_trim": {"MK19|plain": 1e308, "\\ud800": 0.5, "": 1}, "unit_mode": null}',
+        '{"monitor": 15, "center_offset_x": 300, "center_offset_y": -300, "distance_step": 100}',
+    ]
+    rng = random.Random(7)
+    for _ in range(10):
+        document = {
+            key: random_json(rng)
+            for key in rng.sample(list(config.DEFAULT_CONFIG), rng.randrange(3, 10))
+        }
+        hostile.append(json.dumps(document))
+
+    for text in hostile:
+        path.write_text(text)
+
+        window = MainWindow(weapons)
+        try:
+            window.select_weapon("SPG-9 · HEAT")
+            window.distance_entry.setText("500")
+            window.calculate()
+            assert window.last_solution.reachable, text
+        finally:
+            window.close()
+
+        assert_valid(json.loads(path.read_text()))

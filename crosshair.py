@@ -205,6 +205,10 @@ class MainWindow(QMainWindow):
             self.config
         )
 
+        # A resolution change or a monitor plugged in or out moves the
+        # overlay: the mark and the ladder follow the new screen size.
+        self.overlay.screen_changed.connect(self.recalculate_if_ready)
+
         # The SquadCalc target currently in the inputs; None once the
         # distance or height is edited by hand.
         self.map_target = None
@@ -2023,20 +2027,14 @@ class MainWindow(QMainWindow):
         if not self.config["auto_hold"]:
             return True
 
-        try:
-            injector = system_key_injector(KEY_S)
-        except OSError:
-            injector = None
+        injector = system_key_injector(KEY_S)
 
         if injector is None:
             self.config["auto_hold"] = False
             return False
 
         # W puts a mortar's barrel to its top before the hold (auto-lay)
-        try:
-            reset_injector = system_key_injector(KEY_W)
-        except OSError:
-            reset_injector = None
+        reset_injector = system_key_injector(KEY_W)
 
         self.hold_timer.auto_hold = AutoHold(injector, reset_injector)
 
@@ -2060,11 +2058,8 @@ class MainWindow(QMainWindow):
     def make_bearing_layer(self):
         """The bearing lay (D turns right, A left), if both keys can be
         sent."""
-        try:
-            right = system_key_injector(KEY_D)
-            left = system_key_injector(KEY_A)
-        except OSError:
-            right = left = None
+        right = system_key_injector(KEY_D)
+        left = system_key_injector(KEY_A)
 
         if right is None or left is None:
             for injector in (right, left):
@@ -2928,10 +2923,16 @@ class MainWindow(QMainWindow):
         QApplication.quit()
 
     def closeEvent(self, event):
-        if self.save_timer.isActive():
-            self.save_timer.stop()
+        # Release a held key and remove the virtual keyboard first, and save
+        # the settings even if that fails: an error in a later step must not
+        # leave a key down in the game.
+        try:
+            self.drop_auto_hold()
+        finally:
+            if self.save_timer.isActive():
+                self.save_timer.stop()
 
-        save_config(self.config)
+            save_config(self.config)
 
         teardown_hotkeys(self)
 
@@ -2940,9 +2941,6 @@ class MainWindow(QMainWindow):
         self.hold_timer.set_active(False)
 
         self.sight_timer.stop()
-
-        # Release a held S and remove the virtual keyboard.
-        self.drop_auto_hold()
 
         if self.map_page is not None:
             self.map_page.shutdown()

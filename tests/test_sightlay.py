@@ -11,8 +11,6 @@ import time
 
 import pytest
 
-pytest.importorskip("PyQt6.QtGui")
-
 from PyQt6.QtCore import QEventLoop, QTimer
 
 import sightlay

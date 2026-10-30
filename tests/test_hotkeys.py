@@ -1,9 +1,5 @@
 import sys
 
-import pytest
-
-pytest.importorskip("PyQt6.QtCore")
-
 from PyQt6.QtCore import QObject
 
 import hotkeys

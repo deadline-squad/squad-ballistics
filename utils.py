@@ -1,3 +1,5 @@
+"""Small helpers shared by the app's modules."""
+
 import os
 
 

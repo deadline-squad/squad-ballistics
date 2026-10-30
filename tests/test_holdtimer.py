@@ -2,8 +2,6 @@ import threading
 
 import pytest
 
-pytest.importorskip("PyQt6.QtCore")
-
 from holdtimer import MAX_POLL_GAP, HoldTimer
 from keystate import KEY_S, KEY_W
 

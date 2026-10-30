@@ -1,6 +1,9 @@
+"""The window shown while the main window is being built."""
+
 from PyQt6.QtCore import Qt
 
 from PyQt6.QtWidgets import (
+    QFrame,
     QWidget,
     QVBoxLayout,
     QLabel,
@@ -11,6 +14,14 @@ from i18n import tr
 
 
 class SplashScreen(QWidget):
+    """A frameless, always-on-top card with the title and a busy bar.
+
+    The window itself is transparent and the card inside it has the rounded
+    background, so the corners outside the rounding stay see-through (with a
+    compositor). The card's style names it (`QFrame#splash`): a style
+    without a selector would also give every label and the bar a border.
+    """
+
     def __init__(self):
         super().__init__()
 
@@ -19,15 +30,26 @@ class SplashScreen(QWidget):
             | Qt.WindowType.WindowStaysOnTopHint
         )
 
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+
         self.setFixedSize(420, 220)
 
-        self.setStyleSheet("""
-            background-color: #070707;
-            border: 1px solid #2d2b24;
-            border-radius: 18px;
+        self.card = QFrame(self)
+        self.card.setObjectName("splash")
+
+        self.card.setStyleSheet("""
+            QFrame#splash {
+                background-color: #070707;
+                border: 1px solid #2d2b24;
+                border-radius: 18px;
+            }
         """)
 
-        layout = QVBoxLayout(self)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(self.card)
+
+        layout = QVBoxLayout(self.card)
 
         layout.setContentsMargins(
             30,
