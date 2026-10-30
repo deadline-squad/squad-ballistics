@@ -88,7 +88,7 @@ Squad Ballistics предоставляет:
 
 # Usage / Использование
 
-1. Pick a weapon (searchable list, recent weapons on top), enter the distance and, optionally, the height difference: target higher `+`, lower `-`.
+1. Pick a weapon (searchable list, recent weapons on top; the search also finds a weapon by a vehicle or mount named in its note, so "M1117" or "AAVP" finds *MK19*), enter the distance and, optionally, the height difference: target higher `+`, lower `-`.
 2. Enter your horizontal FOV: the in-game setting (the game's slider goes 90-120; 1-179 are accepted). Weapons aimed through a scope, optic or gunner's sight (QLZ87, SPG-9 scope, AGS-17 optic, ZiS-3, tank and IFV guns) are computed for that sight's own zoom and tilt: keep the game's FOV, the app divides it by the sight's zoom. A tripod weapon whose sight zooms the screen on RMB (QLZ87, the QLZ87 on the Lynx / CSK131, AGS-17 optic, SPG-9 scope, ZiS-3) has a second entry, *· no optic*, for its normal view (no RMB, ×1): pick the entry for the view you aim from, the note under the weapon says which. The optic entry used from the normal view puts the mark several times too low and the shot far past the target (QLZ87 at FOV 120: 300 m lands at ~830 m). Holding the Focus key narrows the game's FOV to two thirds: type that FOV in.
 3. The result updates while you type. The **How to fire** block tells you exactly what to do for the selected weapon.
 4. Direct fire (launchers, grenade launchers, guns): put the overlay mark on the target and fire. Without a distance typed, the *range ladder* under the mark shows where a target at each round range (every 25–1000 m, finer near the weapon) goes (flat ground, the weapon's own ballistics); turn it off on the crosshair page.
@@ -97,7 +97,7 @@ Squad Ballistics предоставляет:
 5. Indirect fire (mortars, Hell Cannon, rockets): set the shown elevation (mils or degrees) on the weapon. These weapons are laid on their own sight, so the overlay shows only the info line, no aim mark.
 6. Or skip typing: place your weapon and a target on the SquadCalc map (tab **SquadCalc**) — distance, height difference and bearing go to the calculator by themselves.
 
-1. Выберите оружие (поиск по списку, недавние сверху), введите дистанцию и при необходимости перепад высот: цель выше `+`, ниже `-`.
+1. Выберите оружие (поиск по списку, недавние сверху; поиск находит оружие и по машине или станку из его описания: «M1117» или «AAVP» находит *MK19*), введите дистанцию и при необходимости перепад высот: цель выше `+`, ниже `-`.
 2. Укажите горизонтальный FOV: значение из настроек игры (ползунок игры 90–120; принимается 1–179). Оружие, из которого целятся через прицел, оптику или прицел наводчика (QLZ87, оптика СПГ-9, оптика АГС-17, ЗиС-3, пушки танков и БМП), считается для приближения и наклона этого прицела: оставьте FOV игры, программа сама делит его на приближение прицела. У станкового оружия, чей прицел приближает экран по ПКМ (QLZ87, QLZ87 на Lynx / CSK131, оптика АГС-17, оптика СПГ-9, ЗиС-3), есть вторая запись «· no optic» для обычного вида (без ПКМ, ×1): выберите запись для того вида, из которого целитесь, — это написано в заметке под оружием. Запись с оптикой в обычном виде ставит метку в несколько раз ниже, и снаряд улетает далеко за цель (QLZ87 при FOV 120: цель на 300 м — выстрел на ~830 м). Клавиша Focus (удержание) сужает FOV игры до двух третей: введите этот FOV.
 3. Результат пересчитывается при вводе. Блок **«Как стрелять»** говорит, что делать для выбранного оружия.
 4. Прямая наводка (гранатомёты, пушки): совместите метку оверлея с целью и стреляйте.
@@ -130,6 +130,8 @@ Tips / Советы:
 | — | Distance + / − (bind in Settings) — дистанция + / − (назначается в настройках) |
 | F7 | AGS-17 auto-hold / mortar auto-lay, when enabled — автозажатие S АГС-17 / автонаводка миномёта, если включено |
 
+When F7 cannot start a lay (no target, the keyboard cannot be read, W cannot be sent, a weapon not laid by a key) or a lay stops short (the sight or the compass is lost, the key moved nothing, too many moves), the overlay line says why, e.g. `F7: no target, enter a distance in range` or `Elevation lay stopped: the key moved nothing (end of travel?)`; F7 again or another weapon clears it. A lay you stop yourself shows no ✗. A new SquadCalc target during the elevation part of a mortar lay starts the lay again from the bearing. The overlay angles follow *Primary angle unit*. / Если F7 не может начать наводку (нет цели, клавиатура не читается, нельзя нажать W, оружие не наводится клавишей) или наводка остановилась раньше цели (прицел или компас пропали, клавиша ничего не сдвинула, слишком много движений), строка оверлея пишет почему; повторное F7 или другое оружие её убирает. Остановленная вами наводка не показывает ✗. Новая цель SquadCalc во время наводки миномёта по углу начинает наводку заново с азимута. Углы на оверлее — в единицах «Primary angle unit».
+
 Hotkeys can be changed in **Settings**. They are global, so they work while the game is focused, when the keys can be read (see *Linux* below). / Клавиши меняются в **Настройках**. Они глобальные и работают поверх игры, когда программа видит клавиатуру (см. *Linux* ниже).
 
 ### The mark / Метка
@@ -146,8 +148,10 @@ The app runs on Linux only, from source: `pip install -r requirements.txt` and `
 
 The app reads the keyboard in one of two ways: / Клавиатура читается одним из двух способов:
 
-* **input group / группа input** (any session, X11 or Wayland): `sudo usermod -aG input $USER`, then log out and in. / Любая сессия; после команды перезайдите в систему.
+* **input group / группа input** (any session, X11 or Wayland): `sudo usermod -aG input $USER`, then log out and in. Mind what it grants: every program you run can then read every key you press, passwords included, not only this app. A keyboard plugged in or reconnected later (a KVM switch, a dock, Bluetooth) is picked up within a few seconds. / Любая сессия; после команды перезайдите в систему. Учтите, что это даёт: любая ваша программа сможет читать все нажатия клавиш, включая пароли, а не только эта. Клавиатура, подключённая или переподключённая позже (KVM, док-станция, Bluetooth), подхватывается за несколько секунд.
 * **X11 / XWayland** without extra rights, while the game window has the focus (Proton games run on XWayland). / Без прав, пока в фокусе окно игры (игры Proton работают через XWayland).
+
+The auto-lay presses W, S, A and D by their position on a US QWERTY keyboard (Linux key codes), not by the letter: with AZERTY, Dvorak, Colemak or a key remapper, or with the game's movement keys rebound, the lay moves the wrong way or not at all. Keep the game on the default W/A/S/D bindings for the mortar and the AGS-17. / Автонаводка нажимает W, S, A и D по их месту на клавиатуре US QWERTY (коды клавиш Linux), а не по букве: при AZERTY, Dvorak, Colemak, переназначении клавиш или других клавишах движения в игре наводка пойдёт не туда или не пойдёт. Для миномёта и АГС-17 оставьте в игре стандартные W/A/S/D.
 
 The mortar's "lay finished" beep is played with `pw-play`, `paplay` or `aplay`, whichever is installed. The game still receives the hotkeys, so bind keys the game does not use. / Сигнал окончания наводки миномёта играет `pw-play`, `paplay` или `aplay` — что установлено. Игра тоже получает горячие клавиши: назначайте те, что игра не использует.
 
@@ -224,3 +228,5 @@ Every push runs the tests on GitHub Actions (**tests**). A release is a tag `v<v
 The old `configs/config.json` of versions ≤ 1.1.0 (relative to the working directory) is migrated automatically. / Старый `configs/config.json` версий ≤ 1.1.0 переносится автоматически.
 
 `assets/fonts/RobotoCondensed-Digits.ttf` is the digits of Roboto Condensed (© The Roboto Project Authors), used by the sight reader, under the SIL Open Font License 1.1 (`assets/fonts/RobotoCondensed-OFL.txt`). / Цифры шрифта Roboto Condensed для чтения прицела, лицензия SIL OFL 1.1.
+
+The sidebar icons in `assets/icons/` (bullseye, crosshairs, sliders-h, map) are Font Awesome Free 5.15.4 icons by Fonticons, Inc. (https://fontawesome.com), under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); the attribution is in each file. They are only tinted. / Иконки боковой панели — Font Awesome Free 5.15.4, лицензия CC BY 4.0, только перекрашены.

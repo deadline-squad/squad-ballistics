@@ -318,3 +318,103 @@ def test_key_state_is_reported():
     timer.poll()
     assert (timer.s_down, timer.w_down) == (False, False)
     assert changes
+
+
+def test_s_held_through_a_ui_freeze_counts_the_whole_freeze():
+    """#3 item 25: S down before and after a 300 ms hitch was held all along."""
+    timer, keys, clock = make_polled_timer()
+
+    timer.set_target(5.0)
+    keys.add(KEY_S)
+    clock.now += 0.01
+    timer.poll()
+    held = timer.held
+
+    clock.now += 0.3
+    timer.poll()
+
+    assert timer.held == pytest.approx(held + 0.3)
+
+
+def test_a_key_that_changed_across_a_freeze_counts_at_most_the_cap():
+    timer, keys, clock = make_polled_timer()
+
+    timer.set_target(5.0)
+    keys.add(KEY_S)
+    clock.now += 0.01
+    timer.poll()
+    held = timer.held
+
+    # S released at an unknown moment of the freeze
+    keys.discard(KEY_S)
+    clock.now += 0.3
+    timer.poll()
+    assert timer.held == pytest.approx(held)
+
+    # W down through a freeze resets, it does not count S
+    keys.update({KEY_S, KEY_W})
+    clock.now += 0.3
+    timer.poll()
+    assert timer.held == 0.0
+
+
+def test_suspended_keys_are_not_counted_until_w_after_resume():
+    """#3 item 17: the taps of a lay on the sight neither count nor reset,
+    and the count then says it is no lay from the top."""
+    timer, _keys = make_timer()
+
+    timer.advance(0.01, s_down=False, w_down=True)
+    timer.advance(2.0, s_down=True, w_down=False)
+    assert timer.measures_lay
+
+    timer.suspend()
+    timer.advance(0.05, s_down=False, w_down=True)
+    timer.advance(0.5, s_down=True, w_down=False)
+    assert timer.held == pytest.approx(2.0)
+    assert not timer.measures_lay
+
+    timer.resume()
+    timer.advance(0.5, s_down=True, w_down=False)
+    assert not timer.measures_lay
+
+    timer.advance(0.01, s_down=False, w_down=True)
+    assert timer.measures_lay and timer.held == 0.0
+
+
+def test_a_w_held_through_resume_is_not_a_new_press():
+    timer, _keys = make_timer()
+
+    timer.advance(1.0, s_down=True, w_down=False)
+    timer.suspend()
+    timer.advance(0.05, s_down=False, w_down=True)
+    timer.resume()
+    timer.advance(0.05, s_down=False, w_down=True)
+
+    assert not timer.measures_lay
+
+
+class SwitchingReader:
+    """A key reader whose keyboard can be unplugged (EvdevReader-like)."""
+
+    def __init__(self):
+        self.available = True
+
+    def __call__(self, code):
+        return False
+
+
+def test_available_follows_the_readers_keyboards_and_polling_goes_on():
+    reader = SwitchingReader()
+    timer = HoldTimer(reader)
+
+    assert timer.available
+
+    reader.available = False
+    assert not timer.available
+
+    # Polling is what finds the keyboard again: it starts all the same
+    timer.set_active(True)
+    assert timer.active
+
+    reader.available = True
+    assert timer.available

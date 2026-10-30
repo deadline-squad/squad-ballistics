@@ -2,9 +2,10 @@
 
 Played through a system player (PipeWire, PulseAudio or ALSA) on a small
 generated WAV file, so it does not block the UI; the Qt beep is the last
-resort.
+resort. The file is made once per run and deleted when the app exits.
 """
 
+import atexit
 import os
 import shutil
 import struct
@@ -45,6 +46,21 @@ def beep_wav(frequency=BEEP_FREQUENCY, duration_ms=BEEP_MS, rate=22050):
 _beep_file = None
 
 
+def remove_beep_file():
+    """Delete the WAV file of this run, if one was made (at exit)."""
+    global _beep_file
+
+    path, _beep_file = _beep_file, None
+
+    if path is None:
+        return
+
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+
+
 def linux_beep_command():
     """Command that plays the beep on Linux, None without a player."""
     global _beep_file
@@ -61,6 +77,9 @@ def linux_beep_command():
 
         with os.fdopen(handle, "wb") as f:
             f.write(beep_wav())
+
+        if _beep_file is None:
+            atexit.register(remove_beep_file)
 
         _beep_file = path
 

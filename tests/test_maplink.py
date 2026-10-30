@@ -57,6 +57,17 @@ def test_bridge_with_weapon():
     (42, None),
     (["RPG-29"], None),
     ("x" * 201, None),
+    # Control and format characters are never part of a weapons.json name
+    ("RPG-29\n", "RPG-29"),
+    ("RPG\n-29", None),
+    ("RPG-29\x00", None),
+    ("\x1b[31mRPG-29", None),
+    ("RPG-\u202e92", None),
+    ("RPG\u200b-29", None),
+    ("RPG-29\u2028x", None),
+    ("RPG-29\ue000", None),
+    ("MK19 · M1151 / RHIB open turret", "MK19 · M1151 / RHIB open turret"),
+    ("Tank HEAT/HE · M256 — ×3", "Tank HEAT/HE · M256 — ×3"),
 ])
 def test_weapon_names(value, name):
     assert parse_weapon_name(value) == name

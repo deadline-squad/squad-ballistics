@@ -3,7 +3,6 @@ import math
 import os
 import sys
 
-import qtawesome as qta
 
 from PyQt6.QtCore import (
     Qt,
@@ -86,7 +85,7 @@ from keystate import KEY_A, KEY_D, KEY_S, KEY_W, system_key_reader
 from overlay import Overlay
 
 from compassreader import DigitReader
-from sightlay import BEARING, CompassReader, ScreenSight, SightLayer, read_sight
+from sightlay import MAX_MOVES, BEARING, CompassReader, ScreenSight, SightLayer, read_sight
 
 from sightreader import LabelTemplates
 
@@ -231,6 +230,11 @@ class MainWindow(QMainWindow):
         self.bearing_info = ""
         self.own_compass_reader = None
 
+        # Why the auto-lay key did nothing or the last lay stopped short
+        # (overlay); kept until the key is pressed again or the weapon
+        # changes.
+        self.lay_info = ""
+
         self.sight_timer = QTimer(self)
         self.sight_timer.setInterval(SIGHT_WATCH_MS)
         self.sight_timer.timeout.connect(self.watch_sight)
@@ -287,6 +291,8 @@ class MainWindow(QMainWindow):
         self.apply_auto_hold()
 
         self.build_ui()
+
+        self.watch_monitors()
 
         # Only after the UI exists: a hotkey may fire right away.
         setup_hotkeys(self)
@@ -381,17 +387,20 @@ class MainWindow(QMainWindow):
 
         self.nav_buttons = []
 
+        # Font Awesome Free 5.15.4 solid icons (CC BY 4.0, attribution in
+        # each file), tinted with theme.TEXT. Files instead of qtawesome,
+        # whose import and fonts cost ~0.2 s of the start for four icons.
         for index, (icon, key) in enumerate([
-            ("fa5s.bullseye", "nav_calc"),
-            ("fa5s.crosshairs", "nav_crosshair"),
-            ("fa5s.sliders-h", "nav_settings"),
-            ("fa5s.map", "nav_web")
+            ("bullseye", "nav_calc"),
+            ("crosshairs", "nav_crosshair"),
+            ("sliders-h", "nav_settings"),
+            ("map", "nav_web")
         ]):
             button = QPushButton()
 
             button.setObjectName("nav")
 
-            button.setIcon(qta.icon(icon, color=theme.TEXT))
+            button.setIcon(QIcon(resource_path(f"assets/icons/{icon}.svg")))
 
             button.setIconSize(QSize(20, 20))
 
@@ -400,6 +409,9 @@ class MainWindow(QMainWindow):
             button.setCheckable(True)
 
             button.setToolTip(tr(key))
+
+            # Icon only: screen readers need the page's name
+            button.setAccessibleName(tr(key))
 
             button.setCursor(Qt.CursorShape.PointingHandCursor)
 
@@ -481,6 +493,9 @@ class MainWindow(QMainWindow):
         self.picker = WeaponPicker()
 
         self.picker.set_data(self.weapon_groups(), self.recent_weapons())
+
+        # Vehicles and mounts are named in the notes: "M1117" finds "MK19".
+        self.picker.set_notes({name: weapon.note for name, weapon in self.weapons.items()})
 
         # A saved weapon that weapons.json no longer has falls back to the first.
         current = self.config["last_weapon"]
@@ -761,8 +776,10 @@ class MainWindow(QMainWindow):
 
         self.show_trim()
 
-        # The calibration status is about the previous weapon.
+        # The calibration status and the lay's note are about the previous
+        # weapon.
         self.lay_status.setText("")
+        self.set_lay_info("")
 
         self.solution_weapon.setText(name)
 
@@ -905,11 +922,18 @@ class MainWindow(QMainWindow):
         self.recalculate_if_ready()
 
     def on_input_edited(self, *_):
+        """An input was typed in: solve it (while typing, with auto-calc).
+
+        Without auto-calc an emptied distance still clears the result: the
+        overlay must not keep showing a shot for a distance that is gone.
+        """
         if self.sender() in (self.distance_entry, self.height_entry):
             self.forget_map_target()
 
         if self.config["auto_calc"]:
             self.calc_timer.start()
+        elif not self.distance_entry.text().strip():
+            self.calculate(show_errors=False)
 
     # =========================
     # TARGETS FROM THE MAP
@@ -948,6 +972,8 @@ class MainWindow(QMainWindow):
 
         # The distance was just filled: any remaining error (FOV) is real.
         self.calculate()
+
+        self.restart_lay_for_new_target()
 
     def on_map_weapon(self, name):
         """Switch to the weapon selected in SquadCalc (with `map_follow`).
@@ -995,16 +1021,13 @@ class MainWindow(QMainWindow):
         self.map_label.setText(text)
 
     def recalculate_if_ready(self):
-        # The FOV, the calibration or the centre may have changed.
+        """Solve again after the weapon, the FOV, the calibration or the
+        centre changed. Without a distance the result is cleared (the mark
+        waits at the centre, or stays hidden for weapons laid by
+        elevation), so nothing of the previous weapon stays on the overlay."""
         self.update_ladder()
 
-        if self.distance_entry.text().strip():
-            self.calculate(show_errors=False)
-        else:
-            # No shot yet: the mark waits at the centre, or stays hidden for
-            # weapons laid by elevation.
-            self.last_solution = None
-            self.overlay.set_offset(self.current_offset())
+        self.calculate(show_errors=False)
 
     def primary_unit(self, weapon):
         mode = self.config["unit_mode"]
@@ -1168,6 +1191,9 @@ class MainWindow(QMainWindow):
         self.show_solution(weapon, solution, fov)
 
     def show_unreachable(self, weapon, solution):
+        """The target cannot be hit: say why, in the weapon's angle unit."""
+        unit = self.primary_unit(weapon)
+
         self.overlay.set_offset(self.current_offset())
 
         self.set_overlay_info("")
@@ -1184,17 +1210,17 @@ class MainWindow(QMainWindow):
             lowest, top = weapon.hold_elevation
             text = tr(
                 "how_unreachable_hold",
-                angle=f"{solution.angle:.1f}",
-                low=f"{lowest:g}",
-                high=f"{top:g}"
+                angle=format_angle(solution.angle, unit),
+                low=format_angle(lowest, unit),
+                high=format_angle(top, unit)
             )
         else:
             low, high = weapon.elevation_limits
             text = tr(
                 "how_unreachable_limit",
-                angle=f"{solution.angle:.1f}",
-                low=f"{low:g}",
-                high=f"{high:g}"
+                angle=format_angle(solution.angle, unit),
+                low=format_angle(low, unit),
+                high=format_angle(high, unit)
             )
 
         self.sub_label.setText(text)
@@ -1251,7 +1277,7 @@ class MainWindow(QMainWindow):
 
         if direct is not None:
             info += "  ·  " + tr(
-                "direct_short", angle=format_angle(direct.sight_angle, "deg")
+                "direct_short", angle=format_angle(direct.sight_angle, unit)
             )
 
             if direct_obstacle is not None:
@@ -1483,8 +1509,9 @@ class MainWindow(QMainWindow):
         self.show_overlay_info()
 
     def show_overlay_info(self):
-        """The overlay label: the solution, the bearing, the sight."""
-        parts = (self.info_base, self.bearing_info, self.sight_info)
+        """The overlay label: the solution, the bearing, the sight, and why
+        the auto-lay did not run or stopped short."""
+        parts = (self.info_base, self.bearing_info, self.sight_info, self.lay_info)
 
         self.overlay.set_info("  ·  ".join(part for part in parts if part))
 
@@ -1574,13 +1601,20 @@ class MainWindow(QMainWindow):
 
         The barrel went down from the top for the time S was held since the
         last W (the hold timer's count, auto-lay or by hand), so the rate is
-        (top - shown angle) / held. The mils are the typed ones, or read off
+        (top - shown angle) / held. A lay on the sight moves the barrel in
+        taps that do not start at the top, so after one the rate is not
+        fitted until W is pressed again. The mils are the typed ones, or read off
         the sight on the screen when none are typed. Returns True when the
         rate was saved; otherwise the status says what is missing.
         """
         weapon = self.current_weapon()
         mils = self.lay_entry.value()
         held = self.hold_timer.held
+
+        # After a lay on the sight `held` is only its last taps of S
+        if self.lays_by_sight(weapon) and not self.hold_timer.measures_lay:
+            self.lay_status.setText(tr("lay_after_sight"))
+            return False
 
         # Nothing typed: the mils the sight shows on the screen
         if mils is None and self.config["sight_reader"] and self.lays_by_sight(weapon):
@@ -1664,10 +1698,13 @@ class MainWindow(QMainWindow):
 
         Mortars are laid on their sight when it is seen on the screen (W or
         S until it shows the target), otherwise from scratch: W to the top
-        first, then S for the hold time.
+        first, then S for the hold time. When nothing can be started the
+        overlay says why (see `timed_lay_blocker`).
         """
         layer = self.sight_layer
         turning = self.bearing_layer
+
+        self.set_lay_info("")
 
         if turning is not None and turning.active:
             turning.stop()
@@ -1678,7 +1715,8 @@ class MainWindow(QMainWindow):
             return
 
         weapon = self.current_weapon()
-        on_screen = not self.hold_timer.auto_holding \
+        timer = self.hold_timer
+        on_screen = not timer.auto_holding \
             and self.config["sight_reader"] and self.lays_by_sight(weapon)
 
         # A map target's bearing first (then the elevation, see
@@ -1687,11 +1725,84 @@ class MainWindow(QMainWindow):
             self.sight_timer.stop()
             return
 
-        if on_screen and layer is not None and layer.start():
-            self.sight_timer.stop()
+        if on_screen and self.start_sight_lay():
             return
 
-        self.hold_timer.toggle_auto_hold(self.lay_reset_time(weapon))
+        if timer.auto_holding:
+            timer.toggle_auto_hold()
+            return
+
+        blocker = self.timed_lay_blocker(weapon)
+
+        if blocker is None and not timer.toggle_auto_hold(self.lay_reset_time(weapon)):
+            # Nothing left to hold: S was held for the whole time already
+            blocker = "lay_key_held"
+
+        if blocker is not None:
+            self.set_lay_info(tr(blocker, key=self.config["hotkeys"].get("auto_hold", "")))
+
+    def timed_lay_blocker(self, weapon):
+        """Why the timed lay of `weapon` cannot start, as the i18n key of
+        the reason, or None when it can."""
+        timer = self.hold_timer
+
+        if weapon is None or not weapon.has_hold:
+            return "lay_key_weapon"
+
+        if timer.auto_hold is None:
+            return "lay_key_no_keys"
+
+        if self.lay_reset_time(weapon) > 0 and timer.auto_hold.reset_injector is None:
+            return "lay_key_no_w"
+
+        if not timer.active or not timer.available:
+            return "lay_key_no_reader"
+
+        if timer.target is None:
+            return "lay_key_no_target"
+
+        return None
+
+    def start_sight_lay(self):
+        """Start laying the elevation on the mortar's sight; False when it
+        cannot (no lay, no target, the sight not seen).
+
+        The hold timer stops counting meanwhile: the lay's taps of W and S
+        are not a lay from the top (see HoldTimer.suspend).
+        """
+        layer = self.sight_layer
+
+        if layer is None or not layer.start():
+            return False
+
+        self.hold_timer.suspend()
+        self.sight_timer.stop()
+
+        return True
+
+    def set_lay_info(self, text):
+        """Show on the overlay why the auto-lay did not run or stopped."""
+        if text == self.lay_info:
+            return
+
+        self.lay_info = text
+        self.show_overlay_info()
+
+    @staticmethod
+    def lay_failure_text(layer, axis):
+        """Why `layer`'s lay stopped short, for the overlay; "" when it is
+        on the target or the player stopped it. `axis` names what was laid
+        ("lay_bearing" or "lay_elevation")."""
+        failure = layer.failure
+
+        if failure is None or failure == "stopped":
+            return ""
+
+        return tr(
+            "lay_failed",
+            what=tr(axis),
+            why=tr(f"lay_why_{failure}", moves=MAX_MOVES)
+        )
 
     @staticmethod
     def lays_by_sight(weapon):
@@ -1747,8 +1858,16 @@ class MainWindow(QMainWindow):
 
         return path
 
+    def laying(self):
+        """Whether a lay on the screen (bearing or elevation) is running."""
+        return any(
+            layer is not None and layer.active
+            for layer in (self.bearing_layer, self.sight_layer)
+        )
+
     def update_sight_watch(self):
-        """Read the sight periodically while a mortar is selected."""
+        """Read the sight periodically while a mortar is selected and no
+        lay is running (a lay reads the screen itself)."""
         watch = self.config["sight_reader"] and self.lays_by_sight(self.current_weapon())
 
         if not watch:
@@ -1757,9 +1876,7 @@ class MainWindow(QMainWindow):
             self.set_bearing_info("")
             return
 
-        if not self.sight_timer.isActive() and not (
-            self.sight_layer is not None and self.sight_layer.active
-        ):
+        if not self.sight_timer.isActive() and not self.laying():
             self.sight_timer.start()
 
     def watch_sight(self):
@@ -1831,26 +1948,69 @@ class MainWindow(QMainWindow):
         self.bearing_info = text
         self.show_overlay_info()
 
+    @staticmethod
+    def lay_mark(layer, on_target):
+        """✓ on the target, ✗ when the lay stopped short by itself, nothing
+        when the player stopped it."""
+        if on_target:
+            return "  ✓"
+
+        return "" if layer is not None and layer.stopped else "  ✗"
+
     def on_bearing_lay_finished(self, reading, on_target):
         """The bearing is laid (or could not be): lay the elevation next,
         unless the player stopped the lay."""
-        self.show_bearing_reading(reading, "  ✓" if on_target else "  ✗")
+        turning = self.bearing_layer
 
-        layer = self.sight_layer
-        stopped = self.bearing_layer is not None and self.bearing_layer.stopped
+        self.show_bearing_reading(reading, self.lay_mark(turning, on_target))
 
-        if stopped or layer is None or not layer.start():
+        if turning is not None:
+            self.set_lay_info(self.lay_failure_text(turning, "lay_bearing"))
+
+        stopped = turning is not None and turning.stopped
+
+        if stopped or not self.start_sight_lay():
             self.update_sight_watch()
 
     def on_sight_lay_finished(self, reading, on_target):
-        """The lay on the sight ended: show where it stopped, beep on target,
-        and go back to watching the sight."""
-        self.show_sight_reading(reading, "  ✓" if on_target else "  ✗")
+        """The lay on the sight ended: show where it stopped and why it
+        stopped short, beep on target, and go back to watching the sight."""
+        layer = self.sight_layer
+
+        self.hold_timer.resume()
+
+        self.show_sight_reading(reading, self.lay_mark(layer, on_target))
+
+        failure = "" if layer is None else self.lay_failure_text(layer, "lay_elevation")
+
+        # A failure of the bearing before it stays unless this one replaces it
+        if failure:
+            self.set_lay_info(failure)
 
         if on_target:
             beep()
 
         self.update_sight_watch()
+
+    def restart_lay_for_new_target(self):
+        """A new map target arrived while the elevation is being laid: lay
+        again from the bearing, which the new target changes too. During
+        the bearing phase nothing is needed: its target follows the map."""
+        layer, turning = self.sight_layer, self.bearing_layer
+
+        if layer is None or not layer.active or turning is None \
+                or self.bearing_target() is None:
+            return
+
+        layer.stop()
+
+        self.set_lay_info("")
+
+        if turning.start():
+            self.sight_timer.stop()
+        else:
+            # The compass is not seen: at least the elevation is laid again
+            self.start_sight_lay()
 
     def apply_auto_hold(self):
         """Create or drop the key injector according to the setting.
@@ -2244,8 +2404,7 @@ class MainWindow(QMainWindow):
         column.addWidget(self.build_interface_card())
         column.addWidget(self.build_calc_settings_card())
 
-        if len(QGuiApplication.screens()) > 1:
-            column.addWidget(self.build_overlay_card())
+        column.addWidget(self.build_overlay_card())
 
         column.addWidget(self.build_map_card())
         column.addWidget(self.build_hotkeys_card())
@@ -2385,23 +2544,76 @@ class MainWindow(QMainWindow):
         return frame
 
     def build_overlay_card(self):
+        """The monitor choice; shown only with more than one monitor."""
         frame, layout = card()
+
+        self.overlay_card = frame
 
         layout.addWidget(label(tr("s_overlay"), "title"))
 
-        monitors = [
-            (index, f"{index + 1}: {screen.name()} "
-                    f"({screen.geometry().width()}×{screen.geometry().height()})")
-            for index, screen in enumerate(QGuiApplication.screens())
-        ]
+        self.monitor_box = self.combo([], None, self.set_monitor)
 
-        self.setting_row(
-            layout,
-            tr("s_monitor"),
-            self.combo(monitors, self.config["monitor"], self.set_monitor)
-        )
+        self.setting_row(layout, tr("s_monitor"), self.monitor_box)
+
+        self.update_monitor_choice()
 
         return frame
+
+    @staticmethod
+    def shown_monitor(index):
+        """Index in QGuiApplication.screens() of the monitor the overlay is
+        on for the saved `index`: that one, or the primary monitor when it
+        no longer exists (as Overlay.move_to_screen does)."""
+        screens = QGuiApplication.screens()
+
+        if 0 <= index < len(screens):
+            return index
+
+        primary = QGuiApplication.primaryScreen()
+
+        return screens.index(primary) if primary in screens else 0
+
+    def update_monitor_choice(self, *_):
+        """Refill the monitor list from the monitors there are now and
+        select the one the overlay is on, even when the saved one is gone
+        (the saved choice is kept: the monitor may come back). Called when
+        a monitor is added, removed or changes its resolution."""
+        box = getattr(self, "monitor_box", None)
+
+        if box is None:
+            return
+
+        screens = QGuiApplication.screens()
+
+        box.blockSignals(True)
+        box.clear()
+
+        for index, screen in enumerate(screens):
+            size = screen.geometry()
+            box.addItem(f"{index + 1}: {screen.name()} ({size.width()}×{size.height()})", index)
+
+        box.setCurrentIndex(max(0, box.findData(self.shown_monitor(int(self.config["monitor"])))))
+        box.blockSignals(False)
+
+        self.overlay_card.setVisible(len(screens) > 1)
+
+    def watch_monitors(self):
+        """Keep the monitor list current when monitors come, go or change
+        their resolution (the overlay follows them itself). Bound methods:
+        PyQt drops the connections when the window is deleted."""
+        app = QGuiApplication.instance()
+
+        for screen in app.screens():
+            screen.geometryChanged.connect(self.update_monitor_choice)
+
+        app.screenAdded.connect(self.watch_screen)
+        app.screenRemoved.connect(self.update_monitor_choice)
+
+    def watch_screen(self, screen):
+        """A monitor was added: list it, and follow its resolution."""
+        screen.geometryChanged.connect(self.update_monitor_choice)
+
+        self.update_monitor_choice()
 
     def build_hotkeys_card(self):
         frame, layout = card()

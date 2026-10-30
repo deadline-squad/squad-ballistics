@@ -14,6 +14,7 @@ STRINGS = {
     "search": "Search weapons…",
     "recent": "Recent",
     "nothing_found": "Nothing found",
+    "found_in_notes": "Found in the notes",
     "arc_auto": "Auto",
     "arc_low": "Low",
     "arc_high": "High",
@@ -100,6 +101,30 @@ STRINGS = {
     "compass_reading": "bearing {deg}°",
     "compass_reading_left": "bearing {deg}° ({left})",
     "lay_need_mils": "Type the mils the sight shows",
+    "lay_after_sight": (
+        "The last lay was on the sight (taps of W and S), which says nothing "
+        "about the rate: press W, lay again without the sight, then calibrate"
+    ),
+
+    # Why the auto-lay key did nothing, or why a lay stopped short (overlay)
+    "lay_key_weapon": "{key}: this weapon is not laid by holding a key",
+    "lay_key_no_target": "{key}: no target, enter a distance in range",
+    "lay_key_no_reader": (
+        "{key}: the keyboard cannot be read (input group, or the game on "
+        "X11/XWayland)"
+    ),
+    "lay_key_no_keys": "{key}: the app cannot send key presses here",
+    "lay_key_no_w": "{key}: W cannot be sent, so the barrel cannot go to its top",
+    "lay_key_held": "{key}: S is already held for the target time, press W to lay again",
+    "lay_failed": "{what} lay stopped: {why}",
+    "lay_bearing": "Bearing",
+    "lay_elevation": "Elevation",
+    "lay_why_target": "the target is gone",
+    "lay_why_lost": "it is no longer seen on the screen",
+    "lay_why_moves": "not on the target after {moves} moves",
+    "lay_why_stalled": "the key moved nothing (end of travel?)",
+    "lay_why_timeout": "the move took far too long",
+    "lay_why_error": "an error (see crash.log in the settings folder)",
     "lay_no_grab": "The screen cannot be grabbed (Wayland without X11): type the mils the sight shows",
     "lay_no_sight": "The sight was not read: look through the mortar sight or type the mils. Grab: {path}",
     "how_lay_off": "Auto-lay (S {t} s) can be turned on in the settings: \"Auto-hold S\".",
@@ -130,11 +155,11 @@ STRINGS = {
     ),
     "how_unreachable_close": "Too close: minimum distance is {min} m.",
     "how_unreachable_hold": (
-        "The high arc needs {angle}°, but holding S only moves the barrel "
-        "from {low}° to {high}°. Try the low arc."
+        "The high arc needs {angle}, but holding S only moves the barrel "
+        "from {low} to {high}. Try the low arc."
     ),
     "how_unreachable_limit": (
-        "Needs {angle}°, but the weapon only elevates from {low}° to {high}°. "
+        "Needs {angle}, but the weapon only elevates from {low} to {high}. "
         "Try the other arc."
     ),
 
