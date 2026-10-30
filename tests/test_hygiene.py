@@ -24,8 +24,8 @@ def test_settings_and_caches_live_in_the_test_folder():
 
 
 def test_the_map_profile_lives_in_the_test_folder(qapp):
-    webmap = pytest.importorskip("webmap")
     pytest.importorskip("PyQt6.QtWebEngineCore")
+    import webmap
 
     profile = webmap.shared_profile()
 

@@ -257,3 +257,41 @@ def test_no_x_display_counts_as_a_compositor(monkeypatch):
     monkeypatch.setenv("DISPLAY", ":12345")
 
     assert overlay.x11_compositing_manager_running()
+
+
+def painted_pixels(widget):
+    image = widget.grab().toImage()
+    return sum(
+        1
+        for y in range(0, image.height(), 2)
+        for x in range(0, image.width(), 2)
+        if image.pixelColor(x, y).alpha() > 0
+    )
+
+
+def test_an_aim_that_could_not_be_computed_draws_no_mark(screens):
+    widget = make_overlay(range_ladder=False)
+    widget.setGeometry(0, 0, 400, 300)
+
+    widget.set_offset(40)
+    assert widget.mark_visible and painted_pixels(widget) > 0
+
+    widget.set_offset(float("nan"))
+    assert not widget.mark_visible
+    assert widget.offset == 0.0
+    assert painted_pixels(widget) == 0
+
+    widget.close()
+
+
+@pytest.mark.parametrize("value, top", [(float("inf"), False), (float("-inf"), True)])
+def test_an_infinite_aim_points_off_the_screen(screens, value, top):
+    widget = make_overlay()
+    widget.setGeometry(0, 0, 400, 300)
+
+    widget.set_offset(value)
+
+    assert widget.mark_visible
+    assert widget.is_offscreen(widget.offset)
+    assert (widget.offset < 0) == top
+    widget.close()

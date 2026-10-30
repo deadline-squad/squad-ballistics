@@ -1659,7 +1659,8 @@ def inventory(window, page_index):
         "switches": keys(Toggle),
         "sliders": keys(SliderRow),
         "segmented": [[b.text() for b in row.buttons.values()] for row in page.findChildren(Segmented)],
-        "dropdowns": len(page.findChildren(QComboBox)),
+        # The monitor choice exists with one monitor too, hidden
+        "dropdowns": len([c for c in page.findChildren(QComboBox) if c.isVisibleTo(page)]),
         "swatches": [list(row.buttons) for row in page.findChildren(Swatches)],
         "buttons": [b.text() for b in inside],
     }
@@ -2102,7 +2103,12 @@ def test_range_ladder_is_drawn_left_of_the_centre(window):
 
     # The tick and its label, left of the centre line, clear of the right side
     assert painted and max(painted) < centre
-    assert all(image.pixelColor(x, y).alpha() == 0 for x in range(centre + 40, centre + 120))
+    assert all(image.pixelColor(x, y).alpha() == 0 for x in range(centre, centre + 120))
+
+    # The tick itself ends LADDER_GAP px left of the centre line.
+    from overlay import LADDER_GAP, LADDER_TICK
+    tick = range(centre - LADDER_GAP - LADDER_TICK + 1, centre - LADDER_GAP)
+    assert all(image.pixelColor(x, y).alpha() > 0 for x in tick)
 
 
 def test_hotkey_hint_wraps_only_between_entries(window):

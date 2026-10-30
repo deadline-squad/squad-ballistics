@@ -295,6 +295,10 @@ class MapPage(QWidget):
         self.last_targets = None
         self.last_weapon = None
 
+        # A bridge poll is waiting for the page's answer: no second one is
+        # sent meanwhile (a busy page would queue them up).
+        self.bridge_pending = False
+
         layout = QVBoxLayout(self)
 
         layout.setContentsMargins(16, 12, 16, 16)
@@ -523,6 +527,9 @@ class MapPage(QWidget):
 
         self.bridge_timer.stop()
 
+        # The old page's answer may never come
+        self.bridge_pending = False
+
         self.black_timer.stop()
 
         self.timeout_timer.start()
@@ -555,6 +562,9 @@ class MapPage(QWidget):
 
             self.bridge_timer.start()
         else:
+            # No page, no bridge: the status must not say targets go through
+            self.set_bridge_found(None)
+
             self.show_panel("failed")
 
     def on_timeout(self):
@@ -562,7 +572,15 @@ class MapPage(QWidget):
             self.show_panel("slow")
 
     def on_render_crash(self, status, code):
+        """The page's renderer died: stop polling the dead page (a reload
+        starts it again) and drop its bridge state."""
         self.loading = False
+
+        self.bridge_timer.stop()
+        self.black_timer.stop()
+        self.bridge_pending = False
+
+        self.set_bridge_found(None)
 
         self.progress.hide()
 
@@ -571,8 +589,12 @@ class MapPage(QWidget):
     # ---------- targets ----------
 
     def poll_targets(self):
-        if self.page is None or self.loading:
+        """Ask the page for its targets and weapon (see on_bridge_result);
+        nothing while it loads or while the last question is unanswered."""
+        if self.page is None or self.loading or self.bridge_pending:
             return
+
+        self.bridge_pending = True
 
         self.page.runJavaScript(BRIDGE_SCRIPT, 0, self.on_bridge_result)
 
@@ -593,6 +615,8 @@ class MapPage(QWidget):
         Answers can arrive after `shutdown` (the window is closing); they
         are dropped.
         """
+        self.bridge_pending = False
+
         if self.page is None:
             return
 

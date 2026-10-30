@@ -7,7 +7,9 @@ cannot be read:
 
 * evdev: the keyboards in /dev/input are queried with EVIOCGKEY.
   Works under X11 and Wayland alike, but the user must be allowed to read
-  the devices (member of the `input` group).
+  the devices (member of the `input` group, which lets every program of
+  the user read every keystroke). Keyboards plugged in or reconnected
+  later are found (see EvdevReader).
 * X11: XQueryKeymap on $DISPLAY. Works on an X11 session, and on
   Wayland while an XWayland window has the focus — Squad under Proton is
   one.
@@ -20,6 +22,7 @@ import ctypes.util
 import fcntl
 import glob
 import os
+import time
 
 # Linux input event codes (linux/input-event-codes.h)
 KEY_W = 17
@@ -50,54 +53,135 @@ def _bit(buffer, code):
     return bool(buffer[code // 8] & (1 << (code % 8)))
 
 
-def evdev_reader(paths=None):
-    """Reader over every readable keyboard in /dev/input, None if none.
+# Keyboards are looked for again this often (seconds), so one plugged in
+# after the start (a KVM switch, a dock, a Bluetooth reconnect) is read too.
+RESCAN_SECONDS = 3.0
 
-    A device counts as a keyboard when it reports KEY_S and KEY_W. A key is
-    down when it is down on any of them.
-    """
-    if paths is None:
-        paths = sorted(glob.glob("/dev/input/event*"))
+# After a keyboard stops answering (ENODEV: unplugged) the devices are looked
+# for again at the next read, but not more often than this (seconds): a
+# device that keeps failing must not turn every poll into a scan.
+FAILURE_RESCAN_SECONDS = 0.5
 
-    keyboards = []
 
-    for path in paths:
-        try:
-            fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK | os.O_CLOEXEC)
-        except OSError:
-            continue
-
-        try:
-            capabilities = bytearray(KEY_BYTES)
-            fcntl.ioctl(fd, EVIOCGBIT_KEY, capabilities)
-        except OSError:
-            os.close(fd)
-            continue
-
-        if _bit(capabilities, KEY_S) and _bit(capabilities, KEY_W):
-            keyboards.append(fd)
-        else:
-            os.close(fd)
-
-    if not keyboards:
+def _open_keyboard(path):
+    """A read-only fd on the device at `path` if it is a keyboard (it
+    reports KEY_S and KEY_W), else None (not a keyboard, or unreadable)."""
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK | os.O_CLOEXEC)
+    except OSError:
         return None
 
-    state = bytearray(KEY_BYTES)
+    try:
+        capabilities = bytearray(KEY_BYTES)
+        fcntl.ioctl(fd, EVIOCGBIT_KEY, capabilities)
+    except OSError:
+        os.close(fd)
+        return None
 
-    def reader(code):
-        for fd in keyboards:
+    if _bit(capabilities, KEY_S) and _bit(capabilities, KEY_W):
+        return fd
+
+    os.close(fd)
+
+    return None
+
+
+def _input_devices():
+    """The event devices in /dev/input."""
+    return sorted(glob.glob("/dev/input/event*"))
+
+
+class EvdevReader:
+    """Reads keys off every keyboard in /dev/input: `reader(code) -> bool`.
+
+    A key is down when it is down on any keyboard. The device list is not
+    fixed at the start: it is scanned again every RESCAN_SECONDS, and soon
+    after a keyboard fails (unplugged: its fd answers ENODEV for good), so a
+    keyboard plugged in or reconnected later is read without a restart.
+    Reads happen on the caller's thread (the Qt pollers); nothing runs in
+    the background.
+
+    `list_paths()` gives the device paths to look at; `clock()` the time in
+    seconds (tests pass fakes).
+    """
+
+    def __init__(self, list_paths=_input_devices, clock=time.monotonic):
+        self.list_paths = list_paths
+        self.clock = clock
+        self.keyboards = {}
+        self.state = bytearray(KEY_BYTES)
+        self.next_scan = 0.0
+
+        self.scan()
+
+    @property
+    def available(self):
+        """Whether a keyboard can be read now (False while every keyboard
+        is unplugged; True again once one is back)."""
+        return bool(self.keyboards)
+
+    def scan(self, interval=RESCAN_SECONDS):
+        """Open the keyboards that appeared, close the ones that are gone;
+        the next scan is due `interval` seconds from now."""
+        self.next_scan = self.clock() + interval
+
+        present = set(self.list_paths())
+
+        for path in [p for p in self.keyboards if p not in present]:
+            self.drop(path)
+
+        for path in sorted(present - set(self.keyboards)):
+            fd = _open_keyboard(path)
+
+            if fd is not None:
+                self.keyboards[path] = fd
+
+    def drop(self, path):
+        """Forget the keyboard at `path` and close its fd."""
+        fd = self.keyboards.pop(path)
+
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+
+    def __call__(self, code):
+        """Whether key `code` is down on any keyboard."""
+        if self.clock() >= self.next_scan:
+            self.scan()
+
+        failed = False
+
+        for path, fd in list(self.keyboards.items()):
             try:
-                fcntl.ioctl(fd, EVIOCGKEY, state)
+                fcntl.ioctl(fd, EVIOCGKEY, self.state)
             except OSError:
-                # Unplugged keyboard: its fd stays dead, the others work.
+                # Unplugged: the fd stays dead even if the keyboard comes
+                # back (it gets a new node), so it is closed and the devices
+                # are looked for again.
+                self.drop(path)
+                failed = True
                 continue
 
-            if _bit(state, code):
+            if _bit(self.state, code):
                 return True
+
+        if failed:
+            self.next_scan = min(self.next_scan, self.clock() + FAILURE_RESCAN_SECONDS)
 
         return False
 
-    return reader
+
+def evdev_reader(paths=None):
+    """EvdevReader over the keyboards in /dev/input (or over `paths`), None
+    if none can be read at the start (then X11 is tried instead)."""
+    if paths is None:
+        reader = EvdevReader()
+    else:
+        paths = list(paths)
+        reader = EvdevReader(lambda: paths)
+
+    return reader if reader.available else None
 
 
 def x11_reader():

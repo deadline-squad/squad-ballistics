@@ -4,7 +4,6 @@ import os
 
 import pytest
 
-
 import config
 from ballistics import load_weapons, mark_offset
 from conftest import ROOT

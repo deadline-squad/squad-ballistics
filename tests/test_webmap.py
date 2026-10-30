@@ -217,3 +217,91 @@ def test_new_window_links_open_externally_over_http_only(qapp, opened):
         QUrl("file:///etc/passwd"), QWebEnginePage.NavigationType.NavigationTypeLinkClicked, True
     )
     assert opened == []
+
+
+# ---------- the bridge poll (#3 item 31) ----------
+
+class FakePage:
+    """The QWebEnginePage calls the bridge poll makes; answers by hand."""
+
+    def __init__(self):
+        self.pending = []
+
+    def runJavaScript(self, script, world, callback=None):
+        self.pending.append(callback)
+
+
+BRIDGE_ANSWER = {"targets": [{"distance": 420, "heightDiff": -6, "bearing": 90}], "weapon": "RPG-29"}
+
+
+@pytest.fixture
+def bridge_page(qapp):
+    page = webmap.MapPage({"map_render": "auto", "map_source": "deadline"})
+    page.page = FakePage()
+    yield page
+    page.page = None
+    page.shutdown()
+
+
+def test_no_second_poll_while_the_page_has_not_answered(bridge_page):
+    fake = bridge_page.page
+
+    bridge_page.poll_targets()
+    bridge_page.poll_targets()
+    bridge_page.poll_targets()
+    assert len(fake.pending) == 1
+
+    fake.pending.pop()(BRIDGE_ANSWER)
+    assert bridge_page.bridge_found
+
+    bridge_page.poll_targets()
+    assert len(fake.pending) == 1
+
+
+def test_a_new_load_does_not_wait_for_the_old_pages_answer(bridge_page):
+    bridge_page.poll_targets()
+    bridge_page.on_load_started()
+    bridge_page.on_load_finished(True)
+
+    bridge_page.poll_targets()
+    assert len(bridge_page.page.pending) == 2
+
+
+def test_a_renderer_crash_stops_the_poll_and_forgets_the_bridge(bridge_page):
+    received = []
+    bridge_page.targets_received.connect(received.append)
+    bridge_page.on_load_finished(True)
+    assert bridge_page.bridge_timer.isActive()
+
+    bridge_page.poll_targets()
+    bridge_page.page.pending.pop()(BRIDGE_ANSWER)
+    assert bridge_page.bridge_found and len(received) == 1
+
+    bridge_page.poll_targets()
+    bridge_page.on_render_crash(None, 1)
+
+    assert not bridge_page.bridge_timer.isActive()
+    assert not bridge_page.black_timer.isActive()
+    assert bridge_page.bridge_found is None
+    assert bridge_page.panel_kind == "crashed"
+
+    # After the reload the same targets are delivered again
+    bridge_page.on_load_started()
+    bridge_page.on_load_finished(True)
+    bridge_page.poll_targets()
+    bridge_page.page.pending.pop()(BRIDGE_ANSWER)
+    assert len(received) == 2
+
+
+def test_a_failed_load_forgets_the_bridge(bridge_page):
+    bridge_page.on_load_finished(True)
+    bridge_page.poll_targets()
+    bridge_page.page.pending.pop()(BRIDGE_ANSWER)
+    assert bridge_page.bridge_found
+
+    bridge_page.on_load_started()
+    bridge_page.on_load_finished(False)
+
+    assert bridge_page.bridge_found is None
+    assert bridge_page.last_targets is None
+    assert bridge_page.panel_kind == "failed"

@@ -149,10 +149,9 @@ def acquire_instance_lock(lock_dir=None, wait_ms=INSTANCE_LOCK_WAIT_MS):
 
     Two instances would draw two overlays, poll every hotkey twice, create
     two virtual keyboards and race on config.json. The lock is held for the
-    life of the process; a lock left by a process that is gone (a crash, a
-    kill) is taken over at once. A held lock never goes stale by age
-    (`setStaleLockTime(0)`), otherwise a second start after 30 s (Qt's
-    default) would take it from a running instance.
+    life of the process. Qt also holds a kernel lock on the file while the
+    process lives, so a running instance keeps it however old it is, and a
+    lock left by a process that is gone (a crash, a kill) is taken over.
     """
     lock_dir = lock_dir or config_dir()
 
@@ -162,8 +161,6 @@ def acquire_instance_lock(lock_dir=None, wait_ms=INSTANCE_LOCK_WAIT_MS):
         pass
 
     lock = QLockFile(os.path.join(lock_dir, INSTANCE_LOCK_NAME))
-
-    lock.setStaleLockTime(0)
 
     if lock.tryLock(wait_ms):
         return lock

@@ -483,26 +483,26 @@ class Overlay(QWidget):
         return QRectF(left, y - height / 2, room, height)
 
     def set_offset(self, value):
-        """Move the aim mark `value` pixels below the centre; None hides it.
+        """Move the aim mark `value` pixels below the centre; None or NaN
+        hides it.
 
         None is for weapons laid by elevation on their own sight (mortars,
         rocket artillery): a mark on the screen would point nowhere useful.
+        NaN is an aim that could not be computed: a mark at the centre would
+        point at the wrong range, so none is drawn. ±infinity keeps its
+        direction and shows as the edge arrow.
         """
-        if value is None:
+        if value is None or math.isnan(value):
             self.mark_visible = False
             self.offset = 0.0
             self.update()
             return
 
         self.mark_visible = True
-        value = float(value)
-
-        if math.isnan(value):
-            value = 0.0
 
         # Off-screen offsets only need to keep their direction.
         limit = self.height() * 2
-        self.offset = max(-limit, min(limit, value))
+        self.offset = max(-limit, min(limit, float(value)))
         self.update()
 
     def paintEvent(self, event):

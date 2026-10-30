@@ -1,5 +1,6 @@
 import math
 import os
+import re
 
 import pytest
 
@@ -309,30 +310,39 @@ def zero_range(weapon, bore):
 # weapon's barrel socket (`Attach_Muzzle*` of its skeleton, composed with the
 # bone rotations), the pitch of the tripod's `AdsCamera1pPositionComponent`
 # against the gun mount (the plain camera, `FirstPersonVehicleCam`, sits at
-# 0 on the mount) and the divisor the RMB handler puts on the FOV
-# (`SetFieldOfView(UserSettings.FOV / k)`, None: no RMB sight).
-# The shot leaves `socket` above the plain camera's centre and
-# `socket - ads_camera` above the RMB camera's. Each entry has one view: the
-# RMB sight's when the weapon has one, else the plain camera's.
+# 0 on the mount), the divisor the RMB handler puts on the FOV
+# (`SetFieldOfView(UserSettings.FOV / k)`, None: no RMB sight; the ZiS-3's
+# ×4 is its second `ZoomLevels` entry, the first is ×1) and the view the
+# entry is aimed through: RMB (the sight) or PLAIN (the normal view, which
+# keeps the game's FOV). The shot leaves `socket` above the plain camera's
+# centre and `socket - ads_camera` above the RMB camera's. Each entry has one
+# view; a weapon with an RMB sight has one entry per view.
+RMB, PLAIN = "rmb", "plain"
+
 EMPLACED_GEOMETRY = {
-    "QLZ87": (-0.9, -1.6738, 3.0),
-    "MK19 · emplacement / C16 / L134A1": (0.0, -1.6738, 1.0),
-    "AGS-17 · emplacement": (0.85, 0.0, 2.5),
-    "AGS-17 · iron sights emplacement": (4.5, None, None),
-    "SPG-9 · HEAT": (0.13, None, None),
-    "SPG-9 · FRAG": (0.13, None, None),
-    "SPG-9 · HEAT · scope": (2.34, 0.0, 4.0),
-    "SPG-9 · FRAG · scope": (2.34, 0.0, 4.0),
-    "ZiS-3": (0.4, 0.0, 4.0),
+    "QLZ87": (-0.9, -1.6738, 3.0, RMB),
+    "QLZ87 · no optic": (-0.9, -1.6738, 3.0, PLAIN),
+    "MK19 · emplacement / C16 / L134A1": (0.0, -1.6738, 1.0, RMB),
+    "AGS-17 · emplacement": (0.85, 0.0, 2.5, RMB),
+    "AGS-17 · emplacement · no optic": (0.85, 0.0, 2.5, PLAIN),
+    "AGS-17 · iron sights emplacement": (4.5, None, None, PLAIN),
+    "SPG-9 · HEAT": (0.13, None, None, PLAIN),
+    "SPG-9 · FRAG": (0.13, None, None, PLAIN),
+    "SPG-9 · HEAT · scope": (2.34, 0.0, 4.0, RMB),
+    "SPG-9 · HEAT · scope · no optic": (2.34, 0.0, 4.0, PLAIN),
+    "SPG-9 · FRAG · scope": (2.34, 0.0, 4.0, RMB),
+    "SPG-9 · FRAG · scope · no optic": (2.34, 0.0, 4.0, PLAIN),
+    "ZiS-3": (0.4, 0.0, 4.0, RMB),
+    "ZiS-3 · no optic": (0.4, 0.0, 4.0, PLAIN),
 }
 
 
 @pytest.mark.parametrize("name", EMPLACED_GEOMETRY)
 def test_weapons_json_matches_the_tripod_geometry(name):
-    socket, ads_camera, divisor = EMPLACED_GEOMETRY[name]
+    socket, ads_camera, divisor, view = EMPLACED_GEOMETRY[name]
     weapon = WEAPONS[name]
 
-    if divisor is None:
+    if view == PLAIN:
         assert weapon.bore == pytest.approx(socket, abs=0.01)
         assert weapon.zoom == 0
         assert weapon.sight_view(90) == (90, weapon.bore)
@@ -341,6 +351,68 @@ def test_weapons_json_matches_the_tripod_geometry(name):
     assert weapon.bore == pytest.approx(socket - ads_camera, abs=0.01)
     assert weapon.zoom == (divisor if divisor > 1 else 0)
     assert weapon.sight_view(90) == (90 / divisor, weapon.bore)
+
+
+NO_OPTIC = " · no optic"
+
+
+def aimed_through_rmb(weapon):
+    """Whether the note says the entry is for the sight RMB zooms to its
+    `zoom` (not merely that such a sight exists)."""
+    return re.search(rf"aimed through (its|the) \w+ \(RMB, ×{weapon.zoom:g}\)", weapon.note) is not None
+
+
+# Entries aimed through a sight that zooms the screen on RMB: the same gun can
+# be fired from its normal view, so each has a "· no optic" twin.
+RMB_SIGHTS = [name for name, weapon in WEAPONS.items() if weapon.zoom > 1 and aimed_through_rmb(weapon)]
+
+
+def test_the_rmb_sights_are_the_known_ones():
+    assert sorted(RMB_SIGHTS) == sorted([
+        "QLZ87",
+        "QLZ87 · Lynx / CSK131",
+        "AGS-17 · emplacement",
+        "SPG-9 · HEAT · scope",
+        "SPG-9 · FRAG · scope",
+        "ZiS-3",
+    ])
+
+
+@pytest.mark.parametrize("name", [n for n, w in WEAPONS.items() if w.zoom > 1])
+def test_every_zoomed_entry_names_its_view(name):
+    """A zoomed entry's mark is only right in that view: the note says it is
+    aimed through the RMB sight or the gunner's sight, at its zoom."""
+    weapon = WEAPONS[name]
+    gunner = f"the gunner's sight at its first zoom level, ×{weapon.zoom:g}"
+
+    assert aimed_through_rmb(weapon) or gunner in weapon.note
+
+
+@pytest.mark.parametrize("name", RMB_SIGHTS)
+def test_every_rmb_sight_has_a_no_optic_twin(name):
+    """The QLZ87 trap: an entry for the ×3 optic used from the normal view
+    puts the mark three times too low and the shot far past the target. The
+    twin has the same gun and only the normal view's bore and zoom."""
+    optic = WEAPONS[name]
+    twin = WEAPONS[name + NO_OPTIC]
+
+    assert f'"{name + NO_OPTIC}"' in optic.note
+    assert f'"{name}"' in twin.note
+    assert "aimed from the normal view: no RMB, no zoom (×1)" in twin.note
+    assert f"(RMB, ×{optic.zoom:g})" in twin.note
+    assert twin.zoom == 0
+    assert twin.sight_view(120) == (120, twin.bore)
+
+    same_gun = {"name", "bore", "zoom", "note"}
+    for field in optic.__dataclass_fields__:
+        if field not in same_gun:
+            assert getattr(twin, field) == getattr(optic, field), field
+
+
+def test_only_rmb_sights_have_a_no_optic_twin():
+    twins = [name for name in WEAPONS if name.endswith(NO_OPTIC)]
+
+    assert sorted(name[: -len(NO_OPTIC)] for name in twins) == sorted(RMB_SIGHTS)
 
 
 # (weapon, round zero range in m): the zero each view comes out at
@@ -353,8 +425,11 @@ ROUND_ZEROS = [
     ("MK19 · emplacement / C16 / L134A1", 330),
     ("AGS-17 · iron sights emplacement", 300),
     ("SPG-9 · HEAT · scope", 1300),
+    ("SPG-9 · HEAT · scope · no optic", 1300),
     ("SPG-9 · FRAG · scope", 700),
+    ("SPG-9 · FRAG · scope · no optic", 700),
     ("ZiS-3", 350),
+    ("ZiS-3 · no optic", 350),
 ]
 
 
@@ -433,6 +508,22 @@ def test_the_optic_view_narrows_the_fov_by_its_zoom():
     assert mark_offset(weapon, sight_angle, 90, 1920) == pytest.approx(
         screen_offset(sight_angle - 0.774, 30, 1920)
     )
+
+
+def test_the_tripod_qlz87_fires_below_the_centre_without_the_optic():
+    """From the normal view (no RMB, game FOV) the barrel socket is 0.9
+    degrees under the camera: the mark is that much lower than for a barrel
+    on the centre, and far higher than the optic's mark at the same FOV."""
+    plain = WEAPONS["QLZ87 · no optic"]
+    optic = WEAPONS["QLZ87"]
+    sight_angle = solve(plain, 300, 0.0, "low").sight_angle
+
+    assert plain.sight_view(120) == (120, -0.9)
+    assert mark_offset(plain, sight_angle, 120, 1920) == pytest.approx(
+        screen_offset(sight_angle + 0.9, 120, 1920)
+    )
+    assert mark_offset(plain, sight_angle, 120, 1920) == pytest.approx(31.3, abs=0.05)
+    assert mark_offset(optic, sight_angle, 120, 1920) == pytest.approx(71.9, abs=0.05)
 
 
 def test_a_weapon_without_an_optic_is_aimed_through_the_plain_view():

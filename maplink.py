@@ -19,6 +19,7 @@ The page is not trusted: every number is bounded (`MAX_DISTANCE`,
 
 import json
 import math
+import unicodedata
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
@@ -33,6 +34,11 @@ MIN_PROFILE_STEP = 0.5
 
 # Weapon names longer than this are not weapons.json names (see MAX_DISTANCE).
 MAX_WEAPON_NAME = 200
+
+# Unicode categories no weapons.json name has: control and format characters
+# (a bidi override would draw a name other than the one it is), surrogates,
+# private and unassigned code points, line and paragraph separators.
+NAME_REJECTED_CATEGORIES = frozenset({"Cc", "Cf", "Cs", "Co", "Cn", "Zl", "Zp"})
 
 # Script polled on the embedded page: {targets, weapon}, or null on SquadCalc
 # builds without the bridge. Builds before the weapon export give no weapon.
@@ -177,13 +183,21 @@ def select_weapon_script(name):
 
 
 def parse_weapon_name(value):
-    """A weapon name sent by SquadCalc, None if missing or unusable."""
+    """A weapon name sent by SquadCalc, None if missing or unusable.
+
+    Unusable: not text, empty, longer than MAX_WEAPON_NAME, or with a
+    character of NAME_REJECTED_CATEGORIES anywhere (a control character or
+    a bidi override is never part of a weapons.json name).
+    """
     if not isinstance(value, str):
         return None
 
     name = value.strip()
 
     if not name or len(name) > MAX_WEAPON_NAME:
+        return None
+
+    if any(unicodedata.category(char) in NAME_REJECTED_CATEGORIES for char in name):
         return None
 
     return name

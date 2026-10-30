@@ -313,7 +313,7 @@ def test_only_one_instance_holds_the_lock(tmp_path):
     try:
         assert app.acquire_instance_lock(str(tmp_path), 200) is None
 
-        # A lock older than Qt's default 30 s stale time is still held.
+        # A running instance keeps its lock past Qt's 30 s stale time.
         lock_file = tmp_path / app.INSTANCE_LOCK_NAME
         old = time.time() - 3600
         os.utime(lock_file, (old, old))
