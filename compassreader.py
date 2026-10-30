@@ -19,11 +19,13 @@ What the checks leave (measured by replacing each digit of the numbers of
 245 real frames with every other digit, see tests/test_compassreader):
 a hundreds or tens digit misread is never accepted; a units digit that is 2
 or more degrees off is rejected while the barrel is still (STILL_TOLERANCE,
-the lay's confirm and settle phases), 3 or more on a strip that may lag
-behind a turn (TICK_TOLERANCE, the default); a tenths digit is not checked
-(an error under 1 degree; the lay asks for two readings that agree).
-During a turn the lay takes the number alone (read_compass with no
-tolerance) and relies on its continuity check.
+the lay's confirm and settle phases), 1 or more on the mortar's view with
+tenths (STILL_TENTHS_TOLERANCE), 3 or more on a strip that may lag behind a
+turn (TICK_TOLERANCE, the default); a tenths digit is not checked (an error
+under 1 degree; the lay asks for two readings, of two grabs, that agree,
+which a misread of one frame does not, though one the reader makes on every
+frame alike does). During a turn the lay takes the number alone
+(read_compass with no tolerance) and relies on its continuity check.
 
 Measured on 1080p frames of the game (Oct 2026): the bearing's digits are
 12 px tall with their centre 22.5 px above the bottom of the screen, about
@@ -79,14 +81,18 @@ STRIP_BIAS = 0.5
 
 # Ticks (or the letters standing for them) that must be where the bearing
 # puts the 15-degree marks, within a tolerance in degrees (TICK_TOLERANCE
-# while the strip may lag behind a turn, STILL_TOLERANCE when it cannot),
-# and the share of all narrow ink on the row that must be (TICK_AGREEMENT:
-# real frames have foliage on the row; SCALED_AGREEMENT at a HUD scale found
-# by the search, where a wrong scale would otherwise do with the few ticks
-# near the centre).
+# while the strip may lag behind a turn, STILL_TOLERANCE when it cannot,
+# STILL_TENTHS_TOLERANCE for a still strip under a number with tenths, which
+# the ticks follow within 0.14 degree of STRIP_BIAS: it rejects a units
+# digit read one off, and every real frame of tests/data reads at it), and
+# the share of all narrow ink on the row that must be (TICK_AGREEMENT: real
+# frames have foliage on the row; SCALED_AGREEMENT at a HUD scale found by
+# the search, where a wrong scale would otherwise do with the few ticks near
+# the centre).
 MIN_TICKS = 3
 TICK_TOLERANCE = 2.5
 STILL_TOLERANCE = 1.5
+STILL_TENTHS_TOLERANCE = 0.8
 TICK_AGREEMENT = 0.5
 SCALED_AGREEMENT = 0.8
 
@@ -465,7 +471,7 @@ def strip_labels(image, centre_x, scale, digits, degrees, tolerance=TICK_TOLERAN
     return agree, disagree
 
 
-def read_compass(image, centre_x, scale, digits, tolerance=TICK_TOLERANCE):
+def read_compass(image, centre_x, scale, digits, tolerance=TICK_TOLERANCE, tenths_tolerance=None):
     """The bearing at `centre_x` of a grab of the screen's bottom
     (sightreader.GrayImage), or None.
 
@@ -473,12 +479,14 @@ def read_compass(image, centre_x, scale, digits, tolerance=TICK_TOLERANCE):
     the screen height / 1080 (the HUD's own scale is searched, HUD_SCALES);
     `digits` a DigitReader. The strip must confirm the number within
     `tolerance` degrees (TICK_TOLERANCE where it may lag behind a turn,
-    STILL_TOLERANCE when the camera is still); None takes the number alone,
-    for a strip known to lag, when the caller checks it another way.
+    STILL_TOLERANCE when the camera is still), or `tenths_tolerance` when
+    given and the number has tenths (STILL_TENTHS_TOLERANCE when still);
+    `tolerance` None takes the number alone, for a strip known to lag, when
+    the caller checks it another way.
     """
     for hud in HUD_SCALES:
         agreement = TICK_AGREEMENT if hud == 1.0 else SCALED_AGREEMENT
-        reading = _read(image, centre_x, scale * hud, digits, tolerance, agreement)
+        reading = _read(image, centre_x, scale * hud, digits, tolerance, agreement, tenths_tolerance)
 
         if reading is not None:
             return reading
@@ -486,7 +494,7 @@ def read_compass(image, centre_x, scale, digits, tolerance=TICK_TOLERANCE):
     return None
 
 
-def _read(image, centre_x, scale, digits, tolerance, agreement):
+def _read(image, centre_x, scale, digits, tolerance, agreement, tenths_tolerance=None):
     """read_compass at one scale."""
     number = digits.read(image, centre_x, scale)
 
@@ -500,6 +508,9 @@ def _read(image, centre_x, scale, digits, tolerance, agreement):
 
     if tolerance is None:
         return CompassReading(degrees, resolution, text, 0, 0)
+
+    if tenths_tolerance is not None and resolution < 1:
+        tolerance = tenths_tolerance
 
     ticks = strip_ticks(image, centre_x, scale, degrees, tolerance, agreement)
     agree, disagree = strip_labels(image, centre_x, scale, digits, degrees, tolerance)

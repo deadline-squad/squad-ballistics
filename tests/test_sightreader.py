@@ -1,11 +1,15 @@
+import os
+
 import pytest
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QRectF, Qt
 from PyQt6.QtGui import QColor, QImage, QPainter, QLinearGradient
 
 import sightreader
-from sightreader import GrayImage, LabelTemplates, decode_labels, read_scale
+from sightreader import GrayImage, LabelTemplates, decode_labels, find_edge, find_pointer, find_ticks, read_scale
 from sightimage import draw_sight
+
+DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
 
 @pytest.fixture(scope="module")
@@ -130,3 +134,94 @@ def test_decode_prefers_the_consistent_sequence():
 
 def test_decode_needs_every_label_among_the_values():
     assert decode_labels([0, 1], [{1590: 1.0}, {1590: 1.0}]) is None
+
+
+class AmbiguousTemplates:
+    """Digit templates whose every label reads as well as the value 100
+    above it: the hundreds digit cannot be told apart."""
+
+    def __init__(self, templates):
+        self.templates = templates
+        self.values = templates.values
+
+    def scores(self, readings):
+        scores = self.templates.scores(readings)
+
+        return {value: max(scores.get(value, -1.0), scores.get(value - 100, -1.0)) for value in scores}
+
+
+def test_labels_that_read_as_well_as_another_sequence_are_no_reading(templates):
+    """Two sequences of values match the labels alike (a margin of 0, under
+    MIN_MARGIN): which one the scale shows is not known, so there is no
+    reading rather than one 100 mils off."""
+    image = draw_sight(1043.4)
+
+    assert read(image, templates).mils == pytest.approx(1043.4, abs=0.05)
+    assert read(image, AmbiguousTemplates(templates)) is None
+
+
+@pytest.mark.parametrize("mils", [1043.4, 1100.5, 1250.2])
+def test_a_speck_between_two_ticks_is_not_a_tick(templates, mils):
+    """A short dark mark across the ticks 0.65 of a mil below the one above
+    the pointer (dirt, a blade of grass): off the tick spacing by more than
+    SPACING_TOLERANCE, it is left out; taken for the next tick it moved the
+    reading 0.3 to 0.4 mil."""
+    image = draw_sight(mils)
+    gray = GrayImage.from_qimage(image)
+    edge = find_edge(gray, 960, 540, 1.0)
+    pointer = find_pointer(gray, edge, 540, 1.0)
+    above = [tick for tick in find_ticks(gray, edge, 540, 1.0) if tick.y <= pointer][-1]
+
+    painter = QPainter(image)
+    painter.fillRect(QRectF(edge - 18, above.y + 0.65 * sightreader.MIL_SPACING - 1, 10, 2), QColor(30, 30, 30))
+    painter.end()
+
+    assert read(image, templates).mils == pytest.approx(mils, abs=0.05)
+
+
+@pytest.mark.parametrize("hud", [1.5, 1.6])
+def test_a_sight_past_the_hud_scales_tried_is_read_at_its_tick_spacing(templates, hud):
+    """A sight 1.5 or 1.6 times the size expected (a display scaling of 150%
+    the grab's pixel ratio did not show): none of HUD_SCALES reads it, the
+    scale its ticks measure does."""
+    assert read(draw_sight(1043.4, hud=hud), templates).mils == pytest.approx(1043.4, abs=0.05)
+
+
+def load_sight(name):
+    image = QImage(os.path.join(DATA, f"sight_{name}.png"))
+    assert not image.isNull()
+
+    return GrayImage.from_qimage(image)
+
+
+# Grabs of the scale (the region ScreenSight grabs, 422x346 at 1080p, grey)
+# of real 1080p frames of the game: the 81 mm mortar's sight in the videos
+# of a mortar guide (j: "Squad Mortars Guide in 4 Minutes", 2026, at the
+# second named) and of a mortar and Hell Cannon guide (z: 2022). The mils
+# at the pointer as read by eye, to a fifth of a mil, off the ticks and
+# labels around it; the 50s are labelled in a larger font.
+REAL_SIGHTS = [
+    ("j_117", 1333.8),     # the pointer between 1333 and 1334
+    ("j_131", 1330.4),     # the pointer just above the 1330 label's tick
+    ("j_137", 1555.5),     # a larger "1550" label below
+    ("j_149", 1510.0),     # the pointer on the 1510 label's tick
+    ("j_162", 1515.4),     # a darker scene behind the scale
+    ("z_061", 1565.6),     # near the barrel's top: 1580, its warning sign
+    ("z_065", 1557.8),     # another game version and scene
+]
+
+
+@pytest.mark.parametrize("name, mils", REAL_SIGHTS)
+def test_reads_real_sights(templates, name, mils):
+    """The digit templates are drawn with Roboto Condensed and the
+    synthetic sights with the same font: these frames are drawn by the
+    game. The screen's centre is outside the grab, as in ScreenSight."""
+    gray = load_sight(name)
+    left, top = 960 - round(0.47 * 1080), 540 - round(0.16 * 1080)
+
+    reading = read_scale(gray, 960 - left, 540 - top, 1.0, templates)
+
+    assert reading is not None
+    assert reading.mils == pytest.approx(mils, abs=0.3)
+    assert reading.labels >= 3
+    assert reading.margin >= sightreader.MIN_MARGIN
