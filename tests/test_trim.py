@@ -282,7 +282,6 @@ def window(qapp, tmp_path, monkeypatch):
     from crosshair import MainWindow
 
     win = MainWindow(load_weapons(os.path.join(ROOT, "weapons.json")))
-    win.config["animated"] = False
     win.overlay.setGeometry(0, 0, 1920, 1080)
     yield win
     win.close()
@@ -511,3 +510,186 @@ def test_the_trim_controls_are_only_for_weapons_aimed_with_the_overlay(window):
 
     window.select_weapon(AGS)
     assert not window.trim_box.isHidden()
+
+
+# The high arc and the AGS-17 lob (review 1.6.0, slice 1 #2, slice 2 #1)
+@pytest.mark.parametrize("error", [0.4, -0.7])
+def test_trim_for_landing_round_trip_on_the_high_arc(error):
+    """On the high arc more elevation shortens the shot: the trim from a
+    high-arc landing is solved on the high arc, and fired again it lands on
+    the target."""
+    weapon = WEAPONS[M203]
+    distance, start_trim = 300.0, 0.25
+
+    aimed = solve(weapon, distance, 0.0, "high")
+    barrel = aimed.angle + start_trim + error
+    landed = landing_distance(weapon, barrel, 0.0)
+
+    # Too much elevation on the high arc lands short
+    assert (landed < distance) == (error > -start_trim)
+
+    new_trim = trim_for_landing(weapon, distance, 0.0, landed, start_trim, "high")
+
+    assert new_trim == pytest.approx(-error, abs=1e-6)
+
+    for target in (distance, 250.0, 400.0):
+        needed = solve(weapon, target, 0.0, "high")
+        assert landing_distance(weapon, needed.angle + new_trim + error, 0.0) \
+            == pytest.approx(target, abs=0.01)
+
+
+def test_a_short_high_arc_landing_lowers_the_barrel():
+    weapon = WEAPONS[M203]
+
+    assert trim_for_landing(weapon, 300, 0.0, 270, 0.0, "high") < 0
+    assert trim_for_landing(weapon, 300, 0.0, 330, 0.0, "high") > 0
+    # The weapon's default arc is the low one
+    assert trim_for_landing(weapon, 300, 0.0, 270, 0.0, "auto") \
+        == trim_for_landing(weapon, 300, 0.0, 270)
+
+
+def test_a_hold_lob_landing_is_refused():
+    """The AGS-17 lob is laid by holding S, not with the mark."""
+    with pytest.raises(ValueError, match="holding the key"):
+        trim_for_landing(WEAPONS[AGS], 600, 0.0, 560, 0.0, "high")
+
+    with pytest.raises(ValueError, match="holding the key"):
+        trim_for_landing(WEAPONS[AGS], 600, 0.0, 560, 0.0, None)
+
+
+def test_apply_on_the_ags_lob_keeps_the_direct_fire_trim(window):
+    """Applying the lob's landing again and again must not build up a
+    direct-fire trim (it reached -4.7° after six)."""
+    window.select_weapon(AGS)
+    window.on_arc_changed("high")
+    fire_at(window, AGS, 600)
+
+    assert window.last_solution.arc == "high"
+    direct_offset = window.overlay.offset
+
+    for _ in range(3):
+        window.landed_entry.setText("560")
+        button(window, "Apply").click()
+        window.calculate()
+
+    from i18n import tr
+
+    assert window.config["mark_trim"] == {}
+    assert window.trim_status.text() == tr("trim_lob_refused")
+    assert window.overlay.offset == pytest.approx(direct_offset)
+    # The lob's hint: the trim field moves the direct-fire mark
+    assert window.trim_entry.placeholderText() == tr("trim_hint")
+
+
+def test_apply_on_the_ags_high_arc_inside_the_lob_minimum_is_direct_fire(window):
+    """Under 300 m the AGS-17 cannot lob and fires directly (calculate):
+    that landing trims the direct-fire mark, on the low arc."""
+    window.select_weapon(AGS)
+    window.on_arc_changed("high")
+    fire_at(window, AGS, 250)
+
+    assert window.last_solution.arc == "low"
+
+    window.landed_entry.setText("240")
+    button(window, "Apply").click()
+
+    expected = trim_for_landing(window.current_weapon(), 250, 0.0, 240, 0.0, "low")
+    assert expected > 0
+    assert window.config["mark_trim"] == {AGS: pytest.approx(round(expected, 3))}
+
+
+def test_apply_on_the_high_arc_solves_the_high_arc(window):
+    from i18n import tr
+
+    window.select_weapon(M203)
+    assert window.trim_entry.placeholderText() == tr("trim_hint")
+
+    window.on_arc_changed("high")
+    assert window.trim_entry.placeholderText() == tr("trim_hint_high")
+
+    fire_at(window, M203, 300)
+    assert window.last_solution.arc == "high"
+
+    window.landed_entry.setText("270")
+    button(window, "Apply").click()
+
+    expected = trim_for_landing(window.current_weapon(), 300, 0.0, 270, 0.0, "high")
+    assert expected < 0
+    assert window.config["mark_trim"] == {M203: pytest.approx(round(expected, 3))}
+
+    window.on_arc_changed("low")
+    assert window.trim_entry.placeholderText() == tr("trim_hint")
+
+
+def test_apply_starts_from_the_current_trim(window):
+    """A landing at the aimed distance keeps the trim already set."""
+    fire_at(window, M203, 300)
+    window.set_trim(0.5)
+
+    window.landed_entry.setText("300")
+    button(window, "Apply").click()
+
+    assert window.config["mark_trim"] == {M203: 0.5}
+
+
+# Every angle shown with the mark includes the trim (review 1.6.0, slice 1 #3)
+@pytest.mark.parametrize("distance, fov", [(250, "90"), (390, "90"), (390, "20")])
+def test_the_angle_the_player_is_told_includes_the_trim(window, distance, fov):
+    from i18n import tr
+    from widgets import format_angle
+
+    fire_at(window, M203, distance, fov=fov)
+    window.set_trim(2.0)
+    solution = window.last_solution
+    unit = window.primary_unit(window.current_weapon())
+    plain = format_angle(solution.sight_angle, unit)
+    trimmed = format_angle(solution.sight_angle + 2.0, unit)
+
+    assert window.status_text() == trimmed
+    assert f"  ·  {trimmed}  ·  " in window.overlay.info_text
+    assert tr("to_horizon", angle=format_angle(solution.angle + 2.0, "deg")) \
+        in window.sub_label.text()
+    assert any(trimmed in step for step in window.current_steps)
+    assert not any(plain in step for step in window.current_steps)
+
+    if fov == "20":
+        assert window.overlay.is_offscreen(window.overlay.offset)
+        assert tr("how_overlay_offscreen", angle=trimmed) in window.current_steps
+
+
+def test_the_ags_direct_fire_angle_includes_the_trim(window):
+    """The lob's readouts name the direct-fire aim the mark shows: with the
+    trim, in the info line, the sub-line, the step and the Other arc tile."""
+    from i18n import tr
+    from widgets import format_angle
+
+    window.select_weapon(AGS)
+    window.on_arc_changed("high")
+    fire_at(window, AGS, 600)
+    window.set_trim(0.5)
+
+    unit = window.primary_unit(window.current_weapon())
+    direct = format_angle(window.direct_solution.sight_angle + 0.5, unit)
+    text = tr("direct_short", angle=direct)
+
+    assert text in window.overlay.info_text
+    assert text in window.sub_label.text()
+    assert tr("how_hold_direct", angle=direct) in window.current_steps
+    assert window.stats["stat_alt"].value.text() == direct
+
+
+def test_the_other_arc_suggested_past_an_obstacle_includes_the_trim(window):
+    from widgets import format_angle
+
+    window.select_weapon(AGS)
+    window.on_arc_changed("high")
+    fire_at(window, AGS, 600)
+    window.set_trim(0.5)
+    weapon = window.current_weapon()
+    unit = window.primary_unit(weapon)
+
+    steps = window.obstacle_steps(
+        weapon, window.last_solution, (300, 40.0), window.direct_solution, None, None, unit
+    )
+
+    assert format_angle(window.direct_solution.sight_angle + 0.5, unit) in steps[-1]

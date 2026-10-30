@@ -898,28 +898,42 @@ def mark_offset(weapon, sight_angle, fov, screen_width, scale=1.0, trim=0.0):
     )
 
 
-def trim_for_landing(weapon, distance, height, landed, trim=0.0):
+def trim_for_landing(weapon, distance, height, landed, trim=0.0, arc="low"):
     """The trim that would have made a shot land at `distance`.
 
     The player fired at `distance` (with `height` metres between the weapon
-    and the target ground, as in `solve`) with `trim` set, and the shot
+    and the target ground, as in `solve`) on `arc` ("low", "high", or
+    None/"auto" for the weapon's default) with `trim` set, and the shot
     landed at the horizontal distance `landed` on the same ground. The
     barrel was off by the difference between the elevations for the two
-    ranges, so the new trim is
-    `trim + elevation(distance) - elevation(landed)`: positive when the
-    shot landed short (the barrel needs more elevation). The result is
-    limited to +-TRIM_LIMIT. The overlay mark is the low arc, so that is
-    the arc used.
+    ranges on that arc, so the new trim is
+    `trim + elevation(distance) - elevation(landed)`, limited to
+    +-TRIM_LIMIT. On the low arc it is positive when the shot landed short
+    (the barrel needs more elevation); on the high arc more elevation
+    shortens the shot, so it is negative then.
+
+    A hold weapon's high arc (the AGS-17 lob) is laid by holding a key, not
+    with the overlay mark, so its landing says nothing about the trim and
+    is refused.
 
     Raises ValueError, with a message fit to show the player, when an
-    input is not a finite number, the weapon is not aimed with the
-    overlay or has no drop, or `distance` or `landed` cannot be reached.
+    input is not a finite number, the arc is unknown or a hold lob, the
+    weapon is not aimed with the overlay or has no drop, or `distance` or
+    `landed` cannot be reached on that arc.
     """
     if weapon.aim != "overlay":
         raise ValueError("This weapon is not aimed with the overlay mark")
 
     if weapon.g == 0:
         raise ValueError("This weapon has no drop, so there is nothing to trim")
+
+    arc = resolve_arc(weapon, arc)
+
+    if weapon.has_hold and arc == "high":
+        raise ValueError(
+            "The lob is laid by holding the key, not with the mark: "
+            "set the trim from a direct-fire shot"
+        )
 
     for value in (distance, height, landed, trim):
         if not isinstance(value, (int, float)) or not math.isfinite(value):
@@ -931,12 +945,12 @@ def trim_for_landing(weapon, distance, height, landed, trim=0.0):
     if landed <= 0:
         raise ValueError("Landed distance must be greater than 0")
 
-    aimed = solve(weapon, distance, height, "low")
+    aimed = solve(weapon, distance, height, arc)
 
     if not aimed.reachable:
         raise ValueError(f"Distance: {aimed.reason}")
 
-    hit = solve(weapon, landed, height, "low")
+    hit = solve(weapon, landed, height, arc)
 
     if not hit.reachable:
         raise ValueError(f"Landed at: {hit.reason}")

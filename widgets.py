@@ -45,6 +45,8 @@ from overlay import paint_crosshair
 
 
 def label(text, role=None):
+    """A QLabel showing `text`, styled by the stylesheet's `role` ("title",
+    "section", "small", "muted", ...) when given."""
     widget = QLabel(text)
 
     if role:
@@ -54,11 +56,15 @@ def label(text, role=None):
 
 
 def repolish(widget):
+    """Apply the stylesheet to `widget` again after one of its properties (such
+    as "state" or "role") changed."""
     widget.style().unpolish(widget)
     widget.style().polish(widget)
 
 
 def card():
+    """(frame, layout): a styled card frame and its vertical layout, to fill
+    with a page section."""
     frame = QFrame()
 
     frame.setObjectName("card")
@@ -87,10 +93,13 @@ class Toggle(QAbstractButton):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
     def sizeHint(self):
+        """Room for the switch and the text beside it."""
         width = self.fontMetrics().horizontalAdvance(self.text())
         return QSize(width + 55, 26)
 
     def paintEvent(self, event):
+        """Draw the switch (track and knob, in the accent colour when on), the
+        focus ring and the text."""
         painter = QPainter(self)
 
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -193,6 +202,8 @@ class NumberValidator(QValidator):
         self.pattern = re.compile(rf"{sign}\d{{0,6}}(\.\d{{0,3}})?")
 
     def normalize(self, text):
+        """`text` with every decimal separator made ".", every typographic
+        minus "-", spaces and a leading "+" removed."""
         for char in self.SEPARATORS:
             text = text.replace(char, ".")
 
@@ -202,6 +213,10 @@ class NumberValidator(QValidator):
         return text.replace(" ", "").lstrip("+")
 
     def validate(self, text, pos):
+        """QValidator.validate on the normalised text: Acceptable for a number
+        (up to 6 digits before and 3 after the point, signed only if allowed),
+        Intermediate while it is being typed ("", "-", "."), Invalid otherwise.
+        Returns (state, text, cursor position)."""
         normalized = self.normalize(text)
 
         # Keep the cursor where it was relative to the remaining characters.
@@ -244,9 +259,12 @@ class NumberEdit(QLineEdit):
             return default
 
     def set_value(self, value):
+        """Show the number `value` (shortest form: 300, 0.25)."""
         self.setText(f"{value:g}")
 
     def add(self, delta):
+        """Add `delta` to the value (an empty field counts as 0), rounded to
+        0.001; never below 0 unless negatives are allowed."""
         value = round((self.value() or 0.0) + delta, 3)
 
         if not self.allow_negative:
@@ -282,6 +300,8 @@ class NumberEdit(QLineEdit):
         super().keyPressEvent(event)
 
     def wheelEvent(self, event):
+        """Step the value by `step` per wheel notch (Shift: a tenth, Ctrl: ten
+        times) and emit `stepped`."""
         steps = event.angleDelta().y() / 120
 
         if not steps:
@@ -376,6 +396,7 @@ class _PickerPopup(QFrame):
         return re.search(r"(?<![0-9a-z])" + re.escape(query), note) is not None
 
     def header(self, text):
+        """Add an unselectable section header `text` to the list."""
         item = QListWidgetItem(text.upper())
 
         item.setFlags(Qt.ItemFlag.NoItemFlags)
@@ -391,6 +412,9 @@ class _PickerPopup(QFrame):
         self.list.addItem(item)
 
     def refill(self):
+        """Fill the list for the search text: the recent weapons (without a
+        search), the matching names by category, then the weapons found in
+        their notes; the first weapon is selected."""
         self.list.clear()
 
         query = self.search.text().strip().lower()
@@ -438,6 +462,7 @@ class _PickerPopup(QFrame):
             self.list.setCurrentItem(first)
 
     def pick_item(self, item):
+        """Pick the weapon of list row `item` (headers pick nothing) and close."""
         name = item.data(Qt.ItemDataRole.UserRole)
 
         if name:
@@ -445,6 +470,7 @@ class _PickerPopup(QFrame):
             self.hide()
 
     def pick_current(self):
+        """Pick the selected weapon (Enter in the search field)."""
         item = self.list.currentItem()
 
         if item is not None:
@@ -467,6 +493,7 @@ class _PickerPopup(QFrame):
                 return
 
     def eventFilter(self, watched, event):
+        """The arrow keys in the search field move the selection in the list."""
         if watched is self.search and event.type() == QEvent.Type.KeyPress:
             if event.key() == Qt.Key.Key_Down:
                 self.move_selection(1)
@@ -514,6 +541,8 @@ class WeaponPicker(QPushButton):
         self.popup.set_notes(notes)
 
     def set_current(self, name, emit=True):
+        """Show weapon `name`; `emit` False does it without the `changed`
+        signal."""
         self.current = name
 
         self.setToolTip(name)
@@ -542,12 +571,15 @@ class WeaponPicker(QPushButton):
             self.setText(f"{name}{self.ARROW}")
 
     def resizeEvent(self, event):
+        """Elide the name again for the new width."""
         super().resizeEvent(event)
 
         if self.current is not None:
             self.show_name()
 
     def open_popup(self):
+        """Open the list below the button, kept inside the screen, with an
+        empty search."""
         self.popup.search.clear()
 
         self.popup.refill()
@@ -638,6 +670,11 @@ class Swatches(QWidget):
 
 
 class SliderRow(QWidget):
+    """A labelled horizontal slider showing its value with `suffix`.
+
+    `changed(value)` is emitted on every move.
+    """
+
     changed = pyqtSignal(int)
 
     def __init__(self, text, minimum, maximum, value, suffix=""):
@@ -675,14 +712,18 @@ class SliderRow(QWidget):
         self.update_label(self.slider.value())
 
     def update_label(self, value):
+        """Show `value` with the suffix."""
         self.value_label.setText(f"{value}{self.suffix}")
 
     def on_change(self, value):
+        """The slider moved to `value`: show it and emit `changed`."""
         self.update_label(value)
         self.changed.emit(value)
 
 
 class StatTile(QFrame):
+    """A small tile of the solution card: a caption over a value."""
+
     def __init__(self, caption):
         super().__init__()
 
@@ -706,6 +747,7 @@ class StatTile(QFrame):
         layout.addWidget(self.value)
 
     def set(self, text):
+        """Show `text` as the value."""
         self.value.setText(text)
 
 
@@ -786,9 +828,13 @@ class TrajectoryView(QWidget):
         self.update()
 
     def clear(self):
+        """Show no shot."""
         self.set_data([], [], None)
 
     def paintEvent(self, event):
+        """Draw the side view: the weapon's level, the terrain profile, the
+        other arc and the shown one with its apex, the obstacle, the weapon and
+        the target with its distance."""
         painter = QPainter(self)
 
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -938,6 +984,8 @@ class CrosshairPreview(QWidget):
         self.setMinimumSize(260, 220)
 
     def paintEvent(self, event):
+        """Draw the crosshair as the overlay draws it, on a sky and ground
+        backdrop."""
         painter = QPainter(self)
 
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -966,6 +1014,8 @@ class CrosshairPreview(QWidget):
 
 
 def format_angle(degrees, unit):
+    """`degrees` as text in `unit`: "mil" rounded to whole mils ("1016 mil"),
+    otherwise degrees to 0.01 ("57.15°")."""
     if unit == "mil":
         return f"{degrees * MILS_PER_DEGREE:.0f} {tr('mil')}"
     return f"{degrees:.2f}°"

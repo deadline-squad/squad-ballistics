@@ -44,6 +44,7 @@ from ballistics import (
     clamp_trim,
     current_weapon_name,
     first_obstacle,
+    resolve_arc,
     solve,
     mark_offset,
     range_ladder,
@@ -171,6 +172,15 @@ def scrolled(widget, width=None):
 
 
 class MainWindow(QMainWindow):
+    """The app's window: the Calculator, Crosshair, Settings and SquadCalc
+    pages, and the overlay it drives.
+
+    `weapons` is {name: ballistics.Weapon} as weapons.json loads it. The window
+    owns the settings (config.load_config, saved shortly after each change),
+    the overlay, the hold timer of the AGS-17 and mortars, the mortar sight's
+    readers and the hotkeys.
+    """
+
     def __init__(self, weapons):
         super().__init__()
 
@@ -306,6 +316,8 @@ class MainWindow(QMainWindow):
     # =========================
 
     def build_ui(self):
+        """Create the sidebar and the pages (again on `rebuild`) and show the
+        current weapon."""
         self.setStyleSheet(theme.stylesheet())
 
         root = QWidget()
@@ -362,6 +374,7 @@ class MainWindow(QMainWindow):
         self.recalculate_if_ready()
 
     def build_sidebar(self):
+        """The navigation column on the left: the logo and one button per page."""
         sidebar = QFrame()
 
         sidebar.setObjectName("sidebar")
@@ -440,6 +453,9 @@ class MainWindow(QMainWindow):
         return sidebar
 
     def set_page(self, index):
+        """Show page `index` (0 Calculator, 1 Crosshair, 2 Settings, 3
+        SquadCalc). The map opens in the regular browser when that is chosen
+        and possible; the embedded one loads on first show."""
         # The map in the regular browser; the embedded one when it can't open.
         if index == 3 and self.config["map_external"] \
                 and open_external(map_url(self.config)):
@@ -458,6 +474,8 @@ class MainWindow(QMainWindow):
     # =========================
 
     def weapon_groups(self):
+        """[(category, [weapon names])] for the weapon picker, in the
+        weapons.json order."""
         groups = {}
 
         for name, weapon in self.weapons.items():
@@ -466,12 +484,14 @@ class MainWindow(QMainWindow):
         return list(groups.items())
 
     def recent_weapons(self):
+        """The recently picked weapon names that still exist, newest first."""
         return [
             name for name in self.config["recent_weapons"]
             if name in self.weapons
         ]
 
     def build_calc_page(self):
+        """The Calculator page: the target card and the solution card."""
         page = QWidget()
 
         layout = QHBoxLayout(page)
@@ -486,6 +506,9 @@ class MainWindow(QMainWindow):
         return scrolled(page)
 
     def build_target_card(self):
+        """The target card: the weapon picker, the arc, the distance, height
+        and FOV inputs, the trim, the map target line, the Calculate and Reset
+        buttons and the hotkey hint."""
         frame, layout = card()
 
         frame.setFixedWidth(380)
@@ -676,6 +699,9 @@ class MainWindow(QMainWindow):
         self.hotkey_hint.setText(HINT_SEPARATOR.join(entries))
 
     def build_solution_card(self):
+        """The solution card: the big readout and its sub-line, the auto-lay
+        calibration, the stat tiles, the trajectory, the how-to steps and the
+        weapon's note."""
         frame, layout = card()
 
         header = QHBoxLayout()
@@ -750,12 +776,18 @@ class MainWindow(QMainWindow):
         return frame
 
     def current_weapon(self):
+        """The picked ballistics.Weapon, or None."""
         return self.weapons.get(self.picker.current)
 
     def select_weapon(self, name):
+        """Pick weapon `name` as if chosen in the picker (`on_weapon_changed`
+        follows)."""
         self.picker.set_current(name)
 
     def on_weapon_changed(self, name, user=True):
+        """Weapon `name` was picked: show its info and trim and solve again.
+        `user` True (picked here) also remembers it among the recent weapons
+        and selects it on the embedded map."""
         weapon = self.weapons.get(name)
 
         if weapon is None:
@@ -787,13 +819,14 @@ class MainWindow(QMainWindow):
 
         self.solution_weapon.setText(name)
 
-        self.update_ladder()
-
         self.update_hold_watch()
 
+        # Puts the weapon's ladder on the overlay too
         self.recalculate_if_ready()
 
     def update_weapon_info(self, weapon):
+        """The chips under the picker: muzzle velocity, gravity, range, boost
+        and minimum distance of `weapon`."""
         parts = [
             tr("chip_velocity", v=f"{weapon.velocity:g}"),
             tr("chip_gravity", g=f"{weapon.gravity:g}"),
@@ -828,11 +861,31 @@ class MainWindow(QMainWindow):
 
         return self.config["mark_trim"].get(weapon.name, 0.0)
 
+    def mark_arc(self, weapon):
+        """The arc ("low" or "high") the overlay mark of `weapon` is laid
+        for with the chosen arc. A hold weapon's lob (AGS-17 high arc) is
+        laid by holding the key: its mark is the direct fire, the low arc.
+        """
+        arc = resolve_arc(weapon, self.config["arc"])
+
+        return "low" if weapon.has_hold else arc
+
+    def update_trim_hint(self):
+        """Say which way the trim moves the shot on the mark's arc: more
+        elevation carries farther on the low arc, nearer on the high arc."""
+        weapon = self.current_weapon()
+
+        high = weapon is not None and self.mark_arc(weapon) == "high"
+
+        self.trim_entry.setPlaceholderText(tr("trim_hint_high" if high else "trim_hint"))
+
     def show_trim(self):
         """Load the trim of the current weapon into the controls."""
         weapon = self.current_weapon()
 
         self.trim_box.setVisible(weapon is not None and weapon.aim == "overlay")
+
+        self.update_trim_hint()
 
         self.trim_entry.set_value(self.current_trim(weapon))
 
@@ -860,6 +913,8 @@ class MainWindow(QMainWindow):
         self.recalculate_if_ready()
 
     def on_trim_edited(self, *_):
+        """The trim was typed or stepped: store it (limited); a value over the
+        limit is shown as the limit."""
         value = self.trim_entry.value(0.0)
 
         self.set_trim(value)
@@ -877,8 +932,15 @@ class MainWindow(QMainWindow):
 
     def apply_landing(self):
         """Set the trim from one real shot: fired at the typed distance (and
-        height difference), landed at the typed landed distance. The status
-        shows the new trim, or what is wrong with the numbers."""
+        height difference) on the chosen arc, landed at the typed landed
+        distance. The status shows the new trim, or what is wrong with the
+        numbers.
+
+        A hold weapon's lob (AGS-17 high arc) is laid by holding the key,
+        not with the mark, so its landing is refused: it must not change
+        the direct-fire trim. Where the lob cannot reach, the shot is the
+        direct fire (as `calculate` shows it), so its landing is applied.
+        """
         weapon = self.current_weapon()
 
         if weapon is None:
@@ -886,6 +948,7 @@ class MainWindow(QMainWindow):
 
         distance = self.distance_entry.value()
         landed = self.landed_entry.value()
+        height = self.height_entry.value(0.0)
 
         try:
             if distance is None:
@@ -894,12 +957,21 @@ class MainWindow(QMainWindow):
             if landed is None:
                 raise ValueError(tr("enter_landed"))
 
+            arc = resolve_arc(weapon, self.config["arc"])
+
+            if weapon.has_hold and arc == "high":
+                if solve(weapon, distance, height, "high").reachable:
+                    raise ValueError(tr("trim_lob_refused"))
+
+                arc = "low"
+
             trim = trim_for_landing(
                 weapon,
                 distance,
-                self.height_entry.value(0.0),
+                height,
                 landed,
-                self.current_trim(weapon)
+                self.current_trim(weapon),
+                arc
             )
         except ValueError as e:
             self.trim_status.setText(str(e))
@@ -919,9 +991,15 @@ class MainWindow(QMainWindow):
         )
 
     def on_arc_changed(self, key):
+        """Fire on arc `key` ("auto", "low" or "high"): the trim's hint and
+        the result follow."""
         self.config["arc"] = key
 
         self.schedule_save()
+
+        self.update_trim_hint()
+
+        self.trim_status.setText("")
 
         self.recalculate_if_ready()
 
@@ -999,6 +1077,8 @@ class MainWindow(QMainWindow):
         self.select_weapon(name)
 
     def forget_map_target(self):
+        """The inputs no longer hold the SquadCalc target (edited by hand or
+        cleared): drop it and its status line."""
         if self.map_target is None:
             return
 
@@ -1007,6 +1087,8 @@ class MainWindow(QMainWindow):
         self.update_map_status()
 
     def update_map_status(self):
+        """The line under the inputs: the SquadCalc target in them, or the hint
+        that the map's targets are followed."""
         target = self.map_target
 
         if target is None:
@@ -1034,6 +1116,8 @@ class MainWindow(QMainWindow):
         self.calculate(show_errors=False)
 
     def primary_unit(self, weapon):
+        """The angle unit ("deg" or "mil") to show for `weapon`: the setting,
+        or the weapon's own unit when the setting is "auto"."""
         mode = self.config["unit_mode"]
 
         if mode in ("deg", "mil"):
@@ -1042,6 +1126,7 @@ class MainWindow(QMainWindow):
         return weapon.unit
 
     def set_big(self, text, error=False):
+        """Show `text` as the big readout, in the error colour if `error`."""
         self.big_label.setText(text)
 
         self.big_label.setProperty("state", "error" if error else "")
@@ -1049,9 +1134,12 @@ class MainWindow(QMainWindow):
         repolish(self.big_label)
 
     def status_text(self):
+        """The big readout's text."""
         return self.big_label.text()
 
     def clear_result(self, text=None, error=False):
+        """Empty the solution card: the big readout shows `text` ("Ready" by
+        default, in the error colour if `error`), the tiles a dash."""
         self.set_big(text or tr("ready"), error)
 
         self.sub_label.setText("")
@@ -1066,6 +1154,8 @@ class MainWindow(QMainWindow):
         self.note_label.setText("")
 
     def set_steps(self, steps):
+        """Show `steps` (texts) as the numbered how-to rows; `current_steps`
+        keeps them."""
         self.current_steps = list(steps)
 
         # Detach the old rows right away; deleteLater alone would leave them
@@ -1099,6 +1189,11 @@ class MainWindow(QMainWindow):
             self.steps_layout.addWidget(row)
 
     def read_inputs(self):
+        """(distance m, height difference m, FOV degrees) from the inputs.
+
+        Raises ValueError, with the text to show, for a missing or non-positive
+        distance or a FOV outside RANGES["fov"]. An empty height is 0.
+        """
         distance = self.distance_entry.value()
 
         if distance is None:
@@ -1230,6 +1325,15 @@ class MainWindow(QMainWindow):
         self.sub_label.setText(text)
 
     def show_solution(self, weapon, solution, fov):
+        """Show the reachable `solution` of `weapon` at FOV `fov`: the overlay
+        mark and info line, the big readout, the stat tiles, the trajectory and
+        the how-to steps.
+
+        Weapons aimed with the overlay are read over the line of sight with
+        their trim (as `mark_offset` lays the mark); a hold weapon's lob is
+        read as the hold time, with its direct-fire aim beside it; weapons laid
+        by elevation are read to the horizon.
+        """
         unit = self.primary_unit(weapon)
         other = "deg" if unit == "mil" else "mil"
 
@@ -1261,9 +1365,18 @@ class MainWindow(QMainWindow):
 
         self.overlay.set_offset(offset)
 
+        # The mark is laid for the barrel raised by the trim too
+        # (mark_offset): every angle shown with it includes the trim.
+        trim = self.current_trim(weapon) if weapon.aim == "overlay" else 0.0
+
         # Weapons aimed with the overlay are laid relative to the target, not
         # the horizon (see Solution.sight_angle).
-        aimed = solution.sight_angle if weapon.aim == "overlay" else solution.angle
+        aimed = solution.sight_angle + trim if weapon.aim == "overlay" else solution.angle
+
+        direct_text = (
+            format_angle(direct.sight_angle + trim, unit)
+            if direct is not None else ""
+        )
 
         if holding and not laid_by_angle:
             readout = f"S {hold:.2f} {s}"
@@ -1274,15 +1387,11 @@ class MainWindow(QMainWindow):
 
         info = f"{solution.distance:.0f} {m}  ·  {readout}"
 
-        trim = self.current_trim(weapon) if weapon.aim == "overlay" else 0.0
-
         if trim:
             info += "  ·  " + tr("info_trim", trim=f"{trim:+g}")
 
         if direct is not None:
-            info += "  ·  " + tr(
-                "direct_short", angle=format_angle(direct.sight_angle, unit)
-            )
+            info += "  ·  " + tr("direct_short", angle=direct_text)
 
             if direct_obstacle is not None:
                 info += " ⛔"
@@ -1306,9 +1415,7 @@ class MainWindow(QMainWindow):
             )
 
             if direct is not None:
-                sub += "  ·  " + tr(
-                    "direct_short", angle=format_angle(direct.sight_angle, unit)
-                )
+                sub += "  ·  " + tr("direct_short", angle=direct_text)
 
             self.sub_label.setText(sub)
         else:
@@ -1318,7 +1425,7 @@ class MainWindow(QMainWindow):
 
             if weapon.aim == "overlay":
                 sub += "  ·  " + tr(
-                    "to_horizon", angle=format_angle(solution.angle, "deg")
+                    "to_horizon", angle=format_angle(solution.angle + trim, "deg")
                 )
 
             if laid_by_angle:
@@ -1361,11 +1468,22 @@ class MainWindow(QMainWindow):
         if alt is None:
             self.stats["stat_alt"].set("—")
         else:
-            self.stats["stat_alt"].set(format_angle(alt, unit))
-
             alt_solution = solve(
                 weapon, solution.distance, solution.height_diff, other_arc
             )
+
+            # Read as the main result reads that arc: an overlay weapon's
+            # direct fire over the line of sight (with the trim, like the
+            # "direct fire" text), its lob by the hold; weapons laid by
+            # elevation to the horizon.
+            if weapon.aim != "overlay":
+                alt_text = format_angle(alt, unit)
+            elif math.isfinite(alt_solution.hold_time):
+                alt_text = f"S {alt_solution.hold_time:.2f} {s}"
+            else:
+                alt_text = format_angle(alt_solution.sight_angle + trim, unit)
+
+            self.stats["stat_alt"].set(alt_text)
 
             alt_path = trajectory(weapon, alt_solution)
 
@@ -1393,7 +1511,7 @@ class MainWindow(QMainWindow):
                     tr(
                         "how_hold_direct_offscreen" if offscreen
                         else "how_hold_direct",
-                        angle=format_angle(direct.sight_angle, unit)
+                        angle=direct_text
                     )
                 )
         elif weapon.aim == "overlay":
@@ -1476,10 +1594,13 @@ class MainWindow(QMainWindow):
             steps.append(tr("how_blocked_all"))
             return steps
 
+        # As the mark is laid: with the trim of an overlay weapon.
+        trim = self.current_trim(weapon) if weapon.aim == "overlay" else 0.0
+
         if weapon.has_hold and alt_solution.arc == "high":
             aim = f"S {alt_solution.hold_time:.2f} {tr('unit_s')}"
         elif weapon.aim == "overlay" or weapon.has_hold:
-            aim = format_angle(alt_solution.sight_angle, unit)
+            aim = format_angle(alt_solution.sight_angle + trim, unit)
         else:
             aim = format_angle(alt_solution.angle, unit)
 
@@ -1508,6 +1629,8 @@ class MainWindow(QMainWindow):
         return self.map_target.bearing
 
     def set_overlay_info(self, text):
+        """Set the solution part of the overlay's info line to `text`; the
+        bearing, sight and lay parts stay."""
         self.info_base = text
 
         self.show_overlay_info()
@@ -1884,6 +2007,8 @@ class MainWindow(QMainWindow):
             self.sight_timer.start()
 
     def watch_sight(self):
+        """One tick of the sight watch: read the mortar sight's mils and, with
+        a map target, the compass, and show them on the overlay."""
         self.show_sight_reading(self.read_sight_now())
 
         # The bearing left to a map target, off the compass
@@ -1923,6 +2048,8 @@ class MainWindow(QMainWindow):
         self.set_sight_info(f"{text}{mark}")
 
     def set_sight_info(self, text):
+        """Set the sight reading part of the overlay's info line (repainted
+        only on a change)."""
         if text == self.sight_info:
             return
 
@@ -1946,6 +2073,8 @@ class MainWindow(QMainWindow):
         self.set_bearing_info(f"{text}{mark}")
 
     def set_bearing_info(self, text):
+        """Set the compass reading part of the overlay's info line (repainted
+        only on a change)."""
         if text == self.bearing_info:
             return
 
@@ -2107,6 +2236,9 @@ class MainWindow(QMainWindow):
             timer.auto_hold = None
 
     def set_auto_hold(self, checked):
+        """The auto-hold setting was switched: create or drop the key injector
+        and rebind the hotkeys. Where key presses cannot be sent the switch
+        goes back off and the status says why."""
         teardown_hotkeys(self)
 
         ok = self.apply_auto_hold()
@@ -2201,6 +2333,14 @@ class MainWindow(QMainWindow):
         ))
 
     def reset_offset(self):
+        """Clear the target (Reset, the reset hotkey): the distance and the
+        map target go with the result, so no later recalculation (an arc,
+        trim or alignment change) brings the mark back. The height, the FOV
+        and the alignment stay."""
+        self.distance_entry.clear()
+
+        self.forget_map_target()
+
         self.last_solution = None
         self.direct_solution = None
 
@@ -2213,17 +2353,22 @@ class MainWindow(QMainWindow):
         self.clear_result()
 
     def toggle_overlay(self):
+        """Show the overlay, or hide it (the toggle hotkey)."""
         if self.overlay.isVisible():
             self.overlay.hide()
         else:
             self.overlay.show()
 
     def distance_up(self):
+        """Add one distance step to the distance and solve (hotkey); the map
+        target is no longer in the inputs."""
         self.forget_map_target()
         self.distance_entry.add(self.config["distance_step"])
         self.calculate(show_errors=False)
 
     def distance_down(self):
+        """Take one distance step off the distance and solve (hotkey); the map
+        target is no longer in the inputs."""
         self.forget_map_target()
         self.distance_entry.add(-self.config["distance_step"])
         self.calculate(show_errors=False)
@@ -2233,6 +2378,8 @@ class MainWindow(QMainWindow):
     # =========================
 
     def build_crosshair_page(self):
+        """The Crosshair page: the preview with the alignment sliders, and the
+        mark's style, colour and size, the range ladder and the info line."""
         page = QWidget()
 
         layout = QHBoxLayout(page)
@@ -2257,20 +2404,21 @@ class MainWindow(QMainWindow):
 
         preview_layout.addWidget(label(tr("align_title").upper(), "section"))
 
-        align_caption = label(tr("align_caption"), "small")
+        self.align_caption = label(self.align_caption_text(), "small")
 
-        align_caption.setWordWrap(True)
+        self.align_caption.setWordWrap(True)
 
-        preview_layout.addWidget(align_caption)
+        preview_layout.addWidget(self.align_caption)
 
         for text, key, suffix in [
             ("align_x", "center_offset_x", f" {tr('unit_px')}"),
             ("align_y", "center_offset_y", f" {tr('unit_px')}"),
             ("align_scale", "offset_scale", "%"),
         ]:
+            # set_setting has put the ladder for the new alignment already
             self.add_slider(
                 preview_layout, tr(text), key, suffix,
-                on_change=self.recalculate_if_ready
+                on_change=lambda: self.calculate(show_errors=False)
             )
 
         reset_alignment = QPushButton(tr("align_reset"))
@@ -2327,6 +2475,9 @@ class MainWindow(QMainWindow):
         return page
 
     def add_toggle(self, layout, text, key, on_change=None):
+        """Add a Toggle for the boolean setting `key` to `layout`; switching it
+        stores the setting, refreshes the crosshair and calls
+        `on_change(checked)`. Returns the toggle, also kept in `controls[key]`."""
         toggle = Toggle(text, bool(self.config[key]))
 
         def handle(checked):
@@ -2344,6 +2495,10 @@ class MainWindow(QMainWindow):
         return toggle
 
     def add_slider(self, layout, text, key, suffix, on_change=None):
+        """Add a SliderRow for the numeric setting `key` (range RANGES[key],
+        `suffix` after the value) to `layout`; moving it stores the setting,
+        refreshes the crosshair and calls `on_change()`. Returns the row, also
+        kept in `controls[key]`."""
         low, high = RANGES[key]
 
         row = SliderRow(text, low, high, self.config[key], suffix)
@@ -2368,11 +2523,15 @@ class MainWindow(QMainWindow):
             self.controls[key].slider.setValue(DEFAULT_CONFIG[key])
 
     def set_setting(self, key, value):
+        """Store crosshair setting `key` and redraw the overlay, its ladder and
+        the preview."""
         self.config[key] = value
 
         self.refresh_crosshair()
 
     def refresh_crosshair(self):
+        """Redraw the overlay, its ladder and the preview after a crosshair
+        setting changed, and save."""
         # The crosshair's size moves the ladder's first tick.
         self.update_ladder()
 
@@ -2389,6 +2548,8 @@ class MainWindow(QMainWindow):
     # =========================
 
     def build_settings_page(self):
+        """The Settings page: the interface, calculation, overlay, map, hotkey
+        and about cards."""
         page = QWidget()
 
         column = QVBoxLayout(page)
@@ -2425,6 +2586,8 @@ class MainWindow(QMainWindow):
         return scrolled(wrapper)
 
     def setting_row(self, layout, text, widget):
+        """Add a row to `layout`: the caption `text` on the left, `widget` on
+        the right."""
         row = QHBoxLayout()
 
         row.addWidget(label(text))
@@ -2436,6 +2599,8 @@ class MainWindow(QMainWindow):
         layout.addLayout(row)
 
     def combo(self, items, current, on_change):
+        """A QComboBox of `items` [(value, text)] showing `current` (the first
+        item when it is not there); picking one calls `on_change(value)`."""
         box = QComboBox()
 
         for value, text in items:
@@ -2454,6 +2619,7 @@ class MainWindow(QMainWindow):
         return box
 
     def build_interface_card(self):
+        """The interface settings: keeping the window on top."""
         frame, layout = card()
 
         layout.addWidget(label(tr("s_interface"), "title"))
@@ -2468,6 +2634,8 @@ class MainWindow(QMainWindow):
         return frame
 
     def build_calc_settings_card(self):
+        """The calculation settings: the angle units, the distance step,
+        auto-calc, the auto-hold and the mortar sight reader."""
         frame, layout = card()
 
         layout.addWidget(label(tr("s_calc"), "title"))
@@ -2604,6 +2772,7 @@ class MainWindow(QMainWindow):
         self.update_monitor_choice()
 
     def build_hotkeys_card(self):
+        """The hotkey settings: one key list per action (see hotkeys.ACTIONS)."""
         frame, layout = card()
 
         layout.addWidget(label(tr("s_hotkeys"), "title"))
@@ -2632,6 +2801,8 @@ class MainWindow(QMainWindow):
         return frame
 
     def build_about_card(self):
+        """The about card: the version, opening the settings folder and
+        resetting the settings."""
         frame, layout = card()
 
         layout.addWidget(label(tr("s_about"), "title"))
@@ -2688,11 +2859,13 @@ class MainWindow(QMainWindow):
         self.open_status.show()
 
     def set_on_top(self, checked):
+        """Keep the window above others when `checked`."""
         self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, checked)
 
         self.show()
 
     def set_unit_mode(self, mode):
+        """Show angles in `mode` ("auto", "deg" or "mil") and solve again."""
         self.config["unit_mode"] = mode
 
         self.schedule_save()
@@ -2700,13 +2873,18 @@ class MainWindow(QMainWindow):
         self.recalculate_if_ready()
 
     def set_distance_step(self, step):
+        """Step the distance and the landed distance (wheel, arrow keys,
+        distance hotkeys) by `step` metres."""
         self.config["distance_step"] = step
 
         self.distance_entry.step = step
 
+        self.landed_entry.step = step
+
         self.schedule_save()
 
     def set_monitor(self, index):
+        """Put the overlay on monitor `index` and solve again for its size."""
         self.config["monitor"] = index
 
         self.overlay.move_to_screen()
@@ -2718,6 +2896,13 @@ class MainWindow(QMainWindow):
     def auto_hold_label(self):
         """The auto-hold setting's text, which names its key."""
         return tr("s_auto_hold", key=self.config["hotkeys"].get("auto_hold") or tr("hk_none"))
+
+    def align_caption_text(self):
+        """The alignment's caption, which names the key that clears the
+        target (the Reset button when no key is bound)."""
+        key = self.config["hotkeys"].get("reset_offset") or tr("reset_aim")
+
+        return tr("align_caption", key=key)
 
     def set_hotkey(self, action, key):
         """Bind `key` to `action` (a key does one thing: another action
@@ -2745,12 +2930,16 @@ class MainWindow(QMainWindow):
         self.controls["auto_hold"].setText(self.auto_hold_label())
         self.controls["auto_hold"].updateGeometry()
 
+        self.align_caption.setText(self.align_caption_text())
+
         self.update_hotkey_hint()
 
         # The steps name the keys (overlay on/off, auto-lay)
         self.recalculate_if_ready()
 
     def reset_settings(self):
+        """After the player confirms, put every setting back to its default
+        (trims and calibrations too) and rebuild the UI; the typed inputs stay."""
         answer = QMessageBox.question(
             self,
             "Squad Ballistics",
@@ -2794,6 +2983,7 @@ class MainWindow(QMainWindow):
         self.update_hold_watch()
 
     def schedule_save(self):
+        """Save the settings shortly (several changes in a row are saved once)."""
         self.save_timer.start()
 
     # =========================
@@ -2801,6 +2991,8 @@ class MainWindow(QMainWindow):
     # =========================
 
     def build_web_page(self):
+        """The SquadCalc page: the embedded map, created once and kept across
+        rebuilds (its targets and weapon feed the calculator)."""
         if self.map_page is None:
             self.map_page = MapPage(self.config)
 
@@ -2816,6 +3008,8 @@ class MainWindow(QMainWindow):
         return self.map_page
 
     def build_map_card(self):
+        """The map settings: the source, following the map's targets, the
+        rendering, opening in the browser and clearing the map's data."""
         frame, layout = card()
 
         layout.addWidget(label(tr("s_map"), "title"))
@@ -2884,6 +3078,7 @@ class MainWindow(QMainWindow):
         return frame
 
     def set_map_source(self, source):
+        """Load the map from `source` ("deadline" or "squadcalc")."""
         if source == self.config["map_source"]:
             return
 
@@ -2894,6 +3089,9 @@ class MainWindow(QMainWindow):
         self.map_page.load_source()
 
     def set_map_render(self, mode):
+        """Render the embedded map in `mode` ("auto" or "software"). The
+        setting is saved at once; it takes a restart, which the player is
+        offered."""
         if mode == self.config["map_render"]:
             return
 
@@ -2924,6 +3122,9 @@ class MainWindow(QMainWindow):
         QApplication.quit()
 
     def closeEvent(self, event):
+        """Leave nothing behind: release a held key and the virtual keyboard
+        first, save the settings, then stop the hotkeys, the timers, the map
+        and the overlay."""
         # Release a held key and remove the virtual keyboard first, and save
         # the settings even if that fails: an error in a later step must not
         # leave a key down in the game.

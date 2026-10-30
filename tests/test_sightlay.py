@@ -1019,6 +1019,56 @@ def test_the_compass_grab_is_centred_on_the_screen_not_the_crosshair(offset):
     assert top < 1080 - 60
 
 
+class ImageScreen:
+    """A screen that shows `image`: `grabWindow` as QScreen grabs it."""
+
+    def __init__(self, image):
+        self.image = image
+
+    def grabWindow(self, _window, x, y, width, height):
+        from PyQt6.QtGui import QPixmap
+
+        return QPixmap.fromImage(self.image.copy(x, y, width, height))
+
+
+class AlignedOverlay:
+    """An overlay whose crosshair the player aligned `dx`, `dy` pixels off
+    the screen centre ("Align with the sight"), on `screen`."""
+
+    def __init__(self, screen, dx, dy):
+        self.shown = screen
+        self.center_x = screen.image.width() / 2 + dx
+        self.center_y = screen.image.height() / 2 + dy
+
+    def width(self):
+        return self.shown.image.width()
+
+    def height(self):
+        return self.shown.image.height()
+
+    def screen(self):
+        return self.shown
+
+
+@pytest.mark.parametrize("dx, dy", [(0, 0), (0, 40), (0, 60), (0, 100), (0, -100), (100, 0)])
+def test_the_mortar_scale_is_grabbed_at_the_screen_centre_not_the_crosshair(qapp, dx, dy):
+    """The game draws the sight at the screen centre; an aligned crosshair
+    must not move the grab, or the scale reads 5-12 mil wrong at 40-100 px."""
+    screen = ImageScreen(draw_sight(1043.4, 1920, 1080))
+    sight = sightlay.ScreenSight(AlignedOverlay(screen, dx, dy))
+
+    left, top, _right, _bottom = sight.region()
+    grab = sight.grab()
+
+    assert sight.region() == sightlay.ScreenSight(AlignedOverlay(screen, 0, 0)).region()
+    assert (grab.centre_x, grab.centre_y) == (960 - left, 540 - top)
+
+    reading = sightlay.read_sight(grab, LabelTemplates())
+
+    assert reading is not None
+    assert reading.mils == pytest.approx(1043.4, abs=sightlay.TOLERANCE)
+
+
 def bearing_layer(world, turret, templates, target):
     """A layer on the compass: the strip drawn behind the bearing by the
     turret's lag, rendered at 1080p and read as the app reads it."""
