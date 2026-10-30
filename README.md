@@ -252,7 +252,7 @@ Weapons live in `weapons.json`. Only `velocity` is required:
 .venv/bin/python app.py                           # run / запуск
 .venv/bin/python app.py --selftest                # smoke test of every weapon through the UI / проверка всех оружий через интерфейс
 .venv/bin/python -m pytest                        # tests / тесты (every weapon is checked)
-.venv/bin/python -m pyflakes *.py tests           # only the two QtWebEngineWidgets imports may be reported
+.venv/bin/python -m pyflakes *.py tests           # Python 3.11+; only the two QtWebEngineWidgets imports may be reported
 ```
 
 `--selftest` prints its report and the path of `selftest.log`, which it writes to a new temporary folder (never into the app's folder or your settings). The tests use their own temporary settings and cache folders, never `~/.config` or `~/.cache`, and the embedded map refuses every network request during the tests. The X11 tests run Xvfb and xcompmgr when they are installed. / `--selftest` печатает отчёт и путь к `selftest.log` во временной папке (не в папке программы и не в настройках). Тесты работают со своими временными папками настроек и кэша, не трогая `~/.config` и `~/.cache`, а встроенная карта во время тестов отклоняет все сетевые запросы. Тесты X11 используют Xvfb и xcompmgr, если они установлены.
