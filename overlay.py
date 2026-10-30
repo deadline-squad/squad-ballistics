@@ -4,7 +4,10 @@ through.
 
 It needs translucent windows. On X11 those are blended only by a
 compositing manager; without one the window is opaque black, so the overlay
-then stays hidden and says so (`compositing_active`). It follows the screen
+then stays hidden and says so (`compositing_active`). Compositing can also
+stop while the overlay is up (KWin suspends it for a fullscreen game that
+asks to block it), so `X11CompositorWatch` follows it: the overlay hides
+when it stops and comes back when it starts again. It follows the screen
 it is on: a resolution change or a monitor plugged in or out puts it back
 over the configured monitor and emits `screen_changed`, so the mark and the
 ladder can be recomputed for the new size.
@@ -13,12 +16,15 @@ ladder can be recomputed for the new size.
 import ctypes
 import ctypes.util
 import math
+import os
 from typing import NamedTuple
 
 from PyQt6.QtCore import (
     Qt,
+    QObject,
     QPointF,
     QRectF,
+    QSocketNotifier,
     QTimer,
     pyqtSignal
 )
@@ -187,28 +193,54 @@ INFO_FLAGS = (
 ).value | Qt.TextFlag.TextWordWrap.value
 
 
-def x11_compositing_manager_running():
-    """Whether a compositing manager runs on $DISPLAY's default screen: it
-    owns the selection `_NET_WM_CM_S<screen>` (EWMH, "Compositing
-    managers": https://specifications.freedesktop.org/wm-spec/latest/).
-
-    True when that cannot be found out (no libX11, no display), so a failed
-    check never hides the overlay.
-    """
+def load_xlib():
+    """libX11 with the signatures this module calls, or None without it."""
     try:
         xlib = ctypes.CDLL(ctypes.util.find_library("X11") or "libX11.so.6")
     except OSError:
-        return True
+        return None
 
     xlib.XOpenDisplay.restype = ctypes.c_void_p
     xlib.XOpenDisplay.argtypes = [ctypes.c_char_p]
     xlib.XDefaultScreen.restype = ctypes.c_int
     xlib.XDefaultScreen.argtypes = [ctypes.c_void_p]
+    xlib.XRootWindow.restype = ctypes.c_ulong
+    xlib.XRootWindow.argtypes = [ctypes.c_void_p, ctypes.c_int]
     xlib.XInternAtom.restype = ctypes.c_ulong
     xlib.XInternAtom.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
     xlib.XGetSelectionOwner.restype = ctypes.c_ulong
     xlib.XGetSelectionOwner.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+    xlib.XConnectionNumber.restype = ctypes.c_int
+    xlib.XConnectionNumber.argtypes = [ctypes.c_void_p]
+    xlib.XPending.restype = ctypes.c_int
+    xlib.XPending.argtypes = [ctypes.c_void_p]
+    xlib.XNextEvent.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+    xlib.XFlush.argtypes = [ctypes.c_void_p]
     xlib.XCloseDisplay.argtypes = [ctypes.c_void_p]
+
+    return xlib
+
+
+def compositing_selection(xlib, display):
+    """The atom `_NET_WM_CM_S<screen>` of `display`'s default screen, which
+    a compositing manager owns while it runs (EWMH, "Compositing managers":
+    https://specifications.freedesktop.org/wm-spec/latest/)."""
+    screen = xlib.XDefaultScreen(display)
+
+    return xlib.XInternAtom(display, f"_NET_WM_CM_S{screen}".encode(), 0)
+
+
+def x11_compositing_manager_running():
+    """Whether a compositing manager runs on $DISPLAY's default screen: it
+    owns the selection `_NET_WM_CM_S<screen>` (see `compositing_selection`).
+
+    True when that cannot be found out (no libX11, no display), so a failed
+    check never hides the overlay.
+    """
+    xlib = load_xlib()
+
+    if xlib is None:
+        return True
 
     display = xlib.XOpenDisplay(None)
 
@@ -216,12 +248,128 @@ def x11_compositing_manager_running():
         return True
 
     try:
-        screen = xlib.XDefaultScreen(display)
-        selection = xlib.XInternAtom(display, f"_NET_WM_CM_S{screen}".encode(), 0)
-
-        return xlib.XGetSelectionOwner(display, selection) != 0
+        return xlib.XGetSelectionOwner(display, compositing_selection(xlib, display)) != 0
     finally:
         xlib.XCloseDisplay(display)
+
+
+# XFixes selection events (fixesproto, "Selection Tracking"): the owner of
+# the selection changed, its window was destroyed, its client disconnected.
+XFIXES_SELECTION_EVENTS = (1 << 0) | (1 << 1) | (1 << 2)
+
+# Room for one Xlib XEvent (a union of 24 longs); the watch only drains them.
+XEvent = ctypes.c_long * 24
+
+
+class X11CompositorWatch(QObject):
+    """Follows whether a compositing manager runs on $DISPLAY's default
+    screen and emits `changed(active)` when it starts or stops.
+
+    The X server reports every change of the `_NET_WM_CM_S<screen>`
+    selection's owner (XFixes selection tracking,
+    https://gitlab.freedesktop.org/xorg/proto/xorgproto/-/blob/master/fixesproto.txt)
+    on a connection of the watch's own (PyQt cannot reach Qt's), whose
+    socket a QSocketNotifier watches: nothing runs while nothing changes.
+    Create it with `start`; `stop` closes the connection.
+    """
+
+    changed = pyqtSignal(bool)
+
+    def __init__(self, xlib, display, parent=None):
+        super().__init__(parent)
+
+        self.xlib = xlib
+        self.display = display
+        self.root = xlib.XRootWindow(display, xlib.XDefaultScreen(display))
+        self.selection = compositing_selection(xlib, display)
+        self.active = xlib.XGetSelectionOwner(display, self.selection) != 0
+
+        self.notifier = QSocketNotifier(
+            xlib.XConnectionNumber(display),
+            QSocketNotifier.Type.Read,
+            self
+        )
+        self.notifier.activated.connect(self.check)
+
+    @classmethod
+    def start(cls, parent=None):
+        """A running watch, or None when there is no X display or the
+        server or the system lacks XFixes."""
+        xlib = load_xlib()
+
+        if xlib is None:
+            return None
+
+        try:
+            xfixes = ctypes.CDLL(ctypes.util.find_library("Xfixes") or "libXfixes.so.3")
+        except OSError:
+            return None
+
+        display = xlib.XOpenDisplay(None)
+
+        if not display:
+            return None
+
+        xfixes.XFixesQueryExtension.argtypes = [
+            ctypes.c_void_p, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)
+        ]
+        xfixes.XFixesQueryVersion.argtypes = [
+            ctypes.c_void_p, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)
+        ]
+        xfixes.XFixesSelectSelectionInput.argtypes = [
+            ctypes.c_void_p, ctypes.c_ulong, ctypes.c_ulong, ctypes.c_ulong
+        ]
+
+        event_base, error_base = ctypes.c_int(), ctypes.c_int()
+        # The protocol asks a client to agree on a version before any request.
+        major, minor = ctypes.c_int(5), ctypes.c_int(0)
+
+        if not (
+            xfixes.XFixesQueryExtension(display, ctypes.byref(event_base), ctypes.byref(error_base))
+            and xfixes.XFixesQueryVersion(display, ctypes.byref(major), ctypes.byref(minor))
+        ):
+            xlib.XCloseDisplay(display)
+            return None
+
+        watch = cls(xlib, display, parent)
+
+        xfixes.XFixesSelectSelectionInput(
+            display, watch.root, watch.selection, XFIXES_SELECTION_EVENTS
+        )
+        xlib.XFlush(display)
+
+        return watch
+
+    def check(self):
+        """Read the pending events and emit `changed` if the selection
+        gained or lost its owner.
+
+        The owner is asked after the events are drained: an event that
+        arrives while the answer is awaited was sent before the answer, so
+        the answer already counts it, and one sent later wakes the notifier.
+        """
+        if self.display is None:
+            return
+
+        event = XEvent()
+
+        while self.xlib.XPending(self.display):
+            self.xlib.XNextEvent(self.display, ctypes.byref(event))
+
+        active = self.xlib.XGetSelectionOwner(self.display, self.selection) != 0
+
+        if active != self.active:
+            self.active = active
+            self.changed.emit(active)
+
+    def stop(self):
+        """Stop watching and close the X connection."""
+        if self.display is None:
+            return
+
+        self.notifier.setEnabled(False)
+        self.xlib.XCloseDisplay(self.display)
+        self.display = None
 
 
 def compositing_active():
@@ -235,6 +383,20 @@ def compositing_active():
         return True
 
     return x11_compositing_manager_running()
+
+
+def compositor_advice(environ=None):
+    """The "no compositor" warning for the running desktop.
+
+    KDE Plasma composites by default, but KWin lets a fullscreen window
+    block compositing (Proton asks for it with `_NET_WM_BYPASS_COMPOSITOR`):
+    the advice there is to stop that, not to turn compositing on.
+    """
+    environ = os.environ if environ is None else environ
+
+    desktops = environ.get("XDG_CURRENT_DESKTOP", "").upper().split(":")
+
+    return tr("no_compositor_kde" if "KDE" in desktops else "no_compositor")
 
 
 class Overlay(QWidget):
@@ -255,6 +417,19 @@ class Overlay(QWidget):
 
         # The warning shown instead of the overlay without a compositor.
         self.compositor_warning = None
+
+        # Whether the overlay was last asked to show (by `setVisible`): it
+        # comes back when compositing does only then.
+        self.wanted = False
+
+        # Started on X11 only: Wayland always composites.
+        self.compositor_watch = None
+
+        if QGuiApplication.platformName() == "xcb":
+            self.compositor_watch = X11CompositorWatch.start(self)
+
+        if self.compositor_watch is not None:
+            self.compositor_watch.changed.connect(self.compositing_changed)
 
         # Screen changes arrive as several signals at once (a monitor
         # unplugged also resizes the virtual desktop); they are handled
@@ -309,31 +484,59 @@ class Overlay(QWidget):
     def setVisible(self, visible):
         """Show or hide the overlay; it is not shown on X11 without a
         compositing manager, where it would be an opaque black screen, and a
-        warning says why instead (again on every later try to show it)."""
+        warning says why instead (again on every later try to show it).
+        Shown, it follows the compositor, see `compositing_changed`."""
+        self.wanted = visible
+
         if visible and not compositing_active():
             self.warn_no_compositor()
             return
 
         super().setVisible(visible)
 
+    def compositing_changed(self, active):
+        """Hide the overlay and warn when compositing stops while it is
+        wanted; show it again, without the warning, when compositing is back.
+        An overlay the user turned off stays off."""
+        if not self.wanted:
+            return
+
+        if active:
+            if self.compositor_warning is not None:
+                self.compositor_warning.hide()
+
+            super().setVisible(True)
+        else:
+            super().setVisible(False)
+            self.warn_no_compositor()
+
     def warn_no_compositor(self):
-        """Show the non-modal "no compositor" warning, once at a time."""
+        """Show the non-modal "no compositor" warning, once at a time.
+
+        It does not take the keyboard focus: it may come up while the game
+        has it. The advice depends on the desktop (`compositor_advice`).
+        """
         if self.compositor_warning is None:
             self.compositor_warning = QMessageBox(
                 QMessageBox.Icon.Warning,
                 tr("no_compositor_title"),
-                tr("no_compositor")
+                compositor_advice()
             )
             self.compositor_warning.setWindowModality(Qt.WindowModality.NonModal)
+            self.compositor_warning.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
 
         self.compositor_warning.show()
         self.compositor_warning.raise_()
 
     def closeEvent(self, event):
         """Close the compositor warning with the overlay: a window left
-        open would keep the app running after the main window closed."""
+        open would keep the app running after the main window closed. The
+        compositor is no longer watched."""
         if self.compositor_warning is not None:
             self.compositor_warning.close()
+
+        if self.compositor_watch is not None:
+            self.compositor_watch.stop()
 
         super().closeEvent(event)
 

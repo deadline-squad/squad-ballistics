@@ -5,9 +5,11 @@ file. The last tests start the real app on an X server (Xvfb)."""
 import copy
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
+import threading
 import time
 
 import pytest
@@ -40,16 +42,22 @@ def dialogs(monkeypatch):
 
 @pytest.fixture
 def excepthook():
-    saved = sys.excepthook
+    saved = sys.excepthook, threading.excepthook
     yield
-    sys.excepthook = saved
+    sys.excepthook, threading.excepthook = saved
 
 
-def raise_from(where):
-    """An exception whose traceback names `where`."""
+def raise_from(where, error_type=ValueError):
+    """An `error_type` raised in a function of its own named after `where`:
+    each `where` is a distinct crash, as the crash handler tells them apart
+    by type and frames."""
+    name = re.sub(r"\W", "_", where)
+    namespace = {"error_type": error_type}
+    exec(f"def {name}():\n    raise error_type('bad value in {where}')", namespace)
+
     try:
-        raise ValueError(f"bad value in {where}")
-    except ValueError as e:
+        namespace[name]()
+    except error_type as e:
         return type(e), e, e.__traceback__
 
 
@@ -108,6 +116,93 @@ def test_no_dialog_opens_while_one_is_up(tmp_path, monkeypatch, excepthook):
     # Once it is closed the next new error gets its dialog.
     handler(*raise_from("later"))
     assert len(opened) == 2
+
+
+def test_an_error_with_a_changing_message_is_one_crash(tmp_path, dialogs, excepthook):
+    """A slot that raises with the current value in the message on every
+    tick is still one error: one dialog, one log entry."""
+    handler = app.install_crash_handler(str(tmp_path))
+
+    for i in range(200):
+        try:
+            raise ValueError(f"bad value {i}")
+        except ValueError as e:
+            handler(type(e), e, e.__traceback__)
+
+    assert len(dialogs) == 1
+    assert "bad value 0" in dialogs[0][1]
+    assert (tmp_path / "crash.log").read_text().count("Traceback") == 1
+
+    # Another type raised from the same place is another error.
+    handler(*raise_from("same place", ValueError))
+    handler(*raise_from("same place", KeyError))
+
+    assert len(dialogs) == 3
+
+
+def test_ctrl_c_is_not_a_crash(tmp_path, dialogs, excepthook, monkeypatch):
+    default = []
+    monkeypatch.setattr(sys, "__excepthook__", lambda *error: default.append(error[0]))
+    handler = app.install_crash_handler(str(tmp_path))
+
+    try:
+        raise KeyboardInterrupt
+    except KeyboardInterrupt as e:
+        handler(type(e), e, e.__traceback__)
+
+    assert default == [KeyboardInterrupt]
+    assert dialogs == []
+    assert not (tmp_path / "crash.log").exists()
+
+
+def test_an_error_in_a_worker_thread_is_logged_without_a_dialog(tmp_path, dialogs, excepthook):
+    app.install_crash_handler(str(tmp_path))
+
+    def work():
+        raise RuntimeError("worker failed")
+
+    def leave():
+        sys.exit(3)
+
+    for target in (work, leave):
+        worker = threading.Thread(target=target)
+        worker.start()
+        worker.join(10)
+
+    log = (tmp_path / "crash.log").read_text()
+    assert "RuntimeError: worker failed" in log
+    assert "SystemExit" not in log
+    # Widgets belong to the main thread: no dialog from a worker.
+    assert dialogs == []
+
+
+def test_the_crash_log_and_its_folder_are_private(tmp_path):
+    folder = tmp_path / "SquadBallistics"
+    log = folder / "crash.log"
+
+    app.write_crash_log(str(log), "Traceback: first")
+    assert os.stat(log).st_mode & 0o777 == 0o600
+    assert os.stat(folder).st_mode & 0o777 == 0o700
+
+    # A folder and a log an older version left readable by others.
+    os.chmod(folder, 0o755)
+    os.chmod(log, 0o644)
+    app.write_crash_log(str(log), "Traceback: second")
+
+    assert os.stat(log).st_mode & 0o777 == 0o600
+    assert os.stat(folder).st_mode & 0o777 == 0o700
+    assert "first" in log.read_text() and "second" in log.read_text()
+
+
+def test_taking_the_lock_makes_an_old_settings_folder_private(tmp_path):
+    folder = tmp_path / "SquadBallistics"
+    folder.mkdir()
+    os.chmod(folder, 0o755)
+
+    lock = app.acquire_instance_lock(str(folder), 200)
+
+    assert os.stat(folder).st_mode & 0o777 == 0o700
+    lock.unlock()
 
 
 def test_the_crash_log_is_capped(tmp_path):
@@ -354,14 +449,14 @@ class FakeWindow(QObject):
 
 @pytest.fixture
 def restore_signals():
-    handlers = {s: signal.getsignal(s) for s in (signal.SIGTERM, signal.SIGINT)}
+    handlers = {s: signal.getsignal(s) for s in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)}
     yield
     signal.set_wakeup_fd(-1)
     for number, handler in handlers.items():
         signal.signal(number, handler)
 
 
-@pytest.mark.parametrize("number", [signal.SIGTERM, signal.SIGINT])
+@pytest.mark.parametrize("number", [signal.SIGTERM, signal.SIGINT, signal.SIGHUP])
 def test_a_termination_signal_closes_the_window_and_quits(qapp, monkeypatch, restore_signals, number):
     window = FakeWindow()
     events = []
@@ -369,6 +464,9 @@ def test_a_termination_signal_closes_the_window_and_quits(qapp, monkeypatch, res
     monkeypatch.setattr(qapp, "quit", lambda: events.append("quit"))
 
     keep = app.install_signal_handlers(qapp, window)
+
+    # Checked first: the default action of SIGHUP would end the test run.
+    assert signal.getsignal(number) not in (signal.SIG_DFL, signal.SIG_IGN)
 
     os.kill(os.getpid(), number)
 
@@ -452,10 +550,11 @@ def window_title(window, env):
 def windows_of(process, env, name=""):
     """X window ids the process has mapped whose title matches `name`.
 
+    `--all`: every condition must match (xdotool's default is any one).
     `xdotool search --pid` also lists the root window, which has no pid:
     only windows that name the process as theirs are kept.
     """
-    found = xdotool_output(env, "search", "--onlyvisible", "--pid", str(process.pid), "--name", name)
+    found = xdotool_output(env, "search", "--all", "--onlyvisible", "--pid", str(process.pid), "--name", name)
     return [
         window for window in found.split()
         if xdotool_output(env, "getwindowpid", window) == str(process.pid)
@@ -490,6 +589,8 @@ def test_the_real_app_saves_on_sigterm_and_refuses_a_second_copy(xvfb_display, x
 
     try:
         assert wait_for(lambda: windows_of(first, env, "^Squad Ballistics$")), first.stdout.read() if first.poll() is not None else "no window"
+        # Only the main window has that title (not the compositor warning).
+        assert len(windows_of(first, env, "^Squad Ballistics$")) == 1
 
         second, _env = start_app(xvfb_display, tmp_path)
         try:
