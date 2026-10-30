@@ -221,6 +221,55 @@ def test_wayland_runs_through_xwayland():
     assert "QT_QPA_PLATFORM" not in x11
 
 
+MORTAR = "Mortar (M252 / 2B14 / L16 / Type 63)"
+
+
+def test_a_lay_rate_beyond_the_calibration_tolerance_falls_back_to_the_file():
+    """A hand-edited 1e-6 deg/s would hold S for 4e7 s: rates more than
+    LAY_RATE_TOLERANCE off weapons.json's are dropped on load, like the
+    calibration refuses them."""
+    base = config.file_hold_rates()[MORTAR]
+    tolerance = config.LAY_RATE_TOLERANCE
+
+    for rate in (1e-6, base * (1 - tolerance) - 0.01, base * (1 + tolerance) + 0.01, 1e6):
+        assert config._merge({"lay_rates": {MORTAR: rate}})["lay_rates"] == {}, rate
+
+    for rate in (base * (1 - tolerance) + 0.001, base, base * (1 + tolerance) - 0.001):
+        assert config._merge({"lay_rates": {MORTAR: rate}})["lay_rates"] == {MORTAR: rate}
+
+    # A name weapons.json does not lay by hold changes nothing and is kept.
+    assert config._merge({"lay_rates": {"Gone": 0.5}})["lay_rates"] == {"Gone": 0.5}
+
+
+def test_the_load_bound_is_the_calibration_tolerance():
+    import crosshair
+
+    assert config.LAY_RATE_TOLERANCE == crosshair.LAY_RATE_TOLERANCE
+
+
+def test_a_migrated_key_on_a_newer_actions_default_unbinds_the_newer_action():
+    """1.2.0 had no auto_hold (F7 by default): a 1.2.0 file with F7 bound
+    elsewhere keeps that binding and leaves auto_hold visibly unbound
+    instead of shown on F7 but never bound."""
+    import hotkeys
+
+    cfg = config._merge({"hotkeys": {"toggle_overlay": "F8", "distance_up": "F7"}})
+
+    assert cfg["hotkeys"]["distance_up"] == "F7"
+    assert cfg["hotkeys"]["auto_hold"] == ""
+
+    cfg["auto_hold"] = True
+    window = type("Window", (), {"config": cfg})()
+    assert hotkeys.bindings(window) == [("F8", "toggle_overlay"), ("F9", "reset_offset"), ("F7", "distance_up")]
+
+    # No clash: the newer action gets its default key.
+    assert config._merge({"hotkeys": {"distance_up": "F6"}})["hotkeys"]["auto_hold"] == "F7"
+
+    # A file that names the newer action keeps what it says.
+    saved = {"distance_up": "F7", "auto_hold": "F7"}
+    assert config._merge({"hotkeys": saved})["hotkeys"]["auto_hold"] == "F7"
+
+
 def test_lay_rates_keep_only_positive_numbers():
     merged = config._merge({"lay_rates": {
         "Mortar (M252 / 2B14 / L16 / Type 63)": 8.7,
@@ -275,6 +324,39 @@ def test_saved_settings_are_private(tmp_path):
     assert os.stat(path).st_mode & 0o777 == 0o600
     assert os.stat(folder).st_mode & 0o777 == 0o700
     assert json.loads(path.read_text())["fov"] == config.DEFAULT_CONFIG["fov"]
+
+
+def test_a_settings_folder_of_an_older_version_is_made_private(tmp_path):
+    """1.2.0 created the folder 0755: the next save closes it to others."""
+    folder = tmp_path / "SquadBallistics"
+    folder.mkdir()
+    os.chmod(folder, 0o755)
+
+    config.save_config({"fov": 60}, str(folder / "config.json"))
+
+    assert os.stat(folder).st_mode & 0o777 == 0o700
+
+
+def test_settings_reach_the_disk_before_they_replace_the_old_file(tmp_path, monkeypatch):
+    path = tmp_path / "config.json"
+    events = []
+    real_fsync, real_replace = os.fsync, os.replace
+
+    def fsync(descriptor):
+        events.append("fsync")
+        real_fsync(descriptor)
+
+    def replace(source, target):
+        events.append("replace")
+        real_replace(source, target)
+
+    monkeypatch.setattr(os, "fsync", fsync)
+    monkeypatch.setattr(os, "replace", replace)
+
+    config.save_config({"fov": 60}, str(path))
+
+    assert events == ["fsync", "replace"]
+    assert json.loads(path.read_text()) == {"fov": 60}
 
 
 def test_saving_replaces_a_world_readable_file_and_temp_file(tmp_path):

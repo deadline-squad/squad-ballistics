@@ -25,6 +25,7 @@ STRINGS = {
     "fov_hint": "horizontal FOV",
     "trim": "Trim, deg",
     "trim_hint": "+ farther, − nearer",
+    "trim_hint_high": "high arc: + nearer, − farther",
     "landed": "Landed at, m",
     "landed_hint": "where the shot landed",
     "trim_apply": "Apply",
@@ -32,6 +33,11 @@ STRINGS = {
     "enter_landed": "Enter where the shot landed",
     "trim_set": "Trim set to {trim} deg",
     "trim_set_limit": "Trim set to {trim} deg (the limit)",
+    "trim_lob_refused": (
+        "Not applied: the lob is laid by holding S, not with the mark, so "
+        "its landing says nothing about the trim. Set the trim from a "
+        "direct-fire shot on the Low arc."
+    ),
     "info_trim": "trim {trim}",
     "how_trim": (
         "Your trim {trim}° is on for this weapon and view "
@@ -193,19 +199,33 @@ STRINGS = {
     ),
     "no_compositor_title": "Overlay needs a compositor",
     "no_compositor": (
-        "The overlay is off: no compositing manager is running on this X11 "
-        "desktop, so it would cover the whole screen in black instead of "
+        "The overlay is hidden: no compositing manager is running on this "
+        "X11 desktop, so it would cover the whole screen in black instead of "
         "drawing only the mark.\n\n"
-        "Turn compositing on (KDE: System Settings → Display → Compositor; "
-        "Xfce: Window Manager Tweaks → Compositor) or start one such as "
-        "picom, then press the overlay hotkey or reopen the app."
+        "Turn compositing on (Xfce: Window Manager Tweaks → Compositor) or "
+        "start a compositor such as picom. The overlay comes back by itself "
+        "as soon as one runs, or press the overlay hotkey."
+    ),
+    "no_compositor_kde": (
+        "The overlay is hidden: compositing is off on this X11 desktop, so "
+        "it would cover the whole screen in black instead of drawing only "
+        "the mark.\n\n"
+        "KDE Plasma lets a fullscreen game turn compositing off, and games "
+        "under Proton ask for it. In System Settings → Display & Monitor → "
+        "Compositor, untick \"Allow applications to block compositing\", or "
+        "add a rule for the game in System Settings → Window Management → "
+        "Window Rules: \"Block compositing\", Force, No. If compositing is "
+        "off altogether, tick \"Enable on startup\" there and press "
+        "Alt+Shift+F12.\n\n"
+        "The overlay comes back by itself as soon as compositing runs, or "
+        "press the overlay hotkey."
     ),
 
     # Crosshair page
     "preview": "Preview",
     "mark_caption": "The mark shows where to put the target: it moves down with the range.",
     "align_title": "Align with the sight",
-    "align_caption": "Move and scale the mark onto the sight in the game. Arrow keys step by 1; F9 clears the target, not the alignment.",
+    "align_caption": "Move and scale the mark onto the sight in the game. Arrow keys step by 1; {key} clears the target, not the alignment.",
     "align_x": "Move left/right",
     "align_y": "Move up/down",
     "align_scale": "Scale",

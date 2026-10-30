@@ -231,6 +231,53 @@ def test_without_a_compositor_the_overlay_stays_hidden_and_says_why(monkeypatch)
     assert not warning.isVisible()
 
 
+def test_compositing_that_stops_while_shown_hides_the_overlay_until_it_is_back(monkeypatch):
+    """KWin suspends compositing for a fullscreen game that asks for it:
+    the overlay must not stay up as a black screen."""
+    widget = make_overlay()
+    assert widget.isVisible() and widget.compositor_warning is None
+
+    widget.compositing_changed(False)
+
+    assert not widget.isVisible()
+    warning = widget.compositor_warning
+    assert warning.isVisible() and not warning.isModal()
+    assert warning.testAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+
+    widget.compositing_changed(True)
+
+    assert widget.isVisible()
+    assert not warning.isVisible()
+
+    # Turned off by the user: compositing coming back does not show it.
+    widget.hide()
+    widget.compositing_changed(False)
+    widget.compositing_changed(True)
+    assert not widget.isVisible()
+    assert not warning.isVisible()
+    widget.close()
+
+
+def test_kde_gets_advice_about_blocked_compositing():
+    kde = overlay.compositor_advice({"XDG_CURRENT_DESKTOP": "KDE"})
+    assert "Allow applications to block compositing" in kde
+    assert "Display & Monitor" in kde and "Window Rules" in kde
+
+    for desktop in ("XFCE", "GNOME", "i3", ""):
+        other = overlay.compositor_advice({"XDG_CURRENT_DESKTOP": desktop})
+        assert "picom" in other and "block compositing" not in other, desktop
+
+    assert overlay.compositor_advice({"XDG_CURRENT_DESKTOP": "ubuntu:KDE"}) == kde
+
+
+def test_no_compositor_watch_without_x(monkeypatch):
+    """The tests' offscreen platform has no X display to watch."""
+    widget = make_overlay()
+
+    assert widget.compositor_watch is None
+    widget.close()
+
+
 def test_hiding_never_asks_for_a_compositor(monkeypatch):
     widget = make_overlay()
     monkeypatch.setattr(overlay, "compositing_active", lambda: pytest.fail("checked on hide"))
