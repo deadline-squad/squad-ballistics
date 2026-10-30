@@ -868,26 +868,33 @@
     "Technical Mortar": {
         "velocity": 110,
         "gravity": 1,
+        "launch_height": 1.1789,
+        "muzzle_forward": 1.6137,
+        "muzzle_up": 0.0388,
         "category": "indirect",
         "arc": "high",
         "angle_offset": 5,
         "min_distance": 51,
         "elevation_limits": [
-            -45,
-            135
+            40,
+            83.8
         ],
-        "note": "Angle is the value on the technical's elevation readout."
+        "note": "Angle is the value on the technical's elevation readout: the HUD table (40° = 1250 m ... 83.8° = 50 m) lays the barrel about 5° above it. The shell starts 1.61 m along the tube, 1.18 m above the ground at its hinge."
     },
     "M1064 M121 (120mm)": {
         "velocity": 142,
         "gravity": 1,
+        "launch_height": 0.8174,
+        "muzzle_forward": 3.4618,
+        "muzzle_up": 0.0035,
         "category": "indirect",
         "arc": "high",
         "min_distance": 340,
         "elevation_limits": [
-            -45,
-            85.3
-        ]
+            50,
+            85
+        ],
+        "note": "Barrel laid between 50° and 85° (turret pitch 0–35° on a 50° tube); the shell starts 3.46 m along the tube, which pivots 0.82 m above the ground."
     },
     "Hell Cannon": {
         "velocity": 95,
@@ -924,6 +931,9 @@
     "Technical UB-32": {
         "velocity": 300,
         "gravity": 2,
+        "launch_height": 2.2659,
+        "muzzle_forward": 1.4303,
+        "muzzle_up": 0.2513,
         "category": "indirect",
         "aim": "elevation",
         "acceleration": -50,
@@ -931,19 +941,23 @@
         "max_speed": 300,
         "rotation_follows_velocity": false,
         "elevation_limits": [
-            -45,
-            135
+            0,
+            50
         ],
-        "note": "Rockets slow down during the first 2 s; fire in salvos and correct by the impacts."
+        "note": "Pod laid between 0° and 50°. Rockets slow down during the first 2 s; fire in salvos and correct by the impacts."
     },
     "BM-21 Grad": {
         "velocity": 200,
         "gravity": 2,
+        "launch_height": 1.7694,
+        "muzzle_forward": 2.7346,
+        "muzzle_up": 0.6366,
         "category": "indirect",
         "aim": "elevation",
         "elevation_limits": [
-            -45,
-            135
-        ]
+            14.2,
+            55
+        ],
+        "note": "Launcher laid between 14.2° and 55° (pitch 0–40.8° on a 14.2° rail): nothing closer than about 985 m on flat ground. The rockets start 2.73 m along the rail, 1.77 m above the ground at its hinge."
     }
 }
