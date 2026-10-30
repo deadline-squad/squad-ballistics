@@ -4,6 +4,7 @@ import pytest
 
 from PyQt6.QtGui import QColor, QFont, QImage, QPainter
 
+import compassreader
 from compassreader import DigitReader, read_compass, strip_ticks
 from sightreader import GrayImage, LabelTemplates
 from compassimage import bearing_text, draw_compass
@@ -12,10 +13,12 @@ from sightimage import draw_sight, font_family
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
 # What the strip must say of a number: within 2.5 degrees while it may lag
-# behind a turn, within 1.5 when the camera is still (real mortar frames
-# keep the ticks within 0.64 degree of the number).
+# behind a turn, within 1.5 when the camera is still, 0.8 under a number
+# with tenths (real mortar frames keep the ticks within 0.64 degree of the
+# number).
 MOVING = 2.5
 STILL = 1.5
+STILL_TENTHS = 0.8
 
 
 @pytest.fixture(scope="module")
@@ -235,6 +238,38 @@ def test_a_units_digit_misread_by_a_few_degrees_is_caught(digits, tolerance, cau
                 assert not accepted(digits, bearing + 0.5, wrong, False, tolerance), (bearing, wrong)
 
 
+@pytest.mark.parametrize("bearing", [275.0, 275.4, 275.9, 182.2, 88.5, 7.7])
+def test_a_units_digit_one_off_under_tenths_is_caught_on_a_still_strip(digits, bearing):
+    """The mortar's view: a still strip sits within 0.14 degree of
+    STRIP_BIAS under a number with tenths, so STILL_TENTHS_TOLERANCE (0.8)
+    catches a units digit read one off, which STILL_TOLERANCE (1.5) let
+    through; the number read right still passes."""
+    text = bearing_text(bearing, True)
+
+    def read_still(shown):
+        gray = GrayImage.from_qimage(draw_compass(bearing, 1920, 1080, precise=True, text=shown))
+
+        return read_compass(gray, 960.0, 1.0, digits, STILL, STILL_TENTHS)
+
+    for step in (1, -1):
+        wrong = replaced(text, 2, (int(text[2]) + step) % 10)
+
+        assert accepted(digits, bearing, wrong, True, STILL), wrong
+        assert read_still(wrong) is None, wrong
+
+    assert read_still(text).text == text
+
+
+def test_the_tenths_tolerance_is_for_numbers_with_tenths_only(digits):
+    """A whole-degree number is cut, its bearing anywhere in the degree:
+    the still strip under it keeps STILL_TOLERANCE."""
+    gray = GrayImage.from_qimage(draw_compass(182.9, 1920, 1080, precise=False))
+    reading = read_compass(gray, 960.0, 1.0, digits, STILL, 0.01)
+
+    assert reading is not None
+    assert reading.text == "182"
+
+
 def test_the_tenths_digit_is_not_checked(digits):
     """What no check reaches: a tenths digit off by up to 0.9 degree. The
     lay asks for two readings that agree before it trusts one."""
@@ -425,7 +460,22 @@ def test_a_real_frame_whose_units_digit_was_misread_is_no_reading(digits):
     assert read_compass(crop, 400.0, 1.0, digits, STILL) is None
 
 
+def test_the_constants_are_what_the_tests_assume():
+    assert (compassreader.TICK_TOLERANCE, compassreader.STILL_TOLERANCE,
+            compassreader.STILL_TENTHS_TOLERANCE) == (MOVING, STILL, STILL_TENTHS)
+
+
 def test_a_real_frame_too_dim_to_read_is_no_reading(digits):
     """j_132, a fade: its 1 reads as a 7, 783 (the old code threw it away
     for being over 360 only)."""
     assert read_compass(load_crop("j_132"), 400.0, 1.0, digits) is None
+
+
+@pytest.mark.parametrize("name, text, degrees", REAL_FRAMES)
+def test_reads_real_frames_within_the_still_tenths_tolerance(digits, name, text, degrees):
+    """Every real frame that reads, reads with the strip held to
+    STILL_TENTHS_TOLERANCE as well."""
+    reading = read_compass(load_crop(name), 400.0, 1.0, digits, STILL_TENTHS, STILL_TENTHS)
+
+    assert reading is not None
+    assert reading.text == text

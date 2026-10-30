@@ -2092,7 +2092,8 @@ class MainWindow(QMainWindow):
 
     def on_bearing_lay_finished(self, reading, on_target):
         """The bearing is laid (or could not be): lay the elevation next,
-        unless the player stopped the lay."""
+        unless the player stopped the lay or it ended on an error (the keys
+        or the screen failed, the elevation's lay would too)."""
         turning = self.bearing_layer
 
         self.show_bearing_reading(reading, self.lay_mark(turning, on_target))
@@ -2100,7 +2101,7 @@ class MainWindow(QMainWindow):
         if turning is not None:
             self.set_lay_info(self.lay_failure_text(turning, "lay_bearing"))
 
-        stopped = turning is not None and turning.stopped
+        stopped = turning is not None and (turning.stopped or turning.failure == "error")
 
         if stopped or not self.start_sight_lay():
             self.update_sight_watch()
