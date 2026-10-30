@@ -293,5 +293,7 @@ def test_an_infinite_aim_points_off_the_screen(screens, value, top):
 
     assert widget.mark_visible
     assert widget.is_offscreen(widget.offset)
-    assert (widget.offset < 0) == top
+    # Held two screen heights out: far enough for the arrow, and a finite
+    # number for the info line's position.
+    assert widget.offset == (-600 if top else 600)
     widget.close()
