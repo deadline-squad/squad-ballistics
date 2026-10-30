@@ -717,3 +717,60 @@ def test_links_the_user_clicks_open_in_the_system_browser(qapp, live_map, opened
     page.reload()
     assert spin(qapp, 15, lambda: "two" not in page.status.text())
     assert spin(qapp, 15, lambda: not page.loading and page.bridge_timer.isActive())
+
+
+class FakeLoadingInfo:
+    """The QWebEngineLoadingInfo calls MapPage.on_loading_changed makes."""
+
+    def __init__(self, status, url):
+        from PyQt6.QtCore import QUrl
+
+        self._status = status
+        self._url = QUrl(url)
+
+    def status(self):
+        return self._status
+
+    def url(self):
+        return self._url
+
+
+def test_loads_of_other_origins_are_not_loads_of_the_map(bridge_page):
+    """A refused navigation reports a start and a stop of its own address;
+    a reload issued while it is cancelled is reported started with that
+    address too and must still start (QtWebEngine 6.11, seen in CI run
+    41057783601)."""
+    from PyQt6.QtCore import QUrl
+    from PyQt6.QtWebEngineCore import QWebEngineLoadingInfo
+
+    Status = QWebEngineLoadingInfo.LoadStatus
+    bridge_page.page.map_origin = webmap.url_origin(QUrl("https://calc.example/"))
+    starts = []
+    real_start = bridge_page.on_load_started
+    bridge_page.on_load_started = lambda: (starts.append(True), real_start())
+
+    bridge_page.on_loading_changed(FakeLoadingInfo(Status.LoadStartedStatus, "https://calc.example/"))
+    bridge_page.on_loading_changed(FakeLoadingInfo(Status.LoadSucceededStatus, "https://calc.example/"))
+    assert starts == [True] and bridge_page.bridge_timer.isActive()
+
+    # Refused: neither a start nor a failure of the map.
+    bridge_page.on_loading_changed(FakeLoadingInfo(Status.LoadStartedStatus, "https://evil.example/"))
+    bridge_page.on_loading_changed(FakeLoadingInfo(Status.LoadStoppedStatus, "https://evil.example/"))
+    assert starts == [True]
+    assert not bridge_page.loading and bridge_page.panel_kind is None
+    assert bridge_page.bridge_timer.isActive()
+
+    # A reload right after it: started under the refused address.
+    bridge_page.external_notice = "notice"
+    bridge_page.weapon_baseline_pending = False
+    bridge_page.on_loading_changed(FakeLoadingInfo(Status.LoadStartedStatus, "https://evil.example/"))
+    bridge_page.on_loading_changed(FakeLoadingInfo(Status.LoadSucceededStatus, "https://calc.example/"))
+    assert starts == [True, True]
+    assert bridge_page.external_notice == ""
+    assert bridge_page.weapon_baseline_pending
+    assert bridge_page.bridge_timer.isActive() and not bridge_page.loading
+
+    # A failed load of the map is still a failure.
+    bridge_page.on_loading_changed(FakeLoadingInfo(Status.LoadStartedStatus, "https://calc.example/"))
+    bridge_page.on_loading_changed(FakeLoadingInfo(Status.LoadFailedStatus, "https://calc.example/"))
+    assert bridge_page.panel_kind == "failed"

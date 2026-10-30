@@ -717,6 +717,7 @@ class MapPage(QWidget):
         is reported too, as started and then stopped: it is not a load of
         the map and is ignored, otherwise the map would show the "failed"
         panel and stop its bridge poll after every link to another site.
+        Only the reports with the map's origin count.
         """
         from PyQt6.QtWebEngineCore import QWebEngineLoadingInfo
 
@@ -727,8 +728,15 @@ class MapPage(QWidget):
 
         if info.status() == Status.LoadStartedStatus:
             self.on_load_started()
-        else:
-            self.on_load_finished(info.status() == Status.LoadSucceededStatus)
+            return
+
+        # A load issued while a refused navigation is still being cancelled
+        # (a reload right after it) is reported as started with the refused
+        # address, so its start was ignored above: it starts here.
+        if not self.loading:
+            self.on_load_started()
+
+        self.on_load_finished(info.status() == Status.LoadSucceededStatus)
 
     def on_load_started(self):
         self.loading = True
