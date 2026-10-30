@@ -6,15 +6,18 @@ Settings live in `$XDG_CONFIG_HOME/SquadBallistics/config.json` (see
 by setting: a value of the wrong type, out of `CHOICES`, not finite, or a
 fraction for a whole-number setting falls back to its default alone, and
 an unreadable file is kept as `config.json.bad` instead of being replaced
-silently. `save_config` writes atomically and privately (mode 0600).
+silently. `save_config` writes atomically, durably and privately (mode
+0600 in a 0700 folder).
 """
 
 import copy
+import functools
 import json
 import math
 import os
 
-from ballistics import clamp_trim, current_weapon_name
+from ballistics import WeaponDataError, clamp_trim, current_weapon_name, load_weapons
+from utils import resource_path
 
 APP_NAME = "SquadBallistics"
 APP_VERSION = "1.6.0"
@@ -141,6 +144,12 @@ RANGES = {
 
 DISTANCE_STEPS = (1, 5, 10, 25, 50, 100)
 
+# A calibrated hold rate (`lay_rates`) is kept only within this fraction of
+# weapons.json's: the auto-lay calibration refuses a fit outside it (a typo
+# in the mils would give an absurd one), so a saved rate outside it was
+# written by hand or by a broken file, and would hold S for hours.
+LAY_RATE_TOLERANCE = 0.3
+
 # Numeric settings that take a fraction; every other number is a whole one
 # (slider positions, pixels, an index), so a saved fraction there is junk.
 FRACTIONAL_SETTINGS = ("fov",)
@@ -209,6 +218,49 @@ def nearest_mark_color(rgb):
     )
 
 
+@functools.lru_cache(maxsize=1)
+def file_hold_rates():
+    """{weapon name: hold rate} of the weapons in weapons.json laid by
+    holding a key (`lay_rates` replaces these); empty when the file cannot
+    be read, which the app reports on its own."""
+    try:
+        weapons = load_weapons(resource_path("weapons.json"))
+    except (OSError, WeaponDataError):
+        return {}
+
+    return {
+        name: weapon.hold_rate
+        for name, weapon in weapons.items()
+        if weapon.has_hold and weapon.aim == "elevation"
+    }
+
+
+def _valid_lay_rates(loaded):
+    """The usable entries of a saved `lay_rates`: {weapon name: positive
+    finite rate}, renamed weapons under their current name. The rate of a
+    weapon of weapons.json is dropped (back to the file's) when it is more
+    than LAY_RATE_TOLERANCE off the file's rate; other names are kept as
+    they are, they change nothing."""
+    base_rates = file_hold_rates()
+    rates = {}
+
+    for name, rate in loaded.items():
+        rate = finite_number(rate)
+
+        if not isinstance(name, str) or rate is None or rate <= 0:
+            continue
+
+        name = current_weapon_name(name)
+        base = base_rates.get(name)
+
+        if base and abs(rate - base) > LAY_RATE_TOLERANCE * base:
+            continue
+
+        rates[name] = rate
+
+    return rates
+
+
 def _valid_mark_trims(loaded):
     """The usable entries of a saved `mark_trim`: {weapon name: degrees},
     a finite number (clamped), not zero. Anything else is dropped.
@@ -264,6 +316,23 @@ def _valid_number(key, value):
     return max(low, min(high, number))
 
 
+def _unbind_clashing_new_hotkeys(hotkeys, saved):
+    """Unbind an action the `saved` hotkeys predate when its default key
+    is one the saved ones already use.
+
+    A file of an older version lacks the newer actions (1.2.0 has no
+    "auto_hold", F7 by default); one with F7 bound to another action would
+    otherwise leave auto_hold unbound with F7 still shown as its key. The
+    newer action is left without a key, so Settings shows it free to bind.
+    `hotkeys` (merged) is changed in place.
+    """
+    used = {key for action, key in hotkeys.items() if action in saved and key}
+
+    for action, key in hotkeys.items():
+        if action not in saved and key in used:
+            hotkeys[action] = ""
+
+
 def _merge(loaded):
     """Fill missing keys with defaults and drop values of the wrong type.
 
@@ -290,6 +359,8 @@ def _merge(loaded):
                 for action in default:
                     if isinstance(value.get(action), str):
                         config[key][action] = value[action]
+
+                _unbind_clashing_new_hotkeys(config[key], value)
             continue
 
         if key == "recent_weapons":
@@ -299,13 +370,7 @@ def _merge(loaded):
 
         if key == "lay_rates":
             if isinstance(value, dict):
-                config[key] = {
-                    current_weapon_name(name): finite_number(rate)
-                    for name, rate in value.items()
-                    if isinstance(name, str)
-                    and finite_number(rate) is not None
-                    and rate > 0
-                }
+                config[key] = _valid_lay_rates(value)
             continue
 
         if key == "mark_trim":
@@ -421,17 +486,35 @@ def load_config(path=None):
     return read_config(path)[0]
 
 
+def make_private_dir(path):
+    """Create the folder `path` readable by the owner only (0700), and make
+    one an older version created readable by others (0755) private.
+
+    Raises OSError when it cannot be created; a mode that cannot be changed
+    (a folder of another user) is left as it is.
+    """
+    os.makedirs(path, mode=0o700, exist_ok=True)
+
+    try:
+        os.chmod(path, 0o700)
+    except OSError:
+        pass
+
+
 def save_config(config, path=None):
     """Write `config` as JSON, readable by the owner only.
 
-    The folder is created with mode 0700 and the file written to a 0600 temp
-    file that replaces the old one, so a settings file saved world-readable
-    by an older version is replaced by a private one.
+    The folder is made private (`make_private_dir`) and the file written to
+    a 0600 temp file that replaces the old one, so a settings file saved
+    world-readable by an older version is replaced by a private one. The
+    temp file reaches the disk before it replaces the old one: a power loss
+    right after the save leaves the old or the new settings, never an
+    empty file.
     """
     path = path or CONFIG_PATH
 
     try:
-        os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
+        make_private_dir(os.path.dirname(path))
 
         tmp = path + ".tmp"
 
@@ -442,6 +525,8 @@ def save_config(config, path=None):
 
         with os.fdopen(descriptor, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=4)
+            f.flush()
+            os.fsync(f.fileno())
 
         os.replace(tmp, path)
     except OSError:

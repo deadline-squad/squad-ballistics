@@ -12,6 +12,7 @@ import signal
 import socket
 import sys
 import tempfile
+import threading
 import time
 import traceback
 
@@ -44,7 +45,7 @@ from ballistics import (  # noqa: E402
 )
 
 import config  # noqa: E402
-from config import config_dir, read_config  # noqa: E402
+from config import config_dir, make_private_dir, read_config  # noqa: E402
 from i18n import tr  # noqa: E402
 from utils import resource_path  # noqa: E402
 from splash import SplashScreen  # noqa: E402
@@ -81,18 +82,37 @@ def prefer_x11(environ=None):
 
 def write_crash_log(log_path, text, limit=CRASH_LOG_LIMIT):
     """Append `text` with a timestamp to `log_path`, moving a log bigger
-    than `limit` bytes to `log_path` + ".1" first. Errors are ignored: the
-    log must never raise from inside the crash handler."""
+    than `limit` bytes to `log_path` + ".1" first. The log and its folder
+    are private (0600 and 0700, see `config.make_private_dir`): a traceback
+    can name the user's paths. Errors are ignored: the log must never raise
+    from inside the crash handler."""
     try:
-        os.makedirs(os.path.dirname(log_path), mode=0o700, exist_ok=True)
+        make_private_dir(os.path.dirname(log_path))
 
         if os.path.exists(log_path) and os.path.getsize(log_path) > limit:
             os.replace(log_path, log_path + ".1")
 
-        with open(log_path, "a", encoding="utf-8") as f:
+        descriptor = os.open(log_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+
+        # A log written by an older version keeps its mode through O_CREAT.
+        os.fchmod(descriptor, 0o600)
+
+        with os.fdopen(descriptor, "a", encoding="utf-8") as f:
             f.write(time.strftime("%Y-%m-%d %H:%M:%S ") + text + "\n")
     except OSError:
         pass
+
+
+def crash_key(exc_type, tb):
+    """What makes two crashes the same: the exception type and where it was
+    raised (file, line, function of every frame), not its message, which
+    often carries a changing value."""
+    frames = tuple(
+        (frame.filename, frame.lineno, frame.name)
+        for frame in traceback.extract_tb(tb)
+    )
+
+    return exc_type, frames
 
 
 def install_crash_handler(log_dir=None):
@@ -101,9 +121,16 @@ def install_crash_handler(log_dir=None):
     Started from a desktop launcher the app has no console, so without this
     a crash leaves no trace. A slot that raises on every timer tick would
     otherwise bury the screen in dialogs and the disk in log lines, so each
-    distinct traceback is logged and shown once per run, and no dialog opens
-    while another one is up (the dialog runs its own event loop, where the
-    same slot keeps raising). The log is capped, see `write_crash_log`.
+    distinct error (`crash_key`: its type and frames, whatever its message)
+    is logged and shown once per run, and no dialog opens while another one
+    is up (the dialog runs its own event loop, where the same slot keeps
+    raising). The log is capped, see `write_crash_log`.
+
+    Ctrl+C (KeyboardInterrupt) is no crash: it goes to Python's default
+    hook. An error in a worker thread is logged through the same handler
+    (`threading.excepthook`) but opens no dialog, since widgets belong to
+    the main thread; a thread ended by SystemExit is ignored, as Python
+    does.
 
     Returns the handler, which is also set as `sys.excepthook`.
     """
@@ -115,16 +142,23 @@ def install_crash_handler(log_dir=None):
     def handler(exc_type, exc, tb):
         nonlocal dialog_open
 
-        text = "".join(traceback.format_exception(exc_type, exc, tb))
-
-        if text in seen:
+        if issubclass(exc_type, KeyboardInterrupt):
+            sys.__excepthook__(exc_type, exc, tb)
             return
 
-        seen.add(text)
+        key = crash_key(exc_type, tb)
 
-        write_crash_log(log_path, text)
+        if key in seen:
+            return
+
+        seen.add(key)
+
+        write_crash_log(log_path, "".join(traceback.format_exception(exc_type, exc, tb)))
 
         if dialog_open or not QApplication.instance():
+            return
+
+        if threading.current_thread() is not threading.main_thread():
             return
 
         dialog_open = True
@@ -138,7 +172,14 @@ def install_crash_handler(log_dir=None):
         finally:
             dialog_open = False
 
+    def thread_handler(args):
+        if issubclass(args.exc_type, SystemExit):
+            return
+
+        handler(args.exc_type, args.exc_value, args.exc_traceback)
+
     sys.excepthook = handler
+    threading.excepthook = thread_handler
 
     return handler
 
@@ -156,7 +197,7 @@ def acquire_instance_lock(lock_dir=None, wait_ms=INSTANCE_LOCK_WAIT_MS):
     lock_dir = lock_dir or config_dir()
 
     try:
-        os.makedirs(lock_dir, mode=0o700, exist_ok=True)
+        make_private_dir(lock_dir)
     except OSError:
         pass
 
@@ -173,8 +214,8 @@ def acquire_instance_lock(lock_dir=None, wait_ms=INSTANCE_LOCK_WAIT_MS):
 
 
 def install_signal_handlers(app, window):
-    """Close `window` cleanly on SIGTERM and SIGINT (logout, `kill`,
-    Ctrl+C in a terminal).
+    """Close `window` cleanly on SIGTERM, SIGINT and SIGHUP (logout,
+    `kill`, Ctrl+C in a terminal, the terminal closed).
 
     closeEvent releases a key the app holds down in the game and saves the
     settings; the default handlers would kill the process without either.
@@ -209,8 +250,8 @@ def install_signal_handlers(app, window):
         window.close()
         app.quit()
 
-    signal.signal(signal.SIGTERM, stop)
-    signal.signal(signal.SIGINT, stop)
+    for number in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+        signal.signal(number, stop)
 
     return receiver, sender, notifier
 

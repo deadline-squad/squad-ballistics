@@ -193,12 +193,26 @@ STRINGS = {
     ),
     "no_compositor_title": "Overlay needs a compositor",
     "no_compositor": (
-        "The overlay is off: no compositing manager is running on this X11 "
-        "desktop, so it would cover the whole screen in black instead of "
+        "The overlay is hidden: no compositing manager is running on this "
+        "X11 desktop, so it would cover the whole screen in black instead of "
         "drawing only the mark.\n\n"
-        "Turn compositing on (KDE: System Settings → Display → Compositor; "
-        "Xfce: Window Manager Tweaks → Compositor) or start one such as "
-        "picom, then press the overlay hotkey or reopen the app."
+        "Turn compositing on (Xfce: Window Manager Tweaks → Compositor) or "
+        "start a compositor such as picom. The overlay comes back by itself "
+        "as soon as one runs, or press the overlay hotkey."
+    ),
+    "no_compositor_kde": (
+        "The overlay is hidden: compositing is off on this X11 desktop, so "
+        "it would cover the whole screen in black instead of drawing only "
+        "the mark.\n\n"
+        "KDE Plasma lets a fullscreen game turn compositing off, and games "
+        "under Proton ask for it. In System Settings → Display & Monitor → "
+        "Compositor, untick \"Allow applications to block compositing\", or "
+        "add a rule for the game in System Settings → Window Management → "
+        "Window Rules: \"Block compositing\", Force, No. If compositing is "
+        "off altogether, tick \"Enable on startup\" there and press "
+        "Alt+Shift+F12.\n\n"
+        "The overlay comes back by itself as soon as compositing runs, or "
+        "press the overlay hotkey."
     ),
 
     # Crosshair page
