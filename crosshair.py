@@ -5,6 +5,7 @@ import sys
 
 
 from PyQt6.QtCore import (
+    QEvent,
     Qt,
     QProcess,
     QSize,
@@ -91,6 +92,8 @@ from sightlay import MAX_MOVES, BEARING, CompassReader, ScreenSight, SightLayer,
 from sightreader import LabelTemplates
 
 from utils import resource_path
+
+import webmap
 
 from webmap import MapPage, map_url, open_external
 
@@ -468,6 +471,31 @@ class MainWindow(QMainWindow):
 
         if index == 3:
             self.map_page.ensure_loaded()
+
+    def preload_map(self):
+        """Create the embedded map now, while nobody waits for it, when the
+        calculator takes its targets from it (`map_follow`) and it is not
+        replaced by the regular browser (`map_external`).
+
+        Creating the browser blocks the window for 100-250 ms and loading
+        the page keeps it busy for up to 340 ms more; at the first visit to
+        the tab that is a frozen window, at start-up nobody notices. Called
+        by the app shortly after the window is shown, and when `map_follow`
+        is switched on. Does nothing once the map exists.
+        """
+        if not self.config["map_follow"] or self.config["map_external"]:
+            return
+
+        self.map_page.ensure_loaded()
+
+    def changeEvent(self, event):
+        """The window was minimised or restored: the map is polled slowly
+        while it cannot be seen (see `MapPage.update_polling`)."""
+        super().changeEvent(event)
+
+        if event.type() == QEvent.Type.WindowStateChange \
+                and self.map_page is not None:
+            self.map_page.update_polling()
 
     # =========================
     # CALCULATOR PAGE
@@ -3030,7 +3058,7 @@ class MainWindow(QMainWindow):
             layout,
             tr("s_map_follow"),
             "map_follow",
-            lambda _checked: self.update_map_status()
+            self.on_map_follow_changed
         )
 
         render = Segmented(
@@ -3051,6 +3079,12 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(hint)
 
+        self.render_in_use_label = label(self.render_in_use_text(), "small")
+
+        self.render_in_use_label.setWordWrap(True)
+
+        layout.addWidget(self.render_in_use_label)
+
         self.add_toggle(layout, tr("s_map_external"), "map_external")
 
         clear_button = QPushButton(tr("s_map_clear"))
@@ -3058,10 +3092,7 @@ class MainWindow(QMainWindow):
         clear_button.setProperty("flat_style", True)
 
         def clear_cache():
-            profile = self.map_page.profile if self.map_page else None
-
-            if profile is not None:
-                profile.clearHttpCache()
+            self.map_page.clear_cache()
 
             clear_button.setText(tr("s_map_cleared"))
 
@@ -3076,6 +3107,31 @@ class MainWindow(QMainWindow):
         layout.addLayout(row)
 
         return frame
+
+    def render_in_use_text(self):
+        """The line under the rendering setting: how the map is drawn right
+        now, which is not always what the setting says ("Normal" runs
+        without the GPU when Qt's OpenGL itself runs on the CPU)."""
+        choice = webmap.render_choice
+
+        if choice.renderer:
+            mode = tr("s_map_render_in_use_auto_software", renderer=choice.renderer)
+        elif choice.mode == "software" or self.config["map_render"] == "software":
+            mode = tr("s_map_render_in_use_software")
+        else:
+            mode = tr("s_map_render_in_use_hardware")
+
+        return tr("s_map_render_in_use", mode=mode)
+
+    def on_map_follow_changed(self, checked):
+        """Following the map's targets was switched: the map is polled while
+        hidden only when it is on, and is created now if it was not."""
+        self.update_map_status()
+
+        self.map_page.update_polling()
+
+        if checked:
+            QTimer.singleShot(0, self.preload_map)
 
     def set_map_source(self, source):
         """Load the map from `source` ("deadline" or "squadcalc")."""
