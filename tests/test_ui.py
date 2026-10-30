@@ -95,16 +95,21 @@ def test_comma_decimal_and_errors(window):
     assert window.overlay.offset == 0
 
 
-@pytest.mark.parametrize("name", ["Mortar (M252 / 2B14 / L16 / Type 63)", "BM-21 Grad", "Hell Cannon"])
-def test_no_overlay_mark_for_weapons_laid_by_elevation(window, name):
+@pytest.mark.parametrize("name, distance", [
+    ("Mortar (M252 / 2B14 / L16 / Type 63)", "900"),
+    # The rail starts 14.2 degrees up: nothing closer than about 985 m
+    ("BM-21 Grad", "1200"),
+    ("Hell Cannon", "900"),
+])
+def test_no_overlay_mark_for_weapons_laid_by_elevation(window, name, distance):
     # Laid on their own sight in mils/degrees: no mark, the info line stays.
     window.select_weapon(name)
-    window.distance_entry.setText("900")
+    window.distance_entry.setText(distance)
     window.calculate()
     assert window.last_solution.reachable
     assert not window.overlay.mark_visible
     assert window.overlay.offset == 0
-    assert "900 m" in window.overlay.info_text
+    assert f"{distance} m" in window.overlay.info_text
     assert window.stats["stat_offset"].value.text() == "—"
 
     window.reset_offset()

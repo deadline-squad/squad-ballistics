@@ -2207,15 +2207,60 @@
   "ignore_gravity_while_boosting": false,
   "bore": null,
   "zoom": null,
-  "elevation_limits": null,
+  "elevation_limits": [
+   40.0,
+   83.8
+  ],
+  "launch": {
+   "launch_height": 1.1789,
+   "muzzle_forward": 1.6137,
+   "muzzle_up": 0.0388,
+   "barrel_pitch": 49.567,
+   "hud": {
+    "degrees": [
+     40.0,
+     48.2,
+     53.8,
+     58.4,
+     62.0,
+     65.0,
+     68.0,
+     70.5,
+     73.2,
+     75.7,
+     78.0,
+     80.5,
+     82.9,
+     83.8
+    ],
+    "ranges": [
+     1250.0,
+     1200.0,
+     1100.0,
+     1000.0,
+     900.0,
+     800.0,
+     700.0,
+     600.0,
+     500.0,
+     400.0,
+     300.0,
+     200.0,
+     100.0,
+     50.0
+    ]
+   }
+  },
   "sources": {
    "weapon": "Vehicles/Technical2Seater/Weapons/BP_Technical_M1937mortar",
    "projectile": "Blueprints/Items/Projectiles/BP_Mortarround4",
    "defaults": "native default: ConstantAcceleration, ConstantAccelerationTimeout, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
-   "view": "aimed by elevation: no bore or zoom; the tube is laid by its own readout, so the shot's limits are not derived",
+   "view": "aimed by elevation: no bore or zoom; the launch point and the limits of the barrel's pitch are derived",
    "mount": "Vehicles/Technical2Seater/Turrets/BP_Technical_MortarTurret",
    "mount_limits": "SQTurretMovement.RotationConstraints.PitchInterval 0.0..43.8",
    "barrel": "m1937mortar_tube2:Attach_Muzzle 49.567 (mesh reference pose)",
+   "launch": "BP_Technical2Seater_White_Mortar: socket_turret_rear_mortar of SK_Technical_2Seater -> GunMountComponent of BP_Technical_MortarTurret = pivot 108.76 cm above the mesh origin; ground -9.13 cm (lowest wheel bone 42.9 cm - WheelRadius 52 cm (BP_Technical2Seater_Generic_VehicleConfig)); socket Attach_Muzzle of m1937mortar_tube2 at [101.7, 0.01, 125.35] cm on the mount, pitch 49.567",
+   "elevation": "the readout of UMG_MortarHUD_Technical: the mount's world pitch + 40 (AngleRotationDisplay), table 40..83.8 degrees = SQTurretMovement.RotationConstraints.PitchInterval 0.0..43.8 + 40",
    "classes": [
     "BP_Technical_M1937mortar -> BP_Mortarround4 (no MaxSpeed)",
     "BP_Technical_M252mortar -> BP_Mortarround4 (no MaxSpeed)"
@@ -2232,15 +2277,26 @@
   "ignore_gravity_while_boosting": false,
   "bore": null,
   "zoom": null,
-  "elevation_limits": null,
+  "elevation_limits": [
+   50.0,
+   85.0
+  ],
+  "launch": {
+   "launch_height": 0.8174,
+   "muzzle_forward": 3.4618,
+   "muzzle_up": 0.0035,
+   "barrel_pitch": 50.0
+  },
   "sources": {
    "weapon": "Vehicles/M1064A3/Weapons/BP_M1064A3_M121mortar",
    "projectile": "Vehicles/M1064A3/Projectiles/BP_Mortarround_120mm",
    "defaults": "native default: ConstantAcceleration, ConstantAccelerationTimeout, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
-   "view": "aimed by elevation: no bore or zoom; the tube is laid by its own readout, so the shot's limits are not derived",
+   "view": "aimed by elevation: no bore or zoom; the launch point and the limits of the barrel's pitch are derived",
    "mount": "Vehicles/M1064A3/Turrets/BP_M1064A3_MortarTurret",
    "mount_limits": "SQTurretMovement curves FC_M1064A3_YawToMinPitch / FC_M1064A3_YawToMaxPitch: 0.0..35.0 (yaw 0: 0.0..35.0)",
    "barrel": "SK_M121_Mortar_Tube:Attach_Muzzle 50.0 (mesh reference pose)",
+   "launch": "BP_M1064A3_M121: 1064_turretSocket of SK_M1064A3_Hull -> GunMountComponent of BP_M1064A3_MortarTurret = pivot 76.77 cm above the mesh origin; ground -4.97 cm (lowest wheel bone 37.0 cm - WheelRadius 42 cm (BP_M1064_VehicleConfig_Tracked)); socket Attach_Muzzle of SK_M121_Mortar_Tube at [222.25, 0.0, 265.41] cm on the mount, pitch 50.0",
+   "elevation": "SQTurretMovement curves FC_M1064A3_YawToMinPitch / FC_M1064A3_YawToMaxPitch: 0.0..35.0 (yaw 0: 0.0..35.0) + barrel socket pitch",
    "classes": [
     "BP_M1064A3_M121mortar -> BP_Mortarround_120mm (no MaxSpeed)",
     "BP_M1064A3_M121mortar_Airburst -> BP_Mortarround_120mm_Airburst (no MaxSpeed)"
@@ -2306,15 +2362,26 @@
   "ignore_gravity_while_boosting": false,
   "bore": null,
   "zoom": null,
-  "elevation_limits": null,
+  "elevation_limits": [
+   0.0,
+   50.0
+  ],
+  "launch": {
+   "launch_height": 2.2659,
+   "muzzle_forward": 1.4303,
+   "muzzle_up": 0.2513,
+   "barrel_pitch": 0.0
+  },
   "sources": {
    "weapon": "Vehicles/Technical/Weapons/BP_UB32",
    "projectile": "Blueprints/Items/Projectiles/Rockets/BP_S5_Proj2",
    "defaults": "native default: bIgnoreGravityDuringConstantAcceleration",
-   "view": "aimed by elevation: no bore or zoom; the tube is laid by its own readout, so the shot's limits are not derived",
+   "view": "aimed by elevation: no bore or zoom; the launch point and the limits of the barrel's pitch are derived",
    "mount": "Vehicles/Technical/Turrets/BP_Technical_Turret_UB32",
    "mount_limits": "SQTurretMovement.RotationConstraints.PitchInterval 0.0..50.0",
    "barrel": "UB-32:Attach_Muzzle 0.0 (mesh reference pose)",
+   "launch": "BP_Technical2Seater_White_UB32: socket_turret of SK_Technical_2Seater -> GunMountComponent of BP_Technical_Turret_UB32 = pivot 217.46 cm above the mesh origin; ground -9.13 cm (lowest wheel bone 42.9 cm - WheelRadius 52 cm (BP_Technical2Seater_Generic_VehicleConfig)); socket Attach_Muzzle of UB-32 at [143.03, 0.0, 25.13] cm on the mount, pitch 0.0",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval 0.0..50.0 + barrel socket pitch",
    "classes": [
     "BP_UB32 -> BP_S5_Proj2 (MaxSpeed 300 m/s)"
    ]
@@ -2330,15 +2397,26 @@
   "ignore_gravity_while_boosting": false,
   "bore": null,
   "zoom": null,
-  "elevation_limits": null,
+  "elevation_limits": [
+   14.2,
+   55.0
+  ],
+  "launch": {
+   "launch_height": 1.7694,
+   "muzzle_forward": 2.7346,
+   "muzzle_up": 0.6366,
+   "barrel_pitch": 14.2
+  },
   "sources": {
    "weapon": "Vehicles/Ural375_BM21Grad/Weapons/BP_BM21Grad_Weapon_MEI",
    "projectile": "Vehicles/Ural375_BM21Grad/Projectiles/BP_BM21_Rocket_Proj2",
    "defaults": "native default: ConstantAcceleration, ConstantAccelerationTimeout, MaxSpeed, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
-   "view": "aimed by elevation: no bore or zoom; the tube is laid by its own readout, so the shot's limits are not derived",
+   "view": "aimed by elevation: no bore or zoom; the launch point and the limits of the barrel's pitch are derived",
    "mount": "Vehicles/Ural375_BM21Grad/Turrets/BP_BM21Grad_Turret_INS",
    "mount_limits": "PitchMovement.RotationConstraints.PitchInterval 0.0..40.8",
    "barrel": "SK_BM21_Launcher:Attach_Muzzle 14.2 (mesh reference pose)",
+   "launch": "BP_BM21Grad_MEI: bone_turret of SK_Ural375_BM21Grad -> GunMountComponent of BP_BM21Grad_Turret_INS = pivot 179.62 cm above the mesh origin; ground 2.69 cm (lowest wheel bone 65.7 cm - WheelRadius 63 cm (BP_Ural_375_VehicleConfig)); socket Attach_Muzzle of SK_BM21_Launcher at [249.49, 0.0, 128.8] cm on the mount, pitch 14.2",
+   "elevation": "PitchMovement.RotationConstraints.PitchInterval 0.0..40.8 + barrel socket pitch",
    "classes": [
     "BP_BM21Grad_Weapon_MEI -> BP_BM21_Rocket_Proj2 (no MaxSpeed)"
    ]

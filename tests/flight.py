@@ -47,8 +47,9 @@ SUBSTEP = 0.02
 
 class Shot:
     """How a weapon fires: the flight from its game snapshot entry (a dict
-    of tests/data/game_weapons.json), the launch geometry from its raw
-    weapons.json entry (absent: from the ground, no muzzle offset)."""
+    of tests/data/game_weapons.json), the launch geometry from its `launch`
+    when the snapshot has one, else from its raw weapons.json entry (absent:
+    from the ground, no muzzle offset)."""
 
     def __init__(self, game, entry=None):
         entry = entry or {}
@@ -59,9 +60,10 @@ class Shot:
         self.timeout = float(game.get("acceleration_timeout", 0.0))
         self.follows = bool(game.get("rotation_follows_velocity", True))
         self.ignore_gravity = bool(game.get("ignore_gravity_while_boosting", False))
-        self.pivot_height = float(entry.get("launch_height", 0.0))
-        self.muzzle_forward = float(entry.get("muzzle_forward", 0.0))
-        self.muzzle_up = float(entry.get("muzzle_up", 0.0))
+        launch = game.get("launch") or entry
+        self.pivot_height = float(launch.get("launch_height", 0.0))
+        self.muzzle_forward = float(launch.get("muzzle_forward", 0.0))
+        self.muzzle_up = float(launch.get("muzzle_up", 0.0))
 
     def muzzle(self, elevation):
         """(x, y) of the muzzle relative to the pivot's ground point."""
@@ -298,3 +300,73 @@ def highest_at(shot, distance, reaches=math.inf):
             left_height = height(left)
 
     return max(left_height, right_height)
+
+
+def widest_range(shot, low, high, height=0.0):
+    """(elevation, range) in radians and metres of the barrel elevation in
+    [low, high] that sends the shot farthest over ground `height` m above the
+    weapon's: range_at is unimodal in the elevation for these flights, so a
+    golden-section search finds it (to 1e-7 rad); an end of the interval when
+    the range still grows there."""
+    golden = (math.sqrt(5) - 1) / 2
+    a, b = low, high
+    left, right = b - golden * (b - a), a + golden * (b - a)
+    left_range, right_range = range_at(shot, left, height), range_at(shot, right, height)
+
+    while b - a > 1e-7:
+        if left_range < right_range:
+            a, left, left_range = left, right, right_range
+            right = a + golden * (b - a)
+            right_range = range_at(shot, right, height)
+        else:
+            b, right, right_range = right, left, left_range
+            left = b - golden * (b - a)
+            left_range = range_at(shot, left, height)
+
+    best = (left, left_range) if left_range >= right_range else (right, right_range)
+    ends = [(low, range_at(shot, low, height)), (high, range_at(shot, high, height))]
+
+    return max([best] + ends, key=lambda pair: pair[1])
+
+
+def elevation_to(shot, distance, height, high, limits=(math.radians(-60), math.radians(89.9))):
+    """The barrel elevation (radians) that puts the shot at `height` m when it
+    is `distance` m ahead of the pivot: the low or the `high` root of the
+    height, found by bisection (1e-10 rad) either side of the elevation that
+    reaches highest; None when the shot cannot get that high there or the
+    root is outside `limits`."""
+    golden = (math.sqrt(5) - 1) / 2
+    low, top = limits
+
+    def rise(elevation):
+        flight = fly_to(shot, elevation, distance)
+        return -math.inf if flight is None else flight[0] - height
+
+    a, b = low, top
+    left, right = b - golden * (b - a), a + golden * (b - a)
+    left_rise, right_rise = rise(left), rise(right)
+    while b - a > 1e-9:
+        if left_rise < right_rise:
+            a, left, left_rise = left, right, right_rise
+            right = a + golden * (b - a)
+            right_rise = rise(right)
+        else:
+            b, right, right_rise = right, left, left_rise
+            left = b - golden * (b - a)
+            left_rise = rise(left)
+    peak = (a + b) / 2
+    if rise(peak) < 0:
+        return None
+
+    outer = top if high else low
+    if rise(outer) > 0:
+        return None
+    inner, far = peak, outer
+    for _ in range(80):
+        middle = (inner + far) / 2
+        if rise(middle) > 0:
+            inner = middle
+        else:
+            far = middle
+
+    return (inner + far) / 2

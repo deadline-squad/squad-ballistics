@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import math
 import os
 import re
@@ -170,7 +172,7 @@ def test_deceleration_velocity():
 
 def test_angle_offset_applied():
     weapon = WEAPONS["Technical Mortar"]
-    plain = Weapon("plain", velocity=110, arc="high")
+    plain = replace(weapon, angle_offset=0.0)
 
     assert solve(weapon, 600).angle == pytest.approx(
         solve(plain, 600).angle - 5

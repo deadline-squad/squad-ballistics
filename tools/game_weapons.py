@@ -64,6 +64,20 @@ in m, m/s and degrees):
   or -0.5) plus the barrel socket's pitch on the mount; null for
   handheld weapons and for the weapons aimed by elevation, whose tube or launcher is
   laid by its own sight readout (the raw mount limits are in ``sources``).
+* launch (the weapons of a vehicle that are aimed by elevation: Technical mortar and UB-32,
+  M1064 M121, BM-21): where the shell starts, in metres, for ``launch_height`` (the barrel's
+  pivot above the ground), ``muzzle_forward`` (the barrel socket along the barrel from the
+  pivot) and ``muzzle_up`` (above the barrel's axis). The pivot is the origin of the turret's
+  mount component (``GunMountComponent``), which the pitch rotates; its place in the vehicle
+  is the vehicle mesh's seat socket (or bone) composed with the turret mesh's attach socket
+  (a socket the mesh lacks attaches at the component's origin, as UE does) and the mount's
+  relative transform. The socket is the weapon's ``BarrelSocketName`` on the weapon mesh,
+  which sits at the mount's origin. The ground is where the vehicle's wheels touch it in the
+  reference pose: the lowest ``wheel_<side><n>`` bone minus the ``WheelRadius`` of the vehicle
+  config (the vehicle's suspension at rest is not in the files). ``elevation_limits`` of
+  these weapons are the mount's pitch limits plus the socket's pitch (the barrel's pitch), or,
+  for the Technical mortar, the range of its HUD's degrees table (``hud``), whose readout is
+  the mount's world pitch + 40.
 * Handheld weapons: the game fires them along the barrel socket too (native
   ``ASQWeapon::GetAimDirection``, vtable slot 0xa78 of ``ASQWeapon`` in build 26005357),
   but the socket's angle to the ADS camera is set by the first-person animation and the
@@ -82,6 +96,7 @@ import argparse
 import json
 import math
 import os
+import re
 import sys
 
 DEFAULT_ROOTS = (
@@ -145,6 +160,13 @@ def view(mount, camera, zoom, also=()):
 
 
 INDIRECT = "indirect"
+
+
+def seat(vehicle, socket, hud=None):
+    """Where a vehicle's turret hangs: the vehicle Blueprint, the socket (or bone) of its mesh
+    the seat attaches the turret to (SeatAttachSocket) and, for a readout the files show, the
+    HUD widget that lists its degrees."""
+    return {"vehicle": vehicle, "seat": socket, "hud": hud}
 
 # weapons.json entry -> (weapon classes, view). Paths are relative to /Game/. The first
 # class is the one of the view the entry is for; view None = handheld; INDIRECT = aimed
@@ -308,12 +330,16 @@ ENTRIES = {
     "Mortar (M252 / 2B14 / L16 / Type 63)": ([V + "BP_GenericMortarWeapon", V + "Emplaced_M252mortar/BP_M252mortar", V + "Emplaced_2b14podnosmortar/BP_2b14podnosmortar", V + "Emplaced_M252mortar/BP_L16mortar",
                                               V + "Emplaced_PP87Mortar/BP_PP87Mortar", V + "Emplaced_M1937mortar/BP_M1937mortar", V + "Emplaced_81mmMortar_CAF/BP_81mmMortar"],
                                              (INDIRECT, V + "BP_GenericDeployableMortarVehicle")),
-    "Technical Mortar": ([V + "Technical2Seater/Weapons/BP_Technical_M1937mortar", V + "Technical2Seater_WPMC/Weapons/BP_Technical_M252mortar"], (INDIRECT, V + "Technical2Seater/Turrets/BP_Technical_MortarTurret")),
-    "M1064 M121 (120mm)": ([V + "M1064A3/Weapons/BP_M1064A3_M121mortar", V + "M1064A3/Weapons/BP_M1064A3_M121mortar_Airburst"], (INDIRECT, V + "M1064A3/Turrets/BP_M1064A3_MortarTurret")),
+    "Technical Mortar": ([V + "Technical2Seater/Weapons/BP_Technical_M1937mortar", V + "Technical2Seater_WPMC/Weapons/BP_Technical_M252mortar"], (INDIRECT, V + "Technical2Seater/Turrets/BP_Technical_MortarTurret",
+                         seat(V + "Technical2Seater/BP_Technical2Seater_White_Mortar", "socket_turret_rear_mortar", hud=V + "Technical2Seater/Weapons/UMG_MortarHUD_Technical"))),
+    "M1064 M121 (120mm)": ([V + "M1064A3/Weapons/BP_M1064A3_M121mortar", V + "M1064A3/Weapons/BP_M1064A3_M121mortar_Airburst"], (INDIRECT, V + "M1064A3/Turrets/BP_M1064A3_MortarTurret",
+                         seat(V + "M1064A3/BP_M1064A3_M121", "1064_turretSocket"))),
     "Hell Cannon": ([V + "Emplaced_HellCannon/BP_Emplaced_HellCannon"], (INDIRECT, V + "Emplaced_HellCannon/BP_Emplaced_HellCannon_Base")),
     "UB-32 (S-5 rockets)": ([V + "Emplaced_UB32_RocketArtillery/BP_EmplacedUB32", V + "BRDM-2/Weapons/BP_BRDM2_GFI_UB32"], (INDIRECT, V + "Emplaced_UB32_RocketArtillery/BP_EmplacedUB32_Tripod")),
-    "Technical UB-32": ([V + "Technical/Weapons/BP_UB32"], (INDIRECT, V + "Technical/Turrets/BP_Technical_Turret_UB32")),
-    "BM-21 Grad": ([V + "Ural375_BM21Grad/Weapons/BP_BM21Grad_Weapon_MEI"], (INDIRECT, V + "Ural375_BM21Grad/Turrets/BP_BM21Grad_Turret_INS")),
+    "Technical UB-32": ([V + "Technical/Weapons/BP_UB32"], (INDIRECT, V + "Technical/Turrets/BP_Technical_Turret_UB32",
+                         seat(V + "Technical2Seater/BP_Technical2Seater_White_UB32", "socket_turret"))),
+    "BM-21 Grad": ([V + "Ural375_BM21Grad/Weapons/BP_BM21Grad_Weapon_MEI"], (INDIRECT, V + "Ural375_BM21Grad/Turrets/BP_BM21Grad_Turret_INS",
+                seat(V + "Ural375_BM21Grad/BP_BM21Grad_MEI", "bone_turret"))),
 }
 
 
@@ -535,6 +561,163 @@ def chain_rotation(blueprint, start, stop):
     return rotation if name == stop else None
 
 
+class Transform:
+    """A rigid transform: rotation quaternion (x, y, z, w) and translation in cm."""
+
+    def __init__(self, rotation=IDENTITY, translation=(0.0, 0.0, 0.0)):
+        self.rotation = rotation
+        self.translation = translation
+
+    def __mul__(self, other):
+        """self * other: `other` first, then self."""
+        moved = rotate(self.rotation, other.translation)
+        return Transform(compose(self.rotation, other.rotation),
+                         tuple(a + b for a, b in zip(moved, self.translation)))
+
+
+def rotate(q, v):
+    """The vector v rotated by the quaternion q."""
+    x, y, z, w = q
+    t = (2 * (y * v[2] - z * v[1]), 2 * (z * v[0] - x * v[2]), 2 * (x * v[1] - y * v[0]))
+    return (v[0] + w * t[0] + (y * t[2] - z * t[1]),
+            v[1] + w * t[1] + (z * t[0] - x * t[2]),
+            v[2] + w * t[2] + (x * t[1] - y * t[0]))
+
+
+def relative_transform(properties):
+    """The RelativeLocation / RelativeRotation of a component's properties; a scale other
+    than 1 is refused (the offsets below are not scaled)."""
+    properties = properties or {}
+    scale = properties.get("RelativeScale3D")
+    if scale and any(abs(scale[axis] - 1.0) > 1e-6 for axis in "XYZ"):
+        raise GameDataError(f"a component is scaled {scale}: its offsets would need scaling")
+    location = properties.get("RelativeLocation") or {}
+    return Transform(quaternion(properties.get("RelativeRotation")),
+                     (location.get("X", 0.0), location.get("Y", 0.0), location.get("Z", 0.0)))
+
+
+def skeleton_of(assets, mesh_path):
+    """(mesh exports, skeleton exports, bones) of a skeletal mesh; bones are
+    (name, parent index, reference-pose Transform)."""
+    mesh_exports = assets.require(mesh_path)
+    mesh = next((e for e in mesh_exports if e.get("Type") == "SkeletalMesh"), None)
+    if mesh is None:
+        raise GameDataError(f"{mesh_path}: not a skeletal mesh")
+    skeleton_exports = assets.require(package_of(mesh["Properties"].get("Skeleton")))
+    reference = next(e for e in skeleton_exports if e.get("Type") == "Skeleton")["ReferenceSkeleton"]
+    bones = []
+    for info, pose in zip(reference["FinalRefBoneInfo"], reference["FinalRefBonePose"]):
+        r, t = pose["Rotation"], pose["Translation"]
+        bones.append((info["Name"], info["ParentIndex"], Transform((r["X"], r["Y"], r["Z"], r["W"]), (t["X"], t["Y"], t["Z"]))))
+    return mesh_exports, skeleton_exports, bones
+
+
+def bone_transform(bones, name):
+    """The reference-pose transform of bone `name` in mesh space, or None for an unknown bone."""
+    index = {bone[0].lower(): i for i, bone in enumerate(bones)}
+    i = index.get(name.lower())
+    if i is None:
+        return None
+    path = []
+    while i >= 0:
+        path.append(bones[i][2])
+        i = bones[i][1]
+    result = Transform()
+    for local in reversed(path):
+        result = result * local
+    return result
+
+
+def attach_transform(assets, mesh_path, name):
+    """Where a component attached to `name` of a skeletal mesh sits, in mesh space: the
+    socket (mesh sockets first, then the skeleton's), else the bone, else, as UE does for
+    a name the mesh lacks, the mesh component's origin."""
+    mesh_exports, skeleton_exports, bones = skeleton_of(assets, mesh_path)
+    sockets = [e.get("Properties") or {} for e in mesh_exports + skeleton_exports if e.get("Type") == "SkeletalMeshSocket"]
+    socket = next((s for s in sockets if (s.get("SocketName") or "").lower() == name.lower()), None)
+    if socket is not None:
+        bone = bone_transform(bones, socket.get("BoneName") or "")
+        if bone is None:
+            raise GameDataError(f"{short(mesh_path)}: socket {name} is on the unknown bone {socket.get('BoneName')}")
+        return bone * relative_transform(socket)
+    return bone_transform(bones, name) or Transform()
+
+
+def attach_sockets(blueprint):
+    """{component: AttachToName} from the construction-script nodes of the class chain (the
+    most derived wins)."""
+    names = {}
+    for package in blueprint.chain:
+        for export in blueprint.exports[package]:
+            node = export.get("Properties") or {}
+            if export.get("Type") == "SCS_Node" and node.get("AttachToName"):
+                names[node["InternalVariableName"]] = node["AttachToName"]
+    return names
+
+
+def component_transform(assets, blueprint, name):
+    """Transform of component `name` in the Blueprint actor's space: its relative transform and
+    the attach sockets of the skeletal meshes it hangs on, up to the root."""
+    sockets = attach_sockets(blueprint)
+    result, seen = Transform(), set()
+    while name:
+        if name in seen:
+            raise GameDataError(f"{short(blueprint.chain[-1])}: attachment loop at {name}")
+        seen.add(name)
+        result = relative_transform(blueprint.components.get(name)) * result
+        parent = blueprint.parents.get(name)
+        if parent and name in sockets and blueprint.types.get(parent) == "SkeletalMeshComponent":
+            mesh = package_of(blueprint.components[parent].get("SkeletalMesh"))
+            result = attach_transform(assets, mesh, sockets[name]) * result
+        name = parent
+    return result
+
+
+def wheel_contact(assets, vehicle):
+    """(height of the wheels' lowest contact above the vehicle mesh's origin in cm, description):
+    the lowest ``wheel_<side><n>`` bone of the vehicle mesh in the reference pose minus the
+    ``WheelRadius`` of the vehicle's config asset."""
+    movement = next((props for name, props in vehicle.components.items() if "VehicleConfigAsset" in props), None)
+    if movement is None:
+        raise GameDataError(f"{short(vehicle.chain[-1])}: no VehicleConfigAsset")
+    config = package_of(movement["VehicleConfigAsset"])
+    radii = set(re.findall(r'"WheelRadius": ([\d.]+)', json.dumps(assets.require(config))))
+    if len(radii) != 1:
+        raise GameDataError(f"{short(config)}: WheelRadius {sorted(radii)}")
+    radius = float(radii.pop())
+    _, _, bones = skeleton_of(assets, package_of(vehicle.components["Vehicle Mesh"].get("SkeletalMesh")))
+    heights = [bone_transform(bones, name).translation[2] for name, _, _ in bones if re.fullmatch(r"wheel_[LR]\d+", name)]
+    if not heights:
+        raise GameDataError(f"{short(vehicle.chain[-1])}: no wheel bones")
+    return min(heights) - radius, f"lowest wheel bone {round_to(min(heights), 1)} cm - WheelRadius {radius:g} cm ({short(config)})"
+
+
+# The Technical mortar's HUD shows the mount's world pitch plus this many degrees
+# (UMG_MortarHUD_Technical.AngleRotationDisplay: K2_GetComponentRotation of GunMountComponent,
+# BreakRotator, Add_DoubleDouble(Pitch, 40.0)).
+HUD_PITCH_OFFSET = 40.0
+
+
+def hud_table(assets, widget_path):
+    """(degrees ascending, ranges in metres descending) of the table a HUD widget prints: its
+    text blocks written 'NN.N°' (the one named Angle is the live readout's placeholder) and
+    'NNNm'. The two lists pair up in this order, the longest range on the lowest readout."""
+    degrees, ranges = [], []
+    for export in assets.require(widget_path):
+        if export.get("Type") != "TextBlock" or export.get("Name") == "Angle":
+            continue
+        text = (export.get("Properties") or {}).get("Text") or {}
+        invariant = re.fullmatch(r"([\d.]+)\u00b0", text.get("CultureInvariantString") or "")
+        metres = re.fullmatch(r"(\d+)m", text.get("SourceString") or "")
+        if invariant:
+            degrees.append(float(invariant.group(1)))
+        elif metres:
+            ranges.append(float(metres.group(1)))
+    if not degrees or len(degrees) != len(ranges):
+        raise GameDataError(f"{short(widget_path)}: {len(degrees)} degrees and {len(ranges)} ranges")
+    return sorted(degrees), sorted(ranges, reverse=True)
+
+
 def mount_component(turret):
     """The component a turret's weapons are mounted on: GunAttachPoint (closed turret)
     or GunMountComponent (open turret, tripod)."""
@@ -713,6 +896,60 @@ class Snapshot:
         }
         return round_to(socket_pitch - camera_pitch), round_to(float(divisor)), socket_pitch, sources
 
+    def launch(self, weapon, turret_path, seat_spec, limits):
+        """(launch, elevation_limits, sources) of an elevation weapon on a vehicle's turret.
+
+        launch: `launch_height`, `muzzle_forward`, `muzzle_up` in metres and `barrel_pitch`, the
+        barrel socket's pitch in the reference pose, in degrees (see the module docstring).
+        """
+        vehicle, turret = self.blueprint(seat_spec["vehicle"]), self.blueprint(turret_path)
+        mesh_component_name = "Vehicle Mesh"
+        vehicle_mesh = package_of(vehicle.components[mesh_component_name].get("SkeletalMesh"))
+        if vehicle.components[mesh_component_name].get("RelativeLocation") or vehicle.components[mesh_component_name].get("RelativeRotation"):
+            raise GameDataError(f"{short(seat_spec['vehicle'])}: the vehicle mesh is not at the actor's origin")
+        mount = mount_component(turret)
+        pivot = attach_transform(self.assets, vehicle_mesh, seat_spec["seat"]) * component_transform(self.assets, turret, mount)
+        upright = rotate(pivot.rotation, (0.0, 0.0, 1.0))
+        if upright[2] < 1 - 1e-6:
+            raise GameDataError(f"{short(turret_path)}: the mount is tilted in the vehicle ({upright})")
+        mesh, socket, _ = weapon.barrel()
+        muzzle = component_transform(self.assets, weapon.blueprint, "WeaponMesh1P") * attach_transform(self.assets, mesh, socket)
+        direction = rotate(muzzle.rotation, (1.0, 0.0, 0.0))
+        horizontal = math.hypot(direction[0], direction[1])
+        elevation = math.atan2(direction[2], horizontal)
+        along, lateral = (direction[0] / horizontal, direction[1] / horizontal), (-direction[1] / horizontal, direction[0] / horizontal)
+        reach = muzzle.translation[0] * along[0] + muzzle.translation[1] * along[1]
+        if abs(muzzle.translation[0] * lateral[0] + muzzle.translation[1] * lateral[1]) > 1.0:
+            raise GameDataError(f"{short(mesh)}:{socket} is more than 1 cm off the pitch plane")
+        forward = reach * math.cos(elevation) + muzzle.translation[2] * math.sin(elevation)
+        up = -reach * math.sin(elevation) + muzzle.translation[2] * math.cos(elevation)
+        contact, contact_text = wheel_contact(self.assets, vehicle)
+        barrel_pitch = math.degrees(elevation)
+        launch = {
+            "launch_height": round_to((pivot.translation[2] - contact) / 100, 4),
+            "muzzle_forward": round_to(forward / 100, 4),
+            "muzzle_up": round_to(up / 100, 4),
+            "barrel_pitch": round_to(barrel_pitch, 3),
+        }
+        sources = {
+            "launch": (f"{short(seat_spec['vehicle'])}: {seat_spec['seat']} of {short(vehicle_mesh)} -> "
+                       f"{mount} of {short(turret_path)} = pivot {round_to(pivot.translation[2], 2)} cm above the mesh origin; "
+                       f"ground {round_to(contact, 2)} cm ({contact_text}); socket {socket} of {short(mesh)} at "
+                       f"{[round_to(v, 2) for v in muzzle.translation]} cm on the mount, pitch {round_to(barrel_pitch, 3)}"),
+        }
+        if seat_spec["hud"]:
+            degrees, ranges = hud_table(self.assets, seat_spec["hud"])
+            if not limits or abs(degrees[0] - HUD_PITCH_OFFSET - limits[0]) > 0.05 or abs(degrees[-1] - HUD_PITCH_OFFSET - limits[1]) > 0.05:
+                raise GameDataError(f"{short(seat_spec['hud'])}: degrees {degrees[0]}..{degrees[-1]} are not the mount's limits + {HUD_PITCH_OFFSET:g}")
+            launch["hud"] = {"degrees": degrees, "ranges": ranges}
+            sources["elevation"] = (f"the readout of {short(seat_spec['hud'])}: the mount's world pitch + {HUD_PITCH_OFFSET:g} "
+                                    f"(AngleRotationDisplay), table {degrees[0]:g}..{degrees[-1]:g} degrees = {limits[2]} + {HUD_PITCH_OFFSET:g}")
+            return launch, [degrees[0], degrees[-1]], sources
+        if not limits:
+            raise GameDataError(f"{short(turret_path)}: no pitch limits")
+        sources["elevation"] = limits[2] + " + barrel socket pitch"
+        return launch, [round_to(limits[0] + barrel_pitch), round_to(limits[1] + barrel_pitch)], sources
+
     def entry(self, classes, spec):
         """The snapshot object of one weapons.json entry."""
         reference = self.weapon(classes[0])
@@ -728,10 +965,15 @@ class Snapshot:
             turret = self.blueprint(spec[1])
             limits = mount_limits(self.assets, turret)
             mesh, socket, socket_pitch = reference.barrel()
-            sources["view"] = "aimed by elevation: no bore or zoom; the tube is laid by its own readout, so the shot's limits are not derived"
+            sources["view"] = ("aimed by elevation: no bore or zoom; the tube is laid by its own readout, "
+                               "so the shot's limits are not derived" if len(spec) < 3 else
+                               "aimed by elevation: no bore or zoom; the launch point and the limits of the barrel's pitch are derived")
             sources["mount"] = spec[1]
             sources["mount_limits"] = limits[2] if limits else "none"
             sources["barrel"] = f"{short(mesh)}:{socket} {round_to(socket_pitch)} (mesh reference pose)"
+            if len(spec) > 2:
+                result["launch"], result["elevation_limits"], launch_sources = self.launch(reference, spec[1], spec[2], limits)
+                sources.update(launch_sources)
         else:
             bore, zoom, socket_pitch, view_sources = self.view_of(reference, spec["mount"], spec["camera"], spec["zoom"])
             limits = mount_limits(self.assets, self.blueprint(spec["mount"]))
