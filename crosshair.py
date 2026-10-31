@@ -1,4 +1,5 @@
 import copy
+import logging
 import math
 import os
 import sys
@@ -95,7 +96,7 @@ from sightlay import MAX_MOVES, BEARING, CompassReader, ScreenSight, SightLayer,
 
 from sightreader import LabelTemplates
 
-from utils import resource_path
+from utils import is_16_9, resource_path
 
 import webmap
 
@@ -115,6 +116,8 @@ from widgets import (
     label,
     repolish
 )
+
+LOG = logging.getLogger("squad_ballistics")
 
 # Extra W time of a mortar auto-lay past the full travel of the barrel: the
 # barrel stops at its top, so holding longer only makes sure it got there.
@@ -224,6 +227,11 @@ class MainWindow(QMainWindow):
         # A resolution change or a monitor plugged in or out moves the
         # overlay: the mark and the ladder follow the new screen size.
         self.overlay.screen_changed.connect(self.recalculate_if_ready)
+        self.overlay.screen_changed.connect(self.check_screen_ratio)
+
+        # Set once per session when the screen is not 16:9 (see
+        # `check_screen_ratio`); shown on the calculator page.
+        self.screen_ratio_text = ""
 
         # The SquadCalc target currently in the inputs; None once the
         # distance or height is edited by hand.
@@ -314,6 +322,8 @@ class MainWindow(QMainWindow):
         self.build_ui()
 
         self.watch_monitors()
+
+        self.check_screen_ratio()
 
         # Only after the UI exists: a hotkey may fire right away.
         setup_hotkeys(self)
@@ -637,6 +647,14 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.build_trim_box())
 
         layout.addWidget(self.map_label)
+
+        self.screen_ratio_label = label(self.screen_ratio_text, "small")
+
+        self.screen_ratio_label.setWordWrap(True)
+
+        self.screen_ratio_label.setProperty("state", "error")
+
+        self.screen_ratio_label.setVisible(bool(self.screen_ratio_text))
 
         layout.addWidget(self.arming_label)
 
@@ -1187,6 +1205,27 @@ class MainWindow(QMainWindow):
             text = tr("map_target", t="  ·  ".join(parts))
 
         self.map_label.setText(text)
+
+    def check_screen_ratio(self):
+        """Tell once per session that the overlay's screen is not 16:9: the
+        calculator page shows the text and the log gets a warning line. The
+        check runs at the start and when the screen changes; after the first
+        warning it does nothing."""
+        if self.screen_ratio_text:
+            return
+
+        width, height = self.overlay.width(), self.overlay.height()
+
+        if is_16_9(width, height):
+            return
+
+        self.screen_ratio_text = tr("screen_not_16_9", size=f"{width}x{height}")
+
+        LOG.warning(self.screen_ratio_text)
+
+        self.screen_ratio_label.setText(self.screen_ratio_text)
+
+        self.screen_ratio_label.setVisible(True)
 
     def recalculate_if_ready(self):
         """Solve again after the weapon, the FOV, the calibration or the

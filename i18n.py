@@ -372,6 +372,12 @@ STRINGS = {
     "restart_text": "Restart the app now to apply the change?",
 
     "web_open": "Open in browser",
+
+    "screen_not_16_9": (
+        "Screen {size} is not 16:9. Reading the mortar sight and the compass "
+        "off the screen works on 16:9 screens only (1920x1080, 2560x1440); "
+        "it may fail here."
+    ),
 }
 
 

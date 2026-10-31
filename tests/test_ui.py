@@ -2397,3 +2397,69 @@ def test_the_ladder_is_computed_once_per_change(window, monkeypatch, change):
 
     assert len(calls) == 1
     assert window.overlay.ladder
+
+
+# =========================
+# Screen aspect ratio (#10)
+# =========================
+
+@pytest.mark.parametrize("width, height", [
+    (1920, 1080), (2560, 1440), (3840, 2160), (1280, 720), (1366, 768),
+    (1600, 900),
+])
+def test_16_9_screens_are_accepted(width, height):
+    from utils import is_16_9
+
+    assert is_16_9(width, height)
+
+
+@pytest.mark.parametrize("width, height", [
+    (1920, 1200), (2560, 1080), (3440, 1440), (1280, 1024), (1024, 768),
+    (1080, 1920), (0, 0), (1920, 0), (-1920, 1080),
+])
+def test_other_screens_are_not_16_9(width, height):
+    from utils import is_16_9
+
+    assert not is_16_9(width, height)
+
+
+def test_a_non_16_9_screen_is_reported_once(window, caplog):
+    window.screen_ratio_text = ""
+    window.overlay.setGeometry(0, 0, 1920, 1200)
+
+    with caplog.at_level("WARNING", logger="squad_ballistics"):
+        window.check_screen_ratio()
+        window.check_screen_ratio()
+        window.overlay.setGeometry(0, 0, 2560, 1080)
+        window.check_screen_ratio()
+
+    assert window.screen_ratio_text == tr("screen_not_16_9", size="1920x1200")
+    assert "1920x1200" in window.screen_ratio_text
+    assert window.screen_ratio_label.text() == window.screen_ratio_text
+    assert not window.screen_ratio_label.isHidden()
+    assert [r.getMessage() for r in caplog.records] == [window.screen_ratio_text]
+
+
+def test_a_16_9_screen_shows_no_message(window, caplog):
+    window.screen_ratio_text = ""
+    window.screen_ratio_label.setText("")
+    window.screen_ratio_label.hide()
+    window.overlay.setGeometry(0, 0, 2560, 1440)
+
+    with caplog.at_level("WARNING", logger="squad_ballistics"):
+        window.check_screen_ratio()
+
+    assert window.screen_ratio_text == ""
+    assert window.screen_ratio_label.isHidden()
+    assert caplog.records == []
+
+
+def test_the_screen_message_survives_a_rebuild(window):
+    window.screen_ratio_text = ""
+    window.overlay.setGeometry(0, 0, 1920, 1200)
+    window.check_screen_ratio()
+
+    window.rebuild()
+
+    assert window.screen_ratio_label.text() == window.screen_ratio_text
+    assert not window.screen_ratio_label.isHidden()
