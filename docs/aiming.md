@@ -111,7 +111,7 @@ Mortars, the Hell Cannon, rocket artillery and the AGS-17 lob have no mark (laid
 | Class | Weapon / view | Verdict |
 |---|---|---|
 | Marker | AGS-17 optic, AGS-30 BTR-4 / BMP-1TS, QLZ87 optic, QLZ87 on Lynx / CSK131 optic, SPG-9 FRAG optic, M203 family, QLG10, PG-7VR | 1.3-3.1 m/px, below the spread. This is the whole reason for marker aiming. |
-| Marker, direct hit | SPG-9 HEAT optic, PF98, AT-4, SMAW, MAAWS, Carl Gustav, RPG-7 HEAT, tank and ZiS-3 guns | Range per pixel is large, but vertical miss at the target is 0.1-1.8 m per pixel (section 5.2): fine for vehicle-sized targets if the aim point is raised. The app's "too coarse" note is misleading here (backlog 1). |
+| Marker, direct hit | SPG-9 HEAT optic, PF98, AT-4, SMAW, MAAWS, Carl Gustav, RPG-7 HEAT, tank and ZiS-3 guns | Range per pixel is large, but vertical miss at the target is 0.1-1.8 m per pixel (section 5.2): fine for vehicle-sized targets if the aim point is raised. The app's note now gives these vertical metres (`1 px = 0.17 m high`) and says "too coarse" only above 0.6 m (issue #11, `mark_height_resolution`). |
 | Ladder or ground area fire only | MK19 (all), QLZ87 no optic, AGS-17 iron sights / no optic, TBG-7V, Grom FRAG, 2A70 FRAG, AGS-30 BMP-2M | 5-20 m/px: the pixel is larger than the burst radius (VOG-25 / MK19 inner 1 m, outer 15 m; VOG-19 outer 18 m, `#6-3`) and than the spread of the cheaper weapons; the spread already caps a 5 m hit at 42 % (MK19), see section 5.3. |
 | Not aimable by the mark at all | Mortars, Hell Cannon, UB-32, BM-21, the AGS-17 lob | No mark; sight angle and compass, section 4.4. |
 
@@ -345,7 +345,7 @@ Ranked by expected gain in metres per effort. These feed the roadmap in `#8` (se
 
 | # | Proposal | Where | Gain | Effort |
 |---|---|---|---|---|
-| 1 | Replace "1 px = N m" and "too coarse for marker aiming" for direct-hit weapons by the vertical metres per pixel at the target and a box verdict (e.g. `1 px = 0.17 m high`, ok vs a 2.4 m target). Fixes a wrong verdict for SPG-9 scope, PF98, tank, ZiS-3 (issue #11) | `ballistics.py` `mark_resolution`, `crosshair.py` `marker_notes` | removes a misleading "do not use" for the best AT weapons | S |
+| 1 (done, issue #11) | Replace "1 px = N m" and "too coarse for marker aiming" for direct-hit weapons by the vertical metres per pixel at the target and a box verdict (e.g. `1 px = 0.17 m high`, ok vs a 2.4 m target). Fixes a wrong verdict for SPG-9 scope, PF98, tank, ZiS-3 (issue #11) | `ballistics.py` `mark_resolution`, `crosshair.py` `marker_notes` | removes a misleading "do not use" for the best AT weapons | S |
 | 2 | UI field and F-key step for `target_height` with presets (soldier 1 m, vehicle 1.2 m) | `crosshair.py`, `config.py` | 50 % -> up to 100 % box hits (section 5.3) | S |
 | 3 | Show the mouse step: "1 count = N px" for the typed `G x S`, and a one-time 360-degree check to measure `k` | `crosshair.py` | puts the aiming view at 1 px per count (rule 4) | M |
 | 4 | Take the target position from the in-game marker's server log line (integer cm, terrain exact) instead of a second map click; the feed from `#6` | host feed | removes the target click (2.8 m RMS becomes 2.0 m) | L (owner approval) |

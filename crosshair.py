@@ -44,8 +44,10 @@ from ballistics import (
     TRIM_LIMIT,
     clamp_trim,
     current_weapon_name,
+    MARK_HEIGHT_LIMIT,
     MARK_PIXEL_LIMIT,
     first_obstacle,
+    mark_height_resolution,
     mark_resolution,
     mark_visible_range,
     resolve_arc,
@@ -1675,8 +1677,9 @@ class MainWindow(QMainWindow):
     def marker_notes(self, weapon, solution, fov, offset, arc):
         """The texts that help to aim at the in-game map marker with the
         overlay mark of `weapon` for `solution` (its mark `offset`, laid on
-        `arc`): the aim lift, the range one pixel is worth (with the error of
-        aiming at the whole pixel, and for a zoomed view a verdict when a
+        `arc`): the aim lift, what one pixel is worth (the range for a splash
+        weapon, the height at the target for a direct-hit one, with the error
+        of aiming at the whole pixel, and for a zoomed view a verdict when a
         pixel is too coarse), or, when the mark is off the screen, the range
         where it leaves it.
 
@@ -1712,7 +1715,9 @@ class MainWindow(QMainWindow):
 
             return notes + ([where] if where else []), where
 
-        metres = mark_resolution(
+        direct = weapon.direct_hit
+        measure = mark_height_resolution if direct else mark_resolution
+        metres = measure(
             weapon, solution.distance, solution.height_diff, fov, width,
             scale, trim, arc, lift
         )
@@ -1720,7 +1725,11 @@ class MainWindow(QMainWindow):
         if metres is None:
             return notes, ""
 
-        text = tr("info_pixel", m=f"{metres:.1f}" if metres < 10 else f"{metres:.0f}")
+        if direct:
+            text = tr("info_pixel_high", m=f"{metres:.2f}" if metres < 1 else f"{metres:.1f}")
+        else:
+            text = tr("info_pixel", m=f"{metres:.1f}" if metres < 10 else f"{metres:.0f}")
+
         rounding = abs(offset - round(offset)) * metres
 
         if rounding >= 0.5:
@@ -1728,7 +1737,9 @@ class MainWindow(QMainWindow):
 
         notes.append(text)
 
-        if metres > MARK_PIXEL_LIMIT and weapon.sight_view(fov)[0] < fov:
+        limit = MARK_HEIGHT_LIMIT if direct else MARK_PIXEL_LIMIT
+
+        if metres > limit and weapon.sight_view(fov)[0] < fov:
             notes.append(tr("info_pixel_coarse"))
 
         return notes, ""

@@ -17,10 +17,13 @@ from PyQt6.QtCore import QRect
 from PyQt6.QtGui import QImage
 
 import config
+import crosshair
 import overlay as overlay_module
 from ballistics import (
+    MARK_HEIGHT_LIMIT,
     MARK_PIXEL_LIMIT,
     load_weapons,
+    mark_height_resolution,
     mark_offset,
     mark_resolution,
     mark_visible_range,
@@ -44,6 +47,9 @@ QLZ = "QLZ87 · optic (RMB ×3)"
 MK19 = "MK19 · emplacement / C16 / L134A1 · no sights"
 TANK = "Tank AP · 2A46 / ZPT98 / 2A20 / 2A45 / KBA3"
 SPG = "SPG-9 · HEAT · scope · optic (RMB ×4)"
+PF98 = "PF98 · Tandem"
+AGS30 = "AGS-30 (BMP-2M)"
+ZIS = "ZiS-3 · optic (RMB ×4)"
 
 # FOV 120 at 1920x1080: the mark is on the screen up to this many pixels
 # below the centre (the overlay keeps a margin of EDGE_MARGIN at the edges)
@@ -91,6 +97,24 @@ def oracle_metres_per_pixel(name, fov, distance, width=1920):
     return ranges[1] - ranges[0]
 
 
+def oracle_height_per_pixel(name, fov, distance, width=1920):
+    """Metres of height at the target one pixel is worth: fly the shell for
+    the barrels half a pixel either side of the mark and take the difference
+    of the paths' heights at the target's distance (not where they land)."""
+    zoom, bore = flight.view(GAME[name])
+    shot = shot_of(name)
+    pixels = oracle_pixels(name, fov, distance, 0.0, width=width)
+    heights = []
+
+    for half in (-0.5, 0.5):
+        elevation = flight.barrel_elevation(
+            RAW[name], (zoom, bore), fov, width, pixels + half, distance, 0.0
+        )
+        heights.append(flight.miss(shot, elevation, distance, 0.0).vertical)
+
+    return abs(heights[1] - heights[0])
+
+
 # ---------------------------------------------------------------------------
 # 1. The range one pixel is worth
 # ---------------------------------------------------------------------------
@@ -118,6 +142,34 @@ def test_a_calibrated_screen_changes_the_worth_of_a_pixel():
     stretched = mark_resolution(WEAPONS[AGS], 500, 0.0, 120, 1920, scale=1.5)
 
     assert stretched == pytest.approx(plain / 1.5, rel=0.01)
+
+
+@pytest.mark.parametrize("name, distance", [
+    (SPG, 600), (SPG, 300), (TANK, 600), (TANK, 1000), (ZIS, 600), (PF98, 300),
+])
+def test_a_pixel_is_worth_the_oracles_height_at_the_target(name, distance):
+    metres = mark_height_resolution(WEAPONS[name], distance, 0.0, 120, 1920)
+
+    assert metres == pytest.approx(oracle_height_per_pixel(name, 120, distance), rel=0.02)
+
+
+def test_the_researched_height_of_a_pixel_at_600_m():
+    """deadline-squad/squad-ballistics#11: 0.17 m high for the SPG-9 scope,
+    the tank gun and the ZiS-3 optic at FOV 120."""
+    for name in (SPG, TANK, ZIS):
+        assert mark_height_resolution(WEAPONS[name], 600, 0.0, 120, 1920) == pytest.approx(0.17, abs=0.02)
+
+
+def test_a_pixel_height_is_unknown_where_there_is_no_mark():
+    mortar = WEAPONS["Mortar (M252 / 2B14 / L16 / Type 63)"]
+
+    assert mark_height_resolution(mortar, 500, 0.0, 120, 1920) is None
+    assert mark_height_resolution(WEAPONS[SPG], 50000, 0.0, 120, 1920) is None
+
+
+def test_the_weapon_data_tells_direct_hit_from_splash():
+    assert all(WEAPONS[name].direct_hit for name in (SPG, TANK, PF98, ZIS))
+    assert not any(WEAPONS[name].direct_hit for name in (AGS, QLZ, MK19, AGS30))
 
 
 def test_a_pixel_worth_is_unknown_where_there_is_no_mark():
@@ -232,10 +284,49 @@ def test_the_overlay_says_what_a_pixel_is_worth(window):
 
 
 def test_a_zoomed_view_with_a_coarse_pixel_is_told_so(window):
-    fire(window, TANK, 1000)
+    fire(window, AGS30, 800)
 
-    assert mark_resolution(WEAPONS[TANK], 1000, 0.0, 120, 1920) > MARK_PIXEL_LIMIT
+    assert mark_resolution(WEAPONS[AGS30], 800, 0.0, 120, 1920) > MARK_PIXEL_LIMIT
     assert "too coarse for marker aiming" in window.overlay.info_text
+
+
+@pytest.mark.parametrize("name, distance", [(SPG, 600), (TANK, 1000), (ZIS, 600)])
+def test_a_zoomed_direct_hit_weapon_is_told_the_height_of_a_pixel(window, name, distance):
+    fire(window, name, distance)
+
+    metres = mark_height_resolution(WEAPONS[name], distance, 0.0, 120, 1920)
+
+    assert metres < MARK_HEIGHT_LIMIT
+    assert f"1 px = {metres:.2f} m high" in window.overlay.info_text
+    assert "too coarse" not in window.overlay.info_text
+
+
+def test_the_spg9_scope_at_600_m_reads_about_17_cm(window):
+    fire(window, SPG, 600)
+
+    assert "1 px = 0.17 m high" in window.overlay.info_text
+
+
+def test_a_direct_hit_pixel_taller_than_the_limit_is_too_coarse(window, monkeypatch):
+    # No zoomed sight reaches a pixel of 0.6 m inside its range, so lower the limit
+    monkeypatch.setattr(crosshair, "MARK_HEIGHT_LIMIT", 0.1)
+    fire(window, SPG, 600)
+
+    assert "too coarse for marker aiming" in window.overlay.info_text
+
+
+def test_an_unzoomed_direct_hit_view_gets_the_height_only(window):
+    fire(window, PF98, 300)
+
+    assert "m high" in window.overlay.info_text
+    assert "too coarse" not in window.overlay.info_text
+
+
+def test_a_splash_weapon_keeps_the_range_of_a_pixel(window):
+    fire(window, QLZ, 500)
+
+    assert "m high" not in window.overlay.info_text
+    assert "1 px = " in window.overlay.info_text
 
 
 def test_an_unzoomed_view_gets_the_number_only(window):
