@@ -151,3 +151,20 @@ def test_the_public_interface_is_documented(file):
     walk(tree)
 
     assert missing == []
+
+
+def test_the_readme_counts_the_weapon_entries():
+    """The README says how many entries weapons.json has, in both languages."""
+    import json
+    import re
+
+    with open(os.path.join(ROOT, "weapons.json"), encoding="utf-8") as f:
+        entries = [name for name in json.load(f) if not name.startswith("_")]
+
+    with open(os.path.join(ROOT, "README.md"), encoding="utf-8") as f:
+        readme = f.read()
+
+    counts = re.findall(r"covers (\d+) weapon entries|В ней (\d+) позиций", readme)
+
+    assert len(counts) == 2
+    assert {int(n) for pair in counts for n in pair if n} == {len(entries)}

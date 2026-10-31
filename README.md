@@ -6,7 +6,7 @@ Squad Ballistics is a ballistic calculator and aim overlay for the game **Squad*
 
 For a target at a given distance and height difference it tells you how to hit it: the elevation to set on a mortar or a rocket launcher, how long to hold S on the AGS-17, or, for a grenade launcher, an anti-tank launcher or a gun, where to put the target on the screen, shown by a transparent overlay mark over the game.
 
-It covers 78 weapon entries in 6 groups:
+It covers 80 weapon entries in 6 groups:
 
 * grenade launchers
 * automatic grenade launchers
@@ -38,7 +38,7 @@ Squad Ballistics — баллистический калькулятор и ов
 
 Для цели на заданной дистанции и с заданным перепадом высот программа говорит, как в неё попасть: какой угол выставить на миномёте или РСЗО, сколько держать S на АГС-17 или, для гранатомёта, противотанкового гранатомёта или пушки, куда на экране поставить цель — это показывает прозрачная метка оверлея поверх игры.
 
-В ней 78 позиций оружия в 6 группах:
+В ней 80 позиций оружия в 6 группах:
 
 * гранатомёты
 * автоматические гранатомёты
