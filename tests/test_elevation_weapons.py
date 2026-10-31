@@ -29,8 +29,13 @@ with open(os.path.join(ROOT, "tests", "data", "game_weapons.json"), encoding="ut
 with open(os.path.join(ROOT, "weapons.json"), encoding="utf-8") as _file:
     RAW = json.load(_file)
 
-# The weapons of a vehicle: the snapshot holds the launch point and the limits.
-VEHICLE = [name for name in GAME if "launch" in GAME[name]]
+# Every entry whose launch point the snapshot holds: the weapons of a vehicle that are aimed by
+# elevation (bore null) and the direct-fire weapons of a vehicle (a bore, flown by the overlay mark in
+# test_mark_end_to_end.py).
+LAUNCHED = [name for name in GAME if "launch" in GAME[name]]
+
+# The weapons of a vehicle aimed by elevation: the snapshot holds the launch point and the limits.
+VEHICLE = [name for name in LAUNCHED if GAME[name]["bore"] is None]
 
 # The emplaced ones: the launch point is hand-derived in weapons.json, the
 # flight is the game's.
@@ -68,7 +73,7 @@ def _flat_window(name):
     return flight.range_at(shot, end, 0.0), widest
 
 
-@pytest.mark.parametrize("name", VEHICLE)
+@pytest.mark.parametrize("name", LAUNCHED)
 def test_the_launch_point_is_the_games(name):
     launch, weapon = GAME[name]["launch"], WEAPONS[name]
 

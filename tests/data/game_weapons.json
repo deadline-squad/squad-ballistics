@@ -2,7 +2,7 @@
  "_source": {
   "build": "26005357",
   "generator": "tools/game_weapons.py",
-  "date": "2026-10-30",
+  "date": "2026-10-31",
   "units": "m, m/s, s, degrees; bore and zoom null = aimed by elevation; elevation_limits null = no mount or not derived"
  },
  "M203 / M320 / GP-25 / HK79 / SL40": {
@@ -140,16 +140,6 @@
    -15.0,
    30.0
   ],
-  "view_variants": {
-   "Vehicles/AAVP7A1/Turrets/BP_AAVP7A1_Turret": {
-    "elevation_limits": [
-     -10.0,
-     30.0
-    ],
-    "barrel": "AAVP7A1_Gun:MK19_Muzzle 0.0",
-    "camera": "FirstPersonCamera 0.0 on GunAttachPoint"
-   }
-  },
   "sources": {
    "weapon": "Vehicles/M1117/Weapons/BP_M1117_MK19",
    "projectile": "Vehicles/AAVP7A1/Weapons/BP_40MM_MK19_Proj",
@@ -161,9 +151,47 @@
    "elevation": "TurretMovement curves M1117_YawToMinPitch / M1117_YawToMaxPitch: -15.0..30.0 (yaw 0: -5.0..30.0) + socket pitch",
    "classes": [
     "BP_M1117_MK19 -> BP_40MM_MK19_Proj (no MaxSpeed)",
-    "BP_AAVP7A1_MK19 -> BP_40MM_MK19_Proj (no MaxSpeed)",
     "BP_Mk19_RHIB_Weapon -> BP_40MM_MK19_Proj (no MaxSpeed)",
     "BP_Mk19_OpenTurret_Weapon -> BP_40MM_MK19_Proj (no MaxSpeed)"
+   ]
+  }
+ },
+ "MK19 · AAVP-7A1": {
+  "velocity": 230.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -10.0,
+   30.0
+  ],
+  "launch": {
+   "launch_height": 3.2232,
+   "muzzle_forward": 1.0868,
+   "muzzle_up": 0.0748,
+   "barrel_pitch": 0.0
+  },
+  "sources": {
+   "weapon": "Vehicles/AAVP7A1/Weapons/BP_AAVP7A1_MK19",
+   "projectile": "Vehicles/AAVP7A1/Weapons/BP_40MM_MK19_Proj",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "AAVP7A1_Gun:MK19_Muzzle 0.0",
+   "mount": "Vehicles/AAVP7A1/Turrets/BP_AAVP7A1_Turret",
+   "camera": "FirstPersonCamera 0.0 on GunAttachPoint",
+   "zoom": "BP_AAVP7A1_Turret.ZoomLevels[0] of [1.0, 4.5]",
+   "elevation": "TurretMovement curves AAVP7A1_YawToMinPitch / AAVP7A1_YawToMaxPitch: -10.0..30.0 (yaw 0: -10.0..30.0) + socket pitch",
+   "launch": "BP_AAVP7A1: bone_turret of AAVP7A1 -> GunAttachPoint of BP_AAVP7A1_Turret = pivot 304.67 cm above the mesh origin; ground -17.65 cm (lowest wheel bone 42.3 cm - WheelRadius 60 cm (BP_AAVP7A1_VehicleConfigTracked)); socket MK19_Muzzle of AAVP7A1_Gun at [108.68, -9.46, 7.48] cm on the mount, pitch 0.0; the muzzle is 9.5 cm beside the pitch plane (not modelled)",
+   "same_view": [
+    "Vehicles/AAVP7A1/Turrets/BP_AAVP7A1_Turret_Woodland on Vehicles/AAVP7A1/BP_AAVP7A1_Woodland"
+   ],
+   "classes": [
+    "BP_AAVP7A1_MK19 -> BP_40MM_MK19_Proj (no MaxSpeed)",
+    "BP_AAVP7A1_MK19_Woodland -> BP_40MM_MK19_Proj (no MaxSpeed)"
    ]
   }
  },
@@ -181,6 +209,12 @@
    -24.05,
    40.95
   ],
+  "launch": {
+   "launch_height": 2.6617,
+   "muzzle_forward": 0.4161,
+   "muzzle_up": 0.0257,
+   "barrel_pitch": 0.95
+  },
   "sources": {
    "weapon": "Vehicles/PARS_III/Sancak_RWS/Weapons/BP_SancakRWS_MK19",
    "projectile": "Vehicles/AAVP7A1/Weapons/BP_40MM_MK19_Proj",
@@ -190,8 +224,9 @@
    "camera": "FirstPersonCamera 0.0 on GunAttachPoint",
    "zoom": "BP_SancakRWS_MK19_Turret.ZoomLevels[0] of [1.0, 3.0, 9.0]",
    "elevation": "SQTurretMovement curves PARS3RWS_YawToMinPitch / PARS3RWS_YawToMaxPitch: -25.0..40.0 (yaw 0: -14.0..40.0) + socket pitch",
+   "launch": "BP_PARS3_MK19: bone_RWSSocket of SK_PARS_III -> GunAttachPoint of BP_SancakRWS_MK19_Turret = pivot 268.28 cm above the mesh origin; ground 2.11 cm (lowest wheel bone 56.1 cm - WheelRadius 54 cm (BP_PARS3_VehicleConfig)); socket Attach_Muzzle of SK_SancakRWS_Gun_40mm at [41.56, 0.0, 3.26] cm on the mount, pitch 0.95",
    "same_view": [
-    "Vehicles/PARS_III/Sancak_RWS/BP_SancakRWS_MK19_Turret_Desert"
+    "Vehicles/PARS_III/Sancak_RWS/BP_SancakRWS_MK19_Turret_Desert on Vehicles/PARS_III/BP_PARS3_MK19_Desert"
    ],
    "classes": [
     "BP_SancakRWS_MK19 -> BP_40MM_MK19_Proj (no MaxSpeed)"
@@ -212,6 +247,12 @@
    -8.45,
    46.55
   ],
+  "launch": {
+   "launch_height": 3.093,
+   "muzzle_forward": 0.6256,
+   "muzzle_up": -0.0155,
+   "barrel_pitch": 1.55
+  },
   "sources": {
    "weapon": "Vehicles/TAPV/Protector_C16/BP_C16_MK19",
    "projectile": "Vehicles/AAVP7A1/Weapons/BP_40MM_MK19_Proj",
@@ -221,8 +262,9 @@
    "camera": "FirstPersonCamera 0.0 on GunAttachPoint",
    "zoom": "BP_C16_Turret.ZoomLevels[0] of [1.0, 5.0, 12.0]",
    "elevation": "TurretMovement curves C16_YawToMinPitch / c16_YawToMaxPitch: -10.0..45.0 (yaw 0: -10.0..45.0) + socket pitch",
+   "launch": "BP_TAPV_C16: bone_turretSocket of tapv_body -> GunAttachPoint of BP_C16_Turret = pivot 309.24 cm above the mesh origin; ground -0.06 cm (lowest wheel bone 68.9 cm - WheelRadius 69 cm (BP_TAPV_VehicleConfig)); socket Attach_Muzzle_MK19 of SK_C16_Weapon at [62.58, 0.0, 0.15] cm on the mount, pitch 1.55",
    "same_view": [
-    "Vehicles/TAPV/Protector_C16/BP_C16_Turret_Desert"
+    "Vehicles/TAPV/Protector_C16/BP_C16_Turret_Desert on Vehicles/TAPV/BP_TAPV_C16_Desert"
    ],
    "classes": [
     "BP_C16_MK19 -> BP_40MM_MK19_Proj (no MaxSpeed)"
@@ -243,6 +285,12 @@
    -15.0,
    30.0
   ],
+  "launch": {
+   "launch_height": 2.6316,
+   "muzzle_forward": 0.6951,
+   "muzzle_up": -0.0087,
+   "barrel_pitch": 0.0
+  },
   "sources": {
    "weapon": "Vehicles/Emplaced_Mk19/BP_Mk19_OpenTurret_Weapon",
    "projectile": "Vehicles/AAVP7A1/Weapons/BP_40MM_MK19_Proj",
@@ -252,15 +300,60 @@
    "camera": "AdsCamera1pPositionComponent -1.6 on GunMountComponent",
    "zoom": "RMB keeps the FOV (BP_Mk19_OpenTurret_Weapon: no SetFieldOfView(FOV / k))",
    "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -15.0..30.0 + socket pitch",
+   "launch": "BP_M113A3_MK19: bone_manned_turretSocket of SK_M113A3_Hull -> GunMountComponent of BP_M113A3_OpenTurret_Mk19_Turret = pivot 258.19 cm above the mesh origin; ground -4.97 cm (lowest wheel bone 37.0 cm - WheelRadius 42 cm (BP_M1064_VehicleConfig_Tracked)); socket Attach_Muzzle of SK_MK19 at [69.51, 0.0, -0.87] cm on the mount, pitch 0.0; the mount is tilted 1.72 degrees in the vehicle (pitch limits are the mount's)",
    "same_view": [
-    "Vehicles/M113A2T_TLF/Turrets/BP_M113A2T_TLF_OpenTurret_Mk19_Turret"
+    "Vehicles/M113A3/Turrets/BP_M113A3_OpenTurret_Mk19_Turret_Desert on Vehicles/M113A3/BP_M113A3_MK19_Desert",
+    "Vehicles/M113A3/Turrets/BP_M113A3_OpenTurret_Mk19_Turret_Desert on Vehicles/M113A3/BP_M113A3_MK19_Desert_Cage",
+    "Vehicles/M113A2T_TLF/Turrets/BP_M113A2T_TLF_OpenTurret_Mk19_Turret on Vehicles/M113A2T_TLF/BP_M113A2T_MK19_TLF",
+    "Vehicles/M113A2T_TLF/Turrets/BP_M113A2T_TLF_Desert_OpenTurret_Mk19_Turret on Vehicles/M113A2T_TLF/BP_M113A2T_MK19_TLF_Desert"
    ],
    "classes": [
     "BP_Mk19_OpenTurret_Weapon -> BP_40MM_MK19_Proj (no MaxSpeed)"
    ]
   }
  },
- "MK19 · M1151 / RHIB open turret": {
+ "MK19 · M113 open turret · no sights": {
+  "velocity": 230.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -15.0,
+   30.0
+  ],
+  "launch": {
+   "launch_height": 2.6316,
+   "muzzle_forward": 0.6951,
+   "muzzle_up": -0.0087,
+   "barrel_pitch": 0.0
+  },
+  "sources": {
+   "weapon": "Vehicles/Emplaced_Mk19/BP_Mk19_OpenTurret_Weapon",
+   "projectile": "Vehicles/AAVP7A1/Weapons/BP_40MM_MK19_Proj",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_MK19:Attach_Muzzle 0.0",
+   "mount": "Vehicles/M113A3/Turrets/BP_M113A3_OpenTurret_Mk19_Turret",
+   "camera": "Camera1pPositionComponent 0.0 on GunMountComponent",
+   "zoom": "normal view, the game's FOV",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -15.0..30.0 + socket pitch",
+   "launch": "BP_M113A3_MK19: bone_manned_turretSocket of SK_M113A3_Hull -> GunMountComponent of BP_M113A3_OpenTurret_Mk19_Turret = pivot 258.19 cm above the mesh origin; ground -4.97 cm (lowest wheel bone 37.0 cm - WheelRadius 42 cm (BP_M1064_VehicleConfig_Tracked)); socket Attach_Muzzle of SK_MK19 at [69.51, 0.0, -0.87] cm on the mount, pitch 0.0; the mount is tilted 1.72 degrees in the vehicle (pitch limits are the mount's)",
+   "same_view": [
+    "Vehicles/M113A3/Turrets/BP_M113A3_OpenTurret_Mk19_Turret_Desert on Vehicles/M113A3/BP_M113A3_MK19_Desert",
+    "Vehicles/M113A3/Turrets/BP_M113A3_OpenTurret_Mk19_Turret_Desert on Vehicles/M113A3/BP_M113A3_MK19_Desert_Cage",
+    "Vehicles/M113A2T_TLF/Turrets/BP_M113A2T_TLF_OpenTurret_Mk19_Turret on Vehicles/M113A2T_TLF/BP_M113A2T_MK19_TLF",
+    "Vehicles/M113A2T_TLF/Turrets/BP_M113A2T_TLF_Desert_OpenTurret_Mk19_Turret on Vehicles/M113A2T_TLF/BP_M113A2T_MK19_TLF_Desert"
+   ],
+   "classes": [
+    "BP_Mk19_OpenTurret_Weapon -> BP_40MM_MK19_Proj (no MaxSpeed)"
+   ]
+  }
+ },
+ "MK19 · M1151 open turret": {
   "velocity": 230.0,
   "gravity_scale": 1.0,
   "max_speed": 0.0,
@@ -274,12 +367,11 @@
    -20.0,
    30.0
   ],
-  "view_variants": {
-   "Vehicles/RHIB/Turrets/BP_RHIB_Turret_Mk19": {
-    "bore": 1.7286,
-    "barrel": "SK_MK19:Attach_Muzzle 0.0",
-    "camera": "AdsCamera1pPositionComponent -1.7286 on GunMountComponent"
-   }
+  "launch": {
+   "launch_height": 2.3056,
+   "muzzle_forward": 0.6951,
+   "muzzle_up": -0.0087,
+   "barrel_pitch": 0.0
   },
   "sources": {
    "weapon": "Vehicles/Emplaced_Mk19/BP_Mk19_OpenTurret_Weapon",
@@ -290,8 +382,161 @@
    "camera": "AdsCamera1pPositionComponent -1.7211 on GunMountComponent",
    "zoom": "RMB keeps the FOV (BP_Mk19_OpenTurret_Weapon: no SetFieldOfView(FOV / k))",
    "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -20.0..30.0 + socket pitch",
+   "launch": "BP_M1151_Mk19: socket_turret of SK_M1151 -> GunMountComponent of BP_M1151_Mk19_Turret = pivot 228.45 cm above the mesh origin; ground -2.11 cm (lowest wheel bone 47.9 cm - WheelRadius 50 cm (BP_M1151_VehicleConfig)); socket Attach_Muzzle of SK_MK19 at [69.51, 0.0, -0.87] cm on the mount, pitch 0.0",
+   "same_view": [
+    "Vehicles/M1151/Turrets/BP_M1151_Mk19_Turret_Woodland on Vehicles/M1151/BP_M1151_Mk19_Woodland",
+    "Vehicles/M1151/Turrets/BP_M1151_Mk19_Turret on Vehicles/M1151/BP_M1151_Light_Mk19",
+    "Vehicles/M1151/Turrets/BP_M1151_Mk19_Turret_Woodland on Vehicles/M1151/BP_M1151_Light_Mk19_Woodland"
+   ],
    "classes": [
-    "BP_Mk19_OpenTurret_Weapon -> BP_40MM_MK19_Proj (no MaxSpeed)",
+    "BP_Mk19_OpenTurret_Weapon -> BP_40MM_MK19_Proj (no MaxSpeed)"
+   ]
+  }
+ },
+ "MK19 · M1151 open turret · no sights": {
+  "velocity": 230.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -20.0,
+   30.0
+  ],
+  "launch": {
+   "launch_height": 2.3056,
+   "muzzle_forward": 0.6951,
+   "muzzle_up": -0.0087,
+   "barrel_pitch": 0.0
+  },
+  "sources": {
+   "weapon": "Vehicles/Emplaced_Mk19/BP_Mk19_OpenTurret_Weapon",
+   "projectile": "Vehicles/AAVP7A1/Weapons/BP_40MM_MK19_Proj",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_MK19:Attach_Muzzle 0.0",
+   "mount": "Vehicles/M1151/Turrets/BP_M1151_Mk19_Turret",
+   "camera": "Camera1pPositionComponent 0.0 on GunMountComponent",
+   "zoom": "normal view, the game's FOV",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -20.0..30.0 + socket pitch",
+   "launch": "BP_M1151_Mk19: socket_turret of SK_M1151 -> GunMountComponent of BP_M1151_Mk19_Turret = pivot 228.45 cm above the mesh origin; ground -2.11 cm (lowest wheel bone 47.9 cm - WheelRadius 50 cm (BP_M1151_VehicleConfig)); socket Attach_Muzzle of SK_MK19 at [69.51, 0.0, -0.87] cm on the mount, pitch 0.0",
+   "same_view": [
+    "Vehicles/M1151/Turrets/BP_M1151_Mk19_Turret_Woodland on Vehicles/M1151/BP_M1151_Mk19_Woodland",
+    "Vehicles/M1151/Turrets/BP_M1151_Mk19_Turret on Vehicles/M1151/BP_M1151_Light_Mk19",
+    "Vehicles/M1151/Turrets/BP_M1151_Mk19_Turret_Woodland on Vehicles/M1151/BP_M1151_Light_Mk19_Woodland"
+   ],
+   "classes": [
+    "BP_Mk19_OpenTurret_Weapon -> BP_40MM_MK19_Proj (no MaxSpeed)"
+   ]
+  }
+ },
+ "MK19 · MATV open turret": {
+  "velocity": 230.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 1.7211,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -20.0,
+   30.0
+  ],
+  "launch": {
+   "launch_height": 3.0282,
+   "muzzle_forward": 0.6951,
+   "muzzle_up": -0.0087,
+   "barrel_pitch": 0.0
+  },
+  "sources": {
+   "weapon": "Vehicles/Emplaced_Mk19/BP_Mk19_OpenTurret_Weapon",
+   "projectile": "Vehicles/AAVP7A1/Weapons/BP_40MM_MK19_Proj",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_MK19:Attach_Muzzle 0.0",
+   "mount": "Vehicles/M1151/Turrets/BP_M1151_Mk19_Turret",
+   "camera": "AdsCamera1pPositionComponent -1.7211 on GunMountComponent",
+   "zoom": "RMB keeps the FOV (BP_Mk19_OpenTurret_Weapon: no SetFieldOfView(FOV / k))",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -20.0..30.0 + socket pitch",
+   "launch": "BP_MATV_Mk19: bone_turretSocket of MATV -> GunMountComponent of BP_M1151_Mk19_Turret = pivot 307.24 cm above the mesh origin; ground 4.42 cm (lowest wheel bone 68.4 cm - WheelRadius 64 cm (BP_MATV_VehicleConfig)); socket Attach_Muzzle of SK_MK19 at [69.51, 0.0, -0.87] cm on the mount, pitch 0.0",
+   "same_view": [
+    "Vehicles/M1151/Turrets/BP_M1151_Mk19_Turret_Green on Vehicles/MATV/BP_MATV_Mk19_Woodland",
+    "Vehicles/M1151/Turrets/BP_M1151_Mk19_Turret on Vehicles/MATV_USMC/BP_MATV_Mk19_USMC",
+    "Vehicles/M1151/Turrets/BP_M1151_Mk19_Turret_Woodland on Vehicles/MATV_USMC/BP_MATV_Mk19_USMC_Woodland"
+   ],
+   "classes": [
+    "BP_Mk19_OpenTurret_Weapon -> BP_40MM_MK19_Proj (no MaxSpeed)"
+   ]
+  }
+ },
+ "MK19 · MATV open turret · no sights": {
+  "velocity": 230.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -20.0,
+   30.0
+  ],
+  "launch": {
+   "launch_height": 3.0282,
+   "muzzle_forward": 0.6951,
+   "muzzle_up": -0.0087,
+   "barrel_pitch": 0.0
+  },
+  "sources": {
+   "weapon": "Vehicles/Emplaced_Mk19/BP_Mk19_OpenTurret_Weapon",
+   "projectile": "Vehicles/AAVP7A1/Weapons/BP_40MM_MK19_Proj",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_MK19:Attach_Muzzle 0.0",
+   "mount": "Vehicles/M1151/Turrets/BP_M1151_Mk19_Turret",
+   "camera": "Camera1pPositionComponent 0.0 on GunMountComponent",
+   "zoom": "normal view, the game's FOV",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -20.0..30.0 + socket pitch",
+   "launch": "BP_MATV_Mk19: bone_turretSocket of MATV -> GunMountComponent of BP_M1151_Mk19_Turret = pivot 307.24 cm above the mesh origin; ground 4.42 cm (lowest wheel bone 68.4 cm - WheelRadius 64 cm (BP_MATV_VehicleConfig)); socket Attach_Muzzle of SK_MK19 at [69.51, 0.0, -0.87] cm on the mount, pitch 0.0",
+   "same_view": [
+    "Vehicles/M1151/Turrets/BP_M1151_Mk19_Turret_Green on Vehicles/MATV/BP_MATV_Mk19_Woodland",
+    "Vehicles/M1151/Turrets/BP_M1151_Mk19_Turret on Vehicles/MATV_USMC/BP_MATV_Mk19_USMC",
+    "Vehicles/M1151/Turrets/BP_M1151_Mk19_Turret_Woodland on Vehicles/MATV_USMC/BP_MATV_Mk19_USMC_Woodland"
+   ],
+   "classes": [
+    "BP_Mk19_OpenTurret_Weapon -> BP_40MM_MK19_Proj (no MaxSpeed)"
+   ]
+  }
+ },
+ "MK19 · RHIB open turret": {
+  "velocity": 230.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 1.7286,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -20.0,
+   30.0
+  ],
+  "sources": {
+   "weapon": "Vehicles/RHIB/Weapons/BP_Mk19_RHIB_Weapon",
+   "projectile": "Vehicles/AAVP7A1/Weapons/BP_40MM_MK19_Proj",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_MK19:Attach_Muzzle 0.0",
+   "mount": "Vehicles/RHIB/Turrets/BP_RHIB_Turret_Mk19",
+   "camera": "AdsCamera1pPositionComponent -1.7286 on GunMountComponent",
+   "zoom": "RMB keeps the FOV (BP_Mk19_RHIB_Weapon: no SetFieldOfView(FOV / k))",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -20.0..30.0 + socket pitch",
+   "classes": [
     "BP_Mk19_RHIB_Weapon -> BP_40MM_MK19_Proj (no MaxSpeed)"
    ]
   }
@@ -446,6 +691,192 @@
    "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -13.0..85.0 + socket pitch",
    "classes": [
     "BP_AGS-17_Weapon -> BP_30mm_VOG19_Proj (no MaxSpeed)"
+   ]
+  }
+ },
+ "AGS-17 · Technical": {
+  "velocity": 185.0,
+  "gravity_scale": 1.8,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 4.5,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -8.5,
+   89.5
+  ],
+  "launch": {
+   "launch_height": 2.2118,
+   "muzzle_forward": 0.87,
+   "muzzle_up": 0.068,
+   "barrel_pitch": 4.5
+  },
+  "sources": {
+   "weapon": "Vehicles/Kozak_2M1_AFU/Weapons/AGS-17/BP_AGS-17_Technical_Weapon",
+   "projectile": "Vehicles/Emplaced_AGS-17/BP_30mm_VOG19_Proj",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_AGS-17:Attach_Muzzle 4.5",
+   "mount": "Vehicles/Technical/Turrets/BP_Technical_Turret_AGS17",
+   "camera": "Camera1pPositionComponent 0.0 on GunMountComponent",
+   "zoom": "normal view, the game's FOV",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -13.0..85.0 + socket pitch",
+   "launch": "BP_Technical2Seater_White_AGS17: socket_turret of SK_Technical_2Seater -> GunMountComponent of BP_Technical_Turret_AGS17 = pivot 212.04 cm above the mesh origin; ground -9.13 cm (lowest wheel bone 42.9 cm - WheelRadius 52 cm (BP_Technical2Seater_Generic_VehicleConfig)); socket Attach_Muzzle of SK_AGS-17 at [86.2, 0.0, 13.6] cm on the mount, pitch 4.5",
+   "same_view": [
+    "Vehicles/Technical/Turrets/BP_Technical_Turret_AGS17 on Vehicles/Technical2Seater/BP_Technical2Seater_Camo_AGS17",
+    "Vehicles/Technical/Turrets/BP_Technical_Turret_AGS17 on Vehicles/Technical_Armoured/BP_Armored_Technical2Seater_White_AGS17",
+    "Vehicles/Technical/Turrets/BP_Technical_Turret_AGS17 on Vehicles/Technical_Armoured/BP_Armored_Technical2Seater_Camo_AGS17"
+   ],
+   "classes": [
+    "BP_AGS-17_Technical_Weapon -> BP_30mm_VOG19_Proj (no MaxSpeed)"
+   ]
+  }
+ },
+ "AGS-17 · Tigr": {
+  "velocity": 185.0,
+  "gravity_scale": 1.8,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 4.5,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -8.5,
+   89.5
+  ],
+  "launch": {
+   "launch_height": 2.5927,
+   "muzzle_forward": 0.87,
+   "muzzle_up": 0.068,
+   "barrel_pitch": 4.5
+  },
+  "sources": {
+   "weapon": "Vehicles/Kozak_2M1_AFU/Turrets/BP_AGS-17_OpenTurret_Weapon",
+   "projectile": "Vehicles/Emplaced_AGS-17/BP_30mm_VOG19_Proj",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_AGS-17:Attach_Muzzle 4.5",
+   "mount": "Vehicles/Tigr/Turrets/BP_Tigr_AGS17_Turret",
+   "camera": "Camera1pPositionComponent 0.0 on GunMountComponent",
+   "zoom": "normal view, the game's FOV",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -13.0..85.0 + socket pitch",
+   "launch": "BP_Tigr_AGS17: bone_turretSocket_AGS17 of Tigr -> GunMountComponent of BP_Tigr_AGS17_Turret = pivot 258.31 cm above the mesh origin; ground -0.95 cm (lowest wheel bone 55.0 cm - WheelRadius 56 cm (BP_Tigr_VehicleConfig)); socket Attach_Muzzle of SK_AGS-17 at [86.2, 0.0, 13.6] cm on the mount, pitch 4.5",
+   "same_view": [
+    "Vehicles/Tigr/Turrets/BP_Tigr_AGS17_Turret_Desert on Vehicles/Tigr/BP_Tigr_AGS17_Desert"
+   ],
+   "classes": [
+    "BP_AGS-17_OpenTurret_Weapon -> BP_30mm_VOG19_Proj (no MaxSpeed)"
+   ]
+  }
+ },
+ "AGS-17 · Safir": {
+  "velocity": 185.0,
+  "gravity_scale": 1.8,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 4.5,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -8.5,
+   89.5
+  ],
+  "launch": {
+   "launch_height": 1.7967,
+   "muzzle_forward": 0.87,
+   "muzzle_up": 0.068,
+   "barrel_pitch": 4.5
+  },
+  "sources": {
+   "weapon": "Vehicles/Kozak_2M1_AFU/Weapons/AGS-17/BP_AGS-17_Safir_Weapon",
+   "projectile": "Vehicles/Emplaced_AGS-17/BP_30mm_VOG19_Proj",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_AGS-17:Attach_Muzzle 4.5",
+   "mount": "Vehicles/Safir/Turrets/BP_Safir_Turret_AGS-17",
+   "camera": "Camera1pPositionComponent 0.0 on GunMountComponent",
+   "zoom": "normal view, the game's FOV",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -13.0..85.0 + socket pitch",
+   "launch": "BP_Safir_AGS-17: socket_turret_ags17 of Safir -> GunMountComponent of BP_Safir_Turret_AGS-17 = pivot 186.74 cm above the mesh origin; ground 7.07 cm (lowest wheel bone 49.1 cm - WheelRadius 42 cm (BP_Safir_VehicleConfig)); socket Attach_Muzzle of SK_AGS-17 at [86.2, 0.0, 13.6] cm on the mount, pitch 4.5",
+   "classes": [
+    "BP_AGS-17_Safir_Weapon -> BP_30mm_VOG19_Proj (no MaxSpeed)"
+   ]
+  }
+ },
+ "AGS-17 · M1151": {
+  "velocity": 185.0,
+  "gravity_scale": 1.8,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 4.5,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -8.5,
+   89.5
+  ],
+  "launch": {
+   "launch_height": 2.2891,
+   "muzzle_forward": 0.87,
+   "muzzle_up": 0.068,
+   "barrel_pitch": 4.5
+  },
+  "sources": {
+   "weapon": "Vehicles/Kozak_2M1_AFU/Turrets/BP_AGS-17_OpenTurret_Weapon",
+   "projectile": "Vehicles/Emplaced_AGS-17/BP_30mm_VOG19_Proj",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_AGS-17:Attach_Muzzle 4.5",
+   "mount": "Vehicles/M1151/Turrets/BP_M1151_AGS17_Turret",
+   "camera": "Camera1pPositionComponent 0.0 on GunMountComponent",
+   "zoom": "normal view, the game's FOV",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -13.0..85.0 + socket pitch",
+   "launch": "BP_M1151_Technical_AGS17: socket_turret of SK_M1151 -> GunMountComponent of BP_M1151_AGS17_Turret = pivot 226.8 cm above the mesh origin; ground -2.11 cm (lowest wheel bone 47.9 cm - WheelRadius 50 cm (BP_M1151_VehicleConfig)); socket Attach_Muzzle of SK_AGS-17 at [86.2, 0.0, 13.6] cm on the mount, pitch 4.5",
+   "classes": [
+    "BP_AGS-17_OpenTurret_Weapon -> BP_30mm_VOG19_Proj (no MaxSpeed)"
+   ]
+  }
+ },
+ "AGS-17 · BTR-D": {
+  "velocity": 185.0,
+  "gravity_scale": 1.8,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 4.5,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -8.5,
+   89.5
+  ],
+  "launch": {
+   "launch_height": 2.2635,
+   "muzzle_forward": 0.87,
+   "muzzle_up": 0.068,
+   "barrel_pitch": 4.5
+  },
+  "sources": {
+   "weapon": "Vehicles/Kozak_2M1_AFU/Turrets/BP_AGS-17_OpenTurret_Weapon",
+   "projectile": "Vehicles/Emplaced_AGS-17/BP_30mm_VOG19_Proj",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "SK_AGS-17:Attach_Muzzle 4.5",
+   "mount": "Vehicles/BTR-D/Turrets/BP_BTR-D_AGS17_Turret",
+   "camera": "Camera1pPositionComponent 0.0 on GunMountComponent",
+   "zoom": "normal view, the game's FOV",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -13.0..85.0 + socket pitch",
+   "launch": "BP_BTR-D_AGS17: bone_turret_Kord of BTRD_alt -> GunMountComponent of BP_BTR-D_AGS17_Turret = pivot 200.49 cm above the mesh origin; ground -25.86 cm (lowest wheel bone 29.1 cm - WheelRadius 55 cm (BP_BTR-D_Transport_VehicleConfig_Tracked)); socket Attach_Muzzle of SK_AGS-17 at [86.2, 0.0, 13.6] cm on the mount, pitch 4.5",
+   "same_view": [
+    "Vehicles/BTR-D/Turrets/BP_BTR-D_AGS17_Turret on Vehicles/BTR-D/BP_BTR-D_AGS17_Desert"
+   ],
+   "classes": [
+    "BP_AGS-17_OpenTurret_Weapon -> BP_30mm_VOG19_Proj (no MaxSpeed)"
    ]
   }
  },
@@ -825,6 +1256,75 @@
    ]
   }
  },
+ "C90-CR": {
+  "velocity": 160.0,
+  "gravity_scale": 1.0,
+  "max_speed": 0.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 3.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": null,
+  "bore_assumed": true,
+  "zoom_assumed": true,
+  "sources": {
+   "weapon": "Blueprints/Items/RocketLaunchers/C90/BP_C90CR",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_C90_Rocket_Proj",
+   "defaults": "native default: ConstantAcceleration, MaxSpeed, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
+   "classes": [
+    "BP_C90CR -> BP_C90_Rocket_Proj (no MaxSpeed)"
+   ]
+  }
+ },
+ "DZJ-08": {
+  "velocity": 172.0,
+  "gravity_scale": 1.0,
+  "max_speed": 172.0,
+  "acceleration": 150.0,
+  "acceleration_timeout": 0.8,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": null,
+  "bore_assumed": true,
+  "zoom_assumed": true,
+  "sources": {
+   "weapon": "Blueprints/Items/RocketLaunchers/DZJ-08/BP_DZJ-08",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_DZJ-08_Heat_Proj",
+   "defaults": "native default: ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
+   "classes": [
+    "BP_DZJ-08 -> BP_DZJ-08_Heat_Proj (MaxSpeed 172 m/s)"
+   ]
+  }
+ },
+ "RPG-28": {
+  "velocity": 250.0,
+  "gravity_scale": 1.0,
+  "max_speed": 2500.0,
+  "acceleration": 0.0,
+  "acceleration_timeout": 0.0,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": null,
+  "bore_assumed": true,
+  "zoom_assumed": true,
+  "sources": {
+   "weapon": "Blueprints/Items/RocketLaunchers/RPG28/BP_RPG28",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_RPG28_Tandem_Proj",
+   "defaults": "native default: ConstantAcceleration, ConstantAccelerationTimeout, ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
+   "classes": [
+    "BP_RPG28 -> BP_RPG28_Tandem_Proj (MaxSpeed 2500 m/s)"
+   ]
+  }
+ },
  "RPG-7 · PG-7V HEAT / OG-7V": {
   "velocity": 117.0,
   "gravity_scale": 1.0,
@@ -869,6 +1369,52 @@
    "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
    "classes": [
     "BP_RPG7_Tandem -> BP_RPG7_Tandem_Heat_Proj2 (MaxSpeed 160 m/s)"
+   ]
+  }
+ },
+ "RPG-7V1 · PG-7VR Tandem": {
+  "velocity": 65.0,
+  "gravity_scale": 1.0,
+  "max_speed": 160.0,
+  "acceleration": 45.0,
+  "acceleration_timeout": 0.6,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": null,
+  "bore_assumed": true,
+  "zoom_assumed": true,
+  "sources": {
+   "weapon": "Blueprints/Items/RocketLaunchers/RPG7/RPG7V1/BP_RPG7V1_Tandem",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_RPG7_Tandem_Heat_Proj2",
+   "defaults": "native default: ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
+   "classes": [
+    "BP_RPG7V1_Tandem -> BP_RPG7_Tandem_Heat_Proj2 (MaxSpeed 160 m/s)"
+   ]
+  }
+ },
+ "RPG-7V2 · PG-7VR Tandem": {
+  "velocity": 117.0,
+  "gravity_scale": 1.0,
+  "max_speed": 160.0,
+  "acceleration": 45.0,
+  "acceleration_timeout": 0.6,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 0.0,
+  "zoom": 1.0,
+  "elevation_limits": null,
+  "bore_assumed": true,
+  "zoom_assumed": true,
+  "sources": {
+   "weapon": "Blueprints/Items/RocketLaunchers/RPG7/RPG7V2/BP_RPG7V2_Tandem_2mag",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_RPG7_Tandem_Heat_Proj2",
+   "defaults": "native default: ProjectileGravityScale, bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "view": "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and GetProjectileSpawnTransform read WeaponConfig.BarrelSocketName on the weapon mesh and add the soldier's sway), but the socket's angle to the ADS camera comes from the 1P animation pose and the sight, which the Blueprints do not hold; bore 0 and zoom 1 are assumed",
+   "classes": [
+    "BP_RPG7V2_Tandem_2mag -> BP_RPG7_Tandem_Heat_Proj2 (MaxSpeed 160 m/s)"
    ]
   }
  },
@@ -1233,6 +1779,302 @@
    "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -10.0..10.0 + socket pitch",
    "classes": [
     "BP_EmplacedSPG9_FragScope -> BP_SPG9_og9v_Frag_Proj2 (MaxSpeed 250 m/s)"
+   ]
+  }
+ },
+ "SPG-9 · HEAT · technical · optic (RMB ×4)": {
+  "velocity": 435.0,
+  "gravity_scale": 1.2,
+  "max_speed": 330.0,
+  "acceleration": 100.0,
+  "acceleration_timeout": 1.1,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 2.34,
+  "zoom": 4.0,
+  "elevation_limits": [
+   -7.66,
+   12.34
+  ],
+  "launch": {
+   "launch_height": 2.4725,
+   "muzzle_forward": 1.7773,
+   "muzzle_up": 0.0546,
+   "barrel_pitch": 2.34
+  },
+  "sources": {
+   "weapon": "Vehicles/Technical/Weapons/BP_SPG9",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_SPG9_pg9v_Heat_Proj2",
+   "defaults": "native default: bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "spg9_weapon_technical:Attach_Muzzle 2.34",
+   "mount": "Vehicles/Technical/Turrets/BP_Technical_Turret_SPG9",
+   "camera": "AdsCamera1pPositionComponent 0.0 on GunMountComponent",
+   "zoom": "BP_SPG9 BlueprintOnZoom: SetFieldOfView(FOV / 4)",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -10.0..10.0 + socket pitch",
+   "launch": "BP_Technical2Seater_White_SPG9: socket_turret of SK_Technical_2Seater -> GunMountComponent of BP_Technical_Turret_SPG9 = pivot 238.11 cm above the mesh origin; ground -9.13 cm (lowest wheel bone 42.9 cm - WheelRadius 52 cm (BP_Technical2Seater_Generic_VehicleConfig)); socket Attach_Muzzle of spg9_weapon_technical at [-6.78, -177.36, 12.71] cm on the mount, pitch 2.34; the muzzle is 6.8 cm beside the pitch plane (not modelled)",
+   "same_view": [
+    "Vehicles/Technical/Turrets/BP_Technical_Turret_SPG9 on Vehicles/Technical2Seater/BP_Technical2Seater_Camo_SPG9",
+    "Vehicles/Technical/Turrets/BP_Technical_Turret_SPG9 on Vehicles/Technical2Seater/BP_Armored_Technical2Seater_Camo_SPG9"
+   ],
+   "classes": [
+    "BP_SPG9 -> BP_SPG9_pg9v_Heat_Proj2 (MaxSpeed 330 m/s)"
+   ]
+  }
+ },
+ "SPG-9 · HEAT · technical · no optic": {
+  "velocity": 435.0,
+  "gravity_scale": 1.2,
+  "max_speed": 330.0,
+  "acceleration": 100.0,
+  "acceleration_timeout": 1.1,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 2.34,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -7.66,
+   12.34
+  ],
+  "launch": {
+   "launch_height": 2.4725,
+   "muzzle_forward": 1.7773,
+   "muzzle_up": 0.0546,
+   "barrel_pitch": 2.34
+  },
+  "sources": {
+   "weapon": "Vehicles/Technical/Weapons/BP_SPG9",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_SPG9_pg9v_Heat_Proj2",
+   "defaults": "native default: bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "spg9_weapon_technical:Attach_Muzzle 2.34",
+   "mount": "Vehicles/Technical/Turrets/BP_Technical_Turret_SPG9",
+   "camera": "Camera1pPositionComponent 0.0 on GunMountComponent",
+   "zoom": "normal view, the game's FOV",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -10.0..10.0 + socket pitch",
+   "launch": "BP_Technical2Seater_White_SPG9: socket_turret of SK_Technical_2Seater -> GunMountComponent of BP_Technical_Turret_SPG9 = pivot 238.11 cm above the mesh origin; ground -9.13 cm (lowest wheel bone 42.9 cm - WheelRadius 52 cm (BP_Technical2Seater_Generic_VehicleConfig)); socket Attach_Muzzle of spg9_weapon_technical at [-6.78, -177.36, 12.71] cm on the mount, pitch 2.34; the muzzle is 6.8 cm beside the pitch plane (not modelled)",
+   "same_view": [
+    "Vehicles/Technical/Turrets/BP_Technical_Turret_SPG9 on Vehicles/Technical2Seater/BP_Technical2Seater_Camo_SPG9",
+    "Vehicles/Technical/Turrets/BP_Technical_Turret_SPG9 on Vehicles/Technical2Seater/BP_Armored_Technical2Seater_Camo_SPG9"
+   ],
+   "classes": [
+    "BP_SPG9 -> BP_SPG9_pg9v_Heat_Proj2 (MaxSpeed 330 m/s)"
+   ]
+  }
+ },
+ "SPG-9 · FRAG · technical · optic (RMB ×4)": {
+  "velocity": 315.0,
+  "gravity_scale": 1.2,
+  "max_speed": 250.0,
+  "acceleration": 100.0,
+  "acceleration_timeout": 1.1,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 2.34,
+  "zoom": 4.0,
+  "elevation_limits": [
+   -7.66,
+   12.34
+  ],
+  "launch": {
+   "launch_height": 2.4725,
+   "muzzle_forward": 1.7773,
+   "muzzle_up": 0.0546,
+   "barrel_pitch": 2.34
+  },
+  "sources": {
+   "weapon": "Vehicles/Technical/Weapons/BP_SPG9_Frag",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_SPG9_og9v_Frag_Proj2",
+   "defaults": "native default: bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "spg9_weapon_technical:Attach_Muzzle 2.34",
+   "mount": "Vehicles/Technical/Turrets/BP_Technical_Turret_SPG9",
+   "camera": "AdsCamera1pPositionComponent 0.0 on GunMountComponent",
+   "zoom": "BP_SPG9 BlueprintOnZoom: SetFieldOfView(FOV / 4)",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -10.0..10.0 + socket pitch",
+   "launch": "BP_Technical2Seater_White_SPG9: socket_turret of SK_Technical_2Seater -> GunMountComponent of BP_Technical_Turret_SPG9 = pivot 238.11 cm above the mesh origin; ground -9.13 cm (lowest wheel bone 42.9 cm - WheelRadius 52 cm (BP_Technical2Seater_Generic_VehicleConfig)); socket Attach_Muzzle of spg9_weapon_technical at [-6.78, -177.36, 12.71] cm on the mount, pitch 2.34; the muzzle is 6.8 cm beside the pitch plane (not modelled)",
+   "same_view": [
+    "Vehicles/Technical/Turrets/BP_Technical_Turret_SPG9 on Vehicles/Technical2Seater/BP_Technical2Seater_Camo_SPG9",
+    "Vehicles/Technical/Turrets/BP_Technical_Turret_SPG9 on Vehicles/Technical2Seater/BP_Armored_Technical2Seater_Camo_SPG9"
+   ],
+   "classes": [
+    "BP_SPG9_Frag -> BP_SPG9_og9v_Frag_Proj2 (MaxSpeed 250 m/s)"
+   ]
+  }
+ },
+ "SPG-9 · FRAG · technical · no optic": {
+  "velocity": 315.0,
+  "gravity_scale": 1.2,
+  "max_speed": 250.0,
+  "acceleration": 100.0,
+  "acceleration_timeout": 1.1,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 2.34,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -7.66,
+   12.34
+  ],
+  "launch": {
+   "launch_height": 2.4725,
+   "muzzle_forward": 1.7773,
+   "muzzle_up": 0.0546,
+   "barrel_pitch": 2.34
+  },
+  "sources": {
+   "weapon": "Vehicles/Technical/Weapons/BP_SPG9_Frag",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_SPG9_og9v_Frag_Proj2",
+   "defaults": "native default: bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "spg9_weapon_technical:Attach_Muzzle 2.34",
+   "mount": "Vehicles/Technical/Turrets/BP_Technical_Turret_SPG9",
+   "camera": "Camera1pPositionComponent 0.0 on GunMountComponent",
+   "zoom": "normal view, the game's FOV",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -10.0..10.0 + socket pitch",
+   "launch": "BP_Technical2Seater_White_SPG9: socket_turret of SK_Technical_2Seater -> GunMountComponent of BP_Technical_Turret_SPG9 = pivot 238.11 cm above the mesh origin; ground -9.13 cm (lowest wheel bone 42.9 cm - WheelRadius 52 cm (BP_Technical2Seater_Generic_VehicleConfig)); socket Attach_Muzzle of spg9_weapon_technical at [-6.78, -177.36, 12.71] cm on the mount, pitch 2.34; the muzzle is 6.8 cm beside the pitch plane (not modelled)",
+   "same_view": [
+    "Vehicles/Technical/Turrets/BP_Technical_Turret_SPG9 on Vehicles/Technical2Seater/BP_Technical2Seater_Camo_SPG9",
+    "Vehicles/Technical/Turrets/BP_Technical_Turret_SPG9 on Vehicles/Technical2Seater/BP_Armored_Technical2Seater_Camo_SPG9"
+   ],
+   "classes": [
+    "BP_SPG9_Frag -> BP_SPG9_og9v_Frag_Proj2 (MaxSpeed 250 m/s)"
+   ]
+  }
+ },
+ "SPG-9 · HEAT · INS armoured technical · optic (RMB ×4)": {
+  "velocity": 435.0,
+  "gravity_scale": 1.2,
+  "max_speed": 330.0,
+  "acceleration": 100.0,
+  "acceleration_timeout": 1.1,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 2.34,
+  "zoom": 4.0,
+  "elevation_limits": [
+   -7.66,
+   12.34
+  ],
+  "launch": {
+   "launch_height": 2.3252,
+   "muzzle_forward": 1.7773,
+   "muzzle_up": 0.0546,
+   "barrel_pitch": 2.34
+  },
+  "sources": {
+   "weapon": "Vehicles/Technical/Weapons/BP_SPG9",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_SPG9_pg9v_Heat_Proj2",
+   "defaults": "native default: bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "spg9_weapon_technical:Attach_Muzzle 2.34",
+   "mount": "Vehicles/Technical/Turrets/BP_Technical_Turret_SPG9",
+   "camera": "AdsCamera1pPositionComponent 0.0 on GunMountComponent",
+   "zoom": "BP_SPG9 BlueprintOnZoom: SetFieldOfView(FOV / 4)",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -10.0..10.0 + socket pitch",
+   "launch": "BP_Technical_SPG9_INS_Armoured: socket_turret of vehicle_technical_nodoors -> GunMountComponent of BP_Technical_Turret_SPG9 = pivot 221.09 cm above the mesh origin; ground -11.43 cm (lowest wheel bone 39.6 cm - WheelRadius 51 cm (BP_ArmoredTechnical_Generic_VehicleConfig)); socket Attach_Muzzle of spg9_weapon_technical at [-6.78, -177.36, 12.71] cm on the mount, pitch 2.34; the muzzle is 6.8 cm beside the pitch plane (not modelled)",
+   "classes": [
+    "BP_SPG9 -> BP_SPG9_pg9v_Heat_Proj2 (MaxSpeed 330 m/s)"
+   ]
+  }
+ },
+ "SPG-9 · HEAT · INS armoured technical · no optic": {
+  "velocity": 435.0,
+  "gravity_scale": 1.2,
+  "max_speed": 330.0,
+  "acceleration": 100.0,
+  "acceleration_timeout": 1.1,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 2.34,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -7.66,
+   12.34
+  ],
+  "launch": {
+   "launch_height": 2.3252,
+   "muzzle_forward": 1.7773,
+   "muzzle_up": 0.0546,
+   "barrel_pitch": 2.34
+  },
+  "sources": {
+   "weapon": "Vehicles/Technical/Weapons/BP_SPG9",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_SPG9_pg9v_Heat_Proj2",
+   "defaults": "native default: bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "spg9_weapon_technical:Attach_Muzzle 2.34",
+   "mount": "Vehicles/Technical/Turrets/BP_Technical_Turret_SPG9",
+   "camera": "Camera1pPositionComponent 0.0 on GunMountComponent",
+   "zoom": "normal view, the game's FOV",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -10.0..10.0 + socket pitch",
+   "launch": "BP_Technical_SPG9_INS_Armoured: socket_turret of vehicle_technical_nodoors -> GunMountComponent of BP_Technical_Turret_SPG9 = pivot 221.09 cm above the mesh origin; ground -11.43 cm (lowest wheel bone 39.6 cm - WheelRadius 51 cm (BP_ArmoredTechnical_Generic_VehicleConfig)); socket Attach_Muzzle of spg9_weapon_technical at [-6.78, -177.36, 12.71] cm on the mount, pitch 2.34; the muzzle is 6.8 cm beside the pitch plane (not modelled)",
+   "classes": [
+    "BP_SPG9 -> BP_SPG9_pg9v_Heat_Proj2 (MaxSpeed 330 m/s)"
+   ]
+  }
+ },
+ "SPG-9 · FRAG · INS armoured technical · optic (RMB ×4)": {
+  "velocity": 315.0,
+  "gravity_scale": 1.2,
+  "max_speed": 250.0,
+  "acceleration": 100.0,
+  "acceleration_timeout": 1.1,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 2.34,
+  "zoom": 4.0,
+  "elevation_limits": [
+   -7.66,
+   12.34
+  ],
+  "launch": {
+   "launch_height": 2.3252,
+   "muzzle_forward": 1.7773,
+   "muzzle_up": 0.0546,
+   "barrel_pitch": 2.34
+  },
+  "sources": {
+   "weapon": "Vehicles/Technical/Weapons/BP_SPG9_Frag",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_SPG9_og9v_Frag_Proj2",
+   "defaults": "native default: bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "spg9_weapon_technical:Attach_Muzzle 2.34",
+   "mount": "Vehicles/Technical/Turrets/BP_Technical_Turret_SPG9",
+   "camera": "AdsCamera1pPositionComponent 0.0 on GunMountComponent",
+   "zoom": "BP_SPG9 BlueprintOnZoom: SetFieldOfView(FOV / 4)",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -10.0..10.0 + socket pitch",
+   "launch": "BP_Technical_SPG9_INS_Armoured: socket_turret of vehicle_technical_nodoors -> GunMountComponent of BP_Technical_Turret_SPG9 = pivot 221.09 cm above the mesh origin; ground -11.43 cm (lowest wheel bone 39.6 cm - WheelRadius 51 cm (BP_ArmoredTechnical_Generic_VehicleConfig)); socket Attach_Muzzle of spg9_weapon_technical at [-6.78, -177.36, 12.71] cm on the mount, pitch 2.34; the muzzle is 6.8 cm beside the pitch plane (not modelled)",
+   "classes": [
+    "BP_SPG9_Frag -> BP_SPG9_og9v_Frag_Proj2 (MaxSpeed 250 m/s)"
+   ]
+  }
+ },
+ "SPG-9 · FRAG · INS armoured technical · no optic": {
+  "velocity": 315.0,
+  "gravity_scale": 1.2,
+  "max_speed": 250.0,
+  "acceleration": 100.0,
+  "acceleration_timeout": 1.1,
+  "rotation_follows_velocity": true,
+  "ignore_gravity_while_boosting": false,
+  "bore": 2.34,
+  "zoom": 1.0,
+  "elevation_limits": [
+   -7.66,
+   12.34
+  ],
+  "launch": {
+   "launch_height": 2.3252,
+   "muzzle_forward": 1.7773,
+   "muzzle_up": 0.0546,
+   "barrel_pitch": 2.34
+  },
+  "sources": {
+   "weapon": "Vehicles/Technical/Weapons/BP_SPG9_Frag",
+   "projectile": "Blueprints/Items/Projectiles/Rockets/BP_SPG9_og9v_Frag_Proj2",
+   "defaults": "native default: bIgnoreGravityDuringConstantAcceleration, bRotationFollowsVelocity",
+   "barrel": "spg9_weapon_technical:Attach_Muzzle 2.34",
+   "mount": "Vehicles/Technical/Turrets/BP_Technical_Turret_SPG9",
+   "camera": "Camera1pPositionComponent 0.0 on GunMountComponent",
+   "zoom": "normal view, the game's FOV",
+   "elevation": "SQTurretMovement.RotationConstraints.PitchInterval -10.0..10.0 + socket pitch",
+   "launch": "BP_Technical_SPG9_INS_Armoured: socket_turret of vehicle_technical_nodoors -> GunMountComponent of BP_Technical_Turret_SPG9 = pivot 221.09 cm above the mesh origin; ground -11.43 cm (lowest wheel bone 39.6 cm - WheelRadius 51 cm (BP_ArmoredTechnical_Generic_VehicleConfig)); socket Attach_Muzzle of spg9_weapon_technical at [-6.78, -177.36, 12.71] cm on the mount, pitch 2.34; the muzzle is 6.8 cm beside the pitch plane (not modelled)",
+   "classes": [
+    "BP_SPG9_Frag -> BP_SPG9_og9v_Frag_Proj2 (MaxSpeed 250 m/s)"
    ]
   }
  },

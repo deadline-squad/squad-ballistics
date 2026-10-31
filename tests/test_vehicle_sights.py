@@ -48,7 +48,26 @@ VEHICLE_SIGHTS = [
     ("MK19 · PARS III RWS", 1.0, 0.95, 180),
     ("MK19 · TAPV C16 RWS", 1.0, 1.55, 295),
     ("MK19 · M113 open turret", 1.0, 1.6, 300),
-    ("MK19 · M1151 / RHIB open turret", 1.0, 1.72, 325),
+    ("MK19 · M113 open turret · no sights", 1.0, 0.0, None),
+    ("MK19 · M1151 open turret", 1.0, 1.7211, 325),
+    ("MK19 · M1151 open turret · no sights", 1.0, 0.0, None),
+    ("MK19 · MATV open turret", 1.0, 1.7211, 325),
+    ("MK19 · MATV open turret · no sights", 1.0, 0.0, None),
+    ("MK19 · RHIB open turret", 1.0, 1.7286, 325),
+    ("MK19 · AAVP-7A1", 1.0, 0.0, None),
+    ("AGS-17 · Technical", 1.0, 4.5, 305),
+    ("AGS-17 · Tigr", 1.0, 4.5, 305),
+    ("AGS-17 · Safir", 1.0, 4.5, 305),
+    ("AGS-17 · M1151", 1.0, 4.5, 305),
+    ("AGS-17 · BTR-D", 1.0, 4.5, 305),
+    ("SPG-9 · HEAT · technical · optic (RMB ×4)", 4.0, 2.34, 770),
+    ("SPG-9 · HEAT · technical · no optic", 1.0, 2.34, 770),
+    ("SPG-9 · FRAG · technical · optic (RMB ×4)", 4.0, 2.34, 445),
+    ("SPG-9 · FRAG · technical · no optic", 1.0, 2.34, 445),
+    ("SPG-9 · HEAT · INS armoured technical · optic (RMB ×4)", 4.0, 2.34, 770),
+    ("SPG-9 · HEAT · INS armoured technical · no optic", 1.0, 2.34, 770),
+    ("SPG-9 · FRAG · INS armoured technical · optic (RMB ×4)", 4.0, 2.34, 445),
+    ("SPG-9 · FRAG · INS armoured technical · no optic", 1.0, 2.34, 445),
     ("QLZ87 · Lynx / CSK131 · optic (RMB ×3)", 3.0, 0.85, 110),
     ("QLZ87 · Lynx / CSK131 · no optic", 1.0, 0.85, 110),
     ("MK19 · emplacement / C16 / L134A1 · no sights", 1.0, 0.0, None),
@@ -120,7 +139,9 @@ def test_the_open_turret_mk19_is_aimed_through_its_sights():
     """RMB moves the camera to the sights, which look under the barrel: the
     view keeps the FOV and the shot leaves above the centre."""
     assert WEAPONS["MK19 · M113 open turret"].sight_view(90) == (90, 1.6)
-    assert WEAPONS["MK19 · M1151 / RHIB open turret"].sight_view(90) == (90, 1.72)
+    assert WEAPONS["MK19 · M1151 open turret"].sight_view(90) == (90, 1.7211)
+    assert WEAPONS["MK19 · RHIB open turret"].sight_view(90) == (90, 1.7286)
+    assert WEAPONS["MK19 · M113 open turret · no sights"].sight_view(90) == (90, 0.0)
 
 
 def test_a_gunner_sight_zooms_by_the_first_level():

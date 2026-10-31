@@ -103,3 +103,63 @@ def test_the_btr4_and_the_bmp1ts_have_their_own_ags30_bores():
     """Claim 7: 1.70 - 0.10 on the BTR-4, 1.65 - 0.10 on the BMP-1TS."""
     assert WEAPONS["AGS-30 / BTR-4 AGS"].bore == pytest.approx(1.6)
     assert WEAPONS["AGS-30 (BMP-1TS)"].bore == pytest.approx(1.55)
+
+
+# The direct-fire weapons of a vehicle: the snapshot holds their launch point beside the view.
+VEHICLE_MOUNTS = [n for n in GAME if "launch" in GAME[n] and GAME[n]["bore"] is not None]
+
+VEHICLE_AGS17 = [n for n in VEHICLE_MOUNTS if n.startswith("AGS-17 · ") and "emplacement" not in n]
+
+
+def test_the_vehicles_that_carry_the_ags17_mk19_and_spg9_have_entries():
+    """The mounts found in the vehicle Blueprints of build 26005357 (tools/game_weapons.py ENTRIES)."""
+    assert {n.split(" · ")[1] for n in VEHICLE_AGS17} == {"Technical", "Tigr", "Safir", "M1151", "BTR-D"}
+    assert {n for n in VEHICLE_MOUNTS if n.startswith("MK19 · ")} == {
+        "MK19 · AAVP-7A1", "MK19 · PARS III RWS", "MK19 · TAPV C16 RWS", "MK19 · M113 open turret",
+        "MK19 · M113 open turret · no sights", "MK19 · M1151 open turret", "MK19 · M1151 open turret · no sights",
+        "MK19 · MATV open turret", "MK19 · MATV open turret · no sights"}
+    assert {n for n in VEHICLE_MOUNTS if n.startswith("SPG-9 · ")} == {
+        f"SPG-9 · {shell} · {mount} · {view}" for shell in ("HEAT", "FRAG") for mount in ("technical", "INS armoured technical")
+        for view in ("optic (RMB ×4)", "no optic")}
+
+
+@pytest.mark.parametrize("name", VEHICLE_MOUNTS)
+def test_every_blueprint_variant_of_a_vehicle_mount_fires_the_same(name):
+    """Desert, Woodland, USMC, cage and camo Blueprints of a vehicle (the snapshot's `same_view`) have
+    the entry's bore, zoom, limits and launch point: a variant that differs would be listed under
+    `view_variants`."""
+    assert "view_variants" not in GAME[name]
+
+
+@pytest.mark.parametrize("name", VEHICLE_MOUNTS)
+def test_a_vehicle_mount_launches_above_its_barrel_pivot(name):
+    launch, weapon = GAME[name]["launch"], WEAPONS[name]
+
+    assert weapon.launch_height == pytest.approx(launch["launch_height"], abs=5e-5)
+    assert weapon.launch_height > 1.5
+    assert weapon.muzzle_forward == pytest.approx(launch["muzzle_forward"], abs=5e-5)
+    assert weapon.muzzle_up == pytest.approx(launch["muzzle_up"], abs=5e-5)
+
+
+@pytest.mark.parametrize("name", VEHICLE_AGS17)
+def test_a_vehicle_ags17_is_the_open_sight_gun_on_the_tripods_hold_model(name):
+    """The vehicle turrets take the tripod's pitch input (x0.6) and limits (-13..85 degrees) and carry
+    its open-sight gun (socket 4.5 degrees up): same bore, limits and hold as the iron-sights tripod."""
+    iron = WEAPONS["AGS-17 · iron sights emplacement"]
+    weapon = WEAPONS[name]
+
+    assert (weapon.velocity, weapon.gravity, weapon.bore) == (iron.velocity, iron.gravity, iron.bore)
+    assert (weapon.hold_rate, weapon.hold_elevation[0]) == (iron.hold_rate, iron.hold_elevation[0])
+    assert weapon.arc == iron.arc == "high"
+    assert weapon.elevation_limits[0] == iron.elevation_limits[0]
+    assert weapon.hold_elevation[1] == pytest.approx(85 + 4.5)
+
+
+def test_the_rpg7_tandem_rounds_leave_at_the_speed_of_their_class():
+    """Issue 9: BP_RPG7_Tandem 63 m/s, BP_RPG7V1_Tandem 65, BP_RPG7V2_Tandem_2mag 117, all with the same
+    projectile (motor 45 m/s^2 for 0.6 s, MaxSpeed 160)."""
+    speeds = {n: WEAPONS[n].velocity for n in ("RPG-7 · PG-7VR Tandem", "RPG-7V1 · PG-7VR Tandem", "RPG-7V2 · PG-7VR Tandem")}
+
+    assert speeds == {"RPG-7 · PG-7VR Tandem": 63, "RPG-7V1 · PG-7VR Tandem": 65, "RPG-7V2 · PG-7VR Tandem": 117}
+    for name in speeds:
+        assert (WEAPONS[name].acceleration, WEAPONS[name].acceleration_time, WEAPONS[name].max_speed) == (45, 0.6, 160)

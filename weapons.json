@@ -34,18 +34,35 @@
         "velocity": 230,
         "gravity": 1,
         "category": "agl",
-        "note": "Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m. The tripod MK19 (and C16 / L134A1) fires faster: pick \"MK19 · emplacement / C16 / L134A1\" (or its \"· no sights\" entry without RMB); for the AGS-17 pick \"AGS-17 · emplacement · optic (RMB ×2.5)\". M1117 and AAVP-7A1: the gunner's sight at ×1; the barrel and the camera are aligned (the shot leaves through the screen centre). M113, M1151 and RHIB open turrets without RMB: this entry (their camera is on the barrel's axis). For the other vehicles pick their own entry.",
+        "note": "Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m. M1117: the gunner's sight at ×1; the barrel and the camera are aligned (the shot leaves through the screen centre); no launch height, the files do not settle it (deadline-squad/squad-ballistics#12). The tripod MK19 (and C16 / L134A1) fires faster: pick \"MK19 · emplacement / C16 / L134A1\" (or its \"· no sights\" entry without RMB); for the AGS-17 pick \"AGS-17 · emplacement · optic (RMB ×2.5)\". AAVP-7A1, PARS III, TAPV, M113, M1151 and MATV have their own entries, with their launch points; the M113, M1151 and MATV open turrets without RMB have \"· no sights\" entries. RHIB open turret without RMB: this entry (its camera is on the barrel's axis).",
         "bore": 0.0,
         "elevation_limits": [
             -15.0,
             30.0
         ]
     },
+    "MK19 · AAVP-7A1": {
+        "velocity": 230,
+        "gravity": 1,
+        "launch_height": 3.2232,
+        "muzzle_forward": 1.0868,
+        "muzzle_up": 0.0748,
+        "category": "agl",
+        "note": "AAVP-7A1 turret (also its Woodland Blueprint): the gunner's sight at ×1; the barrel and the camera are aligned, so the shot leaves through the screen centre. Launch point from the game files: the barrel pivots 3.2232 m above the ground, the muzzle is 1.0868 m along the barrel and 0.0748 m above its axis. Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m. The M1117 has the \"MK19\" entry.",
+        "bore": 0.0,
+        "elevation_limits": [
+            -10.0,
+            30.0
+        ]
+    },
     "MK19 · PARS III RWS": {
         "velocity": 230,
         "gravity": 1,
+        "launch_height": 2.6617,
+        "muzzle_forward": 0.4161,
+        "muzzle_up": 0.0257,
         "category": "agl",
-        "note": "PARS III remote turret: the gunner's sight at ×1; the shot leaves 0.95° above the screen centre (zero ~180 m).",
+        "note": "PARS III remote turret: the gunner's sight at ×1; the shot leaves 0.95° above the screen centre (zero ~180 m). Launch point from the game files: the barrel pivots 2.6617 m above the ground, the muzzle is 0.4161 m along the barrel and 0.0257 m above its axis. The desert Blueprint is the same.",
         "bore": 0.95,
         "elevation_limits": [
             -24.05,
@@ -55,8 +72,11 @@
     "MK19 · TAPV C16 RWS": {
         "velocity": 230,
         "gravity": 1,
+        "launch_height": 3.093,
+        "muzzle_forward": 0.6256,
+        "muzzle_up": -0.0155,
         "category": "agl",
-        "note": "TAPV C16 remote turret: the gunner's sight at ×1; the shot leaves 1.55° above the screen centre (zero ~295 m).",
+        "note": "TAPV C16 remote turret: the gunner's sight at ×1; the shot leaves 1.55° above the screen centre (zero ~295 m). Launch point from the game files: the barrel pivots 3.093 m above the ground, the muzzle is 0.6256 m along the barrel and -0.0155 m above its axis. The desert Blueprint is the same.",
         "bore": 1.55,
         "elevation_limits": [
             -8.45,
@@ -66,20 +86,93 @@
     "MK19 · M113 open turret": {
         "velocity": 230,
         "gravity": 1,
+        "launch_height": 2.6316,
+        "muzzle_forward": 0.6951,
+        "muzzle_up": -0.0087,
         "category": "agl",
-        "note": "M113A3 / M113A2T open turret, aimed through the sights (RMB, no zoom): they look 1.6° below the barrel, so the shot leaves 1.6° above the screen centre (zero ~300 m). Without RMB the camera is on the barrel's axis: pick \"MK19\".",
+        "note": "M113A3 / M113A2T (TLF; desert and cage Blueprints too) open turret, aimed through the sights (RMB, no zoom): they look 1.6° below the barrel, so the shot leaves 1.6° above the screen centre (zero ~300 m). Launch point from the game files: the barrel pivots 2.6316 m above the ground, the muzzle is 0.6951 m along the barrel and -0.0087 m above its axis. Without RMB pick \"MK19 · M113 open turret · no sights\". Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m.",
         "bore": 1.6,
         "elevation_limits": [
             -15.0,
             30.0
         ]
     },
-    "MK19 · M1151 / RHIB open turret": {
+    "MK19 · M113 open turret · no sights": {
+        "velocity": 230,
+        "gravity": 1,
+        "launch_height": 2.6316,
+        "muzzle_forward": 0.6951,
+        "muzzle_up": -0.0087,
+        "category": "agl",
+        "note": "M113A3 / M113A2T (TLF; desert and cage Blueprints too) open turret fired from the normal view, without RMB: the camera is on the barrel's axis, so the shot leaves through the screen centre. Launch point from the game files: the barrel pivots 2.6316 m above the ground, the muzzle is 0.6951 m along the barrel and -0.0087 m above its axis. Through the sights (RMB) pick \"MK19 · M113 open turret\". Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m.",
+        "bore": 0.0,
+        "elevation_limits": [
+            -15.0,
+            30.0
+        ]
+    },
+    "MK19 · M1151 open turret": {
+        "velocity": 230,
+        "gravity": 1,
+        "launch_height": 2.3056,
+        "muzzle_forward": 0.6951,
+        "muzzle_up": -0.0087,
+        "category": "agl",
+        "note": "M1151 (plain, Woodland, Light) open turret, aimed through the sights (RMB, no zoom): they look 1.7211° below the barrel, so the shot leaves 1.7211° above the screen centre (zero ~325 m). Launch point from the game files: the barrel pivots 2.3056 m above the ground, the muzzle is 0.6951 m along the barrel and -0.0087 m above its axis. Without RMB pick \"MK19 · M1151 open turret · no sights\". Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m.",
+        "bore": 1.7211,
+        "elevation_limits": [
+            -20.0,
+            30.0
+        ]
+    },
+    "MK19 · M1151 open turret · no sights": {
+        "velocity": 230,
+        "gravity": 1,
+        "launch_height": 2.3056,
+        "muzzle_forward": 0.6951,
+        "muzzle_up": -0.0087,
+        "category": "agl",
+        "note": "M1151 (plain, Woodland, Light) open turret fired from the normal view, without RMB: the camera is on the barrel's axis, so the shot leaves through the screen centre. Launch point from the game files: the barrel pivots 2.3056 m above the ground, the muzzle is 0.6951 m along the barrel and -0.0087 m above its axis. Through the sights (RMB) pick \"MK19 · M1151 open turret\". Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m.",
+        "bore": 0.0,
+        "elevation_limits": [
+            -20.0,
+            30.0
+        ]
+    },
+    "MK19 · MATV open turret": {
+        "velocity": 230,
+        "gravity": 1,
+        "launch_height": 3.0282,
+        "muzzle_forward": 0.6951,
+        "muzzle_up": -0.0087,
+        "category": "agl",
+        "note": "MATV (USMC, Woodland) open turret, aimed through the sights (RMB, no zoom): they look 1.7211° below the barrel, so the shot leaves 1.7211° above the screen centre (zero ~325 m). Launch point from the game files: the barrel pivots 3.0282 m above the ground, the muzzle is 0.6951 m along the barrel and -0.0087 m above its axis. Without RMB pick \"MK19 · MATV open turret · no sights\". Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m.",
+        "bore": 1.7211,
+        "elevation_limits": [
+            -20.0,
+            30.0
+        ]
+    },
+    "MK19 · MATV open turret · no sights": {
+        "velocity": 230,
+        "gravity": 1,
+        "launch_height": 3.0282,
+        "muzzle_forward": 0.6951,
+        "muzzle_up": -0.0087,
+        "category": "agl",
+        "note": "MATV (USMC, Woodland) open turret fired from the normal view, without RMB: the camera is on the barrel's axis, so the shot leaves through the screen centre. Launch point from the game files: the barrel pivots 3.0282 m above the ground, the muzzle is 0.6951 m along the barrel and -0.0087 m above its axis. Through the sights (RMB) pick \"MK19 · MATV open turret\". Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m.",
+        "bore": 0.0,
+        "elevation_limits": [
+            -20.0,
+            30.0
+        ]
+    },
+    "MK19 · RHIB open turret": {
         "velocity": 230,
         "gravity": 1,
         "category": "agl",
-        "note": "M1151 / RHIB open turret, aimed through the sights (RMB, no zoom): they look 1.72° below the barrel, so the shot leaves 1.72° above the screen centre (zero ~325 m). Without RMB the camera is on the barrel's axis: pick \"MK19\".",
-        "bore": 1.72,
+        "note": "RHIB open turret, aimed through the sights (RMB, no zoom): they look 1.7286° below the barrel, so the shot leaves 1.7286° above the screen centre (zero ~325 m). No launch height: how high the boat floats is not in the game files (deadline-squad/squad-ballistics#12), so the shot is taken from the ground. Without RMB the camera is on the barrel's axis: pick \"MK19\". Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m.",
+        "bore": 1.7286,
         "elevation_limits": [
             -20.0,
             30.0
@@ -167,6 +260,111 @@
         "bore": 4.5,
         "category": "agl",
         "note": "AGS-17 with open sights. Its barrel socket is tilted 4.5° up (the optic gun's is 0.85°), so the same mount angle shoots 3.65° higher: the top of the hold is 89.52° (the mount's 85° limit + 4.5°) and a target 33 m away can be lobbed. High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark; the sights are zeroed at ~300 m. Velocity, gravity and the hold rate are those of \"AGS-17 · emplacement · optic (RMB ×2.5)\"; the top is derived from the game files, not measured in game."
+    },
+    "AGS-17 · Technical": {
+        "velocity": 185,
+        "gravity": 1.8,
+        "launch_height": 2.2118,
+        "muzzle_forward": 0.87,
+        "muzzle_up": 0.068,
+        "arc": "high",
+        "aim": "overlay",
+        "hold_rate": 9.08,
+        "hold_elevation": [
+            47.81,
+            89.5
+        ],
+        "elevation_limits": [
+            -8.5,
+            89.5
+        ],
+        "bore": 4.5,
+        "category": "agl",
+        "note": "AGS-17 on the Technical (2-seater pickup; white, camo and armoured Blueprints): open sights, the barrel socket tilted 4.5° up, the camera on the same pitch in the normal view and on RMB (no optic, no zoom), so the shot leaves 4.5° above the screen centre (zero ~305 m). Launch point from the game files: the barrel pivots 2.2118 m above the ground, the muzzle is 0.87 m along the barrel and 0.068 m above its axis. The mount's pitch runs -13°..85°, so the top of the hold is 89.5° (85° + 4.5°). High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark. Velocity 185 m/s and gravity ×1.8 are the game's; the hold rate and its lowest elevation are those of \"AGS-17 · iron sights emplacement\" (the vehicle turret takes the same input, pitch ×0.6), not measured in game on this vehicle."
+    },
+    "AGS-17 · Tigr": {
+        "velocity": 185,
+        "gravity": 1.8,
+        "launch_height": 2.5927,
+        "muzzle_forward": 0.87,
+        "muzzle_up": 0.068,
+        "arc": "high",
+        "aim": "overlay",
+        "hold_rate": 9.08,
+        "hold_elevation": [
+            47.81,
+            89.5
+        ],
+        "elevation_limits": [
+            -8.5,
+            89.5
+        ],
+        "bore": 4.5,
+        "category": "agl",
+        "note": "AGS-17 on the Tigr (desert too): open sights, the barrel socket tilted 4.5° up, the camera on the same pitch in the normal view and on RMB (no optic, no zoom), so the shot leaves 4.5° above the screen centre (zero ~305 m). Launch point from the game files: the barrel pivots 2.5927 m above the ground, the muzzle is 0.87 m along the barrel and 0.068 m above its axis. The mount's pitch runs -13°..85°, so the top of the hold is 89.5° (85° + 4.5°). High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark. Velocity 185 m/s and gravity ×1.8 are the game's; the hold rate and its lowest elevation are those of \"AGS-17 · iron sights emplacement\" (the vehicle turret takes the same input, pitch ×0.6), not measured in game on this vehicle."
+    },
+    "AGS-17 · Safir": {
+        "velocity": 185,
+        "gravity": 1.8,
+        "launch_height": 1.7967,
+        "muzzle_forward": 0.87,
+        "muzzle_up": 0.068,
+        "arc": "high",
+        "aim": "overlay",
+        "hold_rate": 9.08,
+        "hold_elevation": [
+            47.81,
+            89.5
+        ],
+        "elevation_limits": [
+            -8.5,
+            89.5
+        ],
+        "bore": 4.5,
+        "category": "agl",
+        "note": "AGS-17 on the Safir: open sights, the barrel socket tilted 4.5° up, the camera on the same pitch in the normal view and on RMB (no optic, no zoom), so the shot leaves 4.5° above the screen centre (zero ~305 m). Launch point from the game files: the barrel pivots 1.7967 m above the ground, the muzzle is 0.87 m along the barrel and 0.068 m above its axis. The mount's pitch runs -13°..85°, so the top of the hold is 89.5° (85° + 4.5°). High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark. Velocity 185 m/s and gravity ×1.8 are the game's; the hold rate and its lowest elevation are those of \"AGS-17 · iron sights emplacement\" (the vehicle turret takes the same input, pitch ×0.6), not measured in game on this vehicle."
+    },
+    "AGS-17 · M1151": {
+        "velocity": 185,
+        "gravity": 1.8,
+        "launch_height": 2.2891,
+        "muzzle_forward": 0.87,
+        "muzzle_up": 0.068,
+        "arc": "high",
+        "aim": "overlay",
+        "hold_rate": 9.08,
+        "hold_elevation": [
+            47.81,
+            89.5
+        ],
+        "elevation_limits": [
+            -8.5,
+            89.5
+        ],
+        "bore": 4.5,
+        "category": "agl",
+        "note": "AGS-17 on the M1151 technical: open sights, the barrel socket tilted 4.5° up, the camera on the same pitch in the normal view and on RMB (no optic, no zoom), so the shot leaves 4.5° above the screen centre (zero ~305 m). Launch point from the game files: the barrel pivots 2.2891 m above the ground, the muzzle is 0.87 m along the barrel and 0.068 m above its axis. The mount's pitch runs -13°..85°, so the top of the hold is 89.5° (85° + 4.5°). High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark. Velocity 185 m/s and gravity ×1.8 are the game's; the hold rate and its lowest elevation are those of \"AGS-17 · iron sights emplacement\" (the vehicle turret takes the same input, pitch ×0.6), not measured in game on this vehicle."
+    },
+    "AGS-17 · BTR-D": {
+        "velocity": 185,
+        "gravity": 1.8,
+        "launch_height": 2.2635,
+        "muzzle_forward": 0.87,
+        "muzzle_up": 0.068,
+        "arc": "high",
+        "aim": "overlay",
+        "hold_rate": 9.08,
+        "hold_elevation": [
+            47.81,
+            89.5
+        ],
+        "elevation_limits": [
+            -8.5,
+            89.5
+        ],
+        "bore": 4.5,
+        "category": "agl",
+        "note": "AGS-17 on the BTR-D (desert too): open sights, the barrel socket tilted 4.5° up, the camera on the same pitch in the normal view and on RMB (no optic, no zoom), so the shot leaves 4.5° above the screen centre (zero ~305 m). Launch point from the game files: the barrel pivots 2.2635 m above the ground, the muzzle is 0.87 m along the barrel and 0.068 m above its axis. The mount's pitch runs -13°..85°, so the top of the hold is 89.5° (85° + 4.5°). High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark. Velocity 185 m/s and gravity ×1.8 are the game's; the hold rate and its lowest elevation are those of \"AGS-17 · iron sights emplacement\" (the vehicle turret takes the same input, pitch ×0.6), not measured in game on this vehicle."
     },
     "QLZ87 · optic (RMB ×3)": {
         "velocity": 190,
@@ -261,6 +459,12 @@
         "gravity": 1,
         "category": "launchers"
     },
+    "C90-CR": {
+        "velocity": 160,
+        "gravity": 1,
+        "category": "launchers",
+        "note": "C90-CR: a plain ballistic rocket, no motor after launch."
+    },
     "AT-4": {
         "velocity": 290,
         "gravity": 1,
@@ -298,6 +502,22 @@
         "max_speed": 280,
         "category": "launchers"
     },
+    "DZJ-08": {
+        "velocity": 172,
+        "gravity": 1,
+        "acceleration": 150,
+        "acceleration_time": 0.8,
+        "max_speed": 172,
+        "category": "launchers",
+        "note": "The rocket motor pushes along the path for 0.8 s after launch, but the game caps the speed at the muzzle velocity (172 m/s), so it only holds that speed against gravity; included in the calculation."
+    },
+    "RPG-28": {
+        "velocity": 250,
+        "gravity": 1,
+        "max_speed": 2500,
+        "category": "launchers",
+        "note": "RPG-28: a plain ballistic rocket (the game caps it at 2500 m/s, far above its 250 m/s)."
+    },
     "RPG-7 · PG-7V HEAT / OG-7V": {
         "velocity": 117,
         "gravity": 1,
@@ -315,6 +535,24 @@
         "max_speed": 160,
         "category": "launchers",
         "note": "The rocket motor speeds the projectile up along its path for 0.6 s after launch; included in the calculation."
+    },
+    "RPG-7V1 · PG-7VR Tandem": {
+        "velocity": 65,
+        "gravity": 1,
+        "acceleration": 45,
+        "acceleration_time": 0.6,
+        "max_speed": 160,
+        "category": "launchers",
+        "note": "RPG-7V1 tandem round (BP_RPG7V1_Tandem): leaves at 65 m/s, the older RPG-7 tandem (\"RPG-7 · PG-7VR Tandem\") at 63 m/s. The rocket motor speeds the projectile up along its path for 0.6 s after launch; included in the calculation."
+    },
+    "RPG-7V2 · PG-7VR Tandem": {
+        "velocity": 117,
+        "gravity": 1,
+        "acceleration": 45,
+        "acceleration_time": 0.6,
+        "max_speed": 160,
+        "category": "launchers",
+        "note": "RPG-7V2 tandem round (BP_RPG7V2_Tandem_2mag): leaves at 117 m/s, like its HEAT round. The rocket motor speeds the projectile up along its path for 0.6 s after launch; included in the calculation."
     },
     "RPG-7 · TBG-7V Thermobaric": {
         "velocity": 63,
@@ -410,7 +648,7 @@
         "view": "optic",
         "twin": "SPG-9 · HEAT · scope · no optic",
         "category": "guns",
-        "note": "SPG-9 with the PGO-9 scope, aimed through the scope (RMB, ×4). The scope's barrel socket is 2.34° above the screen centre (zero ~765 m); the mark accounts for it. Aiming from the normal view, without RMB? Pick \"SPG-9 · HEAT · scope · no optic\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded.",
+        "note": "SPG-9 with the PGO-9 scope, aimed through the scope (RMB, ×4). The scope's barrel socket is 2.34° above the screen centre (zero ~765 m); the mark accounts for it. Aiming from the normal view, without RMB? Pick \"SPG-9 · HEAT · scope · no optic\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. On a technical pick \"SPG-9 · HEAT · technical · optic (RMB ×4)\".",
         "elevation_limits": [
             -7.66,
             12.34
@@ -425,7 +663,7 @@
         "bore": 2.34,
         "view": "plain",
         "category": "guns",
-        "note": "SPG-9 with the PGO-9 scope, aimed from the normal view: no RMB, no zoom (×1). The barrel socket is 2.34° above the screen centre (zero ~765 m), as through the scope. Aiming through the scope (RMB, ×4)? Pick \"SPG-9 · HEAT · scope · optic (RMB ×4)\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded.",
+        "note": "SPG-9 with the PGO-9 scope, aimed from the normal view: no RMB, no zoom (×1). The barrel socket is 2.34° above the screen centre (zero ~765 m), as through the scope. Aiming through the scope (RMB, ×4)? Pick \"SPG-9 · HEAT · scope · optic (RMB ×4)\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. On a technical pick \"SPG-9 · HEAT · technical · no optic\".",
         "elevation_limits": [
             -7.66,
             12.34
@@ -456,7 +694,7 @@
         "view": "optic",
         "twin": "SPG-9 · FRAG · scope · no optic",
         "category": "guns",
-        "note": "SPG-9 with the PGO-9 scope, aimed through the scope (RMB, ×4). The scope's barrel socket is 2.34° above the screen centre (zero ~440 m); the mark accounts for it. Aiming from the normal view, without RMB? Pick \"SPG-9 · FRAG · scope · no optic\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded.",
+        "note": "SPG-9 with the PGO-9 scope, aimed through the scope (RMB, ×4). The scope's barrel socket is 2.34° above the screen centre (zero ~440 m); the mark accounts for it. Aiming from the normal view, without RMB? Pick \"SPG-9 · FRAG · scope · no optic\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. On a technical pick \"SPG-9 · FRAG · technical · optic (RMB ×4)\".",
         "elevation_limits": [
             -7.66,
             12.34
@@ -471,7 +709,159 @@
         "bore": 2.34,
         "view": "plain",
         "category": "guns",
-        "note": "SPG-9 with the PGO-9 scope, aimed from the normal view: no RMB, no zoom (×1). The barrel socket is 2.34° above the screen centre (zero ~440 m), as through the scope. Aiming through the scope (RMB, ×4)? Pick \"SPG-9 · FRAG · scope · optic (RMB ×4)\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded.",
+        "note": "SPG-9 with the PGO-9 scope, aimed from the normal view: no RMB, no zoom (×1). The barrel socket is 2.34° above the screen centre (zero ~440 m), as through the scope. Aiming through the scope (RMB, ×4)? Pick \"SPG-9 · FRAG · scope · optic (RMB ×4)\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. On a technical pick \"SPG-9 · FRAG · technical · no optic\".",
+        "elevation_limits": [
+            -7.66,
+            12.34
+        ]
+    },
+    "SPG-9 · HEAT · technical · optic (RMB ×4)": {
+        "velocity": 435,
+        "gravity": 1.2,
+        "launch_height": 2.4725,
+        "muzzle_forward": 1.7773,
+        "muzzle_up": 0.0546,
+        "acceleration": 100,
+        "acceleration_time": 1.1,
+        "max_speed": 330,
+        "bore": 2.34,
+        "zoom": 4,
+        "view": "optic",
+        "twin": "SPG-9 · HEAT · technical · no optic",
+        "category": "guns",
+        "note": "SPG-9 on the Technical (2-seater pickup; white, camo and armoured camo Blueprints), aimed through its scope (RMB, ×4). The scope's barrel socket is 2.34° above the screen centre (zero ~770 m); the mark accounts for it. Launch point from the game files: the barrel pivots 2.4725 m above the ground, the muzzle is 1.7773 m along the barrel and 0.0546 m above its axis. Aiming from the normal view, without RMB? Pick \"SPG-9 · HEAT · technical · no optic\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded.",
+        "elevation_limits": [
+            -7.66,
+            12.34
+        ]
+    },
+    "SPG-9 · HEAT · technical · no optic": {
+        "velocity": 435,
+        "gravity": 1.2,
+        "launch_height": 2.4725,
+        "muzzle_forward": 1.7773,
+        "muzzle_up": 0.0546,
+        "acceleration": 100,
+        "acceleration_time": 1.1,
+        "max_speed": 330,
+        "bore": 2.34,
+        "view": "plain",
+        "category": "guns",
+        "note": "SPG-9 on the Technical (2-seater pickup; white, camo and armoured camo Blueprints), aimed from the normal view: no RMB, no zoom (×1). The barrel socket is 2.34° above the screen centre (zero ~770 m), as through the scope. Launch point from the game files: the barrel pivots 2.4725 m above the ground, the muzzle is 1.7773 m along the barrel and 0.0546 m above its axis. Aiming through the scope (RMB, ×4)? Pick \"SPG-9 · HEAT · technical · optic (RMB ×4)\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded.",
+        "elevation_limits": [
+            -7.66,
+            12.34
+        ]
+    },
+    "SPG-9 · FRAG · technical · optic (RMB ×4)": {
+        "velocity": 315,
+        "gravity": 1.2,
+        "launch_height": 2.4725,
+        "muzzle_forward": 1.7773,
+        "muzzle_up": 0.0546,
+        "acceleration": 100,
+        "acceleration_time": 1.1,
+        "max_speed": 250,
+        "bore": 2.34,
+        "zoom": 4,
+        "view": "optic",
+        "twin": "SPG-9 · FRAG · technical · no optic",
+        "category": "guns",
+        "note": "SPG-9 on the Technical (2-seater pickup; white, camo and armoured camo Blueprints), aimed through its scope (RMB, ×4). The scope's barrel socket is 2.34° above the screen centre (zero ~445 m); the mark accounts for it. Launch point from the game files: the barrel pivots 2.4725 m above the ground, the muzzle is 1.7773 m along the barrel and 0.0546 m above its axis. Aiming from the normal view, without RMB? Pick \"SPG-9 · FRAG · technical · no optic\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded.",
+        "elevation_limits": [
+            -7.66,
+            12.34
+        ]
+    },
+    "SPG-9 · FRAG · technical · no optic": {
+        "velocity": 315,
+        "gravity": 1.2,
+        "launch_height": 2.4725,
+        "muzzle_forward": 1.7773,
+        "muzzle_up": 0.0546,
+        "acceleration": 100,
+        "acceleration_time": 1.1,
+        "max_speed": 250,
+        "bore": 2.34,
+        "view": "plain",
+        "category": "guns",
+        "note": "SPG-9 on the Technical (2-seater pickup; white, camo and armoured camo Blueprints), aimed from the normal view: no RMB, no zoom (×1). The barrel socket is 2.34° above the screen centre (zero ~445 m), as through the scope. Launch point from the game files: the barrel pivots 2.4725 m above the ground, the muzzle is 1.7773 m along the barrel and 0.0546 m above its axis. Aiming through the scope (RMB, ×4)? Pick \"SPG-9 · FRAG · technical · optic (RMB ×4)\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded.",
+        "elevation_limits": [
+            -7.66,
+            12.34
+        ]
+    },
+    "SPG-9 · HEAT · INS armoured technical · optic (RMB ×4)": {
+        "velocity": 435,
+        "gravity": 1.2,
+        "launch_height": 2.3252,
+        "muzzle_forward": 1.7773,
+        "muzzle_up": 0.0546,
+        "acceleration": 100,
+        "acceleration_time": 1.1,
+        "max_speed": 330,
+        "bore": 2.34,
+        "zoom": 4,
+        "view": "optic",
+        "twin": "SPG-9 · HEAT · INS armoured technical · no optic",
+        "category": "guns",
+        "note": "SPG-9 on the INS armoured technical, aimed through its scope (RMB, ×4). The scope's barrel socket is 2.34° above the screen centre (zero ~770 m); the mark accounts for it. Launch point from the game files: the barrel pivots 2.3252 m above the ground, the muzzle is 1.7773 m along the barrel and 0.0546 m above its axis. Aiming from the normal view, without RMB? Pick \"SPG-9 · HEAT · INS armoured technical · no optic\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded.",
+        "elevation_limits": [
+            -7.66,
+            12.34
+        ]
+    },
+    "SPG-9 · HEAT · INS armoured technical · no optic": {
+        "velocity": 435,
+        "gravity": 1.2,
+        "launch_height": 2.3252,
+        "muzzle_forward": 1.7773,
+        "muzzle_up": 0.0546,
+        "acceleration": 100,
+        "acceleration_time": 1.1,
+        "max_speed": 330,
+        "bore": 2.34,
+        "view": "plain",
+        "category": "guns",
+        "note": "SPG-9 on the INS armoured technical, aimed from the normal view: no RMB, no zoom (×1). The barrel socket is 2.34° above the screen centre (zero ~770 m), as through the scope. Launch point from the game files: the barrel pivots 2.3252 m above the ground, the muzzle is 1.7773 m along the barrel and 0.0546 m above its axis. Aiming through the scope (RMB, ×4)? Pick \"SPG-9 · HEAT · INS armoured technical · optic (RMB ×4)\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded.",
+        "elevation_limits": [
+            -7.66,
+            12.34
+        ]
+    },
+    "SPG-9 · FRAG · INS armoured technical · optic (RMB ×4)": {
+        "velocity": 315,
+        "gravity": 1.2,
+        "launch_height": 2.3252,
+        "muzzle_forward": 1.7773,
+        "muzzle_up": 0.0546,
+        "acceleration": 100,
+        "acceleration_time": 1.1,
+        "max_speed": 250,
+        "bore": 2.34,
+        "zoom": 4,
+        "view": "optic",
+        "twin": "SPG-9 · FRAG · INS armoured technical · no optic",
+        "category": "guns",
+        "note": "SPG-9 on the INS armoured technical, aimed through its scope (RMB, ×4). The scope's barrel socket is 2.34° above the screen centre (zero ~445 m); the mark accounts for it. Launch point from the game files: the barrel pivots 2.3252 m above the ground, the muzzle is 1.7773 m along the barrel and 0.0546 m above its axis. Aiming from the normal view, without RMB? Pick \"SPG-9 · FRAG · INS armoured technical · no optic\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded.",
+        "elevation_limits": [
+            -7.66,
+            12.34
+        ]
+    },
+    "SPG-9 · FRAG · INS armoured technical · no optic": {
+        "velocity": 315,
+        "gravity": 1.2,
+        "launch_height": 2.3252,
+        "muzzle_forward": 1.7773,
+        "muzzle_up": 0.0546,
+        "acceleration": 100,
+        "acceleration_time": 1.1,
+        "max_speed": 250,
+        "bore": 2.34,
+        "view": "plain",
+        "category": "guns",
+        "note": "SPG-9 on the INS armoured technical, aimed from the normal view: no RMB, no zoom (×1). The barrel socket is 2.34° above the screen centre (zero ~445 m), as through the scope. Launch point from the game files: the barrel pivots 2.3252 m above the ground, the muzzle is 1.7773 m along the barrel and 0.0546 m above its axis. Aiming through the scope (RMB, ×4)? Pick \"SPG-9 · FRAG · INS armoured technical · optic (RMB ×4)\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded.",
         "elevation_limits": [
             -7.66,
             12.34
