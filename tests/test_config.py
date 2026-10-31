@@ -95,8 +95,8 @@ def test_every_swatch_is_its_own_nearest_swatch():
         assert config.nearest_mark_color(list(rgb)) == name
 
 
-def test_the_default_colour_is_the_old_default_green():
-    assert config.MARK_COLORS[config.DEFAULT_CONFIG["color"]] == (0, 255, 0)
+def test_the_default_colour_is_red():
+    assert config.MARK_COLORS[config.DEFAULT_CONFIG["color"]] == (255, 48, 48)
     assert len(config.MARK_COLORS) == 8
 
 
@@ -123,8 +123,8 @@ def test_wrong_types_ignored(tmp_path, monkeypatch):
 
     assert cfg["fov"] == 90
     assert cfg["info_enabled"] is True
-    assert cfg["color"] == "green"
-    assert cfg["mark_style"] == "cross_dot"
+    assert cfg["color"] == "red"
+    assert cfg["mark_style"] == "cross_thin"
     assert cfg["mark_size"] == 100
 
 

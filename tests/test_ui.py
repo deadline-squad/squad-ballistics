@@ -1540,6 +1540,7 @@ def test_every_style_is_centred_on_the_screen_centre(window, full_hd_overlay, st
 
 def test_the_dot_paints_the_centre_pixels_in_the_mark_colour(window, full_hd_overlay):
     window.set_setting("mark_style", "dot")
+    window.set_setting("color", "green")
     image = full_hd_overlay.grab().toImage()
 
     for x, y in ((959, 539), (960, 539), (959, 540), (960, 540)):
