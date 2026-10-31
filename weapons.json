@@ -1,5 +1,5 @@
 {
-    "_comment": "velocity m/s, gravity = projectile gravity scale. Optional: acceleration (m/s^2, negative = slows down) + acceleration_time (s, the game's ConstantAccelerationTimeout: the motor acts in the 20 ms flight substeps that start before it), max_speed (m/s, the projectile's MaxSpeed: the speed is capped at every substep, the first one too; omitted or 0 = no cap), rotation_follows_velocity (default true: the motor pushes along the path; false: along the barrel's axis at launch, the UB-32's S-5), arc low/high, aim overlay/elevation, unit deg/mil, angle_offset, min_distance, elevation_limits [min,max], bore (deg: how far above the screen centre the shot leaves in the view the weapon is aimed through; the game fires along the barrel socket Attach_Muzzle, tilted against the camera), zoom (FOV divisor of that view: a scope, an optic or the gunner's sight; omitted = ×1; a weapon whose RMB sight zooms the screen has two entries: '<base> · optic (RMB ×N)' for the sight and '<base> · no optic' for its normal view, with that camera's bore and no zoom), view ('optic' on the RMB sight, 'plain' on its normal-view twin; the app shows it next to the weapon) + twin (on an optic entry: the name of its plain twin), launch_height + muzzle_forward + muzzle_up (m: the barrel pivot above the ground and the barrel socket along and above the barrel), hold_rate + hold_elevation (a barrel laid by holding a key), category, note. Sources: velocity, gravity, rocket motor, speed cap, view and the elevation limits of the direct-fire mounts read from the game files (Squad build 26005357: WeaponConfig.MuzzleVelocity; the projectile's ProjectileGravityScale, ConstantAcceleration/Timeout, MaxSpeed and bRotationFollowsVelocity; the mount's pitch limits plus the barrel socket's pitch; snapshot tests/data/game_weapons.json, written by tools/game_weapons.py); the other elevation limits, arcs and the AGS-17 hold model from in-game measurements, the official Squad wiki (squad.fandom.com) and SquadCalc (github.com/sh4rkman/SquadCalc).",
+    "_comment": "velocity m/s, gravity = projectile gravity scale. Optional: acceleration (m/s^2, negative = slows down) + acceleration_time (s, the game's ConstantAccelerationTimeout: the motor acts in the 20 ms flight substeps that start before it), max_speed (m/s, the projectile's MaxSpeed: the speed is capped at every substep, the first one too; omitted or 0 = no cap), rotation_follows_velocity (default true: the motor pushes along the path; false: along the barrel's axis at launch, the UB-32's S-5), arc low/high, aim overlay/elevation, unit deg/mil, angle_offset, min_distance, elevation_limits [min,max], bore (deg: how far above the screen centre the shot leaves in the view the weapon is aimed through; the game fires along the barrel socket Attach_Muzzle, tilted against the camera), zoom (FOV divisor of that view: a scope, an optic or the gunner's sight; omitted = ×1; a weapon whose RMB sight zooms the screen has two entries: '<base> · optic (RMB ×N)' for the sight and '<base> · no optic' for its normal view, with that camera's bore and no zoom), view ('optic' on the RMB sight, 'plain' on its normal-view twin; the app shows it next to the weapon) + twin (on an optic entry: the name of its plain twin), launch_height + muzzle_forward + muzzle_up (m: the barrel pivot above the ground and the barrel socket along and above the barrel), hold_rate + hold_elevation (a barrel laid by holding a key), category, warhead (direct/splash, launchers, guns and tanks: splash when the round's damaging explosion reaches beyond 10 m in the game files, tools/game_weapons.py burst_radius; the marker note judges a splash round by the ground like a grenade), note. Sources: velocity, gravity, rocket motor, speed cap, view and the elevation limits of the direct-fire mounts read from the game files (Squad build 26005357: WeaponConfig.MuzzleVelocity; the projectile's ProjectileGravityScale, ConstantAcceleration/Timeout, MaxSpeed and bRotationFollowsVelocity; the mount's pitch limits plus the barrel socket's pitch; snapshot tests/data/game_weapons.json, written by tools/game_weapons.py); the other elevation limits, arcs and the AGS-17 hold model from in-game measurements, the official Squad wiki (squad.fandom.com) and SquadCalc (github.com/sh4rkman/SquadCalc).",
     "M203 / M320 / GP-25 / HK79 / SL40": {
         "velocity": 76,
         "gravity": 1,
@@ -457,18 +457,21 @@
     "M72A7 LAW / RPG-26": {
         "velocity": 144,
         "gravity": 1,
-        "category": "launchers"
+        "category": "launchers",
+        "warhead": "direct"
     },
     "C90-CR": {
         "velocity": 160,
         "gravity": 1,
         "category": "launchers",
+        "warhead": "direct",
         "note": "C90-CR: a plain ballistic rocket, no motor after launch."
     },
     "AT-4": {
         "velocity": 290,
         "gravity": 1,
-        "category": "launchers"
+        "category": "launchers",
+        "warhead": "direct"
     },
     "MK153 SMAW": {
         "velocity": 220,
@@ -476,7 +479,8 @@
         "acceleration": 150,
         "acceleration_time": 0.8,
         "max_speed": 220,
-        "category": "launchers"
+        "category": "launchers",
+        "warhead": "direct"
     },
     "PF98 · Tandem": {
         "velocity": 310,
@@ -484,7 +488,8 @@
         "acceleration": 230,
         "acceleration_time": 1.5,
         "max_speed": 310,
-        "category": "launchers"
+        "category": "launchers",
+        "warhead": "direct"
     },
     "PF98 · HE-I": {
         "velocity": 220,
@@ -492,7 +497,8 @@
         "acceleration": 180,
         "acceleration_time": 1.5,
         "max_speed": 220,
-        "category": "launchers"
+        "category": "launchers",
+        "warhead": "splash"
     },
     "RPG-29": {
         "velocity": 280,
@@ -500,7 +506,8 @@
         "acceleration": 80,
         "acceleration_time": 1.1,
         "max_speed": 280,
-        "category": "launchers"
+        "category": "launchers",
+        "warhead": "direct"
     },
     "DZJ-08": {
         "velocity": 172,
@@ -509,6 +516,7 @@
         "acceleration_time": 0.8,
         "max_speed": 172,
         "category": "launchers",
+        "warhead": "direct",
         "note": "The rocket motor pushes along the path for 0.8 s after launch, but the game caps the speed at the muzzle velocity (172 m/s), so it only holds that speed against gravity; included in the calculation."
     },
     "RPG-28": {
@@ -516,6 +524,7 @@
         "gravity": 1,
         "max_speed": 2500,
         "category": "launchers",
+        "warhead": "direct",
         "note": "RPG-28: a plain ballistic rocket (the game caps it at 2500 m/s, far above its 250 m/s)."
     },
     "RPG-7 · PG-7V HEAT / OG-7V": {
@@ -525,6 +534,7 @@
         "acceleration_time": 0.8,
         "max_speed": 250,
         "category": "launchers",
+        "warhead": "splash",
         "note": "The rocket motor speeds the projectile up along its path for 0.8 s after launch; included in the calculation."
     },
     "RPG-7 · PG-7VR Tandem": {
@@ -534,6 +544,7 @@
         "acceleration_time": 0.6,
         "max_speed": 160,
         "category": "launchers",
+        "warhead": "direct",
         "note": "The rocket motor speeds the projectile up along its path for 0.6 s after launch; included in the calculation."
     },
     "RPG-7V1 · PG-7VR Tandem": {
@@ -543,6 +554,7 @@
         "acceleration_time": 0.6,
         "max_speed": 160,
         "category": "launchers",
+        "warhead": "direct",
         "note": "RPG-7V1 tandem round (BP_RPG7V1_Tandem): leaves at 65 m/s, the older RPG-7 tandem (\"RPG-7 · PG-7VR Tandem\") at 63 m/s. The rocket motor speeds the projectile up along its path for 0.6 s after launch; included in the calculation."
     },
     "RPG-7V2 · PG-7VR Tandem": {
@@ -552,6 +564,7 @@
         "acceleration_time": 0.6,
         "max_speed": 160,
         "category": "launchers",
+        "warhead": "direct",
         "note": "RPG-7V2 tandem round (BP_RPG7V2_Tandem_2mag): leaves at 117 m/s, like its HEAT round. The rocket motor speeds the projectile up along its path for 0.6 s after launch; included in the calculation."
     },
     "RPG-7 · TBG-7V Thermobaric": {
@@ -561,6 +574,7 @@
         "acceleration_time": 0.6,
         "max_speed": 160,
         "category": "launchers",
+        "warhead": "splash",
         "note": "The rocket motor speeds the projectile up along its path for 0.6 s after launch; included in the calculation."
     },
     "RPG-7V1 · HEAT": {
@@ -570,6 +584,7 @@
         "acceleration_time": 0.8,
         "max_speed": 250,
         "category": "launchers",
+        "warhead": "splash",
         "note": "The rocket motor speeds the projectile up along its path for 0.8 s after launch; included in the calculation."
     },
     "M3 MAAWS · HEAT / Smoke": {
@@ -579,6 +594,7 @@
         "acceleration_time": 1.5,
         "max_speed": 230,
         "category": "launchers",
+        "warhead": "direct",
         "note": "The rocket motor speeds the projectile up along its path for 1.5 s, to its 230 m/s top speed; included in the calculation."
     },
     "M3 MAAWS · Tandem": {
@@ -588,6 +604,7 @@
         "acceleration_time": 1.5,
         "max_speed": 230,
         "category": "launchers",
+        "warhead": "direct",
         "note": "The rocket motor speeds the projectile up along its path for 1.5 s, to its 230 m/s top speed; included in the calculation."
     },
     "Carl Gustav M2 · FFV551 HEAT": {
@@ -597,12 +614,14 @@
         "acceleration_time": 0.8,
         "max_speed": 310,
         "category": "launchers",
+        "warhead": "direct",
         "note": "Leaves the barrel at its top speed, 310 m/s; its motor holds that speed along the path for 0.8 s (included in the calculation)."
     },
     "Carl Gustav M2 · FFV441D HE": {
         "velocity": 255,
         "gravity": 1,
         "category": "launchers",
+        "warhead": "splash",
         "note": "Leaves the barrel at its full 255 m/s; no rocket motor."
     },
     "Carl Gustav M2 · FFV751 Tandem": {
@@ -612,6 +631,7 @@
         "acceleration_time": 1.5,
         "max_speed": 230,
         "category": "launchers",
+        "warhead": "direct",
         "note": "Leaves the barrel at 255 m/s and is slowed at once to its 230 m/s top speed; its motor holds that speed along the path for 1.5 s (included in the calculation)."
     },
     "NLAW": {
@@ -621,6 +641,7 @@
         "acceleration_time": 0.6,
         "max_speed": 250,
         "category": "launchers",
+        "warhead": "direct",
         "note": "Gravity is disabled for the NLAW in game: no drop, aim straight at the target."
     },
     "SPG-9 · HEAT": {
@@ -631,6 +652,7 @@
         "max_speed": 330,
         "bore": 0.13,
         "category": "guns",
+        "warhead": "direct",
         "note": "SPG-9 with open sights: the shot leaves 0.13° above the screen centre (zero ~47 m). HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. With the PGO-9 scope pick \"SPG-9 · HEAT · scope · optic (RMB ×4)\".",
         "elevation_limits": [
             -9.87,
@@ -648,6 +670,7 @@
         "view": "optic",
         "twin": "SPG-9 · HEAT · scope · no optic",
         "category": "guns",
+        "warhead": "direct",
         "note": "SPG-9 with the PGO-9 scope, aimed through the scope (RMB, ×4). The scope's barrel socket is 2.34° above the screen centre (zero ~765 m); the mark accounts for it. Aiming from the normal view, without RMB? Pick \"SPG-9 · HEAT · scope · no optic\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. On a technical pick \"SPG-9 · HEAT · technical · optic (RMB ×4)\".",
         "elevation_limits": [
             -7.66,
@@ -663,6 +686,7 @@
         "bore": 2.34,
         "view": "plain",
         "category": "guns",
+        "warhead": "direct",
         "note": "SPG-9 with the PGO-9 scope, aimed from the normal view: no RMB, no zoom (×1). The barrel socket is 2.34° above the screen centre (zero ~765 m), as through the scope. Aiming through the scope (RMB, ×4)? Pick \"SPG-9 · HEAT · scope · optic (RMB ×4)\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. On a technical pick \"SPG-9 · HEAT · technical · no optic\".",
         "elevation_limits": [
             -7.66,
@@ -677,6 +701,7 @@
         "max_speed": 250,
         "bore": 0.13,
         "category": "guns",
+        "warhead": "splash",
         "note": "SPG-9 with open sights: the shot leaves 0.13° above the screen centre (zero ~27 m). HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. With the PGO-9 scope pick \"SPG-9 · FRAG · scope · optic (RMB ×4)\".",
         "elevation_limits": [
             -9.87,
@@ -694,6 +719,7 @@
         "view": "optic",
         "twin": "SPG-9 · FRAG · scope · no optic",
         "category": "guns",
+        "warhead": "splash",
         "note": "SPG-9 with the PGO-9 scope, aimed through the scope (RMB, ×4). The scope's barrel socket is 2.34° above the screen centre (zero ~440 m); the mark accounts for it. Aiming from the normal view, without RMB? Pick \"SPG-9 · FRAG · scope · no optic\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. On a technical pick \"SPG-9 · FRAG · technical · optic (RMB ×4)\".",
         "elevation_limits": [
             -7.66,
@@ -709,6 +735,7 @@
         "bore": 2.34,
         "view": "plain",
         "category": "guns",
+        "warhead": "splash",
         "note": "SPG-9 with the PGO-9 scope, aimed from the normal view: no RMB, no zoom (×1). The barrel socket is 2.34° above the screen centre (zero ~440 m), as through the scope. Aiming through the scope (RMB, ×4)? Pick \"SPG-9 · FRAG · scope · optic (RMB ×4)\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. On a technical pick \"SPG-9 · FRAG · technical · no optic\".",
         "elevation_limits": [
             -7.66,
@@ -729,6 +756,7 @@
         "view": "optic",
         "twin": "SPG-9 · HEAT · technical · no optic",
         "category": "guns",
+        "warhead": "direct",
         "note": "SPG-9 on the Technical (2-seater pickup; white, camo and armoured camo Blueprints), aimed through its scope (RMB, ×4). The scope's barrel socket is 2.34° above the screen centre (zero ~770 m); the mark accounts for it. Launch point from the game files: the barrel pivots 2.4725 m above the ground, the muzzle is 1.7773 m along the barrel and 0.0546 m above its axis. Aiming from the normal view, without RMB? Pick \"SPG-9 · HEAT · technical · no optic\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded.",
         "elevation_limits": [
             -7.66,
@@ -747,6 +775,7 @@
         "bore": 2.34,
         "view": "plain",
         "category": "guns",
+        "warhead": "direct",
         "note": "SPG-9 on the Technical (2-seater pickup; white, camo and armoured camo Blueprints), aimed from the normal view: no RMB, no zoom (×1). The barrel socket is 2.34° above the screen centre (zero ~770 m), as through the scope. Launch point from the game files: the barrel pivots 2.4725 m above the ground, the muzzle is 1.7773 m along the barrel and 0.0546 m above its axis. Aiming through the scope (RMB, ×4)? Pick \"SPG-9 · HEAT · technical · optic (RMB ×4)\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded.",
         "elevation_limits": [
             -7.66,
@@ -767,6 +796,7 @@
         "view": "optic",
         "twin": "SPG-9 · FRAG · technical · no optic",
         "category": "guns",
+        "warhead": "splash",
         "note": "SPG-9 on the Technical (2-seater pickup; white, camo and armoured camo Blueprints), aimed through its scope (RMB, ×4). The scope's barrel socket is 2.34° above the screen centre (zero ~445 m); the mark accounts for it. Launch point from the game files: the barrel pivots 2.4725 m above the ground, the muzzle is 1.7773 m along the barrel and 0.0546 m above its axis. Aiming from the normal view, without RMB? Pick \"SPG-9 · FRAG · technical · no optic\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded.",
         "elevation_limits": [
             -7.66,
@@ -785,6 +815,7 @@
         "bore": 2.34,
         "view": "plain",
         "category": "guns",
+        "warhead": "splash",
         "note": "SPG-9 on the Technical (2-seater pickup; white, camo and armoured camo Blueprints), aimed from the normal view: no RMB, no zoom (×1). The barrel socket is 2.34° above the screen centre (zero ~445 m), as through the scope. Launch point from the game files: the barrel pivots 2.4725 m above the ground, the muzzle is 1.7773 m along the barrel and 0.0546 m above its axis. Aiming through the scope (RMB, ×4)? Pick \"SPG-9 · FRAG · technical · optic (RMB ×4)\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded.",
         "elevation_limits": [
             -7.66,
@@ -805,6 +836,7 @@
         "view": "optic",
         "twin": "SPG-9 · HEAT · INS armoured technical · no optic",
         "category": "guns",
+        "warhead": "direct",
         "note": "SPG-9 on the INS armoured technical, aimed through its scope (RMB, ×4). The scope's barrel socket is 2.34° above the screen centre (zero ~770 m); the mark accounts for it. Launch point from the game files: the barrel pivots 2.3252 m above the ground, the muzzle is 1.7773 m along the barrel and 0.0546 m above its axis. Aiming from the normal view, without RMB? Pick \"SPG-9 · HEAT · INS armoured technical · no optic\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded.",
         "elevation_limits": [
             -7.66,
@@ -823,6 +855,7 @@
         "bore": 2.34,
         "view": "plain",
         "category": "guns",
+        "warhead": "direct",
         "note": "SPG-9 on the INS armoured technical, aimed from the normal view: no RMB, no zoom (×1). The barrel socket is 2.34° above the screen centre (zero ~770 m), as through the scope. Launch point from the game files: the barrel pivots 2.3252 m above the ground, the muzzle is 1.7773 m along the barrel and 0.0546 m above its axis. Aiming through the scope (RMB, ×4)? Pick \"SPG-9 · HEAT · INS armoured technical · optic (RMB ×4)\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded.",
         "elevation_limits": [
             -7.66,
@@ -843,6 +876,7 @@
         "view": "optic",
         "twin": "SPG-9 · FRAG · INS armoured technical · no optic",
         "category": "guns",
+        "warhead": "splash",
         "note": "SPG-9 on the INS armoured technical, aimed through its scope (RMB, ×4). The scope's barrel socket is 2.34° above the screen centre (zero ~445 m); the mark accounts for it. Launch point from the game files: the barrel pivots 2.3252 m above the ground, the muzzle is 1.7773 m along the barrel and 0.0546 m above its axis. Aiming from the normal view, without RMB? Pick \"SPG-9 · FRAG · INS armoured technical · no optic\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded.",
         "elevation_limits": [
             -7.66,
@@ -861,6 +895,7 @@
         "bore": 2.34,
         "view": "plain",
         "category": "guns",
+        "warhead": "splash",
         "note": "SPG-9 on the INS armoured technical, aimed from the normal view: no RMB, no zoom (×1). The barrel socket is 2.34° above the screen centre (zero ~445 m), as through the scope. Launch point from the game files: the barrel pivots 2.3252 m above the ground, the muzzle is 1.7773 m along the barrel and 0.0546 m above its axis. Aiming through the scope (RMB, ×4)? Pick \"SPG-9 · FRAG · INS armoured technical · optic (RMB ×4)\". HEAT and FRAG shells fly at different speeds — pick the shell you have loaded.",
         "elevation_limits": [
             -7.66,
@@ -874,6 +909,7 @@
         "acceleration_time": 1.1,
         "max_speed": 330,
         "category": "guns",
+        "warhead": "direct",
         "note": "HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. BMP-1 (also the BMP-1 technical): the gunner's sight at its first zoom level, ×1.5; the shot leaves 1.4° above the screen centre (zero ~460 m). For the BMD-1M pick its own entry.",
         "bore": 1.4,
         "zoom": 1.5,
@@ -889,6 +925,7 @@
         "acceleration_time": 1.1,
         "max_speed": 330,
         "category": "guns",
+        "warhead": "direct",
         "note": "BMD-1M: the gunner's sight at its first zoom level, ×1.5; the shot leaves 1.57° above the screen centre (zero ~515 m).",
         "bore": 1.57,
         "zoom": 1.5,
@@ -904,6 +941,7 @@
         "acceleration_time": 1.1,
         "max_speed": 250,
         "category": "guns",
+        "warhead": "splash",
         "note": "HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. BMP-1 (also the BMP-1 technical): the gunner's sight at its first zoom level, ×1.5; the shot leaves 1.4° above the screen centre (zero ~265 m). For the BMD-1M pick its own entry.",
         "bore": 1.4,
         "zoom": 1.5,
@@ -919,6 +957,7 @@
         "acceleration_time": 1.1,
         "max_speed": 250,
         "category": "guns",
+        "warhead": "splash",
         "note": "BMD-1M: the gunner's sight at its first zoom level, ×1.5; the shot leaves 1.57° above the screen centre (zero ~295 m).",
         "bore": 1.57,
         "zoom": 1.5,
@@ -932,6 +971,7 @@
         "gravity": 2,
         "max_speed": 850,
         "category": "guns",
+        "warhead": "splash",
         "note": "BMP-3M: the gunner's sight at its first zoom level, ×2.5; the shot leaves 0.58° above the screen centre (zero ~130 m). For the BMD-4M and the ZBD-04A pick their own entries.",
         "bore": 0.58,
         "zoom": 2.5,
@@ -945,6 +985,7 @@
         "gravity": 2,
         "max_speed": 850,
         "category": "guns",
+        "warhead": "splash",
         "note": "ZBD-04A: the gunner's sight at its first zoom level, ×2.5; the shot leaves 0.95° above the screen centre (zero ~215 m).",
         "bore": 0.95,
         "zoom": 2.5,
@@ -958,6 +999,7 @@
         "gravity": 2,
         "max_speed": 850,
         "category": "guns",
+        "warhead": "splash",
         "note": "BMD-4M: the gunner's sight at its first zoom level, ×2.5; the shot leaves 0.57° above the screen centre (zero ~130 m).",
         "bore": 0.57,
         "zoom": 2.5,
@@ -975,6 +1017,7 @@
         "view": "optic",
         "twin": "ZiS-3 · no optic",
         "category": "guns",
+        "warhead": "splash",
         "note": "ZiS-3 aimed through the sight (RMB, ×4). The shot leaves 0.4° above the screen centre (zero ~350 m). The sight's zoom level (×4) comes from the vehicle's zoom levels in the game files, not from a zoom script: if the mark is off, enter the FOV you see instead. Aiming from the normal view, without RMB? Pick \"ZiS-3 · no optic\".",
         "elevation_limits": [
             -14.6,
@@ -988,6 +1031,7 @@
         "bore": 0.4,
         "view": "plain",
         "category": "guns",
+        "warhead": "splash",
         "note": "ZiS-3 aimed from the normal view: no RMB, no zoom (×1). This view is the first of the vehicle's zoom levels in the game files. The shot leaves 0.4° above the screen centre (zero ~350 m), as through the sight. Aiming through the sight (RMB, ×4)? Pick \"ZiS-3 · optic (RMB ×4)\".",
         "elevation_limits": [
             -14.6,
@@ -999,6 +1043,7 @@
         "gravity": 2.5,
         "max_speed": 1500,
         "category": "tanks",
+        "warhead": "direct",
         "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. T-72A / T-72S / T-72B3 / T-90A / Sprut-SDM1 (the gunner's sight): the gunner's sight at its first zoom level, ×4; the shot leaves 0.28° above the screen centre (zero ~675 m). For the other tanks pick their own entry.",
         "bore": 0.28,
         "zoom": 4.0,
@@ -1012,6 +1057,7 @@
         "gravity": 2.5,
         "max_speed": 1500,
         "category": "tanks",
+        "warhead": "direct",
         "note": "T-62: the gunner's sight at its first zoom level, ×3.5; the shot leaves 0.05° above the screen centre, practically on it.",
         "bore": 0.05,
         "zoom": 3.5,
@@ -1025,6 +1071,7 @@
         "gravity": 2.5,
         "max_speed": 1500,
         "category": "tanks",
+        "warhead": "direct",
         "note": "T-64BM2: the gunner's sight at its first zoom level, ×2.7; the shot leaves 0.29° above the screen centre (zero ~700 m).",
         "bore": 0.29,
         "zoom": 2.7,
@@ -1038,6 +1085,7 @@
         "gravity": 2.5,
         "max_speed": 1500,
         "category": "tanks",
+        "warhead": "direct",
         "note": "ZTZ-99: the gunner's sight at its first zoom level, ×4; the shot leaves 0.1° above the screen centre (zero ~240 m).",
         "bore": 0.1,
         "zoom": 4.0,
@@ -1051,6 +1099,7 @@
         "gravity": 2.5,
         "max_speed": 1500,
         "category": "tanks",
+        "warhead": "direct",
         "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. M1A1 / M1A2 (the gunner's sight): the gunner's sight at its first zoom level, ×3; the shot leaves 0.31° above the screen centre (zero ~635 m). For the other tanks pick their own entry.",
         "bore": 0.31,
         "zoom": 3.0,
@@ -1064,6 +1113,7 @@
         "gravity": 2.5,
         "max_speed": 1500,
         "category": "tanks",
+        "warhead": "direct",
         "note": "Leopard 2A6: the gunner's sight at its first zoom level, ×3; the shot leaves 0.25° above the screen centre (zero ~515 m).",
         "bore": 0.25,
         "zoom": 3.0,
@@ -1077,6 +1127,7 @@
         "gravity": 2.5,
         "max_speed": 1500,
         "category": "tanks",
+        "warhead": "direct",
         "note": "M60T: the gunner's sight at ×1; the shot leaves 0.5° above the screen centre (zero ~1030 m).",
         "bore": 0.5,
         "elevation_limits": [
@@ -1089,6 +1140,7 @@
         "gravity": 2.5,
         "max_speed": 1500,
         "category": "tanks",
+        "warhead": "direct",
         "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. Challenger 2: the gunner's sight at its first zoom level, ×1.5; the shot leaves 0.31° above the screen centre (zero ~995 m). For the M1128 MGS pick its own entry.",
         "bore": 0.31,
         "zoom": 1.5,
@@ -1102,6 +1154,7 @@
         "gravity": 2.5,
         "max_speed": 1500,
         "category": "tanks",
+        "warhead": "direct",
         "note": "M1128 MGS: the gunner's sight at its first zoom level, ×3; the shot leaves 0.6° above the screen centre (zero ~1925 m).",
         "bore": 0.6,
         "zoom": 3.0,
@@ -1115,6 +1168,7 @@
         "gravity": 2,
         "max_speed": 850,
         "category": "tanks",
+        "warhead": "splash",
         "note": "The shell leaves the gun at 1100 m/s and is slowed at once to 850 m/s, its top speed (the 120 mm HEAT of the M1A1/M1A2, Leopard 2A6 and M1128: 800 m/s, in their own entries). T-72A / T-72S / T-72B3 / T-90A / Sprut-SDM1 (the gunner's sight): the gunner's sight at its first zoom level, ×4; the shot leaves 0.28° above the screen centre (zero ~375 m). For the other tanks pick their own entry.",
         "bore": 0.28,
         "zoom": 4.0,
@@ -1128,6 +1182,7 @@
         "gravity": 2,
         "max_speed": 800,
         "category": "tanks",
+        "warhead": "splash",
         "note": "M1A1 / M1A2: the gunner's sight at its first zoom level, ×3; the shot leaves 0.31° above the screen centre (zero ~370 m).",
         "bore": 0.31,
         "zoom": 3.0,
@@ -1141,6 +1196,7 @@
         "gravity": 2,
         "max_speed": 800,
         "category": "tanks",
+        "warhead": "splash",
         "note": "Leopard 2A6: the gunner's sight at its first zoom level, ×3; the shot leaves 0.25° above the screen centre (zero ~300 m).",
         "bore": 0.25,
         "zoom": 3.0,
@@ -1154,6 +1210,7 @@
         "gravity": 2,
         "max_speed": 800,
         "category": "tanks",
+        "warhead": "splash",
         "note": "M1128 MGS: the gunner's sight at its first zoom level, ×3; the shot leaves 0.6° above the screen centre (zero ~700 m).",
         "bore": 0.6,
         "zoom": 3.0,
@@ -1167,6 +1224,7 @@
         "gravity": 2,
         "max_speed": 850,
         "category": "tanks",
+        "warhead": "splash",
         "note": "M60T: the gunner's sight at ×1; the shot leaves 0.5° above the screen centre (zero ~655 m).",
         "bore": 0.5,
         "elevation_limits": [
@@ -1179,6 +1237,7 @@
         "gravity": 2,
         "max_speed": 850,
         "category": "tanks",
+        "warhead": "splash",
         "note": "ZTZ-99: the gunner's sight at its first zoom level, ×4; the shot leaves 0.1° above the screen centre (zero ~140 m).",
         "bore": 0.1,
         "zoom": 4.0,
@@ -1192,6 +1251,7 @@
         "gravity": 2,
         "max_speed": 850,
         "category": "tanks",
+        "warhead": "splash",
         "note": "T-62: the gunner's sight at its first zoom level, ×3.5; the shot leaves 0.05° above the screen centre, practically on it.",
         "bore": 0.05,
         "zoom": 3.5,
@@ -1205,6 +1265,7 @@
         "gravity": 2,
         "max_speed": 850,
         "category": "tanks",
+        "warhead": "splash",
         "note": "T-64BM2: the gunner's sight at its first zoom level, ×2.7; the shot leaves 0.29° above the screen centre (zero ~385 m).",
         "bore": 0.29,
         "zoom": 2.7,
@@ -1218,6 +1279,7 @@
         "gravity": 2,
         "max_speed": 800,
         "category": "tanks",
+        "warhead": "splash",
         "note": "Slow shell (670 m/s, the L30A1 smoke too): it drops noticeably, enter the distance precisely. Challenger 2: the gunner's sight at its first zoom level, ×1.5; the shot leaves 0.31° above the screen centre (zero ~250 m).",
         "bore": 0.31,
         "zoom": 1.5,
@@ -1231,6 +1293,7 @@
         "gravity": 2.5,
         "max_speed": 1500,
         "category": "tanks",
+        "warhead": "direct",
         "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. ZTD-05: the gunner's sight at its first zoom level, ×3.5; the shot leaves 0.02° above the screen centre, practically on it.",
         "bore": 0.02,
         "zoom": 3.5,
@@ -1244,6 +1307,7 @@
         "gravity": 2,
         "max_speed": 850,
         "category": "tanks",
+        "warhead": "splash",
         "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. ZTD-05: the gunner's sight at its first zoom level, ×3.5; the shot leaves 0.02° above the screen centre, practically on it.",
         "bore": 0.02,
         "zoom": 3.5,

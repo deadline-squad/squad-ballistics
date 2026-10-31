@@ -132,10 +132,15 @@ class WeaponDataError(ValueError):
     """Raised when weapons.json contains invalid data."""
 
 
-# weapons.json categories of the weapons that hit by contact: launchers,
+# weapons.json categories of the weapons that can hit by contact: launchers,
 # direct-fire guns and tank guns. Everything else (grenade launchers, AGLs,
-# mortars, rocket artillery) bursts and is judged by the ground it lands on.
+# mortars, rocket artillery) bursts and is judged by the ground it lands on,
+# and so is a round of these categories whose `warhead` is "splash".
 DIRECT_HIT_CATEGORIES = frozenset({"launchers", "guns", "tanks"})
+
+# Values of the weapons.json `warhead`: a round that does its work on contact
+# or one whose burst covers the ground around the impact.
+WARHEADS = ("direct", "splash")
 
 
 @dataclass(frozen=True)
@@ -151,7 +156,9 @@ class Weapon:
     weapon's readout shows less than the barrel), `elevation_limits` and
     `min_distance`; the view the mark is drawn for, `bore` (degrees) and
     `zoom`; a barrel laid by holding a key, `hold_rate` (deg/s) and
-    `hold_elevation`; `category` and `note` for the UI. An RMB sight that
+    `hold_elevation`; `category`, `warhead` ("direct" or "splash": whether the
+    round's burst reaches beyond 10 m, from the game files) and `note` for the
+    UI. An RMB sight that
     zooms the screen comes as two entries, `view` "optic" (through the
     sight, RMB held) and its `twin`, `view` "plain" (the normal view, RMB
     not held); the other weapons have no `view`. Build one with
@@ -179,6 +186,7 @@ class Weapon:
     hold_rate: float = 0.0
     hold_elevation: tuple = ()
     category: str = "other"
+    warhead: str = "direct"
     note: str = ""
     view: str = ""
     twin: str = ""
@@ -302,6 +310,12 @@ class Weapon:
         if hold_rate < 0:
             raise WeaponDataError(f"{name}: 'hold_rate' must be >= 0")
 
+        warhead = data.get("warhead", "direct")
+        if warhead not in WARHEADS:
+            raise WeaponDataError(
+                f"{name}: 'warhead' must be one of {', '.join(WARHEADS)}"
+            )
+
         hold_elevation = ()
         if hold_rate and acceleration:
             raise WeaponDataError(
@@ -343,6 +357,7 @@ class Weapon:
             hold_rate=hold_rate,
             hold_elevation=hold_elevation,
             category=str(data.get("category", "other")),
+            warhead=warhead,
             note=str(data.get("note", "")),
             view=view,
             twin=twin,
@@ -351,11 +366,12 @@ class Weapon:
     @property
     def direct_hit(self):
         """True for the weapons whose round does its work on contact (the
-        `category` is one of DIRECT_HIT_CATEGORIES): the hit is decided by
-        the height of the path at the target, not by where it lands. False
-        for the grenade and rocket-artillery weapons, whose burst covers the
-        ground around the landing point."""
-        return self.category in DIRECT_HIT_CATEGORIES
+        `category` is one of DIRECT_HIT_CATEGORIES and the `warhead` is
+        "direct"): the hit is decided by the height of the path at the
+        target, not by where it lands. False for the grenade and
+        rocket-artillery weapons and for the HE, FRAG, HESH and thermobaric
+        rounds, whose burst covers the ground around the landing point."""
+        return self.category in DIRECT_HIT_CATEGORIES and self.warhead == "direct"
 
     @property
     def g(self):

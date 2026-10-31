@@ -616,6 +616,7 @@ def test_the_optic_ladder_starts_past_the_zero_and_matches_the_mark():
     {"x": {"velocity": 100, "aim": "telepathy"}},
     {"x": {"velocity": True}},
     {"x": {"velocity": 100, "arc": "sideways"}},
+    {"x": {"velocity": 100, "warhead": "nuclear"}},
     {"x": {"velocity": 100, "elevation_limits": [10, 5]}},
     {"x": {"velocity": 100, "deceleration": 100, "deceleration_time": 1}},
     {"_comment": "only comments"},

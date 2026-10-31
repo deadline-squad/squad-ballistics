@@ -84,6 +84,15 @@ in m, m/s and degrees):
   these weapons are the mount's pitch limits plus the socket's pitch (the barrel's pitch), or,
   for the Technical mortar, the range of its HUD's degrees table (``hud``), whose readout is
   the mount's world pitch + 40.
+* burst_radius (m): the widest ``ExplosiveDamageOuterRadius`` that deals damage among the
+  entry's projectiles (``ExplosiveBaseDamage`` above 0, or the native 115 when the Blueprint
+  sets no base damage; ``SecondaryExplosionOuterRadius`` when ``bUseSecondaryExplosion``);
+  0 for a projectile whose Blueprints override no explosion field (the AP and APFSDS rounds:
+  they hit with their impact damage and do not explode) and for smoke. ``warhead`` is
+  "splash" when it is above ``SPLASH_RADIUS`` and "direct" otherwise: the shaped charges of
+  the launchers and the SPG-9 burst within 8-10 m, the HE, FRAG, HESH, thermobaric and tank
+  HEAT rounds within 16-35 m. A mixed entry (a tank's HEAT/HE) is "splash" when any of its
+  rounds is.
 * Handheld weapons: the game fires them along the barrel socket too (native
   ``ASQWeapon::GetAimDirection``, vtable slot 0xa78 of ``ASQWeapon`` in build 26005357),
   but the socket's angle to the ADS camera is set by the first-person animation and the
@@ -137,6 +146,16 @@ NATIVE_DEFAULTS = {
     "bRotationFollowsVelocity": True,
     "bIgnoreGravityDuringConstantAcceleration": False,
 }
+
+# Fields of a projectile Blueprint that make up its explosion, and the native (C++)
+# values of the ones it may leave out (the same table as tools/game_ballistics/gamecheck.py).
+EXPLOSION_FIELDS = ("ExplosiveBaseDamage", "ExplosiveDamageInnerRadius", "ExplosiveDamageOuterRadius",
+                    "ExplosiveDamageFalloff", "ExplosiveDamageDistanceFromImpactNormal")
+NATIVE_EXPLOSION = {"ExplosiveBaseDamage": 115.0, "ExplosiveDamageOuterRadius": 1500.0, "bUseSecondaryExplosion": False}
+
+# A round whose damaging explosion reaches further than this (m) is a splash round: its hit is
+# judged by the ground around the impact, not by the height at the target.
+SPLASH_RADIUS = 10.0
 
 BALLISTIC_FIELDS = ("velocity", "gravity_scale", "max_speed", "acceleration", "acceleration_timeout")
 
@@ -928,6 +947,18 @@ class Weapon:
             "ignore_gravity_while_boosting": bool(move["bIgnoreGravityDuringConstantAcceleration"]),
         }
 
+    def burst_radius(self):
+        """Outer radius in m of the widest explosion of the projectile that deals damage; 0 when
+        the Blueprints set no explosion field or the explosion deals none (see the module docstring)."""
+        cdo = self.projectile.cdo
+        if not any(field in cdo for field in EXPLOSION_FIELDS):
+            return 0.0
+        values = merge(NATIVE_EXPLOSION, cdo)
+        radii = [values["ExplosiveDamageOuterRadius"]] if values["ExplosiveBaseDamage"] > 0 else []
+        if values["bUseSecondaryExplosion"] and values.get("SecondaryExplosionBaseDmg", 0) > 0:
+            radii.append(values["SecondaryExplosionOuterRadius"])
+        return round_to(max(radii, default=0.0) / 100)
+
     def barrel(self):
         """(mesh path, socket name, pitch of the socket on the weapon's root in degrees).
 
@@ -1122,6 +1153,8 @@ class Snapshot:
         """The snapshot object of one weapons.json entry."""
         reference = self.weapon(classes[0])
         result = reference.ballistics()
+        result["burst_radius"] = max(self.weapon(path).burst_radius() for path in classes)
+        result["warhead"] = "splash" if result["burst_radius"] > SPLASH_RADIUS else "direct"
         sources = {"weapon": classes[0], "projectile": reference.projectile_path}
         if reference.defaults:
             sources["defaults"] = "native default: " + ", ".join(reference.defaults)
