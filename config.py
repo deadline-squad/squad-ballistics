@@ -33,28 +33,8 @@ def legacy_config_paths():
     return [LEGACY_CONFIG_PATH]
 
 
-# The mark's colours (RGB), in the order of the swatches on the Crosshair page.
-MARK_COLORS = {
-    "white": (255, 255, 255),
-    "red": (255, 48, 48),
-    "orange": (255, 154, 31),
-    "yellow": (255, 255, 0),
-    "green": (0, 255, 0),
-    "cyan": (0, 255, 255),
-    "blue": (48, 112, 255),
-    "magenta": (255, 0, 255),
-}
-
-# The shapes the mark can take; overlay.PRESETS gives each one its geometry.
-MARK_STYLES = ("cross_thin", "dot", "cross", "t", "circle", "cross_dot")
-
 DEFAULT_CONFIG = {
     "fov": 90,
-
-    # The mark: shape, colour (a MARK_COLORS name) and size in percent.
-    "mark_style": "cross_thin",
-    "color": "red",
-    "mark_size": 100,
 
     # Aligning the mark with the in-game sight: the mark's centre moves by
     # the offsets (px) and its distance from the centre is multiplied by
@@ -125,7 +105,8 @@ DEFAULT_CONFIG = {
         "reset_offset": "F9",
         "distance_up": "",
         "distance_down": "",
-        "auto_hold": "F7"
+        "auto_hold": "F7",
+        "toggle_view": "Mouse4"
     }
 }
 
@@ -133,15 +114,12 @@ DEFAULT_CONFIG = {
 CHOICES = {
     "arc": ("auto", "low", "high"),
     "unit_mode": ("auto", "deg", "mil"),
-    "mark_style": MARK_STYLES,
-    "color": tuple(MARK_COLORS),
     "map_render": ("auto", "software"),
     "map_source": ("deadline", "squadcalc"),
 }
 
 RANGES = {
     "fov": (1, 179),
-    "mark_size": (50, 200),
     "offset_scale": (50, 150),
     "center_offset_x": (-300, 300),
     "center_offset_y": (-300, 300),
@@ -214,27 +192,6 @@ def finite_number(value):
         return None
 
     return number if math.isfinite(number) else None
-
-
-def is_rgb(value):
-    """Whether `value` is a colour as older versions stored it: [r, g, b],
-    three finite numbers."""
-    return (
-        isinstance(value, list)
-        and len(value) == 3
-        and all(finite_number(c) is not None for c in value)
-    )
-
-
-def nearest_mark_color(rgb):
-    """The name of the MARK_COLORS entry closest to `rgb`, by RGB distance;
-    components outside 0..255 count as the nearest end."""
-    rgb = [max(0, min(255, c)) for c in rgb]
-
-    return min(
-        MARK_COLORS,
-        key=lambda name: sum((a - b) ** 2 for a, b in zip(MARK_COLORS[name], rgb))
-    )
 
 
 @functools.lru_cache(maxsize=1)
@@ -386,10 +343,6 @@ def _merge(loaded):
             continue
 
         value = loaded[key]
-
-        if key == "color" and is_rgb(value):
-            config[key] = nearest_mark_color(value)
-            continue
 
         if key == "hotkeys":
             if isinstance(value, dict):

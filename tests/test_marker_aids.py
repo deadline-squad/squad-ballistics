@@ -349,7 +349,7 @@ def test_the_arming_line_goes_with_the_solution(window):
 def test_the_ladder_ticks_are_drawn_to_a_fraction_of_a_pixel(window):
     """A tick's rendered centre is where the ladder says, to 0.02 px, for
     offsets that fall anywhere between two pixel rows."""
-    window.config.update(color="magenta", mark_style="dot", info_enabled=False)
+    window.config.update(info_enabled=False)
     ov = window.overlay
     ov.set_offset(0.0)
     x1 = int(ov.center_x) - overlay_module.LADDER_GAP - 1
@@ -361,11 +361,13 @@ def test_the_ladder_ticks_are_drawn_to_a_fraction_of_a_pixel(window):
         image = image.convertToFormat(QImage.Format.Format_ARGB32_Premultiplied)
         data = bytes(image.constBits().asarray(image.sizeInBytes()))
         stride = image.bytesPerLine()
+        # The mark's horizontal arm reaches over these columns: start below it.
+        below_mark = int(ov.center_y + overlay_module.MARK_REACH) + 3
         rows = [
             sum(data[row * stride + 4 * c + 2] for c in range(x1 - x0))
-            for row in range(image.height())
+            for row in range(below_mark, image.height())
         ]
-        centre = sum((row + 0.5) * w for row, w in enumerate(rows)) / sum(rows)
+        centre = below_mark + sum((row + 0.5) * w for row, w in enumerate(rows)) / sum(rows)
 
         assert centre == pytest.approx(ov.center_y + offset, abs=0.02)
 

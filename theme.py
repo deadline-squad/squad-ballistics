@@ -275,19 +275,6 @@ def stylesheet():
         border-left: 3px solid {accent};
     }}
 
-    QPushButton#swatch {{
-        border-radius: 11px;
-        min-width: 22px;
-        max-width: 22px;
-        min-height: 22px;
-        max-height: 22px;
-        padding: 0;
-    }}
-
-    QPushButton#swatch:checked {{
-        border: 2px solid {TEXT};
-    }}
-
     QSlider::groove:horizontal {{
         height: 4px;
         background: {BORDER};

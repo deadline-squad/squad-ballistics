@@ -329,7 +329,7 @@ def test_an_unreadable_settings_file_is_kept_and_reported(main_parts, monkeypatc
     import crosshair
 
     path = tmp_path / "config.json"
-    path.write_text('{"fov": 100, "mark_size": 120')
+    path.write_text('{"fov": 100, "offset_scale": 120')
     monkeypatch.setattr(config, "CONFIG_PATH", str(path))
     windows = []
 
@@ -350,7 +350,7 @@ def test_an_unreadable_settings_file_is_kept_and_reported(main_parts, monkeypatc
     bad = str(path) + ".bad"
     assert dialogs == [("warning", app.tr("config_unreadable", path=bad))]
     with open(bad) as f:
-        assert f.read() == '{"fov": 100, "mark_size": 120'
+        assert f.read() == '{"fov": 100, "offset_scale": 120'
     assert json.loads(path.read_text()) == config.DEFAULT_CONFIG
     assert windows
 
@@ -629,7 +629,7 @@ def test_the_real_app_saves_on_sigterm_and_refuses_a_second_copy(xvfb_display, x
     folder.mkdir()
     settings = folder / "config.json"
     # A compact file from an older version: a clean close rewrites it whole.
-    settings.write_text(json.dumps({"fov": 103, "mark_size": 120}, separators=(",", ":")))
+    settings.write_text(json.dumps({"fov": 103, "offset_scale": 120}, separators=(",", ":")))
 
     first, env = start_app(xvfb_display, tmp_path)
 
@@ -660,6 +660,6 @@ def test_the_real_app_saves_on_sigterm_and_refuses_a_second_copy(xvfb_display, x
 
     saved = json.loads(settings.read_text())
     expected = copy.deepcopy(config.DEFAULT_CONFIG)
-    expected.update(fov=103, mark_size=120)
+    expected.update(fov=103, offset_scale=120)
     assert saved == expected
     assert not (folder / "config.json.bad").exists()

@@ -23,13 +23,12 @@ def test_defaults_created(tmp_path, monkeypatch):
 def test_missing_keys_are_filled(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     path = tmp_path / "config.json"
-    path.write_text(json.dumps({"fov": 110.0, "color": "red"}))
+    path.write_text(json.dumps({"fov": 110.0}))
 
     cfg = config.load_config(str(path))
 
     assert cfg["fov"] == 110.0
-    assert cfg["color"] == "red"
-    assert cfg["mark_size"] == 100
+    assert cfg["info_enabled"] is True
 
 
 REMOVED_MARK_SETTINGS = {
@@ -49,6 +48,9 @@ REMOVED_MARK_SETTINGS = {
     "outline_enabled": False,
     "outline_thickness": 3,
     "outline_color": "black",
+    "mark_style": "dot",
+    "color": "green",
+    "mark_size": 150,
 }
 
 
@@ -69,37 +71,6 @@ def test_old_config_with_removed_mark_settings_loads(tmp_path, monkeypatch):
     assert not set(REMOVED_MARK_SETTINGS) & set(json.loads(path.read_text()))
 
 
-@pytest.mark.parametrize("old, name", [
-    ([0, 255, 0], "green"),
-    ([255, 48, 48], "red"),
-    ([255, 255, 255], "white"),
-    ([250, 20, 20], "red"),
-    ([10, 240, 30], "green"),
-    ([250, 150, 40], "orange"),
-    ([200, 200, 100], "orange"),
-    ([255.0, 0.0, 250.0], "magenta"),
-    ([20, 200, 255], "cyan"),
-    ([40, 100, 240], "blue"),
-    ([300, -5, 999], "magenta"),
-])
-def test_an_old_rgb_colour_becomes_the_nearest_swatch(tmp_path, monkeypatch, old, name):
-    monkeypatch.chdir(tmp_path)
-    path = tmp_path / "config.json"
-    path.write_text(json.dumps({"color": old}))
-
-    assert config.load_config(str(path))["color"] == name
-
-
-def test_every_swatch_is_its_own_nearest_swatch():
-    for name, rgb in config.MARK_COLORS.items():
-        assert config.nearest_mark_color(list(rgb)) == name
-
-
-def test_the_default_colour_is_red():
-    assert config.MARK_COLORS[config.DEFAULT_CONFIG["color"]] == (255, 48, 48)
-    assert len(config.MARK_COLORS) == 8
-
-
 def test_corrupted_config(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     path = tmp_path / "config.json"
@@ -114,18 +85,12 @@ def test_wrong_types_ignored(tmp_path, monkeypatch):
     path.write_text(json.dumps({
         "fov": "wide",
         "info_enabled": 1,
-        "color": [1, 2],
-        "mark_style": "star",
-        "mark_size": "big",
     }))
 
     cfg = config.load_config(str(path))
 
     assert cfg["fov"] == 90
     assert cfg["info_enabled"] is True
-    assert cfg["color"] == "red"
-    assert cfg["mark_style"] == "cross_thin"
-    assert cfg["mark_size"] == 100
 
 
 def test_legacy_config_migrated(tmp_path, monkeypatch):
@@ -174,8 +139,7 @@ def test_values_are_validated(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     path = tmp_path / "config.json"
     path.write_text(json.dumps({
-        "mark_size": 500,
-        "mark_style": "t",
+        "offset_scale": 500,
         "fov": 0,
         "arc": "sideways",
         "distance_step": 7,
@@ -183,8 +147,7 @@ def test_values_are_validated(tmp_path, monkeypatch):
 
     cfg = config.load_config(str(path))
 
-    assert cfg["mark_size"] == config.RANGES["mark_size"][1]
-    assert cfg["mark_style"] == "t"
+    assert cfg["offset_scale"] == config.RANGES["offset_scale"][1]
     assert cfg["fov"] == 1
     assert cfg["arc"] == "auto"
     assert cfg["distance_step"] == config.DEFAULT_CONFIG["distance_step"]
@@ -260,7 +223,9 @@ def test_a_migrated_key_on_a_newer_actions_default_unbinds_the_newer_action():
 
     cfg["auto_hold"] = True
     window = type("Window", (), {"config": cfg})()
-    assert hotkeys.bindings(window) == [("F8", "toggle_overlay"), ("F9", "reset_offset"), ("F7", "distance_up")]
+    assert hotkeys.bindings(window) == [
+        ("F8", "toggle_overlay"), ("F9", "reset_offset"), ("F7", "distance_up"), ("Mouse4", "toggle_view"),
+    ]
 
     # No clash: the newer action gets its default key.
     assert config._merge({"hotkeys": {"distance_up": "F6"}})["hotkeys"]["auto_hold"] == "F7"
@@ -391,13 +356,13 @@ def test_language_and_accent_settings_are_ignored(tmp_path):
 
 def test_an_unreadable_file_is_kept_as_bad_and_reported(tmp_path):
     path = tmp_path / "config.json"
-    path.write_text('{"fov": 100, "mark_size": 120')
+    path.write_text('{"fov": 100, "offset_scale": 120')
 
     cfg, bad = config.read_config(str(path))
 
     assert cfg == config.DEFAULT_CONFIG
     assert bad == str(path) + ".bad"
-    assert (tmp_path / "config.json.bad").read_text() == '{"fov": 100, "mark_size": 120'
+    assert (tmp_path / "config.json.bad").read_text() == '{"fov": 100, "offset_scale": 120'
     assert json.loads(path.read_text()) == config.DEFAULT_CONFIG
 
     # The next start reads the new file and reports nothing.
@@ -468,7 +433,7 @@ NUMERIC_SETTINGS = [
 def test_a_non_finite_number_falls_back_to_its_default_alone(tmp_path, key, junk):
     """Python's json reads NaN and Infinity, and a 400-digit integer does
     not fit a float: none of them may crash or clamp to a range end."""
-    other = "mark_size" if key != "mark_size" else "fov"
+    other = "offset_scale" if key != "offset_scale" else "fov"
     path = tmp_path / "config.json"
     path.write_text(f'{{"{key}": {junk}, "{other}": 120}}')
 
@@ -498,24 +463,15 @@ def test_the_fov_keeps_its_fraction(tmp_path):
     assert config.load_config(str(path))["fov"] == 103.5
 
 
-def test_lay_rates_and_colours_reject_numbers_that_do_not_fit_a_float(tmp_path):
+def test_lay_rates_reject_numbers_that_do_not_fit_a_float(tmp_path):
     path = tmp_path / "config.json"
     path.write_text(
-        '{"lay_rates": {"A": Infinity, "B": 1' + "0" * 400 + ', "C": 2.5},'
-        ' "color": [1e308, 0, 0]}'
+        '{"lay_rates": {"A": Infinity, "B": 1' + "0" * 400 + ', "C": 2.5}}'
     )
 
     cfg = config.load_config(str(path))
 
     assert cfg["lay_rates"] == {"C": 2.5}
-    assert cfg["color"] == "red"
-
-
-def test_an_old_colour_with_a_non_finite_part_falls_back(tmp_path):
-    path = tmp_path / "config.json"
-    path.write_text('{"color": [Infinity, 0, 0]}')
-
-    assert config.load_config(str(path))["color"] == config.DEFAULT_CONFIG["color"]
 
 
 def random_json(rng, depth=0):
@@ -607,8 +563,8 @@ def test_the_app_starts_from_any_settings_file(qapp, tmp_path, monkeypatch):
     hostile = [
         '{"last_weapon": "\\ud800", "recent_weapons": ["\\ud800", "\\u0000", "MK19"],'
         ' "hotkeys": {"toggle_overlay": "\\ud800", "reset_offset": "F8"}}',
-        '{"fov": NaN, "mark_size": Infinity, "monitor": 1' + "0" * 400 + ', "offset_scale": 75.5}',
-        '{"color": [1e308, -1e308, NaN], "mark_style": ["dot"], "lay_rates": {"MK19": -1}}',
+        '{"fov": NaN, "offset_scale": Infinity, "monitor": 1' + "0" * 400 + ', "offset_scale": 75.5}',
+        '{"lay_rates": {"MK19": -1}}',
         '{"mark_trim": {"MK19|plain": 1e308, "\\ud800": 0.5, "": 1}, "unit_mode": null}',
         '{"monitor": 15, "center_offset_x": 300, "center_offset_y": -300, "distance_step": 100}',
     ]
