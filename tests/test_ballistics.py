@@ -381,6 +381,10 @@ def test_the_rmb_sights_are_the_known_ones():
         "AGS-17 · emplacement · optic (RMB ×2.5)",
         "SPG-9 · HEAT · scope · optic (RMB ×4)",
         "SPG-9 · FRAG · scope · optic (RMB ×4)",
+        "SPG-9 · HEAT · technical · optic (RMB ×4)",
+        "SPG-9 · FRAG · technical · optic (RMB ×4)",
+        "SPG-9 · HEAT · INS armoured technical · optic (RMB ×4)",
+        "SPG-9 · FRAG · INS armoured technical · optic (RMB ×4)",
         "ZiS-3 · optic (RMB ×4)",
     ])
 

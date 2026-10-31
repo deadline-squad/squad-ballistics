@@ -97,6 +97,8 @@ RENAMED_WEAPONS = {
     "SPG-9 · HEAT · scope": "SPG-9 · HEAT · scope · optic (RMB ×4)",
     "SPG-9 · FRAG · scope": "SPG-9 · FRAG · scope · optic (RMB ×4)",
     "ZiS-3": "ZiS-3 · optic (RMB ×4)",
+    # The M1151 and RHIB open turrets were one entry; the M1151 (with its launch point) kept the name's first half.
+    "MK19 · M1151 / RHIB open turret": "MK19 · M1151 open turret",
 }
 
 

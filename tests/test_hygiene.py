@@ -164,7 +164,7 @@ def test_the_readme_counts_the_weapon_entries():
     with open(os.path.join(ROOT, "README.md"), encoding="utf-8") as f:
         readme = f.read()
 
-    counts = re.findall(r"covers (\d+) weapon entries|В ней (\d+) позиций", readme)
+    counts = re.findall(r"covers (\d+) weapon entries|В ней (\d+) позиц\w+", readme)
 
     assert len(counts) == 2
     assert {int(n) for pair in counts for n in pair if n} == {len(entries)}

@@ -6,7 +6,7 @@ Squad Ballistics is a ballistic calculator and aim overlay for the game **Squad*
 
 For a target at a given distance and height difference it tells you how to hit it: the elevation to set on a mortar or a rocket launcher, how long to hold S on the AGS-17, or, for a grenade launcher, an anti-tank launcher or a gun, where to put the target on the screen, shown by a transparent overlay mark over the game.
 
-It covers 80 weapon entries in 6 groups:
+It covers 104 weapon entries in 6 groups:
 
 * grenade launchers
 * automatic grenade launchers
@@ -14,6 +14,8 @@ It covers 80 weapon entries in 6 groups:
 * recoilless and field guns
 * tank guns (and the guns of other vehicles)
 * indirect fire: mortars, the Hell Cannon and rockets
+
+The AGS-17, MK19 and SPG-9 have an entry for each vehicle they are mounted on (Technical, INS armoured technical, Tigr, Safir, BTR-D, M1151, MATV, M113, AAVP-7A1, PARS III, TAPV, RHIB), with the launch point (barrel pivot height, muzzle reach and rise), the elevation limits and the sight read from the game files. Not in the game files, so without a launch height or without an entry: the M1117 and RHIB MK19 and the AGS-17 of the Kozak-2M1 and RHIB (deadline-squad/squad-ballistics#12).
 
 Machine guns, autocannons and weapons from mods are not covered.
 
@@ -38,7 +40,7 @@ Squad Ballistics — баллистический калькулятор и ов
 
 Для цели на заданной дистанции и с заданным перепадом высот программа говорит, как в неё попасть: какой угол выставить на миномёте или РСЗО, сколько держать S на АГС-17 или, для гранатомёта, противотанкового гранатомёта или пушки, куда на экране поставить цель — это показывает прозрачная метка оверлея поверх игры.
 
-В ней 80 позиций оружия в 6 группах:
+В ней 104 позиции оружия в 6 группах:
 
 * гранатомёты
 * автоматические гранатомёты
@@ -46,6 +48,8 @@ Squad Ballistics — баллистический калькулятор и ов
 * безоткатные и полевые орудия
 * танковые пушки (и пушки другой техники)
 * навесной огонь: миномёты, Hell Cannon и реактивные системы
+
+У АГС-17, MK19 и СПГ-9 есть запись для каждой техники, на которой они стоят (Technical, бронированный технический INS, Tigr, Safir, БТР-Д, M1151, MATV, M113, AAVP-7A1, PARS III, TAPV, RHIB): высота запуска (ось ствола над землёй, вынос и подъём дульного среза), пределы возвышения и прицел взяты из файлов игры. Нет в файлах игры, поэтому без высоты запуска или без записи: MK19 на M1117 и RHIB и АГС-17 на Kozak-2M1 и RHIB (deadline-squad/squad-ballistics#12).
 
 Пулемётов, автопушек и оружия из модов нет.
 
@@ -232,7 +236,7 @@ The map tab embeds SquadCalc: by default the Deadline build (`calc.tk104.duckdns
 * Elevation: `θ = atan((v² ∓ √(v⁴ − g(g·d² + 2·h·v²))) / (g·d))`, low or high arc; `h` is the target height above the barrel's pivot (`launch_height` above the ground).
 * Hold weapons (AGS-17): `hold = (top − θ) / rate` seconds of S after W, within `hold_elevation`.
 * Screen offset: rectilinear projection, `offset = (screen_width / 2) / tan(FOV / 2) × tan(θ − bore)`, so it works on any resolution. The game fires along the barrel socket `Attach_Muzzle`, which can be tilted against the camera: `bore` is how far above the screen centre the shot leaves, so each sight is zeroed at some range (QLZ87 tripod: +0.774° = 100 m in its optic, −0.9° from its normal view, no zero; tripod MK19 +1.674° = 330 m; SPG-9 scope +2.34° ≈ 765 m HEAT; AGS-17 open sights +4.5° ≈ 300 m; ZiS-3 +0.4° ≈ 350 m). `bore` is the barrel socket's pitch against the camera of the view the weapon is aimed through (the tripod's `AdsCamera1pPositionComponent` is tilted 1.674° on the MK19 and QLZ87 tripods). A sight that zooms the screen narrows the FOV by its `zoom` (the game sets FOV / 3 on the QLZ87, FOV / 4 on the SPG-9 scope, FOV / 2.5 on the AGS-17 optic); an FOV that the sight would narrow below 1° is held at 1° (the mark is then not exact). / Игра стреляет вдоль гнезда ствола `Attach_Muzzle`, повёрнутого относительно камеры: `bore` — насколько выше центра экрана уходит выстрел, так что каждый вид пристрелян на свою дальность; оптика, приближающая экран, делит FOV на `zoom`.
-* Data: velocity, gravity scale, rocket motor, speed cap and view are read from the game files (Squad build 26005357): the weapon's `WeaponConfig.MuzzleVelocity`, the projectile's `ProjectileGravityScale`, `ConstantAcceleration` for `ConstantAccelerationTimeout`, `MaxSpeed` and `bRotationFollowsVelocity`, the barrel socket's and the camera's pitch, and for direct-fire mounts the elevation limits (the mount's pitch limits plus the socket's pitch). `tools/game_weapons.py` writes them to `tests/data/game_weapons.json`, and `tests/test_game_weapons.py` checks `weapons.json` against that snapshot. For the weapons of a vehicle that are aimed by elevation (technical mortar and UB-32, M1064, BM-21) the snapshot also holds the launch point (`launch`: pivot height, socket reach and rise) and the pitch limits, and `tests/test_elevation_weapons.py` flies those shots by the game's rules without `ballistics.py`; the technical mortar's `angle_offset` is checked against the degrees-and-ranges table of its HUD. The other elevation limits, arcs and the AGS-17 hold model come from in-game measurements, the [official Squad wiki](https://squad.fandom.com/wiki/Weapons) and [SquadCalc](https://github.com/sh4rkman/SquadCalc). After a game patch, check `weapons.json` against the game files again and edit it; a renamed weapon goes to `RENAMED_WEAPONS` in `ballistics.py` so saved settings and older SquadCalc pages follow.
+* Data: velocity, gravity scale, rocket motor, speed cap and view are read from the game files (Squad build 26005357): the weapon's `WeaponConfig.MuzzleVelocity`, the projectile's `ProjectileGravityScale`, `ConstantAcceleration` for `ConstantAccelerationTimeout`, `MaxSpeed` and `bRotationFollowsVelocity`, the barrel socket's and the camera's pitch, and for direct-fire mounts the elevation limits (the mount's pitch limits plus the socket's pitch). `tools/game_weapons.py` writes them to `tests/data/game_weapons.json`, and `tests/test_game_weapons.py` checks `weapons.json` against that snapshot. For the weapons of a vehicle that are aimed by elevation (technical mortar and UB-32, M1064, BM-21) and the MK19, AGS-17 and SPG-9 on vehicles the snapshot also holds the launch point (`launch`: pivot height, socket reach and rise) and the pitch limits, and `tests/test_elevation_weapons.py` flies those shots by the game's rules without `ballistics.py`; the technical mortar's `angle_offset` is checked against the degrees-and-ranges table of its HUD. The other elevation limits, arcs and the AGS-17 hold model come from in-game measurements, the [official Squad wiki](https://squad.fandom.com/wiki/Weapons) and [SquadCalc](https://github.com/sh4rkman/SquadCalc). After a game patch, check `weapons.json` against the game files again and edit it; a renamed weapon goes to `RENAMED_WEAPONS` in `ballistics.py` so saved settings and older SquadCalc pages follow.
 
 ## Weapons database / База оружия
 
