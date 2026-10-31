@@ -2,7 +2,7 @@
 
 How to get the best accuracy out of the overlay mark, the range ladder, the trim and the SquadCalc map, weapon by weapon. Russian version: [aiming.ru.md](aiming.ru.md).
 
-Scope: Linux, X11 or XWayland, a 16:9 screen (1920x1080 or 2560x1440), the game's FOV 120, flat ground unless a section says otherwise. The mark is a thin red cross, 50 px across and 1 px thick (it has no style, colour or size settings); *Align with the sight* and the range ladder stay. The mouse side button **Mouse4**, which switches the selected weapon between its `· optic (RMB ×N)` and `· no optic` entry, is being added (branch `feature/fixed-mark-mouse4`) and is not on `dev` yet; until then pick the entry in the list.
+Scope: Linux, X11 or XWayland, a 16:9 screen (1920x1080 or 2560x1440), the game's FOV 120, flat ground unless a section says otherwise. The mark is a thin red cross, 50 px across and 1 px thick (it has no style, colour or size settings); *Align with the sight* and the range ladder stay. The mouse side button **Mouse4**, which switches the selected weapon between its `· optic (RMB ×N)` and `· no optic` entry, (default key; Settings → hotkeys) is on `dev`.
 
 ## How to read this guide
 
@@ -170,7 +170,7 @@ Going from FOV 120 to 90 makes every pixel 1.73x cheaper, at the cost of a narro
 
 ## 4. Procedures (question 3)
 
-Common preparation (once per session): Linux compositor on, game borderless or fullscreen at 16:9, the **game FOV typed in SB** (120, or 80 under Focus), weapon entry matching the view (RMB held = `· optic`, not held = `· no optic`; Mouse4 will switch it, being added), overlay on (F8). The Calculator page's "How to fire" steps and the info line say the same for the weapon you chose (`Cr`).
+Common preparation (once per session): Linux compositor on, game borderless or fullscreen at 16:9, the **game FOV typed in SB** (120, or 80 under Focus), weapon entry matching the view (RMB held = `· optic`, not held = `· no optic`; Mouse4 switches it), overlay on (F8). The Calculator page's "How to fire" steps and the info line say the same for the weapon you chose (`Cr`).
 
 ### 4.1 (a) Marker-aided direct fire
 
