@@ -23,7 +23,9 @@ PROBE = os.path.join(ROOT, "tests", "overlay_probe.py")
 LOSS_PROBE = os.path.join(ROOT, "tests", "compositor_loss_probe.py")
 
 WHITE = "#ffffff"
-MARK_RED = "#ff3030"
+# The pixel at the crossing of the cross: the red lines straddle it, so it is
+# the red blended with the mark's faint white edge.
+MARK_CENTRE = "#ff6363"
 
 
 def run_probe(display, probe=PROBE, **environ):
@@ -102,7 +104,7 @@ def test_with_a_compositor_the_overlay_draws_only_the_mark(xvfb_display):
     assert not seen["warning_visible"]
     assert seen["before"] == WHITE
     assert seen["with_overlay"] == WHITE
-    assert seen["centre"] == MARK_RED
+    assert seen["centre"] == MARK_CENTRE
 
 
 def test_compositing_lost_while_shown_hides_the_overlay_and_brings_it_back(xvfb_display):
@@ -128,4 +130,4 @@ def test_compositing_lost_while_shown_hides_the_overlay_and_brings_it_back(xvfb_
     assert seen["overlay_visible_back"]
     assert not seen["warning_back"]
     assert seen["probe_back"] == WHITE
-    assert seen["centre_back"] == MARK_RED
+    assert seen["centre_back"] == MARK_CENTRE

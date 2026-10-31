@@ -4,7 +4,7 @@ shell on the target.
 Nothing is read from the app's own physics. For every weapon aimed with the
 overlay mark the test drives the real main window (weapon, view, FOV,
 distance, height), RENDERS the overlay offscreen and finds the mark (a pure
-magenta dot) or the ladder ticks by pixel scan. The row of the mark is turned
+red cross) or the ladder ticks by pixel scan. The row of the mark is turned
 into a camera pitch with a rectilinear camera written from first principles
 (tests/flight.py), the barrel is pointed there (plus the view's bore) and the
 shot is flown substep by substep the way the game's server flies it
@@ -105,16 +105,12 @@ class Rig:
         self.texts = []
         self.set_crosshair()
 
-    def set_crosshair(self, style="cross_dot", ladder=False):
-        """A magenta mark of the given style (the default one) at full size.
-        It is outlined in white and symmetric about its centre, so the
-        centroid of its rendering is its centre (to 0.004 px for this style;
-        a lone dot is only good to 0.04)."""
+    def set_crosshair(self, ladder=False):
+        """The mark with the ladder on or off and the info line off. The mark
+        is outlined in white and symmetric about its centre, so the centroid
+        of its rendering is its centre."""
         settings = self.window.config
-        settings.update(
-            mark_style=style, color="magenta", mark_size=100,
-            range_ladder=ladder, info_enabled=False,
-        )
+        settings.update(range_ladder=ladder, info_enabled=False)
         self.window.refresh_crosshair()
 
     def set_screen(self, width):
@@ -152,7 +148,7 @@ class Rig:
         stride = image.bytesPerLine()
         columns = x1 - x0
 
-        # Premultiplied BGRA: red is byte 2. Magenta is the only red thing
+        # Premultiplied BGRA: red is byte 2. Red is the only red thing
         # drawn (the shadow is black), so this is the coverage of the mark.
         return [
             sum(data[row * stride + 4 * c + 2] for c in range(columns))
@@ -160,7 +156,7 @@ class Rig:
         ]
 
     def mark_row(self):
-        """Row (pixel edges: the centre of row r is r + 0.5) of the dot's
+        """Row (pixel edges: the centre of row r is r + 0.5) of the mark's
         centre by the centroid of its rendered coverage, or None."""
         centre = int(self.overlay.center_x)
         weights = self.grab(centre - 12, centre + 12)
@@ -172,7 +168,7 @@ class Rig:
         return sum((row + 0.5) * w for row, w in enumerate(weights)) / total
 
     def mark_column(self):
-        """Column of the dot's centre by the centroid of its rendering."""
+        """Column of the mark's centre by the centroid of its rendering."""
         ov = self.overlay
         image = ov.grab(QRect(0, int(ov.center_y + ov.offset) - 8, ov.width(), 16))
         image = image.toImage().convertToFormat(QImage.Format.Format_ARGB32_Premultiplied)

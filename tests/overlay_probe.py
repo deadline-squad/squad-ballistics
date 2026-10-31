@@ -51,7 +51,6 @@ def main():
     before = pixel(screen, *probe)
 
     settings = copy.deepcopy(config.DEFAULT_CONFIG)
-    settings["mark_style"] = "dot"
     overlay = Overlay(settings)
     settle(app, 1.0)
 

@@ -17,7 +17,6 @@ import ctypes
 import ctypes.util
 import math
 import os
-from typing import NamedTuple
 
 from PyQt6.QtCore import (
     Qt,
@@ -42,7 +41,6 @@ from PyQt6.QtGui import (
 
 from PyQt6.QtWidgets import QMessageBox, QWidget
 
-from config import MARK_COLORS
 from i18n import tr
 
 
@@ -59,123 +57,37 @@ def overlay_font(size):
     return font
 
 
-class MarkShape(NamedTuple):
-    """What a mark style draws at size 100 %, in pixels; 0 leaves a part out.
+# The mark: a thin red cross, 2 * MARK_ARM px across, MARK_THICKNESS px thick,
+# with a faint white edge of MARK_OUTLINE px so it reads on any ground.
+MARK_ARM = 25
+MARK_THICKNESS = 1
+MARK_OUTLINE = 0.5
+MARK_COLOR = (255, 48, 48)
 
-    `no_bottom` drops the lower line (the T). `outline` is the width of the
-    white edge around the lines (px): a thin cross keeps it faint so the mark
-    stays thin.
-    """
-
-    dot_radius: float = 0
-    line_length: float = 0
-    line_gap: float = 0
-    line_thickness: float = 0
-    circle_radius: float = 0
-    no_bottom: bool = False
-    outline: float = 1
+# How far the mark reaches from its centre (px).
+MARK_REACH = MARK_ARM
 
 
-# The shapes of config.MARK_STYLES.
-PRESETS = {
-    "cross_thin": MarkShape(line_length=25, line_thickness=1, outline=0.5),
-    "dot": MarkShape(dot_radius=4),
-    "cross": MarkShape(line_length=10, line_gap=0, line_thickness=2),
-    "t": MarkShape(line_length=12, line_gap=5, line_thickness=2, no_bottom=True),
-    "circle": MarkShape(dot_radius=2, circle_radius=16),
-    "cross_dot": MarkShape(dot_radius=3, line_length=14, line_gap=6, line_thickness=2),
-}
-
-# The outline around every part of the mark (px) and the circle's stroke.
-OUTLINE_WIDTH = 1
-CIRCLE_THICKNESS = 2
-
-
-def mark_shape(cfg):
-    """The shape of `cfg["mark_style"]` scaled by `cfg["mark_size"]` percent."""
-    base = PRESETS[cfg["mark_style"]]
-    factor = cfg["mark_size"] / 100
-
-    return MarkShape(
-        dot_radius=base.dot_radius * factor,
-        line_length=base.line_length * factor,
-        line_gap=base.line_gap * factor,
-        line_thickness=base.line_thickness * factor,
-        circle_radius=base.circle_radius * factor,
-        no_bottom=base.no_bottom,
-        outline=base.outline
-    )
-
-
-def mark_color(cfg):
-    """The configured mark colour as a QColor."""
-    return QColor(*MARK_COLORS[cfg["color"]])
-
-
-def mark_reach(cfg):
-    """How far the mark reaches from its centre (px)."""
-    shape = mark_shape(cfg)
-
-    return max(
-        shape.circle_radius,
-        shape.line_gap + shape.line_length,
-        shape.dot_radius + 6
-    )
-
-
-def paint_crosshair(painter, cfg, x, y):
-    """Draw the configured mark centred on (x, y).
+def paint_crosshair(painter, x, y):
+    """Draw the mark, a thin red cross, centred on (x, y).
 
     Shared by the overlay and the preview on the crosshair page.
     """
-    shape = mark_shape(cfg)
+    lines = [
+        (x, y, x, y - MARK_ARM),
+        (x, y, x - MARK_ARM, y),
+        (x, y, x + MARK_ARM, y),
+        (x, y, x, y + MARK_ARM),
+    ]
 
-    color = mark_color(cfg)
+    for pen_color, width in (
+        (QColor("white"), MARK_THICKNESS + MARK_OUTLINE * 2),
+        (QColor(*MARK_COLOR), MARK_THICKNESS),
+    ):
+        painter.setPen(QPen(pen_color, width, Qt.PenStyle.SolidLine, Qt.PenCapStyle.FlatCap))
 
-    outline = QColor("white")
-
-    if shape.line_length:
-        length = shape.line_length
-        gap = shape.line_gap
-
-        lines = [
-            (x, y - gap, x, y - gap - length),
-            (x - gap, y, x - gap - length, y),
-            (x + gap, y, x + gap + length, y),
-        ]
-
-        if not shape.no_bottom:
-            lines.append((x, y + gap, x, y + gap + length))
-
-        for pen_color, width in (
-            (outline, shape.line_thickness + shape.outline * 2),
-            (color, shape.line_thickness),
-        ):
-            painter.setPen(
-                QPen(
-                    pen_color,
-                    width,
-                    Qt.PenStyle.SolidLine,
-                    Qt.PenCapStyle.FlatCap
-                )
-            )
-
-            for x1, y1, x2, y2 in lines:
-                painter.drawLine(QPointF(x1, y1), QPointF(x2, y2))
-
-    if shape.circle_radius:
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-
-        painter.setPen(QPen(outline, CIRCLE_THICKNESS + OUTLINE_WIDTH * 2))
-        painter.drawEllipse(QPointF(x, y), shape.circle_radius, shape.circle_radius)
-
-        painter.setPen(QPen(color, CIRCLE_THICKNESS))
-        painter.drawEllipse(QPointF(x, y), shape.circle_radius, shape.circle_radius)
-
-    if shape.dot_radius:
-        painter.setBrush(QBrush(color))
-        painter.setPen(QPen(outline, OUTLINE_WIDTH))
-        painter.drawEllipse(QPointF(x, y), shape.dot_radius, shape.dot_radius)
+        for x1, y1, x2, y2 in lines:
+            painter.drawLine(QPointF(x1, y1), QPointF(x2, y2))
 
 
 # The info label: gap right of the crosshair, height of one line, the
@@ -629,7 +541,7 @@ class Overlay(QWidget):
 
     def crosshair_reach(self):
         """How far the crosshair reaches from its centre (px)."""
-        return mark_reach(self.config)
+        return MARK_REACH
 
     def ladder_bounds(self):
         """(first, spacing, reach) of the range ladder in px, as
@@ -731,7 +643,7 @@ class Overlay(QWidget):
 
         cfg = self.config
 
-        color = mark_color(cfg)
+        color = QColor(*MARK_COLOR)
 
         x = self.center_x
         y = self.center_y + self.offset
@@ -746,7 +658,7 @@ class Overlay(QWidget):
                 # stays next to it (see info_anchor).
                 self.draw_edge_arrow(painter, color, x, y < self.EDGE_MARGIN)
             else:
-                paint_crosshair(painter, cfg, x, y)
+                paint_crosshair(painter, x, y)
 
         if cfg.get("info_enabled", True) and self.info_text:
             self.draw_info(painter, color)

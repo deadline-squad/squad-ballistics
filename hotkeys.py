@@ -4,8 +4,12 @@ A QShortcut only fires while the Squad Ballistics window has focus, which is
 useless while playing. When the physical keys can be read
 (`window.key_reader`, see keystate: evdev or X11), they are polled and an
 action fires when its key goes down; the game still gets the key. Otherwise
-we fall back to a normal window shortcut.
+we fall back to a normal window shortcut. The mouse side buttons (Mouse4,
+Mouse5) are read the same way and have no such fallback: without readable
+keys they do nothing.
 """
+
+import time
 
 from PyQt6.QtCore import (
     Qt,
@@ -16,6 +20,8 @@ from PyQt6.QtGui import (
     QShortcut,
     QKeySequence
 )
+
+from keystate import BTN_EXTRA, BTN_SIDE
 
 # Bindable keys: name shown in the UI / used by QKeySequence -> Linux input
 # event code (linux/input-event-codes.h).
@@ -30,7 +36,17 @@ KEYS = {
     "PgDown": 109,
     "Pause": 119,
     "ScrollLock": 70,
+    "Mouse4": BTN_SIDE,
+    "Mouse5": BTN_EXTRA,
 }
+
+# The mouse buttons among KEYS: polled like keys, but a window shortcut
+# cannot be bound to them.
+MOUSE_KEYS = {"Mouse4", "Mouse5"}
+
+# A mouse button fires again only this long (seconds) after it last fired: a
+# worn switch chatters, and a toggle must not flip twice for one click.
+MOUSE_DEBOUNCE_SECONDS = 0.15
 
 # Actions in UI order; each is a MainWindow method name.
 ACTIONS = [
@@ -39,6 +55,7 @@ ACTIONS = [
     "distance_up",
     "distance_down",
     "auto_hold",
+    "toggle_view",
 ]
 
 # Actions bound only while their setting is on: their key stays free for
@@ -71,15 +88,25 @@ def bindings(window):
     return result
 
 
-def _start_polling(window, items, reader):
-    """Fire each action when its key goes down (edge, no auto-repeat)."""
+def _start_polling(window, items, reader, clock=time.monotonic):
+    """Fire each action when its key goes down (edge, no auto-repeat). A mouse
+    button that goes down again within MOUSE_DEBOUNCE_SECONDS of firing is a
+    bounce and does not fire; `clock()` is the time in seconds."""
     was_down = {key: False for key, _action in items}
+    last_fired = {}
 
     def poll():
         for key, action in items:
             down = reader(KEYS[key])
 
             fire = down and not was_down[key]
+
+            if fire and key in MOUSE_KEYS:
+                now = clock()
+                fire = now - last_fired.get(key, -MOUSE_DEBOUNCE_SECONDS) >= MOUSE_DEBOUNCE_SECONDS
+
+                if fire:
+                    last_fired[key] = now
 
             # Before the action: one that raises must not fire again on
             # every poll while the key stays down.
@@ -113,6 +140,9 @@ def setup_hotkeys(window):
     window._shortcuts = []
 
     for key, action in local:
+        if key in MOUSE_KEYS:
+            continue
+
         shortcut = QShortcut(
             QKeySequence(key),
             window

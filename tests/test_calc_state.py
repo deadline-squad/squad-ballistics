@@ -554,9 +554,6 @@ def test_icon_only_buttons_have_accessible_names(window):
     assert [b.accessibleName() for b in window.nav_buttons] == [
         tr("nav_calc"), tr("nav_crosshair"), tr("nav_settings"), tr("nav_web")
     ]
-    assert [b.accessibleName() for b in window.color_swatches.buttons.values()] == [
-        name.capitalize() for name in config.MARK_COLORS
-    ]
 
 
 def test_the_sidebar_icons_are_files_tinted_with_the_text_colour(window):

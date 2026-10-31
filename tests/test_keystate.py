@@ -16,7 +16,7 @@ import pytest
 
 import keystate
 from hotkeys import KEYS
-from keystate import EVIOCGBIT_KEY, EVIOCGKEY, EVIOCGNAME, KEY_MAX, KEY_S, KEY_W
+from keystate import BTN_EXTRA, BTN_SIDE, EVIOCGBIT_KEY, EVIOCGKEY, EVIOCGNAME, KEY_MAX, KEY_S, KEY_W
 
 KEY_F8 = KEYS["F8"]
 
@@ -200,6 +200,24 @@ def test_prefers_evdev_then_x11(monkeypatch):
     assert keystate.system_key_reader() is None
 
 
+def test_x11_reader_sees_the_mouse_side_buttons(xvfb):
+    reader = keystate.x11_reader()
+
+    assert reader is not None
+    assert not reader(BTN_SIDE) and not reader(BTN_EXTRA)
+
+    xdotool("mousedown", "8")
+    assert reader(BTN_SIDE)
+    assert not reader(BTN_EXTRA)
+    assert not reader(KEY_S)
+
+    xdotool("mousedown", "9")
+    assert reader(BTN_EXTRA)
+
+    xdotool("mouseup", "8", "mouseup", "9")
+    assert not reader(BTN_SIDE) and not reader(BTN_EXTRA)
+
+
 def test_ctypes_char_buffer_bit_order():
     buffer = (ctypes.c_char * 32)()
     buffer[39 // 8] = bytes([1 << (39 % 8)])
@@ -253,10 +271,11 @@ class FakeInput:
         monkeypatch.setattr(keystate.os, "fstat", fstat)
         monkeypatch.setattr(keystate.fcntl, "ioctl", self.ioctl)
 
-    def plug(self, path, keyboard=True, name=b"AT Translated Set 2 keyboard"):
+    def plug(self, path, keyboard=True, name=b"AT Translated Set 2 keyboard", keys=None):
         """A new device on `path` (a new device number, like the kernel
-        gives a reconnected device)."""
-        keys = {KEY_S, KEY_W, KEY_F8} if keyboard else {KEY_F8}
+        gives a reconnected device). `keys` are the keys it reports instead
+        of a keyboard's or, without `keyboard`, a lone F8's."""
+        keys = keys or ({KEY_S, KEY_W, KEY_F8} if keyboard else {KEY_F8})
         self.next_rdev += 1
         self.devices[path] = {"keys": keys, "down": set(), "gone": False,
                               "name": name, "rdev": self.next_rdev}
@@ -436,7 +455,7 @@ def test_the_apps_own_virtual_keyboards_are_not_read(fake_input):
     reader = make_reader(fake_input)
 
     assert not reader(KEY_S)
-    assert list(reader.keyboards) == ["/dev/input/event1"]
+    assert list(reader.devices) == ["/dev/input/event1"]
 
     # Not looked at again either.
     fake_input.now += keystate.RESCAN_SECONDS
@@ -461,3 +480,61 @@ def test_a_keyboard_whose_node_vanished_is_no_longer_read(fake_input):
     assert not reader.available
     assert fake_input.fds == {}
     assert not device["gone"]
+
+
+# ---------- mice (the side buttons), on fake devices ----------
+
+MOUSE = b"Logitech USB Receiver Mouse"
+
+
+def test_a_mouse_side_button_is_read(fake_input):
+    fake_input.plug("/dev/input/event1")
+    fake_input.plug("/dev/input/event2", name=MOUSE, keys={BTN_SIDE, BTN_EXTRA, 0x110})
+    reader = make_reader(fake_input)
+
+    assert not reader(BTN_SIDE)
+
+    fake_input.devices["/dev/input/event2"]["down"].add(BTN_SIDE)
+
+    assert reader(BTN_SIDE)
+    assert not reader(BTN_EXTRA)
+    assert not reader(KEY_S)
+
+
+def test_a_mouse_without_side_buttons_is_not_read(fake_input):
+    fake_input.plug("/dev/input/event1")
+    fake_input.plug("/dev/input/event2", name=MOUSE, keys={0x110, 0x111})
+    reader = make_reader(fake_input)
+
+    assert list(reader.devices) == ["/dev/input/event1"]
+    assert list(reader.rejected) == ["/dev/input/event2"]
+
+
+def test_a_mouse_plugged_in_later_is_read(fake_input):
+    fake_input.plug("/dev/input/event1")
+    reader = make_reader(fake_input)
+
+    fake_input.plug("/dev/input/event7", name=MOUSE, keys={BTN_SIDE})
+    fake_input.devices["/dev/input/event7"]["down"].add(BTN_SIDE)
+
+    assert not reader(BTN_SIDE)
+
+    fake_input.now += keystate.RESCAN_SECONDS
+
+    assert reader(BTN_SIDE)
+
+
+def test_an_unplugged_mouse_is_dropped_and_its_return_is_read(fake_input):
+    fake_input.plug("/dev/input/event1")
+    fake_input.plug("/dev/input/event2", name=MOUSE, keys={BTN_SIDE})
+    reader = make_reader(fake_input)
+
+    fake_input.unplug("/dev/input/event2")
+    assert not reader(BTN_SIDE)
+    assert list(reader.devices) == ["/dev/input/event1"]
+
+    fake_input.plug("/dev/input/event2", name=MOUSE, keys={BTN_SIDE})
+    fake_input.devices["/dev/input/event2"]["down"].add(BTN_SIDE)
+    fake_input.now += keystate.FAILURE_RESCAN_SECONDS
+
+    assert reader(BTN_SIDE)

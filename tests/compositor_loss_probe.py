@@ -54,7 +54,6 @@ def main():
     probe = (100, size.height() // 2)
 
     settings = copy.deepcopy(config.DEFAULT_CONFIG)
-    settings["mark_style"] = "dot"
     overlay = Overlay(settings)
     settle(app, 1.0)
 

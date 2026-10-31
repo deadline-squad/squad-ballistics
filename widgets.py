@@ -616,61 +616,6 @@ class WeaponPicker(QPushButton):
         self.popup.search.setFocus()
 
 
-class Swatches(QWidget):
-    """Row of round color buttons, picked by name."""
-
-    picked = pyqtSignal(str)
-
-    def __init__(self, colors, current=None):
-        """`colors` maps a name to its (r, g, b); `current` is a name."""
-        super().__init__()
-
-        layout = QHBoxLayout(self)
-
-        layout.setContentsMargins(0, 0, 0, 0)
-
-        layout.setSpacing(8)
-
-        self.group = QButtonGroup(self)
-
-        self.buttons = {}
-
-        for name, (r, g, b) in colors.items():
-            button = QPushButton()
-
-            button.setObjectName("swatch")
-
-            button.setCheckable(True)
-
-            button.setChecked(name == current)
-
-            button.setToolTip(name.capitalize())
-
-            # The button has no text: screen readers need its colour name
-            button.setAccessibleName(name.capitalize())
-
-            button.setStyleSheet(f"background: rgb({r}, {g}, {b});")
-
-            button.setCursor(Qt.CursorShape.PointingHandCursor)
-
-            button.clicked.connect(
-                lambda _checked, n=name: self.picked.emit(n)
-            )
-
-            self.group.addButton(button)
-
-            layout.addWidget(button)
-
-            self.buttons[name] = button
-
-        layout.addStretch()
-
-    def set_current(self, name):
-        """Check the swatch called `name`."""
-        for key, button in self.buttons.items():
-            button.setChecked(key == name)
-
-
 class SliderRow(QWidget):
     """A labelled horizontal slider showing its value with `suffix`.
 
@@ -1007,12 +952,7 @@ class CrosshairPreview(QWidget):
 
         painter.fillRect(rect, sky)
 
-        paint_crosshair(
-            painter,
-            self.config,
-            rect.center().x(),
-            rect.center().y()
-        )
+        paint_crosshair(painter, rect.center().x(), rect.center().y())
 
 
 def format_angle(degrees, unit):

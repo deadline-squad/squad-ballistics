@@ -105,6 +105,27 @@ def current_weapon_name(name):
     return RENAMED_WEAPONS.get(name, name)
 
 
+def view_twin(weapons, name):
+    """The name of the other view of the RMB sight `name` ("optic" <->
+    "plain"), None for a weapon without one or a name not in `weapons`.
+
+    Derived from the data: an "optic" entry names its `twin`, a "plain"
+    entry is the twin of one "optic" entry (`_check_twins` guarantees it).
+    """
+    weapon = weapons.get(name)
+
+    if weapon is None:
+        return None
+
+    if weapon.view == "optic":
+        return weapon.twin
+
+    if weapon.view == "plain":
+        return next(other.name for other in weapons.values() if other.twin == name)
+
+    return None
+
+
 class WeaponDataError(ValueError):
     """Raised when weapons.json contains invalid data."""
 

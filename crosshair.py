@@ -54,7 +54,8 @@ from ballistics import (
     range_ladder,
     screen_offset,
     trajectory,
-    trim_for_landing
+    trim_for_landing,
+    view_twin
 )
 
 from beep import beep
@@ -63,8 +64,6 @@ from config import (
     APP_VERSION,
     DEFAULT_CONFIG,
     DISTANCE_STEPS,
-    MARK_COLORS,
-    MARK_STYLES,
     RANGES,
     config_dir,
     load_config,
@@ -106,7 +105,6 @@ from widgets import (
     Segmented,
     SliderRow,
     StatTile,
-    Swatches,
     Toggle,
     TrajectoryView,
     WeaponPicker,
@@ -2546,6 +2544,16 @@ class MainWindow(QMainWindow):
         else:
             self.overlay.show()
 
+    def toggle_view(self):
+        """Switch the picked RMB sight to its other view, optic <-> no optic
+        (the toggle-view hotkey, Mouse4 by default). The distance and the
+        target stay; the trim is the other entry's own. A weapon without an
+        RMB sight ignores it."""
+        twin = view_twin(self.weapons, self.picker.current)
+
+        if twin is not None:
+            self.select_weapon(twin)
+
     def distance_up(self):
         """Add one distance step to the distance and solve (hotkey); the map
         target is no longer in the inputs."""
@@ -2628,29 +2636,6 @@ class MainWindow(QMainWindow):
 
         settings_layout.addWidget(label(tr("nav_crosshair"), "title"))
 
-        settings_layout.addWidget(label(tr("style").upper(), "section"))
-
-        style = Segmented(
-            [(key, tr(f"style_{key}")) for key in MARK_STYLES],
-            self.config["mark_style"]
-        )
-
-        style.changed.connect(lambda key: self.set_setting("mark_style", key))
-
-        settings_layout.addWidget(style)
-
-        settings_layout.addWidget(label(tr("color").upper(), "section"))
-
-        self.color_swatches = Swatches(MARK_COLORS, self.config["color"])
-
-        self.color_swatches.picked.connect(
-            lambda name: self.set_setting("color", name)
-        )
-
-        settings_layout.addWidget(self.color_swatches)
-
-        self.add_slider(settings_layout, tr("size"), "mark_size", "%")
-
         self.add_toggle(settings_layout, tr("opt_ladder"), "range_ladder")
 
         self.add_toggle(settings_layout, tr("opt_info"), "info_enabled")
@@ -2719,14 +2704,11 @@ class MainWindow(QMainWindow):
     def refresh_crosshair(self):
         """Redraw the overlay, its ladder and the preview after a crosshair
         setting changed, and save."""
-        # The crosshair's size moves the ladder's first tick.
         self.update_ladder()
 
         self.overlay.update()
 
         self.preview.update()
-
-        self.color_swatches.set_current(self.config["color"])
 
         self.schedule_save()
 
