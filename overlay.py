@@ -62,7 +62,9 @@ def overlay_font(size):
 class MarkShape(NamedTuple):
     """What a mark style draws at size 100 %, in pixels; 0 leaves a part out.
 
-    `no_bottom` drops the lower line (the T).
+    `no_bottom` drops the lower line (the T). `outline` is the width of the
+    white edge around the lines (px): a thin cross keeps it faint so the mark
+    stays thin.
     """
 
     dot_radius: float = 0
@@ -71,10 +73,12 @@ class MarkShape(NamedTuple):
     line_thickness: float = 0
     circle_radius: float = 0
     no_bottom: bool = False
+    outline: float = 1
 
 
 # The shapes of config.MARK_STYLES.
 PRESETS = {
+    "cross_thin": MarkShape(line_length=25, line_thickness=1, outline=0.5),
     "dot": MarkShape(dot_radius=4),
     "cross": MarkShape(line_length=10, line_gap=0, line_thickness=2),
     "t": MarkShape(line_length=12, line_gap=5, line_thickness=2, no_bottom=True),
@@ -98,7 +102,8 @@ def mark_shape(cfg):
         line_gap=base.line_gap * factor,
         line_thickness=base.line_thickness * factor,
         circle_radius=base.circle_radius * factor,
-        no_bottom=base.no_bottom
+        no_bottom=base.no_bottom,
+        outline=base.outline
     )
 
 
@@ -143,7 +148,7 @@ def paint_crosshair(painter, cfg, x, y):
             lines.append((x, y + gap, x, y + gap + length))
 
         for pen_color, width in (
-            (outline, shape.line_thickness + OUTLINE_WIDTH * 2),
+            (outline, shape.line_thickness + shape.outline * 2),
             (color, shape.line_thickness),
         ):
             painter.setPen(

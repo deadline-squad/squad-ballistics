@@ -46,14 +46,14 @@ MARK_COLORS = {
 }
 
 # The shapes the mark can take; overlay.PRESETS gives each one its geometry.
-MARK_STYLES = ("dot", "cross", "t", "circle", "cross_dot")
+MARK_STYLES = ("cross_thin", "dot", "cross", "t", "circle", "cross_dot")
 
 DEFAULT_CONFIG = {
     "fov": 90,
 
     # The mark: shape, colour (a MARK_COLORS name) and size in percent.
-    "mark_style": "cross_dot",
-    "color": "green",
+    "mark_style": "cross_thin",
+    "color": "red",
     "mark_size": 100,
 
     # Aligning the mark with the in-game sight: the mark's centre moves by

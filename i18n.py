@@ -250,6 +250,7 @@ STRINGS = {
     "align_scale": "Scale",
     "align_reset": "Reset",
     "style": "Style",
+    "style_cross_thin": "Thin cross",
     "style_dot": "Dot",
     "style_cross": "Cross",
     "style_t": "T",
