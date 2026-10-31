@@ -193,6 +193,8 @@ Only for the weapons aimed with the overlay mark. The overlay line and the Calcu
 
 The mark and the ladder ticks are drawn at their float position with anti-aliasing: the rendered centre is the computed one to 0.02 px (`tests/test_marker_aids.py`, `tests/test_mark_end_to_end.py`), so a marker centre can be aligned with it to a fraction of a pixel. / Метка и риски шкалы рисуются в дробной позиции со сглаживанием: центр совпадает с расчётным до 0,02 px.
 
+The full aiming guide (what a pixel is worth per weapon, mouse settings, calibration, error budget): [docs/aiming.md](docs/aiming.md), in Russian [docs/aiming.ru.md](docs/aiming.ru.md). / Полное руководство по наведению: [docs/aiming.ru.md](docs/aiming.ru.md), по-английски [docs/aiming.md](docs/aiming.md).
+
 ### Linux
 
 On a Wayland session the app runs itself through XWayland so the overlay stays above the game (set `QT_QPA_PLATFORM` to override). Install and upgrade: see *Install* above. / В сессии Wayland программа сама запускается через XWayland, чтобы оверлей был поверх игры (`QT_QPA_PLATFORM` переопределяет). Установка и обновление — в разделе *Установка* выше.
