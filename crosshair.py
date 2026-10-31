@@ -44,7 +44,10 @@ from ballistics import (
     TRIM_LIMIT,
     clamp_trim,
     current_weapon_name,
+    MARK_PIXEL_LIMIT,
     first_obstacle,
+    mark_resolution,
+    mark_visible_range,
     resolve_arc,
     solve,
     mark_offset,
@@ -233,6 +236,7 @@ class MainWindow(QMainWindow):
         # Text of the overlay label for the current solution; mortars append
         # the bearing and the sight reading to it.
         self.info_base = ""
+        self.arming_line = ""
         self.sight_info = ""
 
         # Mortar sight on the screen: digit pictures (made on first use),
@@ -626,9 +630,15 @@ class MainWindow(QMainWindow):
 
         self.map_label.setWordWrap(True)
 
+        self.arming_label = label("", "small")
+
+        self.arming_label.setWordWrap(True)
+
         layout.addWidget(self.build_trim_box())
 
         layout.addWidget(self.map_label)
+
+        layout.addWidget(self.arming_label)
 
         buttons = QHBoxLayout()
 
@@ -923,6 +933,15 @@ class MainWindow(QMainWindow):
             return 0.0
 
         return self.config["mark_trim"].get(weapon.name, 0.0)
+
+    def aim_lift(self, weapon):
+        """Metres above the target ground the shot is aimed at: the
+        `target_height` setting for a weapon aimed with the overlay mark,
+        0 for the others (a mortar is laid at the ground target)."""
+        if weapon is None or weapon.aim != "overlay":
+            return 0.0
+
+        return self.config["target_height"]
 
     def mark_arc(self, weapon):
         """The arc ("low" or "high") the overlay mark of `weapon` is laid
@@ -1301,11 +1320,14 @@ class MainWindow(QMainWindow):
         try:
             distance, height, fov = self.read_inputs()
 
+            lift = self.aim_lift(weapon)
+
             solution = solve(
                 weapon,
                 distance,
                 height,
-                self.config["arc"]
+                self.config["arc"],
+                lift
             )
 
             direct = None
@@ -1313,7 +1335,7 @@ class MainWindow(QMainWindow):
             # A hold weapon lobbing (AGS-17) can also fire directly through
             # its sight: the overlay mark shows that aim at the same time.
             if weapon.has_hold and weapon.aim == "overlay" and solution.arc == "high":
-                direct = solve(weapon, distance, height, "low")
+                direct = solve(weapon, distance, height, "low", lift)
 
                 if not direct.reachable:
                     direct = None
@@ -1470,6 +1492,21 @@ class MainWindow(QMainWindow):
         if bearing is not None:
             info += f"  ·  {bearing:.1f}°"
 
+        notes, offscreen_note = self.marker_notes(
+            weapon, solution, fov,
+            None if holding and direct is None else offset,
+            "low" if holding else solution.arc
+        )
+
+        for note in notes:
+            info += "  ·  " + note
+
+        self.arming_line = "  ·  ".join(
+            [weapon.name, f"×{weapon.zoom or 1:g}", f"{solution.distance:.0f} {m}"]
+            + ([tr("bearing_short", b=f"{bearing:.1f}")] if bearing is not None else [])
+            + notes
+        )
+
         self.set_overlay_info(info)
 
         if holding and not laid_by_angle:
@@ -1513,7 +1550,7 @@ class MainWindow(QMainWindow):
         elif offscreen:
             self.stats["stat_offset"].set(tr("off_screen"))
         else:
-            self.stats["stat_offset"].set(f"{offset:.0f} {tr('unit_px')}")
+            self.stats["stat_offset"].set(f"{offset:.1f} {tr('unit_px')}")
 
         other_arc = "high" if solution.arc == "low" else "low"
 
@@ -1535,7 +1572,8 @@ class MainWindow(QMainWindow):
             self.stats["stat_alt"].set("—")
         else:
             alt_solution = solve(
-                weapon, solution.distance, solution.height_diff, other_arc
+                weapon, solution.distance, solution.height_diff, other_arc,
+                self.aim_lift(weapon)
             )
 
             # Read as the main result reads that arc: an overlay weapon's
@@ -1617,6 +1655,9 @@ class MainWindow(QMainWindow):
             if laid_by_angle:
                 steps.insert(2, self.lay_step(hold))
 
+        if offscreen_note:
+            steps.append(offscreen_note)
+
         steps = self.obstacle_steps(
             weapon, solution, obstacle, alt_solution, profile, step, unit
         ) + steps
@@ -1632,6 +1673,67 @@ class MainWindow(QMainWindow):
         self.set_steps(steps)
 
         self.note_label.setText(weapon.note)
+
+    def marker_notes(self, weapon, solution, fov, offset, arc):
+        """The texts that help to aim at the in-game map marker with the
+        overlay mark of `weapon` for `solution` (its mark `offset`, laid on
+        `arc`): the aim lift, the range one pixel is worth (with the error of
+        aiming at the whole pixel, and for a zoomed view a verdict when a
+        pixel is too coarse), or, when the mark is off the screen, the range
+        where it leaves it.
+
+        Returns (notes, where): the texts in the order they are shown and the
+        off-screen one of them ("" when the mark is on the screen). Both are
+        empty for weapons without a mark."""
+        if weapon.aim != "overlay" or offset is None:
+            return [], ""
+
+        notes = []
+        lift = self.aim_lift(weapon)
+
+        if lift:
+            notes.append(tr("info_lift", lift=f"{lift:+g}"))
+
+        scale = self.config["offset_scale"] / 100
+        trim = self.current_trim(weapon)
+        width = self.overlay.screen_width()
+
+        if self.overlay.is_offscreen(offset):
+            top, bottom = self.overlay.mark_bounds()
+            nearest, farthest = mark_visible_range(
+                weapon, solution.height_diff, fov, width, top, bottom,
+                scale, trim, arc, lift
+            )
+
+            where = ""
+
+            if offset > 0 and farthest is not None:
+                where = tr("info_offscreen_far", limit=f"{farthest:.0f}")
+            elif nearest is not None:
+                where = tr("info_offscreen_near", limit=f"{nearest:.0f}")
+
+            return notes + ([where] if where else []), where
+
+        metres = mark_resolution(
+            weapon, solution.distance, solution.height_diff, fov, width,
+            scale, trim, arc, lift
+        )
+
+        if metres is None:
+            return notes, ""
+
+        text = tr("info_pixel", m=f"{metres:.1f}" if metres < 10 else f"{metres:.0f}")
+        rounding = abs(offset - round(offset)) * metres
+
+        if rounding >= 0.5:
+            text += " " + tr("info_pixel_round", error=f"{rounding:.1f}")
+
+        notes.append(text)
+
+        if metres > MARK_PIXEL_LIMIT and weapon.sight_view(fov)[0] < fov:
+            notes.append(tr("info_pixel_coarse"))
+
+        return notes, ""
 
     def obstacle_steps(self, weapon, solution, obstacle, alt_solution,
                        profile, step, unit):
@@ -1696,8 +1798,11 @@ class MainWindow(QMainWindow):
 
     def set_overlay_info(self, text):
         """Set the solution part of the overlay's info line to `text`; the
-        bearing, sight and lay parts stay."""
+        bearing, sight and lay parts stay. The arming line under the inputs
+        follows it: it is shown with a solution and cleared with it."""
         self.info_base = text
+
+        self.arming_label.setText(self.arming_line if text else "")
 
         self.show_overlay_info()
 

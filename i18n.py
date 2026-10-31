@@ -39,6 +39,12 @@ STRINGS = {
         "direct-fire shot on the Low arc."
     ),
     "info_trim": "trim {trim}",
+    "info_lift": "aim {lift} m",
+    "info_pixel": "1 px = {m} m",
+    "info_pixel_round": "(whole px: {error} m off)",
+    "info_pixel_coarse": "too coarse for marker aiming",
+    "info_offscreen_far": "mark off screen past {limit} m",
+    "info_offscreen_near": "mark off screen closer than {limit} m",
     "how_trim": (
         "Your trim {trim}° is on for this weapon and view "
         "(Reset trim removes it)."

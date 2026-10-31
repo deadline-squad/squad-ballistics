@@ -596,6 +596,14 @@ class Overlay(QWidget):
 
         return not self.EDGE_MARGIN <= y <= self.height() - self.EDGE_MARGIN
 
+    def mark_bounds(self):
+        """(top, bottom): the offsets in pixels below the aim centre between
+        which the mark is on the screen (`is_offscreen`)."""
+        return (
+            self.EDGE_MARGIN - self.center_y,
+            self.height() - self.EDGE_MARGIN - self.center_y
+        )
+
     def set_info(self, text):
         """Show `text` next to the mark ("" hides it).
 

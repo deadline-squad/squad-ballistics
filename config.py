@@ -113,6 +113,13 @@ DEFAULT_CONFIG = {
     # Set from one real shot (see ballistics.trim_for_landing).
     "mark_trim": {},
 
+    # Metres above the target ground the overlay mark is laid for (a vehicle's
+    # hull, a standing soldier), for weapons aimed with the mark: the in-game
+    # map marker sits on the ground. 0 = the ground. Shown on the overlay as
+    # "aim +1.5 m". Set the trim with it at 0: the trim is the error of the
+    # weapon, not of the aim point.
+    "target_height": 0.0,
+
     "hotkeys": {
         "toggle_overlay": "F8",
         "reset_offset": "F9",
@@ -140,6 +147,7 @@ RANGES = {
     "center_offset_y": (-300, 300),
     "monitor": (0, 15),
     "distance_step": (1, 100),
+    "target_height": (0.0, 10.0),
 }
 
 DISTANCE_STEPS = (1, 5, 10, 25, 50, 100)
@@ -152,7 +160,7 @@ LAY_RATE_TOLERANCE = 0.3
 
 # Numeric settings that take a fraction; every other number is a whole one
 # (slider positions, pixels, an index), so a saved fraction there is junk.
-FRACTIONAL_SETTINGS = ("fov",)
+FRACTIONAL_SETTINGS = ("fov", "target_height")
 
 # Suffix of an unreadable settings file kept next to the new one.
 BAD_CONFIG_SUFFIX = ".bad"

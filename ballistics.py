@@ -1139,7 +1139,7 @@ def resolve_arc(weapon, arc):
     return arc
 
 
-def solve(weapon, distance, height_diff=0.0, arc=None):
+def solve(weapon, distance, height_diff=0.0, arc=None, aim_lift=0.0):
     """Elevation needed to hit a target.
 
     distance     -- horizontal distance to the target in metres, from the
@@ -1147,6 +1147,12 @@ def solve(weapon, distance, height_diff=0.0, arc=None):
     height_diff  -- target ground height relative to the weapon ground
                     (positive = higher); the pivot is `launch_height` above
     arc          -- "low", "high" or None/"auto" for the weapon default
+    aim_lift     -- metres above the target ground the shot is aimed at (a
+                    vehicle's hull, a standing soldier), 0 = the ground. The
+                    elevation is that of the lifted point, but `sight_angle`
+                    stays measured over the line of sight to the GROUND, the
+                    point the player can see (the map marker sits on it), so
+                    the overlay mark of a lifted aim sits lower
 
     For hold weapons (AGS-17) the high arc is fired by holding a key, so it
     is only reachable inside `hold_elevation`; `hold_time` is then set.
@@ -1174,14 +1180,16 @@ def solve(weapon, distance, height_diff=0.0, arc=None):
 
     # The target's height above the pivot, for the line of sight.
     rise = height_diff - weapon.launch_height
+    aim_height = height_diff + aim_lift
+    aim_rise = aim_height - weapon.launch_height
 
     if weapon.g == 0:
         # No gravity: the projectile flies straight along the line of sight.
-        result.velocity = weapon.velocity_at(math.hypot(distance, rise))
-        rad = math.atan2(rise, distance)
+        result.velocity = weapon.velocity_at(math.hypot(distance, aim_rise))
+        rad = math.atan2(aim_rise, distance)
         raw = {"low": rad, "high": rad}
     else:
-        low_rad, high_rad = weapon.elevations_to(distance, height_diff)
+        low_rad, high_rad = weapon.elevations_to(distance, aim_height)
 
         if math.isnan(low_rad):
             result.reason_code = "out_of_range"
@@ -1246,7 +1254,7 @@ def solve(weapon, distance, height_diff=0.0, arc=None):
     result.velocity = (distance - start_x) / (math.cos(rad) * flight)
     result.impact_angle = -math.degrees(impact)
     result.apex = max(
-        start_y, height_diff, weapon.apex_height(rad, distance)
+        start_y, aim_height, weapon.apex_height(rad, distance)
     )
 
     return result
@@ -1401,6 +1409,154 @@ def mark_offset(weapon, sight_angle, fov, screen_width, scale=1.0, trim=0.0):
         screen_width,
         scale
     )
+
+
+# A shell must land within about this many metres of the aim point to do its
+# work: a grenade burst's lethal radius is 1.5-3 m and the research on
+# marker aiming (deadline-squad/squad-ballistics#6) counts a hit inside 5 m.
+# A pixel of the mark worth more than this cannot hit it.
+MARK_PIXEL_LIMIT = 5.0
+
+
+def _mark_at(weapon, distance, height, fov, screen_width, scale, trim, arc,
+             aim_lift):
+    """Pixels below the centre of the mark for a target at `distance` and
+    `height`, None when the target cannot be hit on `arc`."""
+    solution = solve(weapon, distance, height, arc, aim_lift)
+
+    if not solution.reachable:
+        return None
+
+    return mark_offset(
+        weapon, solution.sight_angle, fov, screen_width, scale, trim
+    )
+
+
+def mark_resolution(weapon, distance, height, fov, screen_width, scale=1.0,
+                    trim=0.0, arc="low", aim_lift=0.0):
+    """Metres of range one pixel of the mark is worth for a target at
+    `distance` and `height`, the same inputs `mark_offset` and `solve` take
+    (`arc` is the one the mark is laid for, `aim_lift` as in `solve`).
+
+    How far the shell lands from the target when the player lays the target
+    one pixel off the mark: the elevations that land the shell 1 m either
+    side (one side at the edge of what the weapon reaches) are put on the
+    screen over the line of sight to the target itself, which does not move
+    with them. None for a weapon without a mark or without drop, or where the
+    target cannot be hit or the mark does not move with the range.
+    """
+    if weapon.aim != "overlay" or weapon.g == 0:
+        return None
+
+    centre = solve(weapon, distance, height, arc, aim_lift)
+
+    if not centre.reachable:
+        return None
+
+    # What the sight angle is measured from: the line of sight to the target
+    line_of_sight = centre.angle - centre.sight_angle
+    points = []
+
+    for at in (distance - 1.0, distance, distance + 1.0):
+        if at <= 0:
+            continue
+
+        solution = solve(weapon, at, height, arc, aim_lift)
+
+        if solution.reachable:
+            points.append((at, mark_offset(
+                weapon, solution.angle - line_of_sight, fov, screen_width,
+                scale, trim
+            )))
+
+    if len(points) < 2:
+        return None
+
+    (near, near_offset), (far, far_offset) = points[0], points[-1]
+    slope = (far_offset - near_offset) / (far - near)
+
+    if not slope > 0 or not math.isfinite(slope):
+        return None
+
+    return 1.0 / slope
+
+
+def mark_visible_range(weapon, height, fov, screen_width, top, bottom,
+                       scale=1.0, trim=0.0, arc="low", aim_lift=0.0):
+    """(nearest, farthest) range in metres whose mark lies between `top`
+    and `bottom` pixels below the centre (`top` is negative above it), for
+    targets `height` metres above the weapon's ground. A side is None when
+    the weapon's whole range is inside it; the farthest is 0.0 when even the
+    closest target the weapon can take has its mark below `bottom`. (None, None) for a weapon
+    without a mark or without drop.
+
+    The mark moves down as the range grows (the low arc), so each side is
+    found by bisection. A range the weapon cannot hit counts as beyond the
+    farthest.
+    """
+    if weapon.aim != "overlay" or weapon.g == 0:
+        return None, None
+
+    highest = min(weapon.max_range(), LADDER_MAX_DISTANCE)
+
+    def offset_at(distance):
+        return _mark_at(
+            weapon, distance, height, fov, screen_width, scale, trim, arc, aim_lift
+        )
+
+    # The closest range the weapon can take on this arc: the low arc of a
+    # lobbing weapon is out of its elevation limits at a few metres
+    lowest = next(
+        (
+            distance
+            for distance in (max(weapon.min_distance, 1.0), *LADDER_STEPS)
+            if distance >= weapon.min_distance and offset_at(distance) is not None
+        ),
+        None
+    )
+
+    if lowest is None:
+        return None, None
+
+    def bisect(low, high, inside):
+        """The edge between `low` (inside) and `high` (outside), to 1 cm."""
+        while high - low > 0.01:
+            middle = (low + high) / 2
+
+            if inside(middle):
+                low = middle
+            else:
+                high = middle
+
+        return (low + high) / 2
+
+    def above_bottom(distance):
+        offset = offset_at(distance)
+
+        return offset is not None and offset <= bottom
+
+    def above_top(distance):
+        offset = offset_at(distance)
+
+        return offset is not None and offset < top
+
+    if above_bottom(highest):
+        farthest = None
+    elif above_bottom(lowest):
+        farthest = bisect(lowest, highest, above_bottom)
+
+        # The mark did not leave the screen when the weapon's reach ended
+        if offset_at(farthest + 0.05) is None:
+            farthest = None
+    else:
+        farthest = 0.0
+
+    nearest = None
+
+    if above_top(lowest):
+        nearest = bisect(lowest, highest, above_top)
+
+    return nearest, farthest
 
 
 def trim_for_landing(weapon, distance, height, landed, trim=0.0, arc="low"):
