@@ -41,6 +41,7 @@ STRINGS = {
     "info_trim": "trim {trim}",
     "info_lift": "aim {lift} m",
     "info_pixel": "1 px = {m} m",
+    "info_pixel_high": "1 px = {m} m high",
     "info_pixel_round": "(whole px: {error} m off)",
     "info_pixel_coarse": "too coarse for marker aiming",
     "info_offscreen_far": "mark off screen past {limit} m",

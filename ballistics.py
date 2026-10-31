@@ -130,6 +130,12 @@ class WeaponDataError(ValueError):
     """Raised when weapons.json contains invalid data."""
 
 
+# weapons.json categories of the weapons that hit by contact: launchers,
+# direct-fire guns and tank guns. Everything else (grenade launchers, AGLs,
+# mortars, rocket artillery) bursts and is judged by the ground it lands on.
+DIRECT_HIT_CATEGORIES = frozenset({"launchers", "guns", "tanks"})
+
+
 @dataclass(frozen=True)
 class Weapon:
     """One weapons.json entry: how a weapon fires and is aimed.
@@ -339,6 +345,15 @@ class Weapon:
             view=view,
             twin=twin,
         )
+
+    @property
+    def direct_hit(self):
+        """True for the weapons whose round does its work on contact (the
+        `category` is one of DIRECT_HIT_CATEGORIES): the hit is decided by
+        the height of the path at the target, not by where it lands. False
+        for the grenade and rocket-artillery weapons, whose burst covers the
+        ground around the landing point."""
+        return self.category in DIRECT_HIT_CATEGORIES
 
     @property
     def g(self):
@@ -1438,6 +1453,12 @@ def mark_offset(weapon, sight_angle, fov, screen_width, scale=1.0, trim=0.0):
 # A pixel of the mark worth more than this cannot hit it.
 MARK_PIXEL_LIMIT = 5.0
 
+# A direct-hit round (a tank shell, a rocket) must hit the target's body, not
+# a point on the ground: a pixel of the mark worth more metres of height at
+# the target than this (a quarter of a 2.4 m vehicle) cannot place it reliably
+# (deadline-squad/squad-ballistics#11).
+MARK_HEIGHT_LIMIT = 0.6
+
 
 def _mark_at(weapon, distance, height, fov, screen_width, scale, trim, arc,
              aim_lift):
@@ -1500,6 +1521,32 @@ def mark_resolution(weapon, distance, height, fov, screen_width, scale=1.0,
         return None
 
     return 1.0 / slope
+
+
+def mark_height_resolution(weapon, distance, height, fov, screen_width,
+                           scale=1.0, trim=0.0, arc="low", aim_lift=0.0):
+    """Metres of height at the target one pixel of the mark is worth, for the
+    same inputs as `mark_resolution`: how far above or below the target the
+    path passes it when the player lays the target one pixel off the mark.
+
+    This is what decides a hit for a direct-hit weapon (`Weapon.direct_hit`).
+    Where the barrel's elevation moves the landing point by `mark_resolution`
+    metres, it moves the path at the target's distance by that times the
+    tangent of the descent angle there (the path is locally a line of that
+    slope), so a flat tank shell that lands 38 m further per pixel passes
+    the target only 0.17 m higher. None where `mark_resolution` is.
+    """
+    metres = mark_resolution(
+        weapon, distance, height, fov, screen_width, scale, trim, arc,
+        aim_lift
+    )
+
+    if metres is None:
+        return None
+
+    solution = solve(weapon, distance, height, arc, aim_lift)
+
+    return metres * math.tan(math.radians(solution.impact_angle))
 
 
 def mark_visible_range(weapon, height, fov, screen_width, top, bottom,
