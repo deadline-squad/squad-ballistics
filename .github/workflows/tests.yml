@@ -40,7 +40,7 @@ jobs:
         # one lint run is enough: it reads the source, it does not run it.
         if: matrix.python-version != '3.10'
         run: |
-          pyflakes *.py tests > pyflakes.txt 2>&1 || true
+          pyflakes *.py tests tools > pyflakes.txt 2>&1 || true
           cat pyflakes.txt
           cat > pyflakes-expected.txt <<'EOF'
           app.py: 'PyQt6.QtWebEngineWidgets' imported but unused
