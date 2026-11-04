@@ -4,7 +4,10 @@ import pytest
 
 import keyinject
 from keyinject import hold_key, lay
-from test_keyinject import FakeInjector, clock  # noqa: F401 (clock is a fixture)
+import test_keyinject
+from test_keyinject import FakeInjector
+
+clock = test_keyinject.clock
 
 
 def kinds(log):
