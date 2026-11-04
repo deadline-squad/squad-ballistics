@@ -266,18 +266,31 @@ def trace_edge(image, edge, centre_y, scale):
 
 
 def find_pointer(image, edge, centre_y, scale):
-    """Row of the pointer's tip: the centre of the dark rows in the gap
-    right of the edge line, near the centre line; `centre_y` if none."""
+    """Row of the pointer's tip: the centre of the longest run of dark rows
+    in the gap right of the edge line, near the centre line; `centre_y` if
+    none. A lone speck of noise or foliage darker than DARK elsewhere in the
+    column is a run of its own, not part of the pointer."""
     x = edge + max(1, round(EDGE_WIDTH * scale)) + max(1, round(EDGE_GAP * scale / 2))
     reach = round(3 * POINTER_HALF * scale)
     top = max(0, centre_y - reach)
     values = image.column(x, top, min(image.height, centre_y + reach + 1))
-    rows = [top + i for i, value in enumerate(values) if value < DARK]
+    best = None
+    start = None
 
-    if not rows:
+    for i, value in enumerate(list(values) + [DARK]):
+        if value < DARK:
+            start = i if start is None else start
+            continue
+
+        if start is not None and (best is None or i - start > best[1] - best[0] + 1):
+            best = (start, i - 1)
+
+        start = None
+
+    if best is None:
         return float(centre_y)
 
-    return (rows[0] + rows[-1]) / 2
+    return top + (best[0] + best[1]) / 2
 
 
 def _trace_left(image, x, y, length):
