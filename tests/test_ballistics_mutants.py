@@ -88,6 +88,115 @@ def test_the_flight_follows_the_games_substeps(name):
             assert weapon.flight_time(rad, distance) == pytest.approx(seconds, abs=TIME_TOLERANCE)
 
 
+def oracle_apex(shot, rad, distance):
+    """(top, height at `distance`, muzzle height) of the game's substep flight
+    up to `distance` m ahead of the pivot, `top` being the highest corner of
+    its substeps; None when it never gets there."""
+    reached = flight.fly_to(shot, rad, distance)
+
+    if reached is None:
+        return None
+
+    path = flight._Flight(shot, rad)
+    muzzle_height = top = path.y
+
+    while path.x < distance:
+        path.advance()
+        if path.x <= distance:
+            top = max(top, path.y)
+
+    return top, reached[0], muzzle_height
+
+
+@pytest.mark.parametrize("name", GAME_WEAPONS)
+def test_the_apex_follows_the_games_substeps(name):
+    """The apex is the top the flight has passed and come down from by `distance`."""
+    weapon = WEAPONS[name]
+    shot = flight.Shot(GAME[name], RAW[name])
+
+    for degrees in (-4, 4, 20, 45, 75, 89):
+        rad = math.radians(degrees)
+
+        for distance in (*distances_to_check(shot, rad), 40.0):
+            found = oracle_apex(shot, rad, distance)
+
+            if found is None:
+                continue
+
+            top, at_distance, muzzle_height = found
+
+            if top > muzzle_height + 0.05 and top > at_distance + 0.05:
+                assert weapon.apex_height(rad, distance) == pytest.approx(
+                    top, abs=HEIGHT_TOLERANCE
+                ), (degrees, distance)
+
+
+CUSTOM_HEIGHT_TOLERANCE = HEIGHT_TOLERANCE
+CUSTOM_TIME_TOLERANCE = TIME_TOLERANCE
+
+CUSTOM_FLIGHTS = {
+    "rocket that turns with the velocity": {
+        "velocity": 60, "acceleration": 40, "acceleration_time": 2.5, "rotation_follows_velocity": True,
+    },
+    "rocket flying along the barrel": {
+        "velocity": 60, "acceleration": 40, "acceleration_time": 2.5, "rotation_follows_velocity": False,
+    },
+    "shell that nearly stops": {
+        "velocity": 1, "deceleration": 0.5, "deceleration_time": 1.9,
+    },
+    "slowing shell": {
+        "velocity": 120, "deceleration": 20, "deceleration_time": 4.0,
+    },
+    "shell from a raised muzzle": {
+        "velocity": 90, "launch_height": 1.4, "muzzle_forward": 0.9, "muzzle_up": 0.3,
+    },
+}
+
+
+def custom_game(raw):
+    """The snapshot entry of the game for a weapons.json entry of CUSTOM_FLIGHTS."""
+    return {
+        "velocity": raw["velocity"],
+        "gravity_scale": raw.get("gravity", 1.0),
+        "max_speed": raw.get("max_speed", 0.0),
+        "acceleration": raw.get("acceleration", -raw.get("deceleration", 0.0)),
+        "acceleration_timeout": raw.get("acceleration_time", raw.get("deceleration_time", 0.0)),
+        "rotation_follows_velocity": raw.get("rotation_follows_velocity", True),
+    }
+
+
+@pytest.mark.parametrize("name", CUSTOM_FLIGHTS)
+def test_the_flight_of_made_up_weapons_follows_the_games_substeps(name):
+    raw = CUSTOM_FLIGHTS[name]
+    weapon = Weapon.from_dict("w", raw)
+    shot = flight.Shot(custom_game(raw), raw)
+
+    for degrees in (-4, 0, 4, 20, 45, 75, 89):
+        rad = math.radians(degrees)
+
+        for distance in (0.5, 0.99, 5.0, 20.0, 60.0, 120.0, 250.0, 400.0, 900.0):
+            reached = flight.fly_to(shot, rad, distance)
+
+            if reached is None:
+                continue
+
+            height, slope, _, seconds = reached
+            at_height, at_seconds, at_angle = weapon.flight_at(rad, distance)
+
+            assert at_height == pytest.approx(height, abs=CUSTOM_HEIGHT_TOLERANCE), (degrees, distance)
+            assert at_seconds == pytest.approx(seconds, abs=CUSTOM_TIME_TOLERANCE), (degrees, distance)
+            assert at_angle == pytest.approx(math.atan(slope), abs=ANGLE_TOLERANCE), (degrees, distance)
+            assert weapon.flight_height(rad, distance) == pytest.approx(height, abs=CUSTOM_HEIGHT_TOLERANCE)
+
+            found = oracle_apex(shot, rad, distance)
+            top, at_distance, muzzle_height = found
+
+            if top > muzzle_height + 0.05 and top > at_distance + 0.05:
+                assert weapon.apex_height(rad, distance) == pytest.approx(
+                    top, abs=CUSTOM_HEIGHT_TOLERANCE
+                ), (degrees, distance)
+
+
 # ---------- the weapons.json entry ----------
 
 def entry_error(data, name="w"):
@@ -812,3 +921,11 @@ def test_the_ladder_takes_the_angles_up_to_the_limit_inclusive(monkeypatch):
 def test_a_weapon_without_a_mark_or_drop_has_no_ladder():
     assert range_ladder(WEAPONS[MORTAR], FOV, WIDTH, 40, 30, 5000) == []
     assert range_ladder(Weapon.from_dict("s", {"velocity": 100, "gravity": 0}), FOV, WIDTH, 40, 30, 5000) == []
+
+
+def test_a_fall_that_ends_exactly_at_the_speed_cap_does_not_clamp_the_flight(monkeypatch):
+    monkeypatch.setattr(ballistics, "GRAVITY", 2.0)
+    weapon = Weapon.from_dict("w", {"velocity": 3, "max_speed": 5, "launch_height": 4.0})
+
+    assert not weapon._clamps_before(0.0)
+    assert weapon._clamps_before(-0.01)
