@@ -168,8 +168,13 @@ def test_a_pixel_height_is_unknown_where_there_is_no_mark():
 
 
 def test_the_weapon_data_tells_direct_hit_from_splash():
-    assert all(WEAPONS[name].direct_hit for name in (SPG, TANK, PF98, ZIS))
+    assert all(WEAPONS[name].direct_hit for name in (SPG, TANK, PF98))
     assert not any(WEAPONS[name].direct_hit for name in (AGS, QLZ, MK19, AGS30))
+
+
+def test_a_splash_round_of_a_launcher_gun_or_tank_is_judged_like_a_grenade():
+    """Issue 14: the HE-I, FRAG and HEAT/HE rounds burst over 10 m."""
+    assert not any(WEAPONS[name].direct_hit for name in (ZIS, "PF98 · HE-I", "SPG-9 · FRAG"))
 
 
 def test_a_pixel_worth_is_unknown_where_there_is_no_mark():
@@ -290,7 +295,7 @@ def test_a_zoomed_view_with_a_coarse_pixel_is_told_so(window):
     assert "too coarse for marker aiming" in window.overlay.info_text
 
 
-@pytest.mark.parametrize("name, distance", [(SPG, 600), (TANK, 1000), (ZIS, 600)])
+@pytest.mark.parametrize("name, distance", [(SPG, 600), (TANK, 1000), ("SPG-9 · HEAT · technical · optic (RMB ×4)", 600)])
 def test_a_zoomed_direct_hit_weapon_is_told_the_height_of_a_pixel(window, name, distance):
     fire(window, name, distance)
 

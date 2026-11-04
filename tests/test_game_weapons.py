@@ -5,18 +5,24 @@ the game's paks (build and date in its `_source`), one entry per weapons.json
 entry: the muzzle velocity, the projectile's movement (gravity scale,
 MaxSpeed, ConstantAcceleration and its timeout, bRotationFollowsVelocity,
 bIgnoreGravityDuringConstantAcceleration), the view (bore, zoom) and the
-elevation limits of the shot. Nothing in it is read from weapons.json, so an
+elevation limits of the shot, and the radius of the projectile's damaging explosion (`burst_radius`) with the
+`warhead` it gives. Nothing in it is read from weapons.json, so an
 entry copied from the wrong view or projectile fails here.
 """
 
 import json
 import os
+import sys
 
 import pytest
 
-from ballistics import load_weapons
+from ballistics import DIRECT_HIT_CATEGORIES, load_weapons
 
 from conftest import ROOT
+
+sys.path.insert(0, os.path.join(ROOT, "tools"))
+
+from game_weapons import SPLASH_RADIUS  # noqa: E402
 
 WEAPONS = load_weapons(os.path.join(ROOT, "weapons.json"))
 
@@ -89,6 +95,30 @@ def test_the_elevation_limits_are_the_games(name):
         assert game_top <= top <= game_top + HOLD_TOP_OVER_LIMIT
     else:
         assert top == pytest.approx(game_top)
+
+
+CONTACT_ENTRIES = [n for n in GAME if WEAPONS[n].category in DIRECT_HIT_CATEGORIES]
+
+
+@pytest.mark.parametrize("name", CONTACT_ENTRIES)
+def test_the_warhead_is_the_games(name):
+    """Issue 14: a launcher, gun or tank round whose damaging explosion reaches beyond 10 m in the game
+    files (HE, FRAG, HESH, thermobaric, tank HEAT) is a splash round; the shaped charges (8-10 m) and the
+    AP rounds (no explosion) hit by contact."""
+    game, weapon = GAME[name], WEAPONS[name]
+
+    assert weapon.warhead == game["warhead"]
+    assert (game["burst_radius"] > SPLASH_RADIUS) == (weapon.warhead == "splash")
+
+
+def test_the_warheads_the_issue_names_are_told_apart():
+    splash = ("PF98 · HE-I", "SPG-9 · FRAG", "2A70 100mm (BMP-3 / BMD-4 / ZBD04A) · FRAG",
+              "Carl Gustav M2 · FFV441D HE", "RPG-7 · TBG-7V Thermobaric", "Tank HESH · L30A1 (Challenger 2)",
+              "Tank HEAT/HE · T-62 (2A20)")
+    direct = ("PF98 · Tandem", "SPG-9 · HEAT", "Carl Gustav M2 · FFV551 HEAT", "Tank AP · M256 / Rh120")
+
+    assert not any(WEAPONS[name].direct_hit for name in splash)
+    assert all(WEAPONS[name].direct_hit for name in direct)
 
 
 def test_the_tripod_mk19_has_a_view_without_its_sights():

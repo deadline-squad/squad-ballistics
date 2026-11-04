@@ -616,6 +616,7 @@ def test_the_optic_ladder_starts_past_the_zero_and_matches_the_mark():
     {"x": {"velocity": 100, "aim": "telepathy"}},
     {"x": {"velocity": True}},
     {"x": {"velocity": 100, "arc": "sideways"}},
+    {"x": {"velocity": 100, "warhead": "nuclear"}},
     {"x": {"velocity": 100, "elevation_limits": [10, 5]}},
     {"x": {"velocity": 100, "deceleration": 100, "deceleration_time": 1}},
     {"_comment": "only comments"},
@@ -804,6 +805,15 @@ AGS17_HOLD_TABLE = [
 
 AGS17 = WEAPONS["AGS-17 · emplacement · optic (RMB ×2.5)"]
 
+# The game files put the tripod's pivot 0.347 m above its foot (#13); the
+# entries keep `launch_height` 1 because the hold fit was made with it. With
+# the fitted rate and top unchanged, 0.347 fits the 67 measurements worse
+# (distance RMS 7.43 -> 7.49 m, worst hold-time error 0.064 -> 0.073 s, past
+# the 0.07 s bound below). Refitting rate and top gives the same RMS for both
+# heights (5.34 m: 9.030 deg/s, top 85.73 for 1 m; 9.034 deg/s, top 85.73 for
+# 0.347 m), so the measurements cannot tell the heights apart and a refit
+# would only move the fitted values the Deadline SquadCalc shares.
+
 
 def test_ags17_hold_time_matches_in_game_measurements():
     errors = []
@@ -823,6 +833,18 @@ def test_ags17_hold_time_matches_in_game_measurements():
     # the fitted values stay (they are the Deadline SquadCalc's too).
     assert max(abs(e) for e in errors) < 0.07
     assert math.sqrt(sum(e * e for e in errors) / len(errors)) < 0.02
+
+
+def test_ags17_keeps_the_launch_height_the_hold_fit_was_made_with():
+    assert AGS17.launch_height == 1
+    game_height = replace(AGS17, launch_height=0.347)
+
+    worst = max(
+        abs(solve(game_height, distance, 0, "high").hold_time - held)
+        for held, distance in AGS17_HOLD_TABLE
+    )
+
+    assert worst > 0.07
 
 
 def test_ags17_hold_time_follows_height():
