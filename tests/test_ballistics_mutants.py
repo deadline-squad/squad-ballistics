@@ -13,12 +13,10 @@ import pytest
 
 import flight
 from ballistics import (
-    GRAVITY,
     Weapon,
     WeaponDataError,
     LADDER_MAX_DISTANCE,
     LADDER_MAX_TICKS,
-    LADDER_STEPS,
     first_obstacle,
     load_weapons,
     mark_height_resolution,
@@ -652,12 +650,11 @@ def pixel_resolution(weapon, distance, height=0.0, scale=1.0, trim=0.0, arc="low
 ])
 def test_a_pixel_of_the_mark_is_worth_the_range_the_marks_either_side_show(kwargs):
     weapon = Weapon.from_dict("w", {**SHELL, "launch_height": 1.5})
-    options = {key: value for key, value in kwargs.items() if key != "lift"}
-    options_with_lift = {"aim_lift": kwargs["lift"]} if "lift" in kwargs else {}
+    lift = {"aim_lift": kwargs["lift"]} if "lift" in kwargs else {}
 
     result = mark_resolution(
         weapon, 500.0, kwargs.get("height", 0.0), FOV, WIDTH, kwargs.get("scale", 1.0),
-        kwargs.get("trim", 0.0), "low", **options_with_lift
+        kwargs.get("trim", 0.0), "low", **lift
     )
 
     assert result == pytest.approx(pixel_resolution(weapon, 500.0, **kwargs), rel=1e-5)
