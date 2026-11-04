@@ -3,6 +3,8 @@ the saved trims and rates, the numeric limits and the files written."""
 
 import json
 import os
+import subprocess
+import sys
 
 import pytest
 
@@ -278,3 +280,112 @@ def test_a_folder_that_cannot_be_made_private_is_left_alone(tmp_path, monkeypatc
     config.make_private_dir(str(tmp_path / "d"))
 
     assert (tmp_path / "d").is_dir()
+
+
+def test_a_folder_is_created_private_even_when_chmod_is_refused(tmp_path, monkeypatch):
+    def refuse(*args):
+        raise OSError("not yours")
+
+    monkeypatch.setattr(config.os, "chmod", refuse)
+    config.make_private_dir(str(tmp_path / "d"))
+
+    assert os.stat(tmp_path / "d").st_mode & 0o777 == 0o700
+
+
+def test_a_settings_file_is_created_private_before_it_is_made_so(tmp_path, monkeypatch):
+    monkeypatch.setattr(config.os, "fchmod", lambda *args: None)
+
+    config.save_config({"fov": 61}, str(tmp_path / "config.json"))
+
+    assert os.stat(tmp_path / "config.json").st_mode & 0o777 == 0o600
+
+
+def test_a_lay_rate_exactly_at_the_tolerance_is_kept(monkeypatch):
+    monkeypatch.setattr(config, "LAY_RATE_TOLERANCE", 0.25)
+
+    assert config._valid_lay_rates({MORTAR: 9.0 * 1.25}) == {MORTAR: 11.25}
+    assert config._valid_lay_rates({MORTAR: 9.0 * 0.75}) == {MORTAR: 6.75}
+
+
+def test_a_dropped_lay_rate_does_not_stop_the_ones_after_it():
+    rates = config._valid_lay_rates({MORTAR: 99.0, "Other": 3})
+
+    assert rates == {"Other": 3.0}
+
+
+def test_junk_trim_entries_do_not_stop_the_ones_after_them():
+    for junk in ({5: 1.0}, {"": 1.0}, {"Other|optic": 1.0}, {"Other|": 1.0}, {"Other": "x"}):
+        assert config._valid_mark_trims({**junk, "AT-4": 0.5}) == {"AT-4": 0.5}
+
+
+def test_a_trim_key_is_split_at_its_last_bar():
+    assert config._valid_mark_trims({"Odd|name|plain": 0.5}) == {"Odd|name": 0.5}
+    assert config._valid_mark_trims({"Odd|plain|optic": 0.5}) == {}
+
+
+def test_a_setting_missing_from_the_file_does_not_stop_the_ones_after_it():
+    merged = config._merge({"arc": "high", "map_follow": False})
+
+    assert merged["arc"] == "high"
+    assert merged["map_follow"] is False
+
+
+def test_every_default_setting_is_checked_by_a_branch_of_its_own():
+    special = {"hotkeys", "recent_weapons", "lay_rates", "mark_trim", "last_weapon"}
+    plain = {
+        key: default for key, default in config.DEFAULT_CONFIG.items()
+        if key not in special and key not in config.CHOICES
+        and not isinstance(default, (bool, int, float))
+    }
+
+    assert plain == {}
+
+
+def test_older_settings_files_are_tried_in_order(tmp_path, monkeypatch):
+    unreadable = tmp_path / "unreadable.json"
+    unreadable.write_text("{broken")
+    older = tmp_path / "older.json"
+    older.write_text(json.dumps({"fov": 77}))
+    monkeypatch.setattr(config, "legacy_config_paths", lambda: [
+        str(tmp_path / "missing.json"), str(unreadable), str(older),
+    ])
+
+    cfg, bad = config.read_config(str(tmp_path / "new" / "config.json"))
+
+    assert cfg["fov"] == 77 and bad is None
+
+
+def test_a_settings_file_is_read_as_utf8_whatever_the_locale(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_bytes(json.dumps({"last_weapon": "Mörser"}, ensure_ascii=False).encode("utf-8"))
+    assert config._read(str(path))["last_weapon"] == "Mörser"
+
+    script = (
+        "import sys, config\n"
+        "cfg, bad = config.read_config(sys.argv[1])\n"
+        "print(ascii(cfg['last_weapon']), bad)\n"
+    )
+    environment = {
+        **os.environ,
+        "PYTHONPATH": os.path.dirname(os.path.abspath(config.__file__)),
+        "PYTHONUTF8": "0",
+        "PYTHONCOERCECLOCALE": "0",
+        "LC_ALL": "C",
+    }
+
+    result = subprocess.run(
+        [sys.executable, "-c", script, str(path)],
+        env=environment, capture_output=True, text=True, check=True,
+        cwd=os.path.dirname(os.path.abspath(config.__file__)),
+    )
+
+    assert result.stdout.split() == ["'M\\xf6rser'", "None"]
+
+
+def test_hotkeys_do_not_stop_the_settings_after_them(monkeypatch):
+    defaults = {"hotkeys": {"toggle_overlay": "F8"}, "arc": "auto", "distance_step": 25}
+    monkeypatch.setattr(config, "DEFAULT_CONFIG", defaults)
+
+    merged = config._merge({"hotkeys": {"toggle_overlay": "F5"}, "arc": "high"})
+
+    assert merged == {"hotkeys": {"toggle_overlay": "F5"}, "arc": "high", "distance_step": 25}
