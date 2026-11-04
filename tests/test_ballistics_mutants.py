@@ -132,7 +132,7 @@ def test_the_apex_follows_the_games_substeps(name):
 
 
 CUSTOM_HEIGHT_TOLERANCE = HEIGHT_TOLERANCE
-CUSTOM_TIME_TOLERANCE = TIME_TOLERANCE
+CUSTOM_TIME_TOLERANCE = 1e-3
 
 CUSTOM_FLIGHTS = {
     "rocket that turns with the velocity": {
@@ -142,7 +142,7 @@ CUSTOM_FLIGHTS = {
         "velocity": 60, "acceleration": 40, "acceleration_time": 2.5, "rotation_follows_velocity": False,
     },
     "shell that nearly stops": {
-        "velocity": 1, "deceleration": 0.5, "deceleration_time": 1.9,
+        "velocity": 1, "deceleration": 0.5, "deceleration_time": 1.9, "rotation_follows_velocity": False,
     },
     "slowing shell": {
         "velocity": 120, "deceleration": 20, "deceleration_time": 4.0,
@@ -929,3 +929,18 @@ def test_a_fall_that_ends_exactly_at_the_speed_cap_does_not_clamp_the_flight(mon
 
     assert not weapon._clamps_before(0.0)
     assert weapon._clamps_before(-0.01)
+
+
+def test_a_shell_fired_faster_than_its_cap_is_followed_close_to_the_muzzle():
+    raw = {"velocity": 200, "max_speed": 150, "gravity": 0.8}
+    weapon = Weapon.from_dict("w", raw)
+    shot = flight.Shot(custom_game(raw), raw)
+
+    for degrees in (4, 20, 45):
+        rad = math.radians(degrees)
+
+        for distance in (1.0, 2.0, 3.0, 20.0, 60.0):
+            height = flight.fly_to(shot, rad, distance)[0]
+
+            assert weapon.flight_height(rad, distance) == pytest.approx(height, abs=0.05), (degrees, distance)
+            assert weapon.flight_at(rad, distance)[0] == pytest.approx(height, abs=0.05), (degrees, distance)
