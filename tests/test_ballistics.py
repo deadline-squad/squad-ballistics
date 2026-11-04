@@ -1265,3 +1265,9 @@ def test_every_public_item_of_the_model_is_documented():
             for member, value in vars(item).items() if inspect.isclass(item) else ():
                 if not member.startswith("_") and (inspect.isfunction(value) or isinstance(value, property)):
                     assert inspect.getdoc(value), f"{name}.{member}"
+
+
+def test_gravity_is_the_games_980_cm_per_s2():
+    """DefaultGravityZ = -980 (game files) and SquadCalc's 9.80: the two apps
+    must agree, tools/direct_fire/compare.py checks them at 1e-6 degrees."""
+    assert GRAVITY == 9.80
