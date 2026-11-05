@@ -260,6 +260,31 @@ def test_a_lob_the_hold_cannot_lay_says_the_angle_and_the_hold_limits(window):
     )
 
 
+def test_a_lob_the_hold_cannot_lay_is_explained_in_mils_when_the_setting_says_so(window):
+    window.config["unit_mode"] = "mil"
+    window.select_weapon(AGS)
+    weapon = window.current_weapon()
+    solution = solve(weapon, 1933.0, 0.0, "high")
+    lowest, top = weapon.hold_elevation
+
+    from widgets import format_angle
+
+    window.show_unreachable(weapon, solution)
+
+    assert window.sub_label.text() == tr(
+        "how_unreachable_hold",
+        angle=format_angle(solution.angle, "mil"),
+        low=format_angle(lowest, "mil"),
+        high=format_angle(top, "mil"),
+    )
+
+
+def test_a_mortar_that_cannot_reach_hides_the_mark(window):
+    explain(window, MORTAR, 5, "high")
+
+    assert not window.overlay.mark_visible
+
+
 def test_a_target_beyond_the_elevation_limits_says_the_angle_and_the_limits(window):
     weapon, solution = explain(window, MK19, 5, "high", "low")
     unit = window.primary_unit(weapon)
@@ -301,7 +326,9 @@ def test_an_unreachable_target_clears_the_overlay_and_the_hold_target(window):
     window.calculate()
 
     assert window.overlay.offset == 0.0
+    assert window.overlay.mark_visible
     assert window.overlay.info_text == ""
+    assert window.info_base == ""
     assert window.hold_timer.target is None
     assert all(tile.value.text() == "—" for tile in window.stats.values())
 
@@ -977,13 +1004,17 @@ def test_switching_auto_hold_on_where_keys_cannot_be_sent_turns_it_back_off(wind
     monkeypatch.setattr(crosshair, "teardown_hotkeys", lambda target: calls.append(("down", target)))
     monkeypatch.setattr(crosshair, "setup_hotkeys", lambda target: calls.append(("up", target)))
     toggle = window.controls["auto_hold"]
+    toggle.blockSignals(True)
     toggle.setChecked(True)
+    toggle.blockSignals(False)
+    calls.clear()
+
     toggle.toggled.emit(True)
 
     assert window.config["auto_hold"] is False
     assert not toggle.isChecked()
     assert window.auto_hold_status.text() == tr("auto_hold_unavailable")
-    assert calls[:2] == [("down", window), ("up", window)]
+    assert calls == [("down", window), ("up", window)]
 
 
 def test_switching_auto_hold_on_where_keys_can_be_sent_keeps_it_on(window, keys):
@@ -1048,6 +1079,7 @@ def test_resetting_the_target_clears_the_result_the_map_target_and_the_mark(wind
     assert window.last_solution is None
     assert window.direct_solution is None
     assert window.overlay.offset == 0.0
+    assert window.overlay.mark_visible
     assert window.info_base == ""
 
 
@@ -1378,3 +1410,34 @@ def test_the_picker_groups_the_weapons_by_category_in_file_order(window):
     assert all(
         window.weapons[name].category == category for category, names in groups for name in names
     )
+
+
+def test_the_picker_is_given_the_weapon_groups_and_the_notes_it_searches(window):
+    assert window.picker.popup.groups == window.weapon_groups()
+    assert window.picker.popup.notes == {name: weapon.note for name, weapon in window.weapons.items()}
+
+
+def test_the_window_shows_the_root_widget_with_the_sidebar_and_the_pages(window):
+    root = window.centralWidget()
+
+    assert root.objectName() == "root"
+    assert window.pages.parent() is root
+
+
+def test_the_lob_check_asks_for_the_high_arc_whatever_the_default_arc_of_the_weapon(window):
+    """The chosen high arc is asked for by name: a hold weapon whose own arc is
+    the low one (none in weapons.json) must not make the lob look reachable."""
+    import dataclasses
+
+    weapon = dataclasses.replace(window.weapons[AGS], arc="low")
+    window.weapons[AGS] = weapon
+    window.select_weapon(AGS)
+    window.config["arc"] = "high"
+    assert not solve(weapon, 100, 0.0, "high").reachable
+    window.distance_entry.setText("100")
+    window.landed_entry.setText("90")
+
+    window.apply_landing()
+
+    assert window.trim_status.text() != tr("trim_lob_refused")
+    assert window.config["mark_trim"] == {AGS: round(trim_for_landing(weapon, 100, 0.0, 90, 0.0, "low"), 3)}
