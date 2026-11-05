@@ -888,10 +888,10 @@ def test_the_ladder_ends_at_the_reach_and_a_tick_exactly_at_the_reach_is_kept():
 
 
 def test_the_ladder_ends_at_the_greatest_distance_and_a_tick_exactly_there_is_kept():
-    far = Weapon.from_dict("f", {"velocity": 500, "min_distance": 5000})
+    far = Weapon.from_dict("f", {"velocity": 500, "min_distance": LADDER_MAX_DISTANCE})
 
     assert ladder_distances(far, 1, 1, 100000) == [LADDER_MAX_DISTANCE]
-    past = Weapon.from_dict("f", {"velocity": 500, "min_distance": 5001})
+    past = Weapon.from_dict("f", {"velocity": 500, "min_distance": LADDER_MAX_DISTANCE + 1})
     assert ladder_distances(past, 1, 1, 100000) == []
 
 

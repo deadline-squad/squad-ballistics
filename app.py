@@ -298,7 +298,7 @@ def selftest():
         for name, weapon in weapons.items():
             # A distance the weapon can reach with its default arc
             # (some artillery cannot fire flat at short range).
-            for fraction in (0.3, 0.6, 0.85):
+            for fraction in (0.3, 0.6, 0.85, 0.05):
                 distance = max(
                     weapon.min_distance + 5,
                     min(weapon.max_range() * fraction, 1500)
