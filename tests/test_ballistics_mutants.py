@@ -941,3 +941,433 @@ def test_a_shell_fired_faster_than_its_cap_is_followed_close_to_the_muzzle():
 
             assert weapon.flight_height(rad, distance) == pytest.approx(height, abs=0.05), (degrees, distance)
             assert weapon.flight_at(rad, distance)[0] == pytest.approx(height, abs=0.05), (degrees, distance)
+
+
+# ---------- the boost table ----------
+
+ROCKET = {"velocity": 60, "acceleration": 40, "acceleration_time": 2.5}
+SPACING = ballistics.BOOST_NODE_SPACING
+
+
+def rocket_table():
+    weapon = Weapon.from_dict("rocket", ROCKET)
+    assert weapon.flies_boost_in_steps
+
+    return weapon, ballistics._BoostTable(weapon)
+
+
+def test_the_boost_table_has_a_node_per_degree_from_straight_down_to_straight_up():
+    _, table = rocket_table()
+
+    assert table.count == 181
+    assert len(table.nodes) == 181
+    assert table.steps == math.ceil(2.5 / flight.SUBSTEP - 1e-9)
+
+
+@pytest.mark.parametrize("index", [0, 1, 90, 135, 180])
+def test_a_boost_node_is_the_boost_flown_at_its_elevation_and_is_kept(index):
+    weapon, table = rocket_table()
+    points, (vx, vy) = ballistics._fly_boost(weapon, -math.pi / 2 + index * SPACING)
+
+    node = table.node(index)
+
+    assert node == (
+        tuple(point[0] for point in points), tuple(point[1] for point in points), vx, vy
+    )
+    assert table.nodes[index] is node
+    assert table.node(index) is node
+    assert all(other is None for position, other in enumerate(table.nodes) if position != index)
+
+
+@pytest.mark.parametrize("degrees, first", [
+    (-90.0, 0), (-89.5, 0), (-88.0, 1), (-60.3, 28), (0.0, 89), (10.5, 99), (89.0, 177), (89.9, 177), (90.0, 177),
+])
+def test_four_nodes_around_the_elevation_are_interpolated_and_the_ends_shift_inwards(degrees, first):
+    _, table = rocket_table()
+    rad = math.radians(degrees)
+    at = (rad + math.pi / 2) / SPACING
+
+    weights, nodes = table.stencil(rad)
+
+    assert nodes == tuple(table.node(first + i) for i in range(4))
+    for power in range(4):
+        assert sum(w * (first + i) ** power for i, w in enumerate(weights)) == pytest.approx(
+            at ** power, rel=1e-9, abs=1e-9
+        )
+
+
+@pytest.mark.parametrize("degrees", [-70.2, 7.3, 33.0, 88.4])
+def test_the_substep_points_are_the_weighted_sum_of_the_nodes(degrees):
+    _, table = rocket_table()
+    weights, nodes = table.stencil(math.radians(degrees))
+
+    points = list(table.points(weights, nodes))
+
+    assert len(points) == table.steps + 1
+    for k, (x, y) in enumerate(points):
+        assert x == pytest.approx(sum(w * n[0][k] for w, n in zip(weights, nodes)), abs=1e-9)
+        assert y == pytest.approx(sum(w * n[1][k] for w, n in zip(weights, nodes)), abs=1e-9)
+    assert table.end(weights, nodes)[:2] == pytest.approx(points[-1], abs=1e-9)
+
+
+@pytest.mark.parametrize("degrees", [-30.0, 7.3, 45.0, 80.0])
+def test_the_substep_holding_a_distance_is_found_by_halving(degrees):
+    _, table = rocket_table()
+    weights, nodes = table.stencil(math.radians(degrees))
+    points = list(table.points(weights, nodes))
+    xs = [x for x, _ in points]
+    inside = [(a + b) / 2 for a, b in zip(xs, xs[1:])]
+    probes = [xs[0] - 5.0, xs[0], *xs[1:-1], *inside, xs[-1] - 1e-6, xs[-1], xs[-1] + 5.0]
+
+    for ahead in probes:
+        expected = max(k for k in range(table.steps) if xs[k] <= ahead or k == 0)
+        step, start, end = table.segment(weights, nodes, ahead)
+
+        assert step == expected, ahead
+        assert start == pytest.approx(points[expected], abs=1e-9)
+        assert end == pytest.approx(points[expected + 1], abs=1e-9)
+
+
+# ---------- the searches ----------
+
+class Counter:
+    """Wraps a function and counts its calls."""
+
+    def __init__(self, function):
+        self.function = function
+        self.calls = 0
+
+    def __call__(self, *args):
+        self.calls += 1
+        return self.function(*args)
+
+
+@pytest.mark.parametrize("direction, root, calls", [
+    (1, 1.0, 16), (-1, -1.0, 16), (1, 0.4, 15), (-1, -1.3, 17),
+])
+def test_a_root_is_bracketed_by_doubling_steps_and_narrowed_by_the_illinois_method(direction, root, calls):
+    """The number of evaluations pins the step doubling, the starting point of
+    the bracket and the halving of the stale end."""
+    error = Counter(lambda x: math.cos(x) - math.cos(root))
+
+    found = ballistics._find_root(error, 0.0, direction)
+
+    assert found == pytest.approx(root, abs=1e-9)
+    assert error.calls == calls
+
+
+CAPPED_FROM_A_TOWER = {"velocity": 100, "max_speed": 105.67, "launch_height": 60.0}
+ROCKET_ALONG_THE_BARREL = {**ROCKET, "rotation_follows_velocity": False}
+
+
+@pytest.mark.parametrize("raw, method, arguments, calls, expected", [
+    (ROCKET, "elevations_to", (300.0, 0.0), 89, (0.1649524986756065, 1.5157417566109017)),
+    (ROCKET, "elevations_to", (300.0, 5.0), 86, (0.18174546273161213, 1.5156827151593248)),
+    (ROCKET, "flat_low_elevation", (300.0,), 1312, 0.1649524986756065),
+    (ROCKET, "peak_elevation", (300.0,), 53, 1.4613105893855942),
+    (CAPPED_FROM_A_TOWER, "elevations_to", (300.0, 0.0), 87, (-0.05254497560751504, 1.425945743544563)),
+    (CAPPED_FROM_A_TOWER, "flat_low_elevation", (300.0,), 1258, -0.052544975608577245),
+    (CAPPED_FROM_A_TOWER, "peak_elevation", (300.0,), 53, 1.284853166329401),
+    (ROCKET_ALONG_THE_BARREL, "elevations_to", (300.0, 0.0), 87, (0.11582181337127812, 1.5102972851306982)),
+    (ROCKET_ALONG_THE_BARREL, "flat_low_elevation", (300.0,), 1312, 0.11582181337127812),
+    (ROCKET_ALONG_THE_BARREL, "peak_elevation", (300.0,), 53, 1.4508037420561237),
+])
+def test_the_elevation_searches_find_their_roots_in_the_expected_number_of_flights(
+    monkeypatch, raw, method, arguments, calls, expected
+):
+    """The count of flights pins the brackets, directions and step sizes of the
+    searches, which otherwise converge to the same root."""
+    weapon = Weapon.from_dict("w", raw)
+    counted = Counter(lambda self, rad, distance: original_flight_height(self, rad, distance))
+    monkeypatch.setattr(Weapon, "flight_height", lambda self, rad, distance: counted(self, rad, distance))
+
+    found = getattr(weapon, method)(*arguments)
+
+    assert found == pytest.approx(expected, abs=1e-8)
+    assert counted.calls == calls
+
+
+original_flight_height = Weapon.flight_height
+
+
+def test_the_low_elevation_to_the_longest_range_exists_and_one_just_short_of_it_too():
+    weapon = Weapon.from_dict("w", ROCKET)
+    longest, top = weapon._max_range
+
+    assert weapon.flat_low_elevation(longest) == pytest.approx(top, abs=1e-3)
+    assert weapon.flat_low_elevation(longest - 0.3) == pytest.approx(top, abs=2e-2)
+    assert math.isnan(weapon.flat_low_elevation(longest + 0.01))
+
+
+def test_a_flat_low_elevation_lands_where_the_game_lands_for_a_capped_launch_from_a_tower():
+    """A cap that binds only for the fall to the ground (not for a target a metre
+    higher) still takes the numeric search."""
+    weapon = Weapon.from_dict("w", CAPPED_FROM_A_TOWER)
+    shot = flight.Shot(custom_game(CAPPED_FROM_A_TOWER), CAPPED_FROM_A_TOWER)
+
+    elevation = weapon.flat_low_elevation(300.0)
+
+    assert flight.range_at(shot, elevation, 0.0) == pytest.approx(300.0, abs=0.05)
+
+
+# ---------- the apex of a plain parabola and of a boost along the barrel ----------
+
+RAISED_MUZZLE = {"velocity": 90, "launch_height": 1.4, "muzzle_forward": 0.9, "muzzle_up": 0.3}
+SLOW_ROCKET_ALONG_THE_BARREL = {
+    "velocity": 20, "acceleration": 3, "acceleration_time": 4.0, "rotation_follows_velocity": False,
+}
+
+
+def parabola_apex(weapon, rad):
+    """(x, height) of the top of the plain parabola from the muzzle."""
+    start_x, start_y = weapon.launch_point(rad)
+    vx, vy = weapon.velocity * math.cos(rad), weapon.velocity * math.sin(rad)
+
+    return start_x + vx * vy / weapon.g, start_y + vy * vy / (2 * weapon.g)
+
+
+@pytest.mark.parametrize("degrees", [10.0, 45.0, 80.0])
+def test_the_apex_of_a_parabola_from_a_raised_muzzle_is_its_top_if_it_has_been_passed(degrees):
+    weapon = Weapon.from_dict("w", RAISED_MUZZLE)
+    rad = math.radians(degrees)
+    top_x, top = parabola_apex(weapon, rad)
+
+    assert weapon.apex_height(rad, top_x + 1.0) == pytest.approx(top, abs=1e-9)
+    assert weapon.apex_height(rad, top_x - 1.0) == -math.inf
+    assert weapon.apex_height(rad, top_x * 3) == pytest.approx(top, abs=1e-9)
+
+
+def test_the_apex_is_reached_when_the_distance_is_exactly_where_the_top_is(monkeypatch):
+    weapon = Weapon.from_dict("w", {"velocity": 90})
+    rad = math.radians(30.0)
+    vx, vy = weapon.velocity * math.cos(rad), weapon.velocity * math.sin(rad)
+    top_distance = vx * vy / weapon.g
+
+    assert weapon.apex_height(rad, top_distance) == pytest.approx(vy * vy / (2 * weapon.g))
+
+
+def test_a_flat_shot_has_no_apex_above_its_muzzle():
+    weapon = Weapon.from_dict("w", {"velocity": 90, "launch_height": 2.0})
+
+    assert weapon.apex_height(0.0, 100.0) == -math.inf
+    assert weapon.apex_height(math.radians(-5.0), 100.0) == -math.inf
+
+
+@pytest.mark.parametrize("degrees", [30.0, 45.0, 75.0])
+def test_a_slow_boost_along_the_barrel_peaks_while_it_burns(degrees):
+    weapon = Weapon.from_dict("w", SLOW_ROCKET_ALONG_THE_BARREL)
+    shot = flight.Shot(custom_game(SLOW_ROCKET_ALONG_THE_BARREL), SLOW_ROCKET_ALONG_THE_BARREL)
+    rad = math.radians(degrees)
+
+    for distance in (20.0, 40.0, 80.0, 200.0):
+        found = oracle_apex(shot, rad, distance)
+
+        if found is None:
+            continue
+
+        top, at_distance, _ = found
+
+        if top > at_distance + 0.05:
+            assert weapon.apex_height(rad, distance) == pytest.approx(top, abs=0.01), distance
+        else:
+            assert weapon.apex_height(rad, distance) <= at_distance + 0.01 or math.isinf(
+                weapon.apex_height(rad, distance)
+            )
+
+
+def test_a_boost_along_the_barrel_that_is_still_climbing_at_the_distance_has_no_apex_yet():
+    weapon = Weapon.from_dict("w", SLOW_ROCKET_ALONG_THE_BARREL)
+    rad = math.radians(45.0)
+    rising = math.sin(rad) * 20 / (weapon.g - math.sin(rad) * 3)
+    reached = math.cos(rad) * (20 * rising + 0.5 * 3 * rising ** 2)
+
+    assert weapon.apex_height(rad, reached - 0.1) == -math.inf
+    assert weapon.apex_height(rad, reached + 0.1) == pytest.approx(
+        math.sin(rad) * (20 * rising + 1.5 * rising ** 2) - 0.5 * weapon.g * rising ** 2, abs=1e-9
+    )
+    exactly = math.cos(rad) * (weapon.velocity * rising + 0.5 * weapon.acceleration * rising ** 2)
+    assert weapon.apex_height(rad, exactly) == pytest.approx(
+        math.sin(rad) * (20 * rising + 1.5 * rising ** 2) - 0.5 * weapon.g * rising ** 2, abs=1e-9
+    )
+
+
+def test_a_boost_that_pushes_harder_than_gravity_pulls_has_no_apex_while_it_burns():
+    weapon = Weapon.from_dict("w", {
+        "velocity": 20, "acceleration": 15, "acceleration_time": 2.0, "rotation_follows_velocity": False,
+    })
+
+    assert weapon.apex_height(math.radians(60.0), 25.0) == -math.inf
+
+
+# ---------- solve, the trim and the ladder: what is left ----------
+
+def test_a_target_the_elevation_limits_refuse_still_has_the_speed_of_its_straight_line():
+    weapon = Weapon.from_dict("w", {
+        "velocity": 100, "gravity": 0, "acceleration": 10, "acceleration_time": 5.0,
+        "elevation_limits": [-5, 5], "launch_height": 2.0,
+    })
+
+    solution = solve(weapon, 300.0, 100.0, aim_lift=20.0)
+
+    assert solution.reason_code == "elevation_limit"
+    assert solution.velocity == weapon.velocity_at(math.hypot(300.0, 100.0 + 20.0 - 2.0))
+    assert solution.velocity != weapon.velocity_at(100.0 + 20.0 - 2.0)
+
+
+def test_an_arc_at_exactly_the_lowest_elevation_limit_is_an_alternative():
+    weapon = Weapon.from_dict("w", {"velocity": 100, "gravity": 0, "elevation_limits": [45, 89]})
+
+    solution = solve(weapon, 300.0, 300.0)
+
+    assert solution.reachable
+    assert solution.alternatives == {"low": 45.0, "high": 45.0}
+
+
+def test_an_arc_beyond_the_limits_does_not_hide_the_one_after_it():
+    weapon = Weapon.from_dict("w", {"velocity": 100, "elevation_limits": [45, 89]})
+
+    solution = solve(weapon, 500.0, 0.0, "high")
+
+    assert list(solution.alternatives) == ["high"]
+    assert solution.alternatives["high"] == solution.angle
+
+
+def test_the_apex_of_a_shot_that_only_falls_is_its_muzzle():
+    weapon = Weapon.from_dict("w", {"velocity": 100, "launch_height": 50.0})
+
+    solution = solve(weapon, 100.0, 0.0)
+
+    assert solution.angle < 0
+    assert solution.apex == pytest.approx(weapon.launch_point(math.radians(solution.raw_angle))[1])
+
+
+def test_an_obstacle_search_for_a_target_out_of_reach_finds_nothing():
+    weapon = Weapon.from_dict("w", {**SHELL, "launch_height": 2.0})
+
+    assert first_obstacle(weapon, solve(weapon, 5000.0), [1000.0] * 1200, 5) is None
+
+
+def test_a_path_that_just_touches_the_terrain_does_not_pass_under_it():
+    weapon = Weapon.from_dict("w", {**SHELL, "launch_height": 2.0})
+    solution = solve(weapon, 500.0)
+    rad = math.radians(solution.raw_angle)
+    touching = [weapon.flight_height(rad, index * 5) for index in range(101)]
+
+    assert first_obstacle(weapon, solution, touching, 5) is None
+
+
+def test_a_weapon_with_a_gravity_of_exactly_one_has_a_mark(monkeypatch):
+    monkeypatch.setattr(ballistics, "GRAVITY", 1.0)
+    weapon = Weapon.from_dict("w", {"velocity": 10})
+
+    assert weapon.g == 1.0
+    assert mark_resolution(weapon, 20.0, 0.0, FOV, WIDTH) is not None
+    assert mark_visible_range(weapon, 0.0, FOV, WIDTH, 0.0, 1e6)[0] is None
+    assert mark_visible_range(weapon, 0.0, FOV, WIDTH, 0.0, 100.0)[1] is not None
+    assert range_ladder(weapon, FOV, WIDTH, 40, 30, 5000)
+
+
+def test_a_weapon_laid_by_elevation_has_no_mark_resolution_or_visible_range():
+    weapon = Weapon.from_dict("w", {**SHELL, "aim": "elevation"})
+
+    assert mark_resolution(weapon, 500.0, 0.0, FOV, WIDTH) is None
+    assert mark_visible_range(weapon, 0.0, FOV, WIDTH, 0.0, 500.0) == (None, None)
+    assert range_ladder(weapon, FOV, WIDTH, 40, 30, 5000) == []
+
+
+# ---------- the capped coast and the last ties ----------
+
+FASTER_THAN_ITS_CAP = {"velocity": 200, "max_speed": 150, "gravity": 0.8}
+
+
+def test_a_capped_flight_never_reaches_a_point_beyond_where_it_has_turned_straight_down():
+    weapon = Weapon.from_dict("w", FASTER_THAN_ITS_CAP)
+    rad = math.radians(20.0)
+    near, far = 1000.0, 1.0e6
+
+    assert math.isfinite(weapon.flight_at(rad, near)[0])
+    assert weapon.flight_at(rad, far) == (-math.inf, math.inf, -math.pi / 2)
+
+    for _ in range(25):
+        middle = (near + far) / 2
+        near, far = (middle, far) if math.isfinite(weapon.flight_at(rad, middle)[0]) else (near, middle)
+
+    assert far - near < 0.1
+    assert near == pytest.approx(5353.14, abs=0.1)
+    assert math.isfinite(weapon.flight_at(rad, near)[0])
+    assert weapon.flight_at(rad, far + 1.0) == (-math.inf, math.inf, -math.pi / 2)
+    assert weapon.flight_at(rad, near - 1.0)[2] > -math.pi / 2
+    assert weapon.flight_at(rad, near - 1.0)[0] > -math.inf
+
+
+def test_a_capped_flight_comes_down_more_and_more_steeply_to_the_end_of_its_reach():
+    weapon = Weapon.from_dict("w", FASTER_THAN_ITS_CAP)
+    rad = math.radians(20.0)
+    angles = [weapon.flight_at(rad, distance)[2] for distance in (500.0, 1500.0, 3000.0, 4000.0)]
+
+    assert angles == sorted(angles, reverse=True)
+    assert angles[-1] < -math.pi / 3 or math.isinf(weapon.flight_at(rad, 4000.0)[0])
+
+
+def test_the_peak_search_height_is_a_target_the_shot_can_just_reach():
+    weapon = Weapon.from_dict("w", ROCKET)
+    peak = weapon.flight_height(weapon.peak_elevation(500.0), 500.0)
+
+    low, high = weapon.elevations_to(500.0, peak)
+
+    assert not math.isnan(low) and not math.isnan(high)
+    assert low == pytest.approx(high, abs=1e-3)
+
+
+def test_an_axis_boost_pushing_almost_as_hard_as_gravity_peaks_late_in_a_long_burn():
+    raw = {"velocity": 2, "acceleration": 9.3, "acceleration_time": 10.0, "rotation_follows_velocity": False}
+    weapon = Weapon.from_dict("w", raw)
+    shot = flight.Shot(custom_game(raw), raw)
+    rad = math.radians(85.0)
+    top, at_distance, _ = oracle_apex(shot, rad, 60.0)
+
+    assert top > at_distance + 0.05
+    assert weapon.apex_height(rad, 60.0) == pytest.approx(top, abs=0.05)
+
+
+def test_a_horizontal_boost_along_the_barrel_has_no_apex():
+    raw = {"velocity": 20, "acceleration": 3, "acceleration_time": 4.0, "rotation_follows_velocity": False}
+    weapon = Weapon.from_dict("w", raw)
+
+    assert weapon.apex_height(0.0, 50.0) == -math.inf
+
+
+def test_a_boost_that_peaks_exactly_when_it_ends_still_has_its_apex(monkeypatch):
+    monkeypatch.setattr(ballistics, "GRAVITY", 10.0)
+    raw = {"velocity": 10, "acceleration": 5, "acceleration_time": 2.0, "rotation_follows_velocity": False}
+    weapon = Weapon.from_dict("w", raw)
+
+    assert weapon.apex_height(math.pi / 2, 1.0) == pytest.approx(10.0)
+
+
+def test_the_apex_of_an_axis_boost_after_the_burn_is_the_top_of_the_parabola_it_ends_in():
+    raw = ROCKET_ALONG_THE_BARREL
+    weapon = Weapon.from_dict("w", raw)
+    shot = flight.Shot(custom_game(raw), raw)
+    rad = math.radians(45.0)
+    top, at_distance, _ = oracle_apex(shot, rad, 4000.0)
+
+    assert top > at_distance + 0.05
+    assert weapon.apex_height(rad, 4000.0) == pytest.approx(top, abs=0.05)
+    assert weapon.apex_height(rad, 40.0) == -math.inf
+
+
+def test_the_top_after_the_burn_is_reported_only_from_the_distance_where_the_shot_gets_there():
+    raw = ROCKET_ALONG_THE_BARREL
+    weapon = Weapon.from_dict("w", raw)
+    rad = math.radians(45.0)
+    cos, sin, g = math.cos(rad), math.sin(rad), weapon.g
+    v0, a, boost = weapon.velocity, weapon.acceleration, weapon.acceleration_time
+    end_speed = v0 + a * boost
+    x = cos * (v0 * boost + 0.5 * a * boost * boost)
+    y = sin * (v0 * boost + 0.5 * a * boost * boost) - 0.5 * g * boost * boost
+    vx, vy = cos * end_speed, sin * end_speed - g * boost
+    top_x = x + vx * vy / g
+
+    assert weapon.apex_height(rad, top_x - 1.0) == -math.inf
+    assert weapon.apex_height(rad, top_x + 1.0) == pytest.approx(y + vy * vy / (2 * g))
