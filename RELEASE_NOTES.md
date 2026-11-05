@@ -1,3 +1,14 @@
+## Squad Ballistics 1.6.1
+
+Изменения с версии 1.6.0. / Changes since 1.6.0.
+
+### Исправлено / Fixed
+- **Шкала дальности и «mark off screen» доходят до 8000 м:** предел был 5000 м с допущением, что ни одна карта не длиннее 5 км по диагонали игровой зоны. По границам карт из файлов игры (`SQMapBoundary`, сборка 26005357) Yehorivka тянется на 7043 м из угла в угол, и 9 из 17 измеренных карт длиннее 5 км, поэтому у оружия, чья метка остаётся на экране дальше, не было рисок после 5 км, а строка оверлея не называла дальность, с которой метка уходит с экрана (РПГ-28 с 6360 м, Carl Gustav FFV441D с 6620 м, танковый АР Т-62 с 6510 м). / The range ladder and the "mark off screen past N m" line reach 8000 m. The limit was 5000 m on the assumption that no map is longer than 5 km across its play area; the game's map boundaries (`SQMapBoundary`, build 26005357) make Yehorivka 7043 m corner to corner and 9 of the 17 maps measured are longer than 5 km, so weapons whose mark stays on screen had no tick past 5 km and the overlay did not say where the mark leaves the screen (RPG-28 from 6360 m, Carl Gustav FFV441D from 6620 m, T-62 AP from 6510 m).
+
+### Документация / Documentation
+- **Шкалы прицелов:** `docs/sight-scales.md` и `.ru.md` перечисляют всё, что оверлей рисует в прицелах (метка, приближение, угол канала, точка запуска, шкала дальности, шкала миль, правила миномёта и АГС-17), источник каждого числа в файлах игры или в физике и сравнение с игрой; сетки прицелов (метки дальности на текстурах) в пакете сервера не читаются. / Sight scales: `docs/sight-scales.md` and `.ru.md` list everything the overlay draws in the sights (mark, zoom, bore, launch point, range ladder, mil scale, mortar and AGS-17 rules), the source of each number in the game files or in physics, and the comparison with the game; the reticle textures (range marks) cannot be read from the server package.
+- **Открыто:** ADS FOV ручных пусковых (`SeparateAdsFov` в файлах игры) не учитывается, нужен один замер в игре (deadline-squad/squad-ballistics#17). / Open: the ADS FOV of the hand-held launchers (`SeparateAdsFov` in the game files) is not used and needs one in-game measurement (deadline-squad/squad-ballistics#17).
+
 ## Squad Ballistics 1.6.0
 
 Изменения с версии 1.2.0, последней выпущенной. Версии 1.3.0–1.5.1 не выпускались: их записи ниже — история разработки, а всё, что из них осталось в программе, описано здесь. / Changes since 1.2.0, the last released version. Versions 1.3.0–1.5.1 were never released: their entries below are development history, and everything of them still in the app is described here.

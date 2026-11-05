@@ -1422,10 +1422,13 @@ def screen_offset(angle, fov, screen_width, scale=1.0):
 # is a round number and the ladder stays dense near the weapon.
 LADDER_STEPS = (25, 50, 100, 200, 250, 500, 1000)
 
-# A ladder longer than this is clutter (ticks, nearest first); no Squad
-# map is wider than LADDER_MAX_DISTANCE (m) diagonally across its play area.
+# A ladder longer than this is clutter (ticks, nearest first). The ladder
+# ends at LADDER_MAX_DISTANCE (m), which must cover the longest line across a
+# play area: the game's map boundaries (SQMapBoundary.XYBoundary, build
+# 26005357) reach 7043 m corner to corner on Yehorivka, and 9 of the 17 maps
+# measured are longer than 5000 m (tests/data/play_areas.json).
 LADDER_MAX_TICKS = 24
-LADDER_MAX_DISTANCE = 5000
+LADDER_MAX_DISTANCE = 8000
 
 
 # The most the field trim may add to or take off the barrel elevation (degrees).

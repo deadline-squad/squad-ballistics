@@ -204,6 +204,9 @@ The full aiming guide (what a pixel is worth per weapon, mouse settings, calibra
 
 Sight data (bore, zoom, launch point) of the emplaced and vehicle weapons and what is missing: [docs/sight-data.md](docs/sight-data.md), in Russian [docs/sight-data.ru.md](docs/sight-data.ru.md). / Данные прицела (угол канала, кратность, точка вылета) стационарного и машинного оружия и чего не хватает: [docs/sight-data.ru.md](docs/sight-data.ru.md), по-английски [docs/sight-data.md](docs/sight-data.md).
 
+Sight scales (what the overlay draws and where each number comes from): [docs/sight-scales.md](docs/sight-scales.md), in Russian [docs/sight-scales.ru.md](docs/sight-scales.ru.md). / Шкалы прицелов (что рисует оверлей и откуда каждое число): [docs/sight-scales.ru.md](docs/sight-scales.ru.md), по-английски [docs/sight-scales.md](docs/sight-scales.md).
+
+
 ### Linux
 
 On a Wayland session the app runs itself through XWayland so the overlay stays above the game (set `QT_QPA_PLATFORM` to override). Install and upgrade: see *Install* above. / В сессии Wayland программа сама запускается через XWayland, чтобы оверлей был поверх игры (`QT_QPA_PLATFORM` переопределяет). Установка и обновление — в разделе *Установка* выше.
