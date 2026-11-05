@@ -5,6 +5,7 @@ writable /dev/uinput, no Xvfb/xdotool).
 """
 
 import ctypes
+import fcntl
 import glob
 import os
 import shutil
@@ -19,6 +20,7 @@ from hotkeys import KEYS
 from keystate import BTN_EXTRA, BTN_SIDE, EVIOCGBIT_KEY, EVIOCGKEY, EVIOCGNAME, KEY_MAX, KEY_S, KEY_W
 
 KEY_F8 = KEYS["F8"]
+X11_BUTTON_SIDE = keystate.X11_BUTTONS[BTN_SIDE]
 
 
 def test_ioctl_numbers_match_linux_input_h():
@@ -538,3 +540,198 @@ def test_an_unplugged_mouse_is_dropped_and_its_return_is_read(fake_input):
     fake_input.now += keystate.FAILURE_RESCAN_SECONDS
 
     assert reader(BTN_SIDE)
+
+
+# ---------- found by mutation testing (mutmut) ----------
+
+def test_ioctl_numbers_are_built_from_the_number_and_the_size():
+    assert keystate._ioc_read(0x18, 96) == 0x80604518
+    assert keystate._ioc_read(0x06, 256) == 0x81004506
+
+
+def test_a_device_is_opened_read_only_nonblocking_and_not_inherited(tmp_path):
+    path = tmp_path / "event0"
+    path.write_bytes(b"")
+
+    fd = keystate._open_device(str(path))
+
+    try:
+        assert fcntl.fcntl(fd, fcntl.F_GETFL) & os.O_NONBLOCK
+        assert fcntl.fcntl(fd, fcntl.F_GETFD) & fcntl.FD_CLOEXEC
+        with pytest.raises(OSError):
+            os.write(fd, b"x")
+    finally:
+        os.close(fd)
+
+
+def test_a_device_that_does_not_answer_has_no_name(tmp_path):
+    path = tmp_path / "event0"
+    path.write_bytes(b"")
+    fd = os.open(path, os.O_RDONLY)
+
+    try:
+        assert keystate._device_name(fd) == b""
+    finally:
+        os.close(fd)
+
+
+@pytest.mark.parametrize("keys", [{KEY_S}, {KEY_W}])
+def test_a_device_with_only_one_of_the_keys_s_and_w_is_not_a_keyboard(fake_input, keys):
+    fake_input.plug("/dev/input/event0", keys=keys)
+
+    assert not make_reader(fake_input).available
+
+
+def test_the_devices_are_the_event_nodes_of_dev_input_in_name_order(monkeypatch):
+    patterns = []
+
+    def fake_glob(pattern):
+        patterns.append(pattern)
+        return ["/dev/input/event2", "/dev/input/event10", "/dev/input/event1"]
+
+    monkeypatch.setattr(keystate.glob, "glob", fake_glob)
+
+    assert keystate._input_devices() == ["/dev/input/event1", "/dev/input/event10", "/dev/input/event2"]
+    assert patterns == ["/dev/input/event*"]
+
+
+def test_evdev_reader_without_paths_reads_the_devices_of_dev_input(fake_input, monkeypatch):
+    fake_input.plug("/dev/input/event0")
+    monkeypatch.setattr(keystate.glob, "glob", lambda pattern: fake_input.paths())
+
+    reader = keystate.evdev_reader()
+
+    assert list(reader.devices) == ["/dev/input/event0"]
+
+
+def test_a_keyboard_that_replaced_a_rejected_device_is_no_longer_rejected(fake_input):
+    fake_input.plug("/dev/input/event4", keyboard=False)
+    reader = make_reader(fake_input)
+    assert "/dev/input/event4" in reader.rejected
+
+    fake_input.devices.pop("/dev/input/event4")
+    fake_input.plug("/dev/input/event4")
+    fake_input.now += keystate.RESCAN_SECONDS
+    reader(KEY_S)
+
+    assert reader.rejected == {}
+
+
+def test_the_key_state_is_asked_with_eviocgkey(fake_input, monkeypatch):
+    fake_input.plug("/dev/input/event0")
+    reader = make_reader(fake_input)
+    requests = []
+    answer = keystate.fcntl.ioctl
+
+    def spy(fd, request, buffer):
+        requests.append(request)
+        return answer(fd, request, buffer)
+
+    monkeypatch.setattr(keystate.fcntl, "ioctl", spy)
+    reader(KEY_S)
+
+    assert requests == [EVIOCGKEY]
+
+
+def test_the_next_scan_stays_due_when_every_device_answers(fake_input):
+    fake_input.plug("/dev/input/event0")
+    reader = make_reader(fake_input)
+    fake_input.now += 0.1
+
+    reader(KEY_S)
+
+    assert reader.next_scan == keystate.RESCAN_SECONDS
+
+
+def test_a_failing_device_brings_the_next_scan_forward_by_the_failure_delay(fake_input):
+    fake_input.plug("/dev/input/event0")
+    reader = make_reader(fake_input)
+    fake_input.unplug("/dev/input/event0")
+    fake_input.now = 1.0
+
+    reader(KEY_S)
+
+    assert reader.next_scan == 1.0 + keystate.FAILURE_RESCAN_SECONDS
+
+
+class FakeFunction:
+    """A C function that takes ctypes' argtypes and answers `result`."""
+
+    def __init__(self, result=0):
+        self.result = result
+
+    def __call__(self, *args):
+        return self.result
+
+
+class FakeLibrary:
+    """libXi and libX11 with the calls x11_button_reader makes."""
+
+    def __init__(self, pointer_query_result):
+        self.XIQueryVersion = FakeFunction(0)
+        self.XIQueryPointer = FakeFunction(pointer_query_result)
+        self.XRootWindow = FakeFunction(1)
+        self.XDefaultScreen = FakeFunction(0)
+        self.XFree = FakeFunction()
+
+
+def test_a_pointer_that_is_not_on_the_screen_has_no_button_down(monkeypatch):
+    """XIQueryPointer answers False when the pointer is on another screen."""
+    library = FakeLibrary(pointer_query_result=0)
+    monkeypatch.setattr(keystate.ctypes, "CDLL", lambda name: library)
+
+    reader = keystate.x11_button_reader(library, display=1)
+
+    assert reader(X11_BUTTON_SIDE) is False
+
+
+class FakeLoader:
+    """ctypes.util.find_library and ctypes.CDLL over `found` (library short
+    name -> file name, or nothing): records the names asked for."""
+
+    def __init__(self, monkeypatch, library, found=None):
+        self.found = found or {}
+        self.searched = []
+        self.loaded = []
+        self.library = library
+        monkeypatch.setattr(keystate.ctypes.util, "find_library", self.find_library)
+        monkeypatch.setattr(keystate.ctypes, "CDLL", self.load)
+
+    def find_library(self, name):
+        self.searched.append(name)
+        return self.found.get(name)
+
+    def load(self, name):
+        self.loaded.append(name)
+        return self.library
+
+
+def test_libxi_is_found_by_its_name_and_else_loaded_by_its_soname(monkeypatch):
+    library = FakeLibrary(pointer_query_result=1)
+    loader = FakeLoader(monkeypatch, library)
+
+    keystate.x11_button_reader(library, display=1)
+
+    assert loader.searched == ["Xi"] and loader.loaded == ["libXi.so.6"]
+
+    loader = FakeLoader(monkeypatch, library, found={"Xi": "/opt/lib/libXi.so.9"})
+
+    keystate.x11_button_reader(library, display=1)
+
+    assert loader.loaded == ["/opt/lib/libXi.so.9"]
+
+
+def test_libx11_is_found_by_its_name_and_else_loaded_by_its_soname(monkeypatch):
+    monkeypatch.setenv("DISPLAY", ":1")
+    library = FakeLibrary(pointer_query_result=1)
+    library.XOpenDisplay = FakeFunction(0)
+    library.XQueryKeymap = FakeFunction()
+    loader = FakeLoader(monkeypatch, library)
+
+    assert keystate.x11_reader() is None
+    assert loader.searched == ["X11"] and loader.loaded == ["libX11.so.6"]
+
+    loader = FakeLoader(monkeypatch, library, found={"X11": "/opt/lib/libX11.so.9"})
+
+    assert keystate.x11_reader() is None
+    assert loader.loaded == ["/opt/lib/libX11.so.9"]
