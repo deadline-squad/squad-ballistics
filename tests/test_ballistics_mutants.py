@@ -1326,6 +1326,16 @@ def test_a_capped_flight_comes_down_more_and_more_steeply_to_the_end_of_its_reac
     assert angles[-1] < -math.pi / 3 or math.isinf(weapon.flight_at(rad, 4000.0)[0])
 
 
+def test_a_shot_that_comes_down_to_exactly_the_ground_at_the_peak_elevation_is_the_root(monkeypatch):
+    """The height at the highest elevation is bit-exactly 0.0 (the target is
+    the longest range): that elevation is the answer, not NaN."""
+    weapon = Weapon.from_dict("w", ROCKET)
+    longest, top = weapon._max_range
+    monkeypatch.setattr(Weapon, "flight_height", lambda self, rad, distance: 100.0 * (rad - top))
+
+    assert weapon.flat_low_elevation(longest) == top
+
+
 def test_the_peak_search_height_is_a_target_the_shot_can_just_reach():
     weapon = Weapon.from_dict("w", ROCKET)
     peak = weapon.flight_height(weapon.peak_elevation(500.0), 500.0)
