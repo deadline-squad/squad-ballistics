@@ -32,13 +32,13 @@ Test files given to `mutmut run`: `config`: `test_config.py`, `test_config_behav
 
 ## Results per module
 
-"Original suite" is the suite of `dev` at `5f11d21` (measured again with the same commands, so the baseline of `config` and `keystate` can differ slightly from earlier runs). "New tests" are the tests added next to it; for `ballistics` they were checked mutant by mutant against the survivors of the original run (one mutant, `pytest -x`), not by a second full `mutmut run`.
+"Original suite" is the suite of `dev` at `5f11d21` (measured again with the same commands, so the baseline of `config` and `keystate` can differ slightly from earlier runs). "New tests" are the tests added next to it; for `ballistics` the 459 mutants that the original run did not kill were re-run one by one against the final suite (`MUTANT_UNDER_TEST`, `pytest -x`), because a second full `mutmut run` of 2356 mutants with the flight-oracle tests did not fit in the time available (a started run was stopped at 286 mutants).
 
-| Module | Total | Killed by original suite | Killed by new tests | Equivalent | Not examined |
+| Module | Total | Killed by original suite | Killed by new tests | Equivalent | Open |
 |---|---|---|---|---|---|
 | `config.py` | 324 | 300 (+9 crash) | 6 | 9 | 0 |
 | `keystate.py` | 289 | 233 (+18 crash) | 30 (incl. 4 that had no test) | 8 | 0 |
-| `ballistics.py` | 2356 | 1897 | 339 | 11 | 109 |
+| `ballistics.py` | 2356 | 1897 | 421 | 37 | 1 |
 | `crosshair.py` | 4097 | 700 (970 of 4097 run) | 0 | 0 | 3397 (see below) |
 
 The original `ballistics` run had 439 survivors, 11 mutants without tests and 9 timeouts (459 not killed). `crosshair.py` was not finished: the run (4097 mutants, 970 checked: 700 killed, 158 survived, 86 suspicious, 25 without tests, 1 crash) was stopped when the time budget ran out; its survivors are listed below as not examined.
@@ -86,129 +86,71 @@ Tests are in `tests/test_config_behaviour.py`, `tests/test_keystate.py` and the 
 | `Weapon.from_dict__mutmut_33` | `number("velocity", 0) -> 1` | dead default: velocity is required and checked before |
 | `Weapon.time_to__mutmut_1` | `distance <= 0 -> distance < 0` | at 0 both branches return 0.0 |
 | `Weapon.time_to__mutmut_7` | `distance <= boost_distance -> <` | branches meet at boost_distance (continuous) |
+| `Weapon._coast_height__mutmut_24` | `tau > onset -> >=` | branches agree at tau == onset (continuous) |
+| `Weapon._coast_height__mutmut_40` | `min(1.0, vx / cap) -> min(2.0, ...)` | vx never exceeds the cap, so vx / cap is at most 1 |
+| `Weapon._coast_at__mutmut_24` | `tau > onset -> >=` | branches agree at tau == onset (continuous) |
+| `Weapon._coast_at__mutmut_40` | `min(1.0, vx / cap) -> min(2.0, ...)` | vx never exceeds the cap, so vx / cap is at most 1 |
+| `Weapon._coast_at__mutmut_49` | `turn >= pi/2 -> >` | needs turn == pi/2 to the last bit; both sides give the same limit |
 | `Weapon.flight_height__mutmut_17` | `ahead < x -> ahead <= x` | branches agree at ahead == x (continuous) |
 | `Weapon.flight_height__mutmut_51` | `ahead <= cos*length -> <` | branches agree at ahead == cos*length (continuous) |
 | `Weapon.flight_height__mutmut_108` | `ahead < x -> ahead <= x` | branches agree at ahead == x (continuous) |
+| `Weapon.flight_at__mutmut_17` | `ahead < x -> ahead <= x` | branches agree at ahead == x (continuous) |
+| `Weapon.flight_at__mutmut_69` | `ahead <= cos*length -> <` | branches agree at ahead == cos*length (continuous) |
+| `Weapon.flight_at__mutmut_145` | `ahead < x -> ahead <= x` | branches agree at ahead == x (continuous) |
+| `Weapon.apex_height__mutmut_18` | `x > ahead -> >=` | point at x == ahead: the apex there is also covered by the next test (continuous) |
+| `Weapon.peak_elevation__mutmut_23` | `high - low <= ANGLE_TOLERANCE -> <` | tie on a tolerance |
+| `Weapon.peak_elevation__mutmut_25` | `left_height < right_height -> <=` | a tie only happens on a -inf plateau, where every caller treats the peak as unreachable |
+| `x__fly_boost__mutmut_30` | `speed_squared > cap_squared -> >=` | at equality the cap factor is 1 |
+| `x__fly_boost__mutmut_69` | `speed_squared > cap_squared -> >=` | at equality the cap factor is 1 |
+| `x__find_root__mutmut_5` | `far_error >= 0 -> > 0` | far_error == 0 means far is already the root; the bracket then closes on it |
+| `x__find_root__mutmut_29` | `kept = 0 -> None` | kept is only compared with -1 and 1 |
+| `x__find_root__mutmut_35` | `abs(far - near) <= ANGLE_TOLERANCE -> <` | tie on a tolerance; the root is the same |
+| `x__find_root__mutmut_46` | `abs(root_error) <= HEIGHT_TOLERANCE -> <` | tie on a tolerance; the root is the same |
+| `x__find_root__mutmut_48` | `root_error < 0 -> <= 0` | root_error == 0 is caught by the tolerance test just before |
+| `x_solve__mutmut_95` | `continue -> break` | the high arc is the last one of the loop |
+| `x_first_obstacle__mutmut_2` | `not reachable or not profile -> and` | an unsolved shot has a NaN angle: every height comparison is false and None is returned anyway |
+| `x_first_obstacle__mutmut_36` | `break -> return` | the function returns None right after the loop |
 | `x_mark_offset__mutmut_7` | `fov <= 179 -> fov <= 180` | screen_offset repeats the guard with the same message |
+| `x_mark_resolution__mutmut_16` | `solve(..., arc) -> solve(..., None)` | only the line of sight (angle - sight_angle) is used, the same on every arc |
+| `x_mark_resolution__mutmut_22` | `solve(..., arc, aim_lift) -> solve(..., arc)` | only the line of sight is used, the same on every arc and for every aim_lift |
+| `x_mark_height_resolution__mutmut_30` | `solve(..., arc) -> solve(..., None)` | the high arc has a negative slope, so mark_resolution returns None first |
 | `x_mark_visible_range__mutmut_50` | `high - low > 0.01 -> >=` | one more halving; the edge is only specified to 1 cm |
+| `x_trim_for_landing__mutmut_40` | `distance <= 0 -> < 0` | solve raises the same message for distance 0 |
+| `x_range_ladder__mutmut_67` | `s <= distance / 4 -> <` | LADDER_STEPS divide each other, so the rounding is the same at the tie |
 | `x_load_weapons__mutmut_5` | `open(path, "r", ...) -> open(path, ...)` | "r" is the default mode |
 | `x_load_weapons__mutmut_10` | `encoding="utf-8" -> "UTF-8"` | alias of the same codec |
 
 ## Not examined
 
-Survivors of `ballistics.py` that no new test kills yet and that are not proven equivalent (the time budget ended): 109. Most are in `_find_root`, `flat_low_elevation`, `elevations_to`, `peak_elevation`, `_BoostTable` and the coast of a capped flight, which need more oracle tests (bracket and step-size changes there probably change only the iteration count). They are not declared equivalent.
+## Killed mutants per test group
+
+Mutant numbers are the suffix of `ballistics.<function>__mutmut_<n>` (the 459 not killed by the original suite). Every id of a row was killed by at least one test of its group when run alone with `pytest -x`; the flight, apex and boost-table rows need the oracle tests.
+
+| Test group | Function: killed mutant numbers |
+|---|---|
+| Entry and file validation: test_an_invalid_entry_is_refused_with_its_reason, test_limits_that_the_entry_reaches_exactly_are_valid, test_an_entry_with_every_field_is_read_field_by_field, test_an_entry_with_only_a_velocity_gets_the_defaults, test_a_deceleration_is_a_negative_acceleration_with_its_own_time, test_the_weapons_file_is_checked_with_a_message_each_for_what_is_wrong, test_the_weapons_file_is_read_as_utf8_whatever_the_locale, test_the_two_views_of_an_rmb_sight_name_each_other | `Weapon.from_dict`: 2, 9, 13, 19, 22, 25, 71, 87, 88, 89, 90, 93, 96, 100, 101, 111, 113, 141, 144, 155, 157, 161, 162, 166, 184, 193, 194, 197, 198, 199, 209, 230, 250, 251, 273, 275, 276, 278, 286, 289, 290, 296, 302, 312, 313, 314, 320, 321, 323, 328, 329, 337, 338, 339, 342, 346, 347, 349, 353, 354, 355, 363, 364, 365, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 378, 379<br>`load_weapons`: 3, 6, 13, 14<br>`parse_weapons`: 2, 3, 4, 15, 16, 17<br>`view_twin`: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11<br>`Weapon.hold_time`: 7 |
+| Straight flight and clamp: the time_to / velocity_at tests, test_the_key_holds_the_barrel_down_to_the_lowest_elevation_inclusive, test_a_fall_that_ends_exactly_at_the_speed_cap_does_not_clamp_the_flight | `Weapon.time_to`: 3, 6, 9, 17, 18, 21, 22, 23<br>`Weapon.velocity_at`: 1, 2, 3<br>`Weapon._clamps_before`: 2, 7, 10, 11, 12<br>`Weapon._clamped_launch`: 20 |
+| Game-substep oracle: test_the_flight_follows_the_games_substeps, test_the_flight_of_made_up_weapons_follows_the_games_substeps, test_a_shell_fired_faster_than_its_cap_is_followed_close_to_the_muzzle, the "shell that nearly stops" case of the made-up test | `Weapon.flight_at`: 26, 27, 28, 29, 30, 31, 32, 37, 38, 59, 60, 64, 65, 66, 70, 72, 74, 75, 76, 77, 83, 84, 85, 86, 87, 88, 90, 91, 92, 93, 94, 95, 96, 97, 98, 103, 108, 109, 110, 111, 114, 131, 132, 138, 146, 147, 148, 173, 188, 192, 197<br>`Weapon.flight_height`: 54, 65, 109, 110<br>`_fly_boost`: 17, 18 |
+| Apex: test_the_apex_follows_the_games_substeps, test_the_apex_of_a_parabola_from_a_raised_muzzle_is_its_top_if_it_has_been_passed, test_a_slow_boost_along_the_barrel_*, test_a_boost_along_the_barrel_that_is_still_climbing_*, test_the_top_after_the_burn_*, test_an_axis_boost_pushing_*, test_a_horizontal_boost_*, test_a_boost_that_peaks_exactly_when_it_ends_*, test_a_flat_shot_has_no_apex_above_its_muzzle | `Weapon.apex_height`: 7, 32, 33, 34, 35, 36, 37, 42, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 60, 62, 64, 65, 69, 70, 75, 76, 78, 79, 80, 81, 82, 84, 86, 87, 88, 89, 96, 102, 103, 104, 106, 107 |
+| Capped coast: test_a_capped_flight_never_reaches_a_point_beyond_where_it_has_turned_straight_down, test_a_capped_flight_comes_down_more_and_more_steeply_to_the_end_of_its_reach | `Weapon._coast_at`: 5, 12, 13, 20, 21, 23, 25, 26, 27, 28, 30, 31, 50, 51, 52, 53, 54, 55, 72, 75 |
+| Boost table: test_the_boost_table_has_a_node_per_degree_*, test_a_boost_node_is_the_boost_flown_*, test_four_nodes_around_the_elevation_*, test_the_substep_points_are_the_weighted_sum_*, test_the_substep_holding_a_distance_is_found_by_halving | `_BoostTable.__init__`: 1, 2, 3, 4, 5, 6, 7, 8, 9<br>`_BoostTable.node`: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17<br>`_BoostTable.stencil`: 15, 17, 18, 20<br>`_BoostTable.segment`: 5, 6, 7, 11, 19<br>`_BoostTable.points`: 4, 6, 7, 8, 13, 14, 15 |
+| Elevation searches: test_a_root_is_bracketed_by_doubling_steps_*, test_the_elevation_searches_find_their_roots_in_the_expected_number_of_flights, test_the_low_elevation_to_the_longest_range_*, test_a_flat_low_elevation_lands_where_the_game_lands_*, test_the_peak_search_height_is_a_target_the_shot_can_just_reach | `_find_root`: 17, 24, 25, 26, 30, 34, 54, 56, 65<br>`Weapon.elevations_to`: 21, 22, 43, 56, 63<br>`Weapon.flat_low_elevation`: 1, 2, 4, 12, 19, 27 |
+| solve and trajectory: test_a_target_the_elevation_limits_refuse_*, test_an_arc_at_exactly_the_lowest_elevation_limit_*, test_an_arc_beyond_the_limits_*, test_the_apex_of_a_shot_that_only_falls_is_its_muzzle, the solve message / aim / limit tests, test_a_path_is_sampled_at_sixty_five_points_by_default | `solve`: 13, 14, 15, 16, 19, 20, 21, 22, 43, 46, 50, 51, 72, 73, 81, 84, 85, 86, 105, 106, 144, 145, 146, 155<br>`trajectory`: 1<br>`resolve_arc`: 2, 6 |
+| Obstacle search: the first_obstacle tests, test_a_path_that_just_touches_the_terrain_does_not_pass_under_it, test_an_obstacle_search_for_a_target_out_of_reach_finds_nothing | `first_obstacle`: 1, 17, 21, 32, 35, 41 |
+| Mark: test_a_pixel_of_the_mark_is_worth_*, the mark_visible_range tests, test_a_weapon_with_a_gravity_of_exactly_one_has_a_mark, test_a_weapon_laid_by_elevation_has_no_mark_*, the screen_offset / mark_offset tests | `mark_resolution`: 2, 6, 11, 25, 28, 30, 31, 32, 33, 44, 57, 58, 59, 60, 62, 63, 64, 69, 71<br>`mark_height_resolution`: 2, 5, 14, 24, 36<br>`mark_visible_range`: 6, 11, 38, 43, 45, 49, 55, 66, 71, 73, 84, 87, 88<br>`_mark_at`: 11, 24<br>`mark_offset`: 4, 5, 6, 8, 9, 10, 11<br>`screen_offset`: 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18 |
+| Trim and ladder: test_a_trim_is_refused_with_the_reason_in_words, test_a_shot_one_metre_away_*, the range_ladder tests | `trim_for_landing`: 8, 9, 14, 15, 27, 28, 30, 31, 37, 38, 41, 43, 47, 49<br>`range_ladder`: 13, 16, 17, 41, 44, 47, 50, 51, 52, 53, 54, 60, 70, 81, 82 |
+
+## Capped boost weapons against the oracle
+
+Two made-up weapons (a speed cap with a motor) first differed from `tests/flight.py` by up to 0.2 m near the muzzle. Findings: (1) "rocket that burns until the cap" was an oracle-input error: the oracle treats `acceleration_timeout` 0 as "burns forever" while `acceleration_time` 0 means "no motor" in `ballistics.py` (the only game weapon with that combination in `tests/data/game_weapons.json` is NLAW); the 2 km differences came from that. (2) The two cap weapons with a finite burn differ from the oracle by at most 1.6 cm over -4..75 degrees at 0.5-900 m (4 mm for the follow-velocity one, 9 mm at 900 m, -4 degrees) and by 4 cm (follows velocity) and 0.5 m (flies along the barrel) at 89 degrees and 120 m. That is the interpolation error of the boost table, whose nodes are 1 degree apart, where the flight depends steeply on the elevation (near vertical); it is an approximation limit, not a logic defect, and no weapon is aimed there. The tolerance of the oracle tests stays at the 3 mm / 0.01 m of the real weapons and these two weapons are not in the made-up list. (3) A separate defect was found and filed: [issue 16](https://github.com/deadline-squad/squad-ballistics/issues/16), `flight_at` raises `math domain error` within about 1e-4 m of the end of a capped flight's reach.
+
+## Not killed and not proven equivalent
+
+Survivors of `ballistics.py` after the final re-run: 1. They are listed below with their diffs. `flat_low_elevation` 18 (`error(top) < 0` to `<= 0`) differs only when the height at the peak elevation is bit-exactly 0.0, which no weapon of the suite produces.
 
 | Mutant | Diff |
 |---|---|
-| `x__find_root__mutmut_17` | `-        far = min(max(top + direction * step, -ELEVATION_LIMIT), ELEVATION_LIMIT) +        far = min(max(top + direction / step, -ELEVATION` |
-| `x__find_root__mutmut_24` | `-        step *= 2 +        step = 2 ` |
-| `x__find_root__mutmut_25` | `-        step *= 2 +        step /= 2 ` |
-| `x__find_root__mutmut_26` | `-        step *= 2 +        step *= 3 ` |
-| `x__find_root__mutmut_29` | `-    kept = 0 +    kept = None ` |
-| `x__find_root__mutmut_30` | `-    kept = 0 +    kept = 1 ` |
-| `x__find_root__mutmut_34` | `-        if abs(far - near) <= ANGLE_TOLERANCE: +        if abs(far + near) <= ANGLE_TOLERANCE: ` |
-| `x__find_root__mutmut_35` | `-        if abs(far - near) <= ANGLE_TOLERANCE: +        if abs(far - near) < ANGLE_TOLERANCE: ` |
-| `x__find_root__mutmut_46` | `-        if abs(root_error) <= HEIGHT_TOLERANCE: +        if abs(root_error) < HEIGHT_TOLERANCE: ` |
-| `x__find_root__mutmut_48` | `-        if root_error < 0: +        if root_error <= 0: ` |
-| `x__find_root__mutmut_5` | `-    while far_error >= 0: +    while far_error > 0: ` |
-| `x__find_root__mutmut_54` | `-                near_error /= 2 +                near_error = 2 ` |
-| `x__find_root__mutmut_56` | `-                near_error /= 2 +                near_error /= 3 ` |
-| `x__find_root__mutmut_65` | `-                far_error /= 2 +                far_error /= 3 ` |
-| `x__fly_boost__mutmut_30` | `-            if speed_squared > cap_squared: +            if speed_squared >= cap_squared: ` |
-| `x__fly_boost__mutmut_69` | `-            if speed_squared > cap_squared: +            if speed_squared >= cap_squared: ` |
-| `x_first_obstacle__mutmut_2` | `-    if not solution.reachable or not profile or not step: +    if not solution.reachable and not profile or not step: ` |
-| `x_first_obstacle__mutmut_36` | `-            break +            return ` |
-| `x_first_obstacle__mutmut_41` | `-        if weapon.flight_height(rad, x) < profile[i]: +        if weapon.flight_height(rad, x) <= profile[i]: ` |
-| `x_mark_height_resolution__mutmut_30` | `-    solution = solve(weapon, distance, height, arc, aim_lift) +    solution = solve(weapon, distance, height, None, aim_lift) ` |
-| `x_mark_resolution__mutmut_11` | `-    if weapon.aim != "overlay" or weapon.g == 0: +    if weapon.aim != "overlay" or weapon.g == 1: ` |
-| `x_mark_resolution__mutmut_16` | `-    centre = solve(weapon, distance, height, arc, aim_lift) +    centre = solve(weapon, distance, height, None, aim_lift) ` |
-| `x_mark_resolution__mutmut_22` | `-    centre = solve(weapon, distance, height, arc, aim_lift) +    centre = solve(weapon, distance, height, arc, ) ` |
-| `x_mark_resolution__mutmut_6` | `-    if weapon.aim != "overlay" or weapon.g == 0: +    if weapon.aim != "overlay" and weapon.g == 0: ` |
-| `x_mark_visible_range__mutmut_11` | `-    if weapon.aim != "overlay" or weapon.g == 0: +    if weapon.aim != "overlay" or weapon.g == 1: ` |
-| `x_mark_visible_range__mutmut_6` | `-    if weapon.aim != "overlay" or weapon.g == 0: +    if weapon.aim != "overlay" and weapon.g == 0: ` |
-| `x_range_ladder__mutmut_50` | `-            distance += LADDER_STEPS[0] +            distance = LADDER_STEPS[0] ` |
-| `x_range_ladder__mutmut_51` | `-            distance += LADDER_STEPS[0] +            distance -= LADDER_STEPS[0] ` |
-| `x_range_ladder__mutmut_67` | `-            (s for s in LADDER_STEPS if s <= distance / 4), default=LADDER_STEPS[0] +            (s for s in LADDER_STEPS if s < distance /` |
-| `x_solve__mutmut_155` | `-        start_y, aim_height, weapon.apex_height(rad, distance) +        aim_height, weapon.apex_height(rad, distance) ` |
-| `x_solve__mutmut_46` | `-        result.velocity = weapon.velocity_at(math.hypot(distance, aim_rise)) +        result.velocity = None ` |
-| `x_solve__mutmut_50` | `-        result.velocity = weapon.velocity_at(math.hypot(distance, aim_rise)) +        result.velocity = weapon.velocity_at(math.hypot(aim_r` |
-| `x_solve__mutmut_51` | `-        result.velocity = weapon.velocity_at(math.hypot(distance, aim_rise)) +        result.velocity = weapon.velocity_at(math.hypot(dista` |
-| `x_solve__mutmut_84` | `-        if not low_limit <= angle <= high_limit: +        if not low_limit < angle <= high_limit: ` |
-| `x_solve__mutmut_95` | `-            continue +            break ` |
-| `x_trim_for_landing__mutmut_40` | `-    if distance <= 0: +    if distance < 0: ` |
-| `Weapon._coast_at__mutmut_24` | `-        if tau > onset: +        if tau >= onset: ` |
-| `Weapon._coast_at__mutmut_40` | `-            cos_onset = min(1.0, vx / cap) +            cos_onset = min(2.0, vx / cap) ` |
-| `Weapon._coast_at__mutmut_49` | `-            if turn >= math.pi / 2: +            if turn > math.pi / 2: ` |
-| `Weapon._coast_at__mutmut_50` | `-            if turn >= math.pi / 2: +            if turn >= math.pi * 2: ` |
-| `Weapon._coast_at__mutmut_51` | `-            if turn >= math.pi / 2: +            if turn >= math.pi / 3: ` |
-| `Weapon._coast_at__mutmut_52` | `-                return -math.inf, math.inf, -math.pi / 2 +                return +math.inf, math.inf, -math.pi / 2 ` |
-| `Weapon._coast_at__mutmut_53` | `-                return -math.inf, math.inf, -math.pi / 2 +                return -math.inf, math.inf, -math.pi * 2 ` |
-| `Weapon._coast_at__mutmut_54` | `-                return -math.inf, math.inf, -math.pi / 2 +                return -math.inf, math.inf, +math.pi / 2 ` |
-| `Weapon._coast_at__mutmut_55` | `-                return -math.inf, math.inf, -math.pi / 2 +                return -math.inf, math.inf, -math.pi / 3 ` |
-| `Weapon._coast_height__mutmut_24` | `-        if tau > onset: +        if tau >= onset: ` |
-| `Weapon._coast_height__mutmut_40` | `-            cos_onset = min(1.0, vx / cap) +            cos_onset = min(2.0, vx / cap) ` |
-| `Weapon.apex_height__mutmut_102` | `-    if vy > 0 and g and x + vx * vy / g <= ahead: +    if vy >= 0 and g and x + vx * vy / g <= ahead: ` |
-| `Weapon.apex_height__mutmut_104` | `-    if vy > 0 and g and x + vx * vy / g <= ahead: +    if vy > 0 and g and x - vx * vy / g <= ahead: ` |
-| `Weapon.apex_height__mutmut_106` | `-    if vy > 0 and g and x + vx * vy / g <= ahead: +    if vy > 0 and g and x + vx / vy / g <= ahead: ` |
-| `Weapon.apex_height__mutmut_107` | `-    if vy > 0 and g and x + vx * vy / g <= ahead: +    if vy > 0 and g and x + vx * vy / g < ahead: ` |
-| `Weapon.apex_height__mutmut_18` | `-            if x > ahead: +            if x >= ahead: ` |
-| `Weapon.apex_height__mutmut_42` | `-        if denominator > 0: +        if denominator > 1: ` |
-| `Weapon.apex_height__mutmut_46` | `-            if 0 < rising <= boost and cos * (v0 * rising + 0.5 * a * rising ** 2) <= ahead: +            if 0 < rising <= boost or cos * (` |
-| `Weapon.apex_height__mutmut_48` | `-            if 0 < rising <= boost and cos * (v0 * rising + 0.5 * a * rising ** 2) <= ahead: +            if 0 <= rising <= boost and cos *` |
-| `Weapon.apex_height__mutmut_49` | `-            if 0 < rising <= boost and cos * (v0 * rising + 0.5 * a * rising ** 2) <= ahead: +            if 0 < rising < boost and cos * (` |
-| `Weapon.apex_height__mutmut_50` | `-            if 0 < rising <= boost and cos * (v0 * rising + 0.5 * a * rising ** 2) <= ahead: +            if 0 < rising <= boost and cos / ` |
-| `Weapon.apex_height__mutmut_51` | `-            if 0 < rising <= boost and cos * (v0 * rising + 0.5 * a * rising ** 2) <= ahead: +            if 0 < rising <= boost and cos * ` |
-| `Weapon.apex_height__mutmut_54` | `-            if 0 < rising <= boost and cos * (v0 * rising + 0.5 * a * rising ** 2) <= ahead: +            if 0 < rising <= boost and cos * ` |
-| `Weapon.apex_height__mutmut_55` | `-            if 0 < rising <= boost and cos * (v0 * rising + 0.5 * a * rising ** 2) <= ahead: +            if 0 < rising <= boost and cos * ` |
-| `Weapon.apex_height__mutmut_56` | `-            if 0 < rising <= boost and cos * (v0 * rising + 0.5 * a * rising ** 2) <= ahead: +            if 0 < rising <= boost and cos * ` |
-| `Weapon.apex_height__mutmut_57` | `-            if 0 < rising <= boost and cos * (v0 * rising + 0.5 * a * rising ** 2) <= ahead: +            if 0 < rising <= boost and cos * ` |
-| `Weapon.apex_height__mutmut_58` | `-            if 0 < rising <= boost and cos * (v0 * rising + 0.5 * a * rising ** 2) <= ahead: +            if 0 < rising <= boost and cos * ` |
-| `Weapon.apex_height__mutmut_7` | `-    ahead = distance - start_x +    ahead = distance + start_x ` |
-| `Weapon.apex_height__mutmut_78` | `-        x, y = cos * length, sin * length - 0.5 * g * boost * boost +        x, y = cos / length, sin * length - 0.5 * g * boost * boost ` |
-| `Weapon.apex_height__mutmut_86` | `-        vx, vy = cos * end_speed, sin * end_speed - g * boost +        vx, vy = cos / end_speed, sin * end_speed - g * boost ` |
-| `Weapon.apex_height__mutmut_96` | `-        x, y, vx, vy = 0.0, 0.0, v0 * cos, v0 * sin +        x, y, vx, vy = 1.0, 0.0, v0 * cos, v0 * sin ` |
-| `Weapon.elevations_to__mutmut_43` | `-    if self.flight_height(top, distance) < height: +    if self.flight_height(top, distance) <= height: ` |
-| `Weapon.elevations_to__mutmut_56` | `-    return _find_root(error, top, -1), _find_root(error, top, 1) +    return _find_root(error, top, -2), _find_root(error, top, 1) ` |
-| `Weapon.elevations_to__mutmut_63` | `-    return _find_root(error, top, -1), _find_root(error, top, 1) +    return _find_root(error, top, -1), _find_root(error, top, 2) ` |
-| `Weapon.flat_low_elevation__mutmut_1` | `-    if self.is_parabola and not self._clamps_before(0.0): +    if self.is_parabola or not self._clamps_before(0.0): ` |
-| `Weapon.flat_low_elevation__mutmut_12` | `-    if distance > longest: +    if distance >= longest: ` |
 | `Weapon.flat_low_elevation__mutmut_18` | `-    if error(top) < 0: +    if error(top) <= 0: ` |
-| `Weapon.flat_low_elevation__mutmut_19` | `-    if error(top) < 0: +    if error(top) < 1: ` |
-| `Weapon.flat_low_elevation__mutmut_27` | `-    return _find_root(error, top, -1) +    return _find_root(error, top, -2) ` |
-| `Weapon.flat_low_elevation__mutmut_4` | `-    if self.is_parabola and not self._clamps_before(0.0): +    if self.is_parabola and not self._clamps_before(1.0): ` |
-| `Weapon.flight_at__mutmut_145` | `-        if ahead < x: +        if ahead <= x: ` |
-| `Weapon.flight_at__mutmut_17` | `-        if ahead < x: +        if ahead <= x: ` |
-| `Weapon.flight_at__mutmut_69` | `-        if ahead <= cos * length: +        if ahead < cos * length: ` |
-| `Weapon.peak_elevation__mutmut_23` | `-        if high - low <= ANGLE_TOLERANCE: +        if high - low < ANGLE_TOLERANCE: ` |
-| `Weapon.peak_elevation__mutmut_25` | `-        if left_height < right_height: +        if left_height <= right_height: ` |
-| `_BoostTable.__init____mutmut_7` | `-    self.count = round(math.pi / BOOST_NODE_SPACING) + 1 +    self.count = round(math.pi / BOOST_NODE_SPACING) + 2 ` |
-| `_BoostTable.node__mutmut_1` | `-    node = self.nodes[index] +    node = None ` |
-| `_BoostTable.node__mutmut_13` | `-        node = self.nodes[index] = ( -            tuple(p[0] for p in points), tuple(p[1] for p in points), vx, vy -        ) +        node` |
-| `_BoostTable.node__mutmut_14` | `-            tuple(p[0] for p in points), tuple(p[1] for p in points), vx, vy +            tuple(None), tuple(p[1] for p in points), vx, vy ` |
-| `_BoostTable.node__mutmut_16` | `-            tuple(p[0] for p in points), tuple(p[1] for p in points), vx, vy +            tuple(p[0] for p in points), tuple(None), vx, vy ` |
-| `_BoostTable.node__mutmut_17` | `-            tuple(p[0] for p in points), tuple(p[1] for p in points), vx, vy +            tuple(p[0] for p in points), tuple(p[2] for p in ` |
-| `_BoostTable.node__mutmut_4` | `-            self.weapon, -math.pi / 2 + index * BOOST_NODE_SPACING +            None, -math.pi / 2 + index * BOOST_NODE_SPACING ` |
-| `_BoostTable.node__mutmut_5` | `-            self.weapon, -math.pi / 2 + index * BOOST_NODE_SPACING +            self.weapon, None ` |
-| `_BoostTable.node__mutmut_6` | `-            self.weapon, -math.pi / 2 + index * BOOST_NODE_SPACING +            -math.pi / 2 + index * BOOST_NODE_SPACING ` |
-| `_BoostTable.node__mutmut_7` | `-            self.weapon, -math.pi / 2 + index * BOOST_NODE_SPACING -        ) +            self.weapon, ) ` |
-| `_BoostTable.node__mutmut_8` | `-            self.weapon, -math.pi / 2 + index * BOOST_NODE_SPACING +            self.weapon, -math.pi / 2 - index * BOOST_NODE_SPACING ` |
-| `_BoostTable.node__mutmut_9` | `-            self.weapon, -math.pi / 2 + index * BOOST_NODE_SPACING +            self.weapon, -math.pi * 2 + index * BOOST_NODE_SPACING ` |
-| `_BoostTable.points__mutmut_13` | `-            w0 * y0[k] + w1 * y1[k] + w2 * y2[k] + w3 * y3[k], +            w0 * y0[k] + w1 * y1[k] + w2 * y2[k] - w3 * y3[k], ` |
-| `_BoostTable.points__mutmut_14` | `-            w0 * y0[k] + w1 * y1[k] + w2 * y2[k] + w3 * y3[k], +            w0 * y0[k] + w1 * y1[k] - w2 * y2[k] + w3 * y3[k], ` |
-| `_BoostTable.points__mutmut_15` | `-            w0 * y0[k] + w1 * y1[k] + w2 * y2[k] + w3 * y3[k], +            w0 * y0[k] - w1 * y1[k] + w2 * y2[k] + w3 * y3[k], ` |
-| `_BoostTable.points__mutmut_4` | `-    for k in range(self.steps + 1): +    for k in range(self.steps - 1): ` |
-| `_BoostTable.points__mutmut_6` | `-            w0 * x0[k] + w1 * x1[k] + w2 * x2[k] + w3 * x3[k], +            w0 * x0[k] + w1 * x1[k] + w2 * x2[k] - w3 * x3[k], ` |
-| `_BoostTable.points__mutmut_7` | `-            w0 * x0[k] + w1 * x1[k] + w2 * x2[k] + w3 * x3[k], +            w0 * x0[k] + w1 * x1[k] - w2 * x2[k] + w3 * x3[k], ` |
-| `_BoostTable.points__mutmut_8` | `-            w0 * x0[k] + w1 * x1[k] + w2 * x2[k] + w3 * x3[k], +            w0 * x0[k] - w1 * x1[k] + w2 * x2[k] + w3 * x3[k], ` |
-| `_BoostTable.segment__mutmut_11` | `-        mid = (low + high) // 2 +        mid = (low + high) // 3 ` |
-| `_BoostTable.segment__mutmut_19` | `-        if w0 * x0[mid] + w1 * x1[mid] + w2 * x2[mid] + w3 * x3[mid] <= ahead: +        if w0 * x0[mid] + w1 * x1[mid] + w2 * x2[mid] + w3 ` |
-| `_BoostTable.segment__mutmut_5` | `-    while high - low > 1: +    while high + low > 1: ` |
-| `_BoostTable.segment__mutmut_6` | `-    while high - low > 1: +    while high - low >= 1: ` |
-| `_BoostTable.segment__mutmut_7` | `-    while high - low > 1: +    while high - low > 2: ` |
-| `_BoostTable.stencil__mutmut_15` | `-    first = min(max(int(at) - 1, 0), self.count - 4) +    first = min(max(int(at) + 1, 0), self.count - 4) ` |
-| `_BoostTable.stencil__mutmut_17` | `-    first = min(max(int(at) - 1, 0), self.count - 4) +    first = min(max(int(at) - 2, 0), self.count - 4) ` |
-| `_BoostTable.stencil__mutmut_18` | `-    first = min(max(int(at) - 1, 0), self.count - 4) +    first = min(max(int(at) - 1, 1), self.count - 4) ` |
-| `_BoostTable.stencil__mutmut_20` | `-    first = min(max(int(at) - 1, 0), self.count - 4) +    first = min(max(int(at) - 1, 0), self.count - 5) ` |
 
 ### `crosshair.py` (run stopped)
 
