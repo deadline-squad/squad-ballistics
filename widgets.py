@@ -1,5 +1,6 @@
 """Reusable widgets for the main window."""
 
+import math
 import re
 
 from PyQt6.QtCore import (
@@ -44,6 +45,8 @@ from overlay import paint_crosshair
 
 
 def label(text, role=None):
+    """A QLabel showing `text`, styled by the stylesheet's `role` ("title",
+    "section", "small", "muted", ...) when given."""
     widget = QLabel(text)
 
     if role:
@@ -53,11 +56,15 @@ def label(text, role=None):
 
 
 def repolish(widget):
+    """Apply the stylesheet to `widget` again after one of its properties (such
+    as "state" or "role") changed."""
     widget.style().unpolish(widget)
     widget.style().polish(widget)
 
 
 def card():
+    """(frame, layout): a styled card frame and its vertical layout, to fill
+    with a page section."""
     frame = QFrame()
 
     frame.setObjectName("card")
@@ -74,7 +81,7 @@ def card():
 class Toggle(QAbstractButton):
     """Minimal on/off switch with a text label."""
 
-    def __init__(self, text, accent, checked=False):
+    def __init__(self, text, checked=False):
         super().__init__()
 
         self.setText(text)
@@ -83,28 +90,42 @@ class Toggle(QAbstractButton):
 
         self.setChecked(checked)
 
-        self.accent = QColor(accent)
-
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
     def sizeHint(self):
+        """Room for the switch and the text beside it."""
         width = self.fontMetrics().horizontalAdvance(self.text())
-        return QSize(width + 52, 26)
+        return QSize(width + 55, 26)
 
     def paintEvent(self, event):
+        """Draw the switch (track and knob, in the accent colour when on), the
+        focus ring and the text."""
         painter = QPainter(self)
 
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        track = QRectF(0, 4, 34, 18)
+        # 3 px clear on the left for the focus ring
+        track = QRectF(3, 4, 34, 18)
+
+        if self.isChecked():
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor(theme.ACCENT))
+        else:
+            # The dark off track alone is 1.3:1 against the card: its
+            # outline gives the switch the 3:1 a control's edge needs
+            # (WCAG 1.4.11).
+            painter.setPen(QPen(QColor(theme.MUTED), 1))
+            painter.setBrush(QColor(theme.BORDER))
+
+        painter.drawRoundedRect(track.adjusted(0.5, 0.5, -0.5, -0.5), 9, 9)
+
+        if self.hasFocus():
+            # Keyboard focus (Tab, then Space toggles)
+            painter.setPen(QPen(QColor(theme.ACCENT), 2))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawRoundedRect(track.adjusted(-2, -2, 2, 2), 11, 11)
 
         painter.setPen(Qt.PenStyle.NoPen)
-
-        painter.setBrush(
-            self.accent if self.isChecked() else QColor(theme.BORDER)
-        )
-
-        painter.drawRoundedRect(track, 9, 9)
 
         knob_x = track.right() - 16 if self.isChecked() else track.left() + 2
 
@@ -115,7 +136,7 @@ class Toggle(QAbstractButton):
         painter.setPen(QColor(theme.TEXT))
 
         painter.drawText(
-            QRectF(46, 0, self.width() - 46, self.height()),
+            QRectF(49, 0, self.width() - 49, self.height()),
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
             self.text()
         )
@@ -181,6 +202,8 @@ class NumberValidator(QValidator):
         self.pattern = re.compile(rf"{sign}\d{{0,6}}(\.\d{{0,3}})?")
 
     def normalize(self, text):
+        """`text` with every decimal separator made ".", every typographic
+        minus "-", spaces and a leading "+" removed."""
         for char in self.SEPARATORS:
             text = text.replace(char, ".")
 
@@ -190,6 +213,10 @@ class NumberValidator(QValidator):
         return text.replace(" ", "").lstrip("+")
 
     def validate(self, text, pos):
+        """QValidator.validate on the normalised text: Acceptable for a number
+        (up to 6 digits before and 3 after the point, signed only if allowed),
+        Intermediate while it is being typed ("", "-", "."), Invalid otherwise.
+        Returns (state, text, cursor position)."""
         normalized = self.normalize(text)
 
         # Keep the cursor where it was relative to the remaining characters.
@@ -232,9 +259,12 @@ class NumberEdit(QLineEdit):
             return default
 
     def set_value(self, value):
+        """Show the number `value` (shortest form: 300, 0.25)."""
         self.setText(f"{value:g}")
 
     def add(self, delta):
+        """Add `delta` to the value (an empty field counts as 0), rounded to
+        0.001; never below 0 unless negatives are allowed."""
         value = round((self.value() or 0.0) + delta, 3)
 
         if not self.allow_negative:
@@ -243,10 +273,13 @@ class NumberEdit(QLineEdit):
         self.set_value(value)
 
     def keyPressEvent(self, event):
+        """A "-" typed after the number flips its sign; over a selection it
+        replaces the selection like any other key (select all, "-5": -5)."""
         flip = (
             self.allow_negative
             and event.text() in ("-",) + tuple(NumberValidator.MINUSES)
             and self.cursorPosition() > 0
+            and not self.hasSelectedText()
             and self.value() is not None
         )
 
@@ -267,6 +300,8 @@ class NumberEdit(QLineEdit):
         super().keyPressEvent(event)
 
     def wheelEvent(self, event):
+        """Step the value by `step` per wheel notch (Shift: a tenth, Ctrl: ten
+        times) and emit `stepped`."""
         steps = event.angleDelta().y() / 120
 
         if not steps:
@@ -289,6 +324,15 @@ class NumberEdit(QLineEdit):
 
 
 class _PickerPopup(QFrame):
+    """The weapon picker's list with its search field.
+
+    The search finds a weapon by its name, and also by a word of its note
+    (the vehicles and mounts it covers): typing "M1117" lists "MK19". Name
+    matches come first, by category; weapons found only in their note
+    follow under their own header. The names are never changed, so the
+    SquadCalc bridge, which maps weapons by name, is not affected.
+    """
+
     picked = pyqtSignal(str)
 
     def __init__(self, parent):
@@ -329,12 +373,30 @@ class _PickerPopup(QFrame):
 
         self.groups = []
         self.recent = []
+        self.notes = {}
 
     def set_data(self, groups, recent):
+        """`groups`: [(category, [names])]; `recent`: names shown on top
+        while the search is empty."""
         self.groups = groups
         self.recent = recent
 
+    def set_notes(self, notes):
+        """`notes` maps a weapon name to the text it is also found by."""
+        self.notes = notes
+
+    def note_matches(self, name, query):
+        """Whether a word of `name`'s note starts with `query` (lower case).
+
+        Only at a word start: "ap" finds "AP" but not "map", so a short
+        query does not list every weapon whose note happens to contain it.
+        """
+        note = self.notes.get(name, "").lower()
+
+        return re.search(r"(?<![0-9a-z])" + re.escape(query), note) is not None
+
     def header(self, text):
+        """Add an unselectable section header `text` to the list."""
         item = QListWidgetItem(text.upper())
 
         item.setFlags(Qt.ItemFlag.NoItemFlags)
@@ -350,6 +412,9 @@ class _PickerPopup(QFrame):
         self.list.addItem(item)
 
     def refill(self):
+        """Fill the list for the search text: the recent weapons (without a
+        search), the matching names by category, then the weapons found in
+        their notes; the first weapon is selected."""
         self.list.clear()
 
         query = self.search.text().strip().lower()
@@ -361,11 +426,22 @@ class _PickerPopup(QFrame):
         if not query and self.recent:
             sections.append((tr("recent"), self.recent))
 
+        in_notes = []
+
         for category, names in self.groups:
             matching = [n for n in names if query in n.lower()]
 
             if matching:
                 sections.append((category_name(category), matching))
+
+            if query:
+                in_notes += [
+                    n for n in names
+                    if n not in matching and self.note_matches(n, query)
+                ]
+
+        if in_notes:
+            sections.append((tr("found_in_notes"), in_notes))
 
         for title, names in sections:
             self.header(title)
@@ -386,6 +462,7 @@ class _PickerPopup(QFrame):
             self.list.setCurrentItem(first)
 
     def pick_item(self, item):
+        """Pick the weapon of list row `item` (headers pick nothing) and close."""
         name = item.data(Qt.ItemDataRole.UserRole)
 
         if name:
@@ -393,6 +470,7 @@ class _PickerPopup(QFrame):
             self.hide()
 
     def pick_current(self):
+        """Pick the selected weapon (Enter in the search field)."""
         item = self.list.currentItem()
 
         if item is not None:
@@ -415,6 +493,7 @@ class _PickerPopup(QFrame):
                 return
 
     def eventFilter(self, watched, event):
+        """The arrow keys in the search field move the selection in the list."""
         if watched is self.search and event.type() == QEvent.Type.KeyPress:
             if event.key() == Qt.Key.Key_Down:
                 self.move_selection(1)
@@ -428,9 +507,17 @@ class _PickerPopup(QFrame):
 
 
 class WeaponPicker(QPushButton):
-    """Button showing the current weapon; opens a searchable list."""
+    """Button showing the current weapon; opens a searchable list.
+
+    A name too long for the button is elided in the middle ("…") while the
+    button is shown, so the end of a name, which says whether an RMB sight's
+    entry is for the optic, stays; the full name is in the tooltip and in
+    `current`.
+    """
 
     changed = pyqtSignal(str)
+
+    ARROW = "   ▾"
 
     def __init__(self):
         super().__init__()
@@ -448,17 +535,53 @@ class WeaponPicker(QPushButton):
         self.clicked.connect(self.open_popup)
 
     def set_data(self, groups, recent):
+        """The weapons by category and the recent ones (see _PickerPopup)."""
         self.popup.set_data(groups, recent)
 
+    def set_notes(self, notes):
+        """Text each weapon is also found by: {name: note}."""
+        self.popup.set_notes(notes)
+
     def set_current(self, name, emit=True):
+        """Show weapon `name`; `emit` False does it without the `changed`
+        signal."""
         self.current = name
 
-        self.setText(f"{name}   ▾")
+        self.setToolTip(name)
+
+        self.show_name()
 
         if emit:
             self.changed.emit(name)
 
+    def show_name(self):
+        """Show the current name and the arrow, elided to the button's
+        width (only once shown: a hidden button has no real width yet)."""
+        self.setText(f"{self.current}{self.ARROW}")
+
+        if not self.isVisible():
+            return
+
+        metrics = self.fontMetrics()
+
+        # Padding and border: what the button needs besides its text
+        overhead = self.sizeHint().width() - metrics.horizontalAdvance(self.text())
+        room = self.width() - overhead - metrics.horizontalAdvance(self.ARROW)
+
+        if metrics.horizontalAdvance(self.current) > room:
+            name = metrics.elidedText(self.current, Qt.TextElideMode.ElideMiddle, room)
+            self.setText(f"{name}{self.ARROW}")
+
+    def resizeEvent(self, event):
+        """Elide the name again for the new width."""
+        super().resizeEvent(event)
+
+        if self.current is not None:
+            self.show_name()
+
     def open_popup(self):
+        """Open the list below the button, kept inside the screen, with an
+        empty search."""
         self.popup.search.clear()
 
         self.popup.refill()
@@ -493,62 +616,12 @@ class WeaponPicker(QPushButton):
         self.popup.search.setFocus()
 
 
-class Swatches(QWidget):
-    """Row of round color buttons."""
-
-    picked = pyqtSignal(str)
-
-    def __init__(self, colors, current=None):
-        super().__init__()
-
-        layout = QHBoxLayout(self)
-
-        layout.setContentsMargins(0, 0, 0, 0)
-
-        layout.setSpacing(8)
-
-        self.group = QButtonGroup(self)
-
-        self.buttons = {}
-
-        for color in colors:
-            button = QPushButton()
-
-            button.setObjectName("swatch")
-
-            button.setCheckable(True)
-
-            button.setChecked(
-                current is not None and color.lower() == current.lower()
-            )
-
-            button.setStyleSheet(f"background: {color};")
-
-            button.setCursor(Qt.CursorShape.PointingHandCursor)
-
-            button.clicked.connect(
-                lambda _checked, c=color: self.picked.emit(c)
-            )
-
-            self.group.addButton(button)
-
-            layout.addWidget(button)
-
-            self.buttons[color.lower()] = button
-
-        layout.addStretch()
-
-    def set_current(self, color):
-        """Check the matching swatch, or none for a custom color."""
-        self.group.setExclusive(False)
-
-        for key, button in self.buttons.items():
-            button.setChecked(key == color.lower())
-
-        self.group.setExclusive(True)
-
-
 class SliderRow(QWidget):
+    """A labelled horizontal slider showing its value with `suffix`.
+
+    `changed(value)` is emitted on every move.
+    """
+
     changed = pyqtSignal(int)
 
     def __init__(self, text, minimum, maximum, value, suffix=""):
@@ -586,14 +659,18 @@ class SliderRow(QWidget):
         self.update_label(self.slider.value())
 
     def update_label(self, value):
+        """Show `value` with the suffix."""
         self.value_label.setText(f"{value}{self.suffix}")
 
     def on_change(self, value):
+        """The slider moved to `value`: show it and emit `changed`."""
         self.update_label(value)
         self.changed.emit(value)
 
 
 class StatTile(QFrame):
+    """A small tile of the solution card: a caption over a value."""
+
     def __init__(self, caption):
         super().__init__()
 
@@ -605,40 +682,106 @@ class StatTile(QFrame):
 
         layout.setSpacing(2)
 
-        layout.addWidget(label(caption, "small"))
+        # Wrapped: three tiles in a row must fit the smallest window.
+        caption_label = label(caption, "small")
+
+        caption_label.setWordWrap(True)
+
+        layout.addWidget(caption_label)
 
         self.value = label("—", "stat_value")
 
         layout.addWidget(self.value)
 
     def set(self, text):
+        """Show `text` as the value."""
         self.value.setText(text)
 
 
-class TrajectoryView(QWidget):
-    """Side view of the shot: weapon, target and both possible arcs."""
+# Most terrain points drawn by TrajectoryView; a longer profile is reduced to
+# the highest point of each bucket so thin walls stay visible.
+MAX_TERRAIN_POINTS = 400
 
-    def __init__(self, accent):
+
+def reduce_profile(terrain, limit=MAX_TERRAIN_POINTS):
+    """`terrain` (x, height) samples cut to at most about `limit` points.
+
+    Each bucket of consecutive samples keeps its highest one: an obstacle
+    one sample wide must not vanish from the drawing.
+    """
+    if len(terrain) <= limit:
+        return list(terrain)
+
+    size = math.ceil(len(terrain) / limit)
+
+    return [
+        max(terrain[i:i + size], key=lambda p: p[1])
+        for i in range(0, len(terrain), size)
+    ]
+
+
+# The side view is at least this share of the distance tall: a flat shot
+# (a tank shell rising 0.2 m over 400 m) is drawn nearly straight instead of
+# being stretched into an arc as tall as a mortar's.
+MIN_VIEW_HEIGHT_SHARE = 0.1
+
+# Room above and below the drawing, as a share of its height.
+VIEW_PAD = 0.08
+
+
+def view_bounds(points):
+    """(max_x, min_y, max_y) of the side view showing `points` (x, height).
+
+    The height range spans at least MIN_VIEW_HEIGHT_SHARE of the distance,
+    added above the highest point, then VIEW_PAD on both sides.
+    """
+    max_x = max(p[0] for p in points) or 1.0
+    min_y = min(p[1] for p in points)
+    max_y = max(p[1] for p in points)
+
+    max_y = max(max_y, min_y + max_x * MIN_VIEW_HEIGHT_SHARE)
+
+    pad = (max_y - min_y) * VIEW_PAD
+
+    return max_x, min_y - pad, max_y + pad
+
+
+class TrajectoryView(QWidget):
+    """Side view of the shot: weapon, target, both possible arcs, and the
+    terrain and buildings in between when the map gives them, with the
+    point where the shown arc hits them first."""
+
+    def __init__(self):
         super().__init__()
 
-        self.accent = QColor(accent)
+        self.accent = QColor(theme.ACCENT)
 
         self.main = []
         self.alt = []
         self.target = None
+        self.terrain = []
+        self.obstacle = None
 
         self.setMinimumHeight(170)
 
-    def set_data(self, main, alt, target):
+    def set_data(self, main, alt, target, terrain=None, obstacle=None):
+        """Show a shot. `terrain` is a list of (x, height) relative to the
+        weapon's ground, `obstacle` the (x, height) where `main` hits it."""
         self.main = main
         self.alt = alt
         self.target = target
+        self.terrain = reduce_profile(terrain or [])
+        self.obstacle = obstacle
         self.update()
 
     def clear(self):
+        """Show no shot."""
         self.set_data([], [], None)
 
     def paintEvent(self, event):
+        """Draw the side view: the weapon's level, the terrain profile, the
+        other arc and the shown one with its apex, the obstacle, the weapon and
+        the target with its distance."""
         painter = QPainter(self)
 
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -660,19 +803,9 @@ class TrajectoryView(QWidget):
             )
             return
 
-        points = self.main + self.alt + [(0.0, 0.0), self.target]
+        points = self.main + self.alt + self.terrain + [(0.0, 0.0), self.target]
 
-        max_x = max(p[0] for p in points) or 1.0
-        min_y = min(p[1] for p in points)
-        max_y = max(p[1] for p in points)
-
-        if max_y - min_y < 1e-6:
-            max_y += 1
-            min_y -= 1
-
-        pad = (max_y - min_y) * 0.08
-        min_y -= pad
-        max_y += pad
+        max_x, min_y, max_y = view_bounds(points)
 
         def map_point(p):
             return QPointF(
@@ -686,6 +819,23 @@ class TrajectoryView(QWidget):
         painter.setPen(QPen(QColor(theme.BORDER), 1, Qt.PenStyle.DashLine))
 
         painter.drawLine(QPointF(rect.left(), zero), QPointF(rect.right(), zero))
+
+        # Terrain and buildings, filled down to the bottom of the view
+        if len(self.terrain) > 1:
+            ground = QPainterPath(QPointF(map_point(self.terrain[0]).x(), rect.bottom()))
+
+            for sample in self.terrain:
+                ground.lineTo(map_point(sample))
+
+            ground.lineTo(QPointF(map_point(self.terrain[-1]).x(), rect.bottom()))
+            ground.closeSubpath()
+
+            fill = QColor(theme.MUTED)
+            fill.setAlpha(70)
+
+            painter.setPen(QPen(QColor(theme.MUTED), 1))
+            painter.setBrush(fill)
+            painter.drawPath(ground)
 
         def draw_path(samples, pen):
             path = QPainterPath(map_point(samples[0]))
@@ -732,6 +882,21 @@ class TrajectoryView(QWidget):
                 f"{apex[1]:.0f} {tr('unit_m')}"
             )
 
+        # Where the shown arc hits the terrain or a building first
+        if self.obstacle is not None:
+            hit = map_point(self.obstacle)
+
+            painter.setPen(QPen(QColor(theme.DANGER), 2.5))
+            painter.drawLine(QPointF(hit.x() - 6, hit.y() - 6), QPointF(hit.x() + 6, hit.y() + 6))
+            painter.drawLine(QPointF(hit.x() - 6, hit.y() + 6), QPointF(hit.x() + 6, hit.y() - 6))
+
+            painter.setPen(QColor(theme.DANGER))
+            painter.drawText(
+                QRectF(hit.x() - 60, hit.y() - 22, 120, 14),
+                Qt.AlignmentFlag.AlignCenter,
+                f"{self.obstacle[0]:.0f} {tr('unit_m')}"
+            )
+
         # Weapon and target
         shooter = map_point((0, 0))
         target = map_point(self.target)
@@ -766,6 +931,8 @@ class CrosshairPreview(QWidget):
         self.setMinimumSize(260, 220)
 
     def paintEvent(self, event):
+        """Draw the crosshair as the overlay draws it, on a sky and ground
+        backdrop."""
         painter = QPainter(self)
 
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -785,15 +952,12 @@ class CrosshairPreview(QWidget):
 
         painter.fillRect(rect, sky)
 
-        paint_crosshair(
-            painter,
-            self.config,
-            rect.center().x(),
-            rect.center().y()
-        )
+        paint_crosshair(painter, rect.center().x(), rect.center().y())
 
 
 def format_angle(degrees, unit):
+    """`degrees` as text in `unit`: "mil" rounded to whole mils ("1016 mil"),
+    otherwise degrees to 0.01 ("57.15°")."""
     if unit == "mil":
         return f"{degrees * MILS_PER_DEGREE:.0f} {tr('mil')}"
     return f"{degrees:.2f}°"

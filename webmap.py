@@ -10,15 +10,38 @@ Three things make the embedded map behave like a normal browser:
   so the map uses plain HTTPS over the system DNS.
 * Rendering. Some GPU/driver combinations show a black web view. A
   "software" render mode disables the GPU for the map; the page offers it
-  automatically when the loaded map looks completely black.
+  automatically when the loaded map looks completely black. On a machine
+  whose OpenGL is itself software (llvmpipe, softpipe, swrast) the default
+  "auto" mode runs the map in that cheaper mode on its own: Qt draws the web
+  view through Qt Quick, and a GPU-style path on top of a software OpenGL
+  composes every frame twice (see `configure_environment`).
 * Speed. A persistent profile keeps map tiles in a disk cache and the
   page is created once and kept alive, so it is not reloaded on every
-  visit or UI rebuild.
+  visit or UI rebuild. The tiles are a cache ($XDG_CACHE_HOME); the
+  cookies and SquadCalc's settings (localStorage) are kept with the user's
+  data ($XDG_DATA_HOME), out of reach of cache cleaners.
+
+The page is not trusted. It stays on the origin the app loaded it from,
+and it never opens the system browser on its own: an address goes there
+only after a click (or Enter/Space) on the map, one per click, and the
+status line shows it (see `MapWebPage`).
+
+The page is either the Deadline SquadCalc build (AGS-17 support and the
+target bridge polled here, see `maplink`) or the public squadcalc.app.
 """
 
+import json
 import os
+import shutil
+import subprocess
+import sys
+import time
+from collections import namedtuple
 
 from PyQt6.QtCore import (
+    QEvent,
+    QObject,
+    Qt,
     QTimer,
     QUrl,
     pyqtSignal
@@ -40,10 +63,36 @@ from PyQt6.QtWidgets import (
 )
 
 import theme
-from config import data_dir
+from config import data_dir, state_dir
 from i18n import tr
+from maplink import (
+    CHANGE_MESSAGE,
+    MAX_ANSWER_CHARS,
+    WATCH_SCRIPT,
+    bridge_script,
+    parse_bridge,
+    parse_revision,
+    select_weapon_script
+)
 
 SQUADCALC_URL = "https://squadcalc.app/"
+DEADLINE_SQUADCALC_URL = "https://calc.tk104.duckdns.org/"
+
+# config["map_source"] -> page URL
+MAP_SOURCES = {
+    "deadline": DEADLINE_SQUADCALC_URL,
+    "squadcalc": SQUADCALC_URL,
+}
+
+# How often the embedded page is asked for its targets while it is on the
+# screen: a page with a change counter is asked for the counter alone, which
+# costs it nothing; one without builds every target's profile to answer.
+BRIDGE_POLL_COUNTER_MS = 100
+BRIDGE_POLL_MS = 150
+
+# While the map is not on the screen but the calculator follows it (a
+# shared session can change its targets, nobody is looking at it).
+BRIDGE_POLL_HIDDEN_MS = 500
 
 # Plain HTTPS over the system DNS (see the module docstring).
 NETWORK_FLAGS = ("--disable-quic",)
@@ -55,6 +104,17 @@ DISABLED_FEATURES = (
 
 SOFTWARE_FLAGS = ("--disable-gpu", "--disable-gpu-compositing")
 
+# Removes the service worker and the caches of the page's site; cookies and
+# localStorage (SquadCalc's settings) are not touched.
+CLEAR_SITE_STORAGE_SCRIPT = (
+    "(function () {"
+    " if (navigator.serviceWorker) navigator.serviceWorker.getRegistrations()"
+    ".then(function (all) { all.forEach(function (one) { one.unregister(); }); });"
+    " if (window.caches) caches.keys()"
+    ".then(function (all) { all.forEach(function (name) { caches.delete(name); }); });"
+    "})()"
+)
+
 # How long a page may load before help is offered.
 LOAD_TIMEOUT_MS = 25000
 
@@ -64,6 +124,47 @@ BLACK_CHECK_DELAY_MS = 4000
 # Keep the original values so a restart does not inherit our flags.
 _ORIGINAL_FLAGS = "SB_ORIGINAL_CHROMIUM_FLAGS"
 _ORIGINAL_QUICK = "SB_ORIGINAL_QT_QUICK_BACKEND"
+
+# GL_RENDERER strings of OpenGL implementations that run on the CPU: Mesa's
+# llvmpipe and softpipe, its older swrast ("Software Rasterizer") and
+# SwiftShader.
+SOFTWARE_RENDERERS = ("llvmpipe", "softpipe", "swrast", "software rasterizer", "swiftshader")
+
+# How long the OpenGL probe may take before the GPU is assumed to be there.
+GL_PROBE_TIMEOUT_S = 8
+
+# Run in a separate process (Qt's platform and OpenGL are chosen when the
+# first QGuiApplication starts, and the one of this process has not yet):
+# prints GL_RENDERER of the context Qt would draw with.
+_GL_PROBE_SCRIPT = """
+import sys
+from PyQt6.QtGui import QGuiApplication, QOffscreenSurface, QOpenGLContext
+from PyQt6.QtOpenGL import QOpenGLVersionFunctionsFactory, QOpenGLVersionProfile
+application = QGuiApplication(sys.argv)
+context = QOpenGLContext()
+if not context.create():
+    sys.exit(1)
+surface = QOffscreenSurface()
+surface.setFormat(context.format())
+surface.create()
+if not context.makeCurrent(surface):
+    sys.exit(1)
+profile = QOpenGLVersionProfile()
+profile.setVersion(2, 1)
+functions = QOpenGLVersionFunctionsFactory.get(profile, context)
+renderer = functions.glGetString(0x1F01)
+print(renderer.decode() if isinstance(renderer, bytes) else renderer)
+"""
+
+# What `configure_environment` decided: "requested" is the setting ("auto"
+# or "software"), "mode" what the map really runs in ("hardware" or
+# "software"), "renderer" the GL_RENDERER that made "auto" software (None
+# when it was not looked at or not software).
+RenderChoice = namedtuple("RenderChoice", ("requested", "mode", "renderer"))
+
+# The choice of this process; "auto" with no look at the GL until
+# `configure_environment` is given a probe.
+render_choice = RenderChoice("auto", "hardware", None)
 
 
 def chromium_flags(render_mode, existing=""):
@@ -95,8 +196,57 @@ def chromium_flags(render_mode, existing=""):
     return " ".join(flags)
 
 
-def configure_environment(render_mode, environ=None):
-    """Set up QtWebEngine. Must run before QApplication is created."""
+def is_software_renderer(renderer):
+    """Whether the GL_RENDERER string `renderer` names an OpenGL that runs
+    on the CPU (see SOFTWARE_RENDERERS)."""
+    name = (renderer or "").lower()
+
+    return any(software in name for software in SOFTWARE_RENDERERS)
+
+
+def probe_gl_renderer(environ=None):
+    """GL_RENDERER of the OpenGL Qt draws with, as a separate process reads
+    it from an offscreen context; None when it cannot be read (no OpenGL,
+    no display, or no answer within GL_PROBE_TIMEOUT_S).
+
+    Takes a few hundred milliseconds. `environ` is the environment of that
+    process (default: this one).
+    """
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c", _GL_PROBE_SCRIPT],
+            capture_output=True,
+            text=True,
+            timeout=GL_PROBE_TIMEOUT_S,
+            env=environ
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+    lines = result.stdout.strip().splitlines()
+
+    if result.returncode != 0 or not lines:
+        return None
+
+    return lines[-1]
+
+
+def configure_environment(render_mode, environ=None, probe=None):
+    """Set up QtWebEngine. Must run before QApplication is created.
+
+    `render_mode` is the map_render setting. "software" disables the GPU for
+    the map. "auto" keeps the GPU, unless `probe` (a function returning
+    Qt's GL_RENDERER, see `probe_gl_renderer`) says that OpenGL itself runs
+    on the CPU: Qt 6 draws the web view through Qt Quick, so a software
+    OpenGL makes the machine compose every frame twice (measured: 143 % of
+    a core against 76 % for the software mode, with a worst timer stall of
+    67 ms against 25-41 ms), and "auto" then runs as "software". A
+    QT_QUICK_BACKEND the user set is theirs and is not second-guessed.
+
+    Returns the `RenderChoice`, also kept in `render_choice`.
+    """
+    global render_choice
+
     environ = os.environ if environ is None else environ
 
     if _ORIGINAL_FLAGS not in environ:
@@ -105,12 +255,23 @@ def configure_environment(render_mode, environ=None):
         )
         environ[_ORIGINAL_QUICK] = environ.get("QT_QUICK_BACKEND", "")
 
+    mode, renderer = render_mode, None
+
+    if render_mode == "auto" and probe is not None \
+            and not environ[_ORIGINAL_QUICK]:
+        found = probe()
+
+        if is_software_renderer(found):
+            mode, renderer = "software", found
+
+    effective = "software" if mode == "software" else "hardware"
+
     environ["QTWEBENGINE_CHROMIUM_FLAGS"] = chromium_flags(
-        render_mode,
+        effective,
         environ[_ORIGINAL_FLAGS]
     )
 
-    if render_mode == "software":
+    if effective == "software":
         # The web view is drawn through Qt Quick; render that in software
         # too, otherwise a broken GPU path stays black.
         environ["QT_QUICK_BACKEND"] = "software"
@@ -118,6 +279,10 @@ def configure_environment(render_mode, environ=None):
         environ["QT_QUICK_BACKEND"] = environ[_ORIGINAL_QUICK]
     else:
         environ.pop("QT_QUICK_BACKEND", None)
+
+    render_choice = RenderChoice(render_mode, effective, renderer)
+
+    return render_choice
 
 
 def looks_black(image, threshold=0.97):
@@ -141,39 +306,239 @@ def looks_black(image, threshold=0.97):
     return dark >= threshold * columns * rows
 
 
+def map_url(config):
+    """SquadCalc URL of the configured map source."""
+    return MAP_SOURCES.get(config.get("map_source"), DEADLINE_SQUADCALC_URL)
+
+
+# Schemes handed to the system: anything else (file:, ssh:, custom handlers)
+# would let a web page start local programs through xdg-open.
+EXTERNAL_SCHEMES = ("http", "https")
+
+
+# Ports a URL without one has, so https://host/ and https://host:443/ are
+# the same origin.
+DEFAULT_PORTS = {"http": 80, "https": 443}
+
+# After a click (or Enter/Space) on the map the page may send one address to
+# the system browser within this many seconds; Chromium's own user
+# activation, which lets a click open a popup, lasts as long.
+USER_ACTIVATION_SECONDS = 5.0
+
+
+def url_origin(url):
+    """(scheme, host, port) of QUrl `url`, the default port filled in."""
+    scheme = url.scheme().lower()
+
+    return scheme, url.host().lower(), url.port(DEFAULT_PORTS.get(scheme, -1))
+
+
 def open_external(url=SQUADCALC_URL):
-    QDesktopServices.openUrl(QUrl(url))
+    """Open `url` in the regular browser; False when it is not an http(s)
+    address or there is nothing to open it with (no xdg-open handler)."""
+    target = QUrl(url)
+
+    if target.scheme().lower() not in EXTERNAL_SCHEMES:
+        return False
+
+    return QDesktopServices.openUrl(target)
+
+
+class UserActivationFilter(QObject):
+    """Event filter on the map view and every widget inside it: calls
+    `on_activation()` on a mouse press, and on Enter or Space (a link
+    followed from the keyboard). Events are passed on unchanged.
+
+    The widget Chromium draws into is a child of the view that QtWebEngine
+    creates (and replaces after a renderer crash) itself, so children added
+    later are watched too.
+    """
+
+    KEYS = (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Space)
+
+    def __init__(self, view, on_activation):
+        super().__init__(view)
+
+        self.on_activation = on_activation
+
+        self.watch(view)
+
+    def watch(self, widget):
+        """Filter the events of `widget` and of the widgets inside it."""
+        widget.installEventFilter(self)
+
+        for child in widget.findChildren(QWidget):
+            child.installEventFilter(self)
+
+    def eventFilter(self, watched, event):
+        """Note user activations and new children; never consume an event."""
+        kind = event.type()
+
+        if kind == QEvent.Type.ChildAdded:
+            if event.child().isWidgetType():
+                self.watch(event.child())
+        elif kind == QEvent.Type.MouseButtonPress:
+            self.on_activation()
+        elif kind == QEvent.Type.KeyPress and event.key() in self.KEYS \
+                and not event.isAutoRepeat():
+            self.on_activation()
+
+        return False
 
 
 def _make_page_classes():
     """Page classes are created lazily: QtWebEngine may be missing."""
-    from PyQt6.QtWebEngineCore import QWebEnginePage
-
-    class ExternalLinkPage(QWebEnginePage):
-        """Target of target=_blank links: opens them in the system browser."""
-
-        def acceptNavigationRequest(self, url, nav_type, is_main_frame):
-            open_external(url.toString())
-            self.deleteLater()
-            return False
+    from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 
     class MapWebPage(QWebEnginePage):
+        """The map page: it stays on the origin the app loaded it from.
+
+        The page is not trusted and has no address bar to get back with, so
+        a main-frame navigation to another origin (scheme, host and port: a
+        link, a script, a redirect, an https -> http downgrade) is refused.
+        The app's own loads (`page.load`) are always accepted and set the
+        origin.
+
+        Addresses the page asks to leave for, by navigation or as a new
+        window, go to the system browser (http and https only, see
+        `open_external`) only after a user activation, one per activation:
+
+        * New windows. Scripts cannot open them without a click
+          (JavascriptCanOpenWindows is off), and a request Chromium does
+          not mark as user-initiated is refused. A target=_blank link the
+          user clicks (SquadCalc's wiki, Discord, GitHub, changelog links)
+          is user-initiated.
+        * Navigations. QtWebEngine reports a script's `location.href = ...`
+          as a clicked link (NavigationTypeLinkClicked), so the two cannot
+          be told apart; the app counts the user's clicks on the view
+          instead (`note_user_activation`, from UserActivationFilter).
+
+        Every such request is reported by `external_requested(url, outcome)`
+        with outcome "opened", "failed" (no browser, or not http(s)) or
+        "blocked" (no click), for the status line.
+        """
+
+        external_requested = pyqtSignal(str, str)
+
+        # The page printed maplink.CHANGE_MESSAGE: its targets or weapon
+        # changed.
+        change_announced = pyqtSignal()
+
+        def __init__(self, *args):
+            super().__init__(*args)
+
+            self.map_origin = None
+
+            # Monotonic time until which one address may be opened, None
+            # without a pending user activation. `clock` is replaceable in
+            # tests.
+            self.activation_deadline = None
+            self.clock = time.monotonic
+
+            self.settings().setAttribute(
+                QWebEngineSettings.WebAttribute.JavascriptCanOpenWindows, False
+            )
+
+            self.newWindowRequested.connect(self.on_new_window)
+
+        def javaScriptConsoleMessage(self, level, message, line, source):
+            """Take maplink.CHANGE_MESSAGE as a change announcement (any
+            page can print it; the app then only polls the page sooner).
+            Other messages go where Qt sends them by default."""
+            if message == CHANGE_MESSAGE:
+                self.change_announced.emit()
+                return
+
+            super().javaScriptConsoleMessage(level, message, line, source)
+
+        def note_user_activation(self):
+            """The user clicked (or pressed Enter/Space on) the map: one
+            address may be opened in the next USER_ACTIVATION_SECONDS."""
+            self.activation_deadline = self.clock() + USER_ACTIVATION_SECONDS
+
+        def take_user_activation(self):
+            """Use up the pending user activation: whether there was one."""
+            deadline, self.activation_deadline = self.activation_deadline, None
+
+            return deadline is not None and self.clock() <= deadline
+
+        def open_elsewhere(self, url, user_initiated=True):
+            """Send QUrl `url` to the system browser if the user asked for
+            it (see the class docstring) and report the outcome."""
+            address = url.toString()
+
+            if not user_initiated or not self.take_user_activation():
+                self.external_requested.emit(address, "blocked")
+                return
+
+            outcome = "opened" if open_external(address) else "failed"
+
+            self.external_requested.emit(address, outcome)
+
+        def acceptNavigationRequest(self, url, nav_type, is_main_frame):
+            """Accept frames, the app's own loads and the map's origin;
+            refuse the rest (see the class docstring)."""
+            if not is_main_frame:
+                return True
+
+            if nav_type == QWebEnginePage.NavigationType.NavigationTypeTyped:
+                self.map_origin = url_origin(url)
+                return True
+
+            if url_origin(url) == self.map_origin:
+                return True
+
+            self.open_elsewhere(url)
+
+            return False
+
         def createWindow(self, window_type):
-            return ExternalLinkPage(self.profile(), self)
+            """No window is ever created here: QtWebEngine then emits
+            newWindowRequested (see on_new_window)."""
+            return None
+
+        def on_new_window(self, request):
+            """A popup or target=_blank link: never opened in the app; its
+            address may go to the system browser (no `openIn`, so the
+            request is dropped afterwards)."""
+            self.open_elsewhere(request.requestedUrl(), request.isUserInitiated())
 
     return MapWebPage
 
 
-def create_profile(name="SquadBallistics"):
-    """Persistent profile: cookies, SquadCalc settings and a tile cache."""
-    from PyQt6.QtWebEngineCore import QWebEngineProfile
+def persistent_storage_path():
+    """Folder of the map's cookies and localStorage (SquadCalc's settings):
+    $XDG_DATA_HOME/SquadBallistics/WebEngine/Storage.
 
-    base = os.path.join(data_dir(), "WebEngine")
+    Before 1.6 it was under the cache folder, where cache cleaners wipe it.
+    An old folder is moved once, by a rename, when the new one does not
+    exist yet. If it cannot be renamed (another file system, no permission)
+    it is used where it is and nothing is copied or lost.
+    """
+    path = os.path.join(state_dir(), "WebEngine", "Storage")
+    old = os.path.join(data_dir(), "WebEngine", "Storage")
+
+    if os.path.exists(path) or not os.path.isdir(old):
+        return path
+
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        os.rename(old, path)
+    except OSError:
+        return old
+
+    return path
+
+
+def create_profile(name="SquadBallistics"):
+    """Persistent profile: cookies and SquadCalc settings (see
+    `persistent_storage_path`) and a tile cache in the cache folder."""
+    from PyQt6.QtWebEngineCore import QWebEngineProfile
 
     profile = QWebEngineProfile(name)
 
-    profile.setPersistentStoragePath(os.path.join(base, "Storage"))
-    profile.setCachePath(os.path.join(base, "Cache"))
+    profile.setPersistentStoragePath(persistent_storage_path())
+    profile.setCachePath(os.path.join(data_dir(), "WebEngine", "Cache"))
     profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.DiskHttpCache)
     profile.setHttpCacheMaximumSize(512 * 1024 * 1024)
 
@@ -205,9 +570,33 @@ def shared_profile():
 
 
 class MapPage(QWidget):
-    """Map tab: a small toolbar, the web view and a help panel."""
+    """Map tab: a small toolbar, the web view and a help panel.
+
+    While the page is loaded it is polled for its targets and weapon; every
+    change is emitted as `targets_received` (a list of `maplink.MapTarget`)
+    and `weapon_received` (a weapons.json name). A change is only parsed
+    when the answer differs from the last one, and a page that announces
+    its changes (`maplink.CHANGE_MESSAGE`) is asked at once.
+
+    The poll runs while the map is on the screen, and while it is hidden or
+    its window minimised only if the calculator follows the map
+    (`map_follow`): then its targets come from here, and it keeps polling,
+    slowly, so a target that appears meanwhile (a shared session) is not
+    missed. Without `map_follow` nothing is read from the page, so a hidden
+    map is not polled (see `update_polling`).
+
+    The page's first bridge answer after a load, a renderer crash or a
+    source switch is not a change: the page restored its weapon, nobody
+    picked it. That answer is the baseline and is not emitted; the app's
+    weapon (the last one given to `select_weapon`) is sent to the page
+    instead, so a weapon picked here survives the page's restart.
+    """
 
     compat_requested = pyqtSignal()
+
+    targets_received = pyqtSignal(list)
+
+    weapon_received = pyqtSignal(str)
 
     def __init__(self, config):
         super().__init__()
@@ -217,8 +606,38 @@ class MapPage(QWidget):
         self.view = None
         self.page = None
         self.profile = None
+        self.activation_filter = None
 
         self.loading = False
+
+        # None until the page answers, then whether it has the bridge.
+        self.bridge_found = None
+
+        self.last_targets = None
+        self.last_weapon = None
+
+        # The app's weapon, sent to the page after every (re)start of it.
+        self.app_weapon = config.get("last_weapon")
+
+        # The next bridge answer is the baseline (see the class docstring).
+        self.weapon_baseline_pending = True
+
+        # Where the page last asked to go, and whether it went: shown in the
+        # status line until the next load (see on_external_request).
+        self.external_notice = ""
+
+        # A bridge poll is waiting for the page's answer: no second one is
+        # sent meanwhile (a busy page would queue them up).
+        self.bridge_pending = False
+
+        # The page loaded and has not crashed: it can be polled.
+        self.page_ready = False
+
+        # The page's last answer, as text (an equal one is not parsed again),
+        # and its change counter the app has the target of (see
+        # maplink.bridge_script).
+        self.last_raw = None
+        self.known_revision = None
 
         layout = QVBoxLayout(self)
 
@@ -238,7 +657,7 @@ class MapPage(QWidget):
 
         self.external_button = QPushButton()
         self.external_button.setProperty("flat_style", True)
-        self.external_button.clicked.connect(lambda: open_external())
+        self.external_button.clicked.connect(self.open_in_browser)
 
         toolbar.addWidget(self.status, 1)
         toolbar.addWidget(self.reload_button)
@@ -256,7 +675,7 @@ class MapPage(QWidget):
 
         self.progress.setStyleSheet(
             f"QProgressBar {{ background: transparent; border: none; }}"
-            f"QProgressBar::chunk {{ background: {config['accent']}; }}"
+            f"QProgressBar::chunk {{ background: {theme.ACCENT}; }}"
         )
 
         self.progress.hide()
@@ -286,7 +705,7 @@ class MapPage(QWidget):
 
         self.panel_external_button = QPushButton()
         self.panel_external_button.setProperty("flat_style", True)
-        self.panel_external_button.clicked.connect(lambda: open_external())
+        self.panel_external_button.clicked.connect(self.open_in_browser)
 
         self.compat_button = QPushButton()
         self.compat_button.setProperty("flat_style", True)
@@ -331,11 +750,15 @@ class MapPage(QWidget):
         self.black_timer.setInterval(BLACK_CHECK_DELAY_MS)
         self.black_timer.timeout.connect(self.check_black)
 
+        self.bridge_timer = QTimer(self)
+        self.bridge_timer.setInterval(BRIDGE_POLL_MS)
+        self.bridge_timer.timeout.connect(self.poll_targets)
+
         self.panel_kind = None
 
         self.retranslate()
 
-    # ---------- texts ----------
+    # ---------- texts and colours ----------
 
     def retranslate(self):
         self.reload_button.setText(tr("map_reload"))
@@ -360,12 +783,46 @@ class MapPage(QWidget):
         elif self.view is None:
             text = ""
         else:
-            text = "squadcalc.app"
+            text = QUrl(map_url(self.config)).host()
 
-        if self.config.get("map_render") == "software":
+            if self.bridge_found:
+                text += "  ·  " + tr("map_bridge_on")
+            elif self.bridge_found is False:
+                text += "  ·  " + tr("map_bridge_off")
+
+            if self.external_notice:
+                text += "  ·  " + self.external_notice
+
+        if self.software_in_use():
             text += ("  ·  " if text else "") + tr("map_compat_on")
 
         self.status.setText(text)
+
+    def software_in_use(self):
+        """Whether the map is drawn without the GPU, chosen in the settings
+        or picked by `configure_environment` for a software OpenGL."""
+        return self.config.get("map_render") == "software" \
+            or render_choice.mode == "software"
+
+    def on_external_request(self, url, outcome):
+        """Show in the status line, until the next load, where the page
+        asked to go and whether it was opened (see MapWebPage)."""
+        if outcome == "opened":
+            self.external_notice = tr("map_external_opened", url=url)
+        elif outcome == "blocked":
+            self.external_notice = tr("map_external_blocked", url=url)
+        else:
+            self.external_notice = tr("open_failed", target=url)
+
+        self.update_status()
+
+    def open_in_browser(self):
+        """Open the map in the regular browser; without one, say so in the
+        status line with the address to open by hand."""
+        url = map_url(self.config)
+
+        if not open_external(url):
+            self.status.setText(tr("open_failed", target=url))
 
     # ---------- loading ----------
 
@@ -393,16 +850,44 @@ class MapPage(QWidget):
 
         self.view.setPage(self.page)
 
-        self.page.loadStarted.connect(self.on_load_started)
+        self.install_change_watcher()
+
+        self.page.external_requested.connect(self.on_external_request)
+        self.page.change_announced.connect(self.on_change_announced)
+
+        self.activation_filter = UserActivationFilter(
+            self.view, self.page.note_user_activation
+        )
+
+        self.page.loadingChanged.connect(self.on_loading_changed)
         self.page.loadProgress.connect(self.on_load_progress)
-        self.page.loadFinished.connect(self.on_load_finished)
         self.page.renderProcessTerminated.connect(self.on_render_crash)
 
         self.view_holder.addWidget(self.view)
 
-        self.page.load(QUrl(SQUADCALC_URL))
+        self.page.load(QUrl(map_url(self.config)))
+
+    def install_change_watcher(self):
+        """Have every page of the map print maplink.CHANGE_MESSAGE when its
+        change counter moves (maplink.WATCH_SCRIPT, in the page's own
+        JavaScript world: the page's `window.squadBallistics` is not seen
+        from another one)."""
+        from PyQt6.QtWebEngineCore import QWebEngineScript
+
+        script = QWebEngineScript()
+
+        script.setName("squad-ballistics-watch")
+        script.setSourceCode(WATCH_SCRIPT)
+        script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentReady)
+        script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
+        script.setRunsOnSubFrames(False)
+
+        self.page.scripts().insert(script)
 
     def reload(self):
+        """Load the page again, tiles and scripts from the cache where they
+        are still valid (the page is also cached by its service worker);
+        `clear_cache` is the full wipe."""
         self.hide_panel()
 
         if self.view is None:
@@ -410,12 +895,95 @@ class MapPage(QWidget):
             return
 
         if self.page.url().isEmpty():
-            self.page.load(QUrl(SQUADCALC_URL))
+            self.page.load(QUrl(map_url(self.config)))
         else:
-            self.page.triggerAction(self.page.WebAction.ReloadAndBypassCache)
+            self.page.triggerAction(self.page.WebAction.Reload)
+
+    def clear_cache(self):
+        """Clear what the map stored to load faster: the HTTP cache and the
+        service worker with its caches (about 22 MB for SquadCalc). Cookies
+        and localStorage, where SquadCalc keeps its settings, stay.
+
+        Without a profile (the map was never opened) nothing is running
+        and the folders are removed. With a page, the service worker and
+        its caches of the page's site are removed by the page itself: Qt
+        has no call for it, and the files of a profile in use must not be
+        deleted.
+        """
+        if self.profile is None:
+            self.remove_stored_files()
+            return
+
+        self.profile.clearHttpCache()
+
+        if self.page is not None and not self.loading:
+            self.page.runJavaScript(CLEAR_SITE_STORAGE_SCRIPT, 0)
+
+    def remove_stored_files(self):
+        """Delete the cache folder and the service worker's folder, for a
+        profile that is not in use."""
+        shutil.rmtree(os.path.join(data_dir(), "WebEngine", "Cache"), ignore_errors=True)
+
+        shutil.rmtree(
+            os.path.join(persistent_storage_path(), "Service Worker"),
+            ignore_errors=True
+        )
+
+    def load_source(self):
+        """Open the configured map source (after it was changed)."""
+        self.forget_page_state()
+
+        self.set_bridge_found(None)
+
+        if self.view is None:
+            self.update_status()
+            return
+
+        self.hide_panel()
+
+        self.page.load(QUrl(map_url(self.config)))
+
+    def on_loading_changed(self, info):
+        """A load of the page started or ended (QWebEngineLoadingInfo).
+
+        A navigation the page refused (to another origin, see MapWebPage)
+        is reported too, as started and then stopped: it is not a load of
+        the map and is ignored, otherwise the map would show the "failed"
+        panel and stop its bridge poll after every link to another site.
+        Only the reports with the map's origin count.
+        """
+        from PyQt6.QtWebEngineCore import QWebEngineLoadingInfo
+
+        if self.page is None or url_origin(info.url()) != self.page.map_origin:
+            return
+
+        Status = QWebEngineLoadingInfo.LoadStatus
+
+        if info.status() == Status.LoadStartedStatus:
+            self.on_load_started()
+            return
+
+        # A load issued while a refused navigation is still being cancelled
+        # (a reload right after it) is reported as started with the refused
+        # address, so its start was ignored above: it starts here.
+        if not self.loading:
+            self.on_load_started()
+
+        self.on_load_finished(info.status() == Status.LoadSucceededStatus)
 
     def on_load_started(self):
         self.loading = True
+
+        self.weapon_baseline_pending = True
+
+        self.external_notice = ""
+
+        self.forget_page_state()
+
+        self.update_polling()
+
+        # The old page's answer may never come
+        self.bridge_pending = False
 
         self.black_timer.stop()
 
@@ -446,7 +1014,14 @@ class MapPage(QWidget):
                 self.hide_panel()
 
             self.black_timer.start()
+
+            self.page_ready = True
+
+            self.update_polling()
         else:
+            # No page, no bridge: the status must not say targets go through
+            self.set_bridge_found(None)
+
             self.show_panel("failed")
 
     def on_timeout(self):
@@ -454,11 +1029,199 @@ class MapPage(QWidget):
             self.show_panel("slow")
 
     def on_render_crash(self, status, code):
+        """The page's renderer died: stop polling the dead page (a reload
+        starts it again) and drop its bridge state."""
         self.loading = False
+
+        self.forget_page_state()
+        self.update_polling()
+        self.black_timer.stop()
+        self.bridge_pending = False
+
+        self.set_bridge_found(None)
 
         self.progress.hide()
 
         self.show_panel("crashed")
+
+    # ---------- targets ----------
+
+    def forget_page_state(self):
+        """The page restarts (load, crash, other source): its change counter
+        starts again and nothing can be polled until it has loaded."""
+        self.page_ready = False
+        self.last_raw = None
+        self.known_revision = None
+
+    def on_screen(self):
+        """Whether the map can be seen: shown, in a window that is not
+        minimised."""
+        return self.isVisible() and not self.window().isMinimized()
+
+    def poll_interval(self):
+        """Milliseconds between polls: slow when the map is not on the
+        screen, otherwise fast, and fastest for a page whose counter makes
+        a poll free."""
+        if not self.on_screen():
+            return BRIDGE_POLL_HIDDEN_MS
+
+        if self.known_revision is not None:
+            return BRIDGE_POLL_COUNTER_MS
+
+        return BRIDGE_POLL_MS
+
+    def polling_wanted(self):
+        """Whether the page is to be polled: it loaded and is on the screen,
+        or the calculator follows it (`map_follow`: its targets come from
+        this page whether anyone looks at it or not)."""
+        return self.page_ready and (
+            self.on_screen() or bool(self.config.get("map_follow"))
+        )
+
+    def update_polling(self):
+        """Start, stop or re-time the poll (see `polling_wanted` and
+        `poll_interval`)."""
+        if not self.polling_wanted():
+            self.bridge_timer.stop()
+            return
+
+        interval = self.poll_interval()
+
+        if self.bridge_timer.interval() != interval:
+            self.bridge_timer.setInterval(interval)
+
+        if not self.bridge_timer.isActive():
+            self.bridge_timer.start()
+
+    def showEvent(self, event):
+        """The map came on the screen: poll at the fast rate."""
+        super().showEvent(event)
+
+        self.update_polling()
+
+    def hideEvent(self, event):
+        """The map left the screen: poll slowly, or not at all."""
+        super().hideEvent(event)
+
+        self.update_polling()
+
+    def poll_targets(self):
+        """Ask the page for its targets and weapon (see on_bridge_answer);
+        nothing while it loads or while the last question is unanswered."""
+        if self.page is None or self.loading or self.bridge_pending:
+            return
+
+        self.bridge_pending = True
+
+        self.page.runJavaScript(
+            bridge_script(self.known_revision), 0, self.on_bridge_answer
+        )
+
+    def on_change_announced(self):
+        """The page says its targets or weapon changed: ask it now."""
+        if self.polling_wanted():
+            self.poll_targets()
+
+    def select_weapon(self, name):
+        """Select weapon `name` on the loaded SquadCalc page, if it has it.
+
+        The page then reports it back through the bridge; the calculator
+        already has it, so nothing changes there. The name is kept and sent
+        again after the page restarts (also when it is loading now).
+        """
+        self.app_weapon = name
+
+        if self.page is None or self.loading:
+            return
+
+        self.page.runJavaScript(select_weapon_script(name), 0)
+
+    def on_bridge_answer(self, raw):
+        """Result of the poll script (maplink.bridge_script): JSON text, None
+        without bridge. An answer equal to the last one changes nothing and
+        is not parsed (a target's profile has up to 10001 numbers); one longer
+        than MAX_ANSWER_CHARS is not an answer."""
+        if raw is not None and raw == self.last_raw:
+            self.bridge_pending = False
+            return
+
+        self.last_raw = raw
+
+        value = None
+
+        if isinstance(raw, str) and len(raw) <= MAX_ANSWER_CHARS:
+            try:
+                value = json.loads(raw)
+            except (ValueError, RecursionError):
+                pass
+
+        self.on_bridge_result(value)
+
+    def on_bridge_result(self, value):
+        """The decoded answer: {targets, weapon, revision}, None without
+        bridge. "targets" is missing when the page's change counter has not
+        moved since the targets the app has.
+
+        Answers can arrive after `shutdown` (the window is closing); they
+        are dropped.
+        """
+        self.bridge_pending = False
+
+        if self.page is None:
+            return
+
+        state = parse_bridge(value)
+
+        self.set_bridge_found(state is not None)
+
+        targets, weapon = state if state is not None else ([], None)
+
+        if state is not None and self.weapon_baseline_pending:
+            self.weapon_baseline_pending = False
+
+            self.last_weapon = weapon
+
+            if self.app_weapon:
+                self.page.runJavaScript(select_weapon_script(self.app_weapon), 0)
+
+        # The weapon first: the targets are then solved for it.
+        elif weapon is not None and weapon != self.last_weapon:
+            self.last_weapon = weapon
+            self.weapon_received.emit(weapon)
+
+        if state is not None:
+            if "targets" not in value:
+                return
+
+            had_counter = self.known_revision is not None
+
+            self.known_revision = parse_revision(value)
+
+            if had_counter != (self.known_revision is not None):
+                self.update_polling()
+
+        if targets == self.last_targets:
+            return
+
+        self.last_targets = targets
+
+        self.targets_received.emit(targets)
+
+    def set_bridge_found(self, found):
+        """Record whether the page has the bridge (None: unknown, no page)
+        and show it. Back to unknown, the page's state is forgotten and its
+        next answer is a baseline again."""
+        if found == self.bridge_found:
+            return
+
+        self.bridge_found = found
+
+        if found is None:
+            self.last_targets = None
+            self.last_weapon = None
+            self.weapon_baseline_pending = True
+
+        self.update_status()
 
     def check_black(self):
         if self.view is None or not self.view.isVisible() or self.loading:
@@ -475,6 +1238,9 @@ class MapPage(QWidget):
         """
         self.timeout_timer.stop()
         self.black_timer.stop()
+        self.bridge_timer.stop()
+
+        self.page_ready = False
 
         if self.view is None:
             return
@@ -483,7 +1249,7 @@ class MapPage(QWidget):
 
         view, page = self.view, self.page
 
-        self.view = self.page = self.profile = None
+        self.view = self.page = self.profile = self.activation_filter = None
 
         self.view_holder.removeWidget(view)
 
@@ -498,12 +1264,14 @@ class MapPage(QWidget):
 
         self.panel_title.setText(tr(f"map_{kind}_title"))
 
-        self.panel_text.setText(tr(f"map_{kind}_text"))
+        self.panel_text.setText(
+            tr(f"map_{kind}_text", host=QUrl(map_url(self.config)).host())
+        )
 
         self.retry_button.setVisible(kind != "missing")
 
         self.compat_button.setVisible(
-            kind != "missing" and self.config.get("map_render") != "software"
+            kind != "missing" and not self.software_in_use()
         )
 
         self.panel.show()

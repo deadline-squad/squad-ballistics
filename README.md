@@ -2,46 +2,33 @@
 
 ## English
 
-Squad Ballistics is a modern ballistic assistant and tactical overlay system created for the game **Squad**.
+Squad Ballistics is a ballistic calculator and aim overlay for the game **Squad**, on Linux.
 
-The application helps players accurately calculate projectile trajectories, offsets, and aiming corrections for indirect fire and long-range shooting using almost every type of weapon available in the game.
+For a target at a given distance and height difference it tells you how to hit it: the elevation to set on a mortar or a rocket launcher, how long to hold S on the AGS-17, or, for a grenade launcher, an anti-tank launcher or a gun, where to put the target on the screen, shown by a transparent overlay mark over the game.
 
-The project is designed primarily for:
+It covers 104 weapon entries in 6 groups:
 
-* mortars
 * grenade launchers
-* vehicle cannons
-* mounted weapons
-* indirect fire systems
-* high-angle ballistic shooting
+* automatic grenade launchers
+* anti-tank launchers
+* recoilless and field guns
+* tank guns (and the guns of other vehicles)
+* indirect fire: mortars, the Hell Cannon and rockets
 
-Squad Ballistics provides a real-time customizable crosshair overlay, advanced ballistic calculations, FOV scaling, and an integrated browser for SquadCalc support.
+The AGS-17, MK19 and SPG-9 have an entry for each vehicle they are mounted on (Technical, INS armoured technical, Tigr, Safir, BTR-D, M1151, MATV, M113, AAVP-7A1, PARS III, TAPV, RHIB), with the launch point (barrel pivot height, muzzle reach and rise), the elevation limits and the sight read from the game files. Not in the game files, so without a launch height or without an entry: the M1117 and RHIB MK19 and the AGS-17 of the Kozak-2M1 and RHIB (deadline-squad/squad-ballistics#12).
 
-The application was built with focus on:
+Machine guns, autocannons and weapons from mods are not covered.
 
-* minimalistic tactical design
-* high usability
-* modern UI/UX
-* fast calculations
-* overlay customization
-* standalone desktop experience
+Main features:
 
-Main Features:
-
-* Real-time ballistic calculations
-* Dynamic crosshair overlay
-* True Crosshair Editor
-* RGB customization
-* Glow / Bloom effects
-* Built-in SquadCalc browser
-* Auto-update system
-* Hotkeys support
-* Modern tactical interface
-* Transparent overlay technology
-* FOV scaling system
-* Dynamic weapons database
-
-Squad Ballistics is constantly evolving and aims to become one of the most advanced ballistic utility tools for Squad players.
+* Solutions while you type, from the game's own projectile model and data (gravity, rocket boost and slow-down)
+* Overlay aim mark and range ladder, computed for your FOV, your screen and the weapon's sight
+* Mark setup: style, colour, size, alignment with the in-game sight, monitor choice
+* Trajectory view, flight time, apex, impact angle, lead for moving targets
+* Built-in SquadCalc map whose target and weapon go into the calculator, with a check for terrain and buildings in the way
+* AGS-17 hold time and auto-hold, mortar auto-lay by the sight and the compass (F7)
+* Global hotkeys
+* English interface
 
 ---
 
@@ -49,61 +36,131 @@ Squad Ballistics is constantly evolving and aims to become one of the most advan
 
 ## Русский
 
-Squad Ballistics — это современный баллистический ассистент и система тактического оверлея для игры **Squad**.
+Squad Ballistics — баллистический калькулятор и оверлей-прицел для игры **Squad** в Linux.
 
-Приложение помогает игрокам точно рассчитывать траекторию снарядов, поправки и смещение прицела для стрельбы навесом и ведения огня на дальние дистанции практически из всех видов оружия в игре.
+Для цели на заданной дистанции и с заданным перепадом высот программа говорит, как в неё попасть: какой угол выставить на миномёте или РСЗО, сколько держать S на АГС-17 или, для гранатомёта, противотанкового гранатомёта или пушки, куда на экране поставить цель — это показывает прозрачная метка оверлея поверх игры.
 
-Проект предназначен в первую очередь для:
+В ней 104 позиции оружия в 6 группах:
 
-* миномётов
-* гранатомётов
-* пушек техники
-* стационарного вооружения
-* систем непрямого огня
-* навесной стрельбы
+* гранатомёты
+* автоматические гранатомёты
+* противотанковые гранатомёты
+* безоткатные и полевые орудия
+* танковые пушки (и пушки другой техники)
+* навесной огонь: миномёты, Hell Cannon и реактивные системы
 
-Squad Ballistics предоставляет:
+У АГС-17, MK19 и СПГ-9 есть запись для каждой техники, на которой они стоят (Technical, бронированный технический INS, Tigr, Safir, БТР-Д, M1151, MATV, M113, AAVP-7A1, PARS III, TAPV, RHIB): высота запуска (ось ствола над землёй, вынос и подъём дульного среза), пределы возвышения и прицел взяты из файлов игры. Нет в файлах игры, поэтому без высоты запуска или без записи: MK19 на M1117 и RHIB и АГС-17 на Kozak-2M1 и RHIB (deadline-squad/squad-ballistics#12).
 
-* настраиваемый overlay-прицел в реальном времени
-* баллистические вычисления
-* масштабирование под FOV
-* встроенный браузер с интеграцией SquadCalc
-* современный минималистичный интерфейс
-
-Главная цель проекта — сделать удобный и красивый инструмент для игроков Squad, который позволяет быстрее и точнее вести огонь на больших дистанциях.
+Пулемётов, автопушек и оружия из модов нет.
 
 Основные возможности:
 
-* Баллистические расчёты в реальном времени
-* Overlay-прицел
-* True Crosshair Editor
-* RGB кастомизация
-* Glow / Bloom эффекты
-* Встроенный браузер SquadCalc
-* Система автообновлений
-* Поддержка hotkeys
-* Современный tactical UI
-* Прозрачный overlay
-* FOV scaling system
-* Динамическая база оружия
+* Решение пересчитывается при вводе, по модели снаряда и данным самой игры (гравитация, разгон и торможение ракет)
+* Метка оверлея и шкала дальности, посчитанные под ваш FOV, экран и прицел оружия
+* Настройка метки: вид, цвет, размер, выравнивание по прицелу игры, выбор монитора
+* График траектории, время полёта, высота подъёма, угол падения, упреждение по движущейся цели
+* Встроенная карта SquadCalc: цель и оружие с карты подставляются в калькулятор, с проверкой рельефа и зданий на пути
+* Время удержания S и автозажатие для АГС-17, автонаводка миномёта по прицелу и компасу (F7)
+* Глобальные горячие клавиши
+* Интерфейс на английском
 
-Проект постоянно развивается и со временем должен стать полноценным тактическим инструментом для игроков Squad.
+---
+
+# Install / Установка
+
+## English
+
+Requirements:
+
+* Linux on x86_64 with glibc 2.34 or newer (Ubuntu 22.04, Debian 12, Fedora 35 and later), or on aarch64 (ARM) with glibc 2.39 or newer (Ubuntu 24.04 and later). `ldd --version` shows your glibc. Squad itself runs through Proton.
+* Python 3.10 or newer: `python3 --version`.
+* A compositor for the transparent overlay: KDE Plasma and GNOME have one on; for Xfce, i3, Openbox and the like see *The overlay needs a compositor* below.
+* Access to the private GitHub repository **deadline-squad/squad-ballistics** (ask the maintainer), with an SSH key on your GitHub account.
+
+Install into a virtual environment in the app's folder (Ubuntu and Debian refuse a system-wide `pip install` with "externally-managed-environment"):
+
+```bash
+sudo apt install git python3-venv libxcb-cursor0   # Debian/Ubuntu; Arch: git python xcb-util-cursor; Fedora: git python3 xcb-util-cursor
+git clone git@github.com:deadline-squad/squad-ballistics.git
+cd squad-ballistics
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python app.py
+```
+
+Upgrade: in the `squad-ballistics` folder,
+
+```bash
+git pull
+.venv/bin/pip install -r requirements.txt
+```
+
+`requirements.txt` pins the exact PyQt6 and PyQt6-WebEngine versions the tests pass with, so the pip step after each pull keeps a tested Qt. Without **libxcb-cursor0** Qt stops at the start with "Could not load the Qt platform plugin xcb".
+
+## Русский
+
+Что нужно:
+
+* Linux на x86_64 с glibc 2.34 и новее (Ubuntu 22.04, Debian 12, Fedora 35 и новее) или на aarch64 (ARM) с glibc 2.39 и новее (Ubuntu 24.04 и новее). Версию glibc показывает `ldd --version`. Сам Squad запускается через Proton.
+* Python 3.10 и новее: `python3 --version`.
+* Композитор для прозрачного оверлея: в KDE Plasma и GNOME он включён; для Xfce, i3, Openbox и подобных см. *оверлею нужен композитор* ниже.
+* Доступ к закрытому репозиторию GitHub **deadline-squad/squad-ballistics** (попросите у сопровождающего) и SSH-ключ в вашем аккаунте GitHub.
+
+Установка в виртуальное окружение в папке программы (Ubuntu и Debian не дают ставить `pip install` в систему: «externally-managed-environment»):
+
+```bash
+sudo apt install git python3-venv libxcb-cursor0   # Debian/Ubuntu; Arch: git python xcb-util-cursor; Fedora: git python3 xcb-util-cursor
+git clone git@github.com:deadline-squad/squad-ballistics.git
+cd squad-ballistics
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python app.py
+```
+
+Обновление: в папке `squad-ballistics`
+
+```bash
+git pull
+.venv/bin/pip install -r requirements.txt
+```
+
+`requirements.txt` закрепляет точные версии PyQt6 и PyQt6-WebEngine, на которых проходят тесты, поэтому шаг с pip после каждого обновления ставит проверенный Qt. Без **libxcb-cursor0** Qt не запускается с ошибкой «Could not load the Qt platform plugin xcb».
 
 ---
 
 # Usage / Использование
 
-1. Pick a weapon (searchable list, recent weapons on top), enter the distance and, optionally, the height difference: target higher `+`, lower `-`.
-2. Enter your horizontal FOV: the in-game setting, or the zoomed FOV when aiming through a scope.
+1. Pick a weapon (searchable list, recent weapons on top; the search also finds a weapon by a vehicle or mount named in its note, so "M1117" or "AAVP" finds *MK19*), enter the distance and, optionally, the height difference: target higher `+`, lower `-`.
+2. Enter your horizontal FOV: the in-game setting (the game's slider goes 90-120; 1-179 are accepted). Weapons aimed through a scope, optic or gunner's sight (QLZ87, SPG-9 scope, AGS-17 optic, ZiS-3, tank and IFV guns) are computed for that sight's own zoom and tilt: keep the game's FOV, the app divides it by the sight's zoom. A tripod weapon whose sight zooms the screen on RMB (QLZ87, the QLZ87 on the Lynx / CSK131, AGS-17 optic, SPG-9 scope, ZiS-3) has two entries, *· optic (RMB ×N)* for the sight (RMB held) and *· no optic* for its normal view (no RMB, ×1): pick the entry for the view you aim from, or press **Mouse4** (the mouse back button) to switch between the two: the distance and the target stay, each entry keeps its own trim. The line under the weapon, the overlay's info line and the how-to steps say which one is on. The optic entry used from the normal view puts the mark several times too low and the shot far past the target (QLZ87 at FOV 120: 300 m lands at ~830 m). Holding the Focus key narrows the game's FOV to two thirds: type that FOV in.
 3. The result updates while you type. The **How to fire** block tells you exactly what to do for the selected weapon.
-4. Direct fire (launchers, grenade launchers, guns): put the overlay mark on the target and fire.
-5. Indirect fire (mortars, Hell Cannon, rockets): set the shown elevation (mils or degrees) on the weapon.
+4. Direct fire (launchers, grenade launchers, guns): put the overlay mark on the target and fire. Without a distance typed, the *range ladder* under the mark shows where a target at each round range (every 25–1000 m, finer near the weapon) goes (flat ground, the weapon's own ballistics); turn it off on the crosshair page.
+   *Vehicle guns:* the mark and the ladder are computed for the gunner's base sight view (its zoom and the gun's tilt against the camera come from the game files; the sight's other zoom levels are not offered). Entries are split per vehicle where the zoom or the tilt differ (*Tank AP · T-62 (2A20)*, *MK19 · M1151 / RHIB open turret* ...).
+   *If the mark is off:* the mark comes from the game files, and a weapon or sight can still sit a little differently in the game. Fire once at a known distance (say 300 m: type 300 in *Distance*), find where the shot landed (the map, a rangefinder or a marker) and type that in *Landed at, m*, then press **Apply**. The app works out the correction and shows it in *Trim, deg*; the mark and the range ladder move at once, and the overlay line reads "trim +0.35" while it is on. The trim is an angle, so one shot fixes every range. It is kept per weapon, survives restarts, can be typed or stepped by hand (the mouse wheel moves it 0.05°) and **Reset trim** removes it. Every angle the app shows for the mark includes the trim. On the high arc the landing is solved on the high arc, where more elevation brings the shot nearer (the field's hint then reads "+ nearer"). The AGS-17's lob is laid by holding S, not with the mark, so *Apply* refuses its landing: set the trim from a direct-fire shot on the *Low* arc. It is not the same as *Align with the sight* on the crosshair page: that stretches and shifts the mark on the screen to line it up with an opened sight, while the trim corrects where the shot actually goes.
+5. Indirect fire (mortars, Hell Cannon, rockets): set the shown elevation (mils or degrees) on the weapon. These weapons are laid on their own sight, so the overlay shows only the info line, no aim mark.
+6. Or skip typing: place your weapon and a target on the SquadCalc map (tab **SquadCalc**) — distance, height difference and bearing go to the calculator by themselves.
 
-1. Выберите оружие (поиск по списку, недавние сверху), введите дистанцию и при необходимости перепад высот: цель выше `+`, ниже `-`.
-2. Укажите горизонтальный FOV: значение из настроек игры или FOV прицела при стрельбе через оптику.
+1. Выберите оружие (поиск по списку, недавние сверху; поиск находит оружие и по машине или станку из его описания: «M1117» или «AAVP» находит *MK19*), введите дистанцию и при необходимости перепад высот: цель выше `+`, ниже `-`.
+2. Укажите горизонтальный FOV: значение из настроек игры (ползунок игры 90–120; принимается 1–179). Оружие, из которого целятся через прицел, оптику или прицел наводчика (QLZ87, оптика СПГ-9, оптика АГС-17, ЗиС-3, пушки танков и БМП), считается для приближения и наклона этого прицела: оставьте FOV игры, программа сама делит его на приближение прицела. У станкового оружия, чей прицел приближает экран по ПКМ (QLZ87, QLZ87 на Lynx / CSK131, оптика АГС-17, оптика СПГ-9, ЗиС-3), есть две записи: «· optic (RMB ×N)» для прицела (ПКМ зажата) и «· no optic» для обычного вида (без ПКМ, ×1): выберите запись для того вида, из которого целитесь, или переключайте записи боковой кнопкой мыши **Mouse4** (дистанция и цель остаются, поправка у каждой записи своя). Нужный вид написан под выбором оружия, в строке над меткой и в шагах «How to fire». Запись с оптикой в обычном виде ставит метку в несколько раз ниже, и снаряд улетает далеко за цель (QLZ87 при FOV 120: цель на 300 м — выстрел на ~830 м). Клавиша Focus (удержание) сужает FOV игры до двух третей: введите этот FOV.
 3. Результат пересчитывается при вводе. Блок **«Как стрелять»** говорит, что делать для выбранного оружия.
-4. Прямая наводка (гранатомёты, пушки): совместите метку оверлея с целью и стреляйте.
-5. Навесной огонь (миномёты, Hell Cannon, ракеты): выставьте показанный угол (милы или градусы) на орудии.
+4. Прямая наводка (гранатомёты, противотанковые, пушки): совместите метку оверлея с целью и стреляйте. Если дистанция не введена, *шкала дальности* под меткой показывает, куда ставить цель на каждой круглой дальности (через 25–1000 м, чаще у самого оружия; по ровной земле, по баллистике этого оружия); выключается на странице прицела.
+   *Пушки техники:* метка и шкала считаются для базового вида прицела наводчика (его приближение и наклон пушки относительно камеры взяты из файлов игры; другие уровни приближения прицела не предлагаются). Записи разделены по машинам там, где приближение или наклон отличаются (*Tank AP · T-62 (2A20)*, *MK19 · M1151 / RHIB open turret* ...).
+   *Если метка мажет:* метка посчитана по файлам игры, но оружие или прицел в игре могут стоять чуть иначе. Выстрелите один раз на известную дистанцию (например 300 м: введите 300 в *Distance*), найдите, куда упал снаряд (карта, дальномер или маркер), впишите это в *Landed at, m* и нажмите **Apply**. Программа посчитает поправку и покажет её в *Trim, deg*; метка и шкала дальности сразу сдвинутся, а пока поправка включена, строка оверлея пишет «trim +0.35». Поправка — это угол, поэтому один выстрел исправляет все дальности. Она хранится отдельно для каждого оружия, сохраняется между запусками, её можно ввести или менять вручную (колесо мыши — шаг 0,05°), а **Reset trim** её убирает. Все углы, которые программа показывает для метки, уже включают поправку. На навесной траектории попадание считается по навесной, где больший угол даёт недолёт (подсказка поля тогда «+ nearer»). Навесную АГС-17 наводят удержанием S, а не меткой, поэтому *Apply* её попадание не принимает: поправку задают по выстрелу прямой наводкой на *Low*. Это не то же самое, что *Align with the sight* на странице прицела: там метка растягивается и сдвигается по экрану, чтобы совпасть с открытым прицелом, а поправка исправляет, куда на самом деле летит выстрел.
+5. Навесной огонь (миномёты, Hell Cannon, ракеты): выставьте показанный угол (милы или градусы) на орудии. Они наводятся своим прицелом, поэтому оверлей показывает только строку с данными, без метки.
+6. Или не вводите ничего: поставьте своё оружие и цель на карте SquadCalc (вкладка **SquadCalc**) — дистанция, перепад высот и азимут подставятся в калькулятор сами.
+
+### AGS-17
+
+Pick **AGS-17 · emplacement · optic (RMB ×2.5)** (RMB held) or **AGS-17 · emplacement · no optic** for the gun with the PAG-17 optic, **AGS-17 · iron sights emplacement** for the open-sight one (its barrel is tilted 4.5° up, so it lobs 3.65° higher and the hold times differ). / Выберите **AGS-17 · emplacement · optic (RMB ×2.5)** (ПКМ зажата) или **AGS-17 · emplacement · no optic** для АГС-17 с оптикой ПАГ-17 и **AGS-17 · iron sights emplacement** для АГС-17 с открытым прицелом (его ствол наклонён на 4,5° вверх, поэтому он стреляет навесом на 3,65° выше и время удержания другое).
+
+* **High arc / навесная:** the result is how long to hold **S**: press **W** (barrel back to the top), hold **S** for the shown time, release. While AGS-17 is selected the app counts every S press since the last W, in any window, so always press W right before laying (see *Linux* below). / Результат — сколько держать **S**: нажмите **W** (ствол вверх), зажмите **S** на показанное время и отпустите. Пока выбран АГС-17, программа считает каждое нажатие S с последнего W в любом окне, поэтому всегда жмите W прямо перед наводкой (см. *Linux* ниже).
+* **Low arc / настильная:** direct fire with the overlay mark, like other grenade launchers. / Прямая наводка меткой оверлея, как у других гранатомётов.
+* **Uphill and downhill / вверх и вниз по склону:** for weapons aimed with the overlay the angle shown is the one above the line to the target (the target is what you put on the mark), and the angle to the horizon is shown under it. / Для оружия с оверлеем показывается угол над линией на цель (с меткой совмещается цель), угол к горизонту — под ним.
+* **Both at once / оба сразу:** on the high arc the overlay mark shows the direct-fire aim at the same time (`S 2.31 s · direct fire 3.21°`), and a target too close to lob (under 279 m) is solved for direct fire. / На навесной метка оверлея одновременно показывает прямую наводку, а цель ближе 279 м считается прямой наводкой.
+* **Auto-hold / автозажатие** (off by default, Settings → Calculator): press **F7** and the app holds S itself for the time left to the target, then releases; F7 again or W cancels. Synthetic key presses may be treated as a macro by EasyAntiCheat or server rules — your risk. Linux needs write access to `/dev/uinput` (Steam's udev rules) or the game on X11/XWayland. The app releases its key when the hold ends, is cancelled, or the app closes; if the app is killed hard (`kill -9`, a crash) while it holds a key through X11 (no `/dev/uinput`), the X server keeps that key down: tap the key once to release it. / Выключено по умолчанию (Настройки → Калькулятор): **F7** — программа сама держит S оставшееся время и отпускает; повторное F7 или W отменяет. Нажатия от программы античит и правила сервера могут счесть макросом — на свой риск. В Linux нужен доступ к `/dev/uinput` (правила Steam) или игра в X11/XWayland. Программа отпускает клавишу по окончании, отмене и при закрытии; если программу убить (`kill -9`, сбой), пока она держит клавишу через X11 (без `/dev/uinput`), X-сервер оставит клавишу нажатой — нажмите её один раз, чтобы отпустить.
+* **Mortar auto-lay / автонаводка миномёта** (with auto-hold on): in the mortar sight press **F7** — the app holds W until the barrel is at its top (1580 mil), then S for the shown time; the sight then shows the mils of the solution. The rate (9°/s) comes from the game files: keyboard pitch ×300 per second × turret input ×0.03, the same at any frame rate (the AGS-17's ×15 × 0.6 is also 9°/s; its 67 measurements fit that as well as their fitted 9.08°/s, see #5 D6). To make it exact for your game, after a lay type the mils the sight shows into *Sight shows (mil)* and press *Calibrate*: the rate is fitted on the time S was held and kept for that weapon if it is within 30 % of 9°/s (*Reset* goes back to 9°/s; a saved rate outside that range is ignored). With *Read the mortar sight off the screen* on (default), F7 lays on the screen instead whenever the mortar's view is on it: for a SquadCalc map target it first turns the mortar with D/A until the HUD compass shows the target's bearing, then reads the mils off the sight's scale and holds W or S until it shows the solution within 0.5 mil (see below); the timed lay is the fallback. Lay from the mortar's own view, not zoomed in with the right mouse button: only that view shows both the scale and the compass. A typed target has no bearing: set it yourself. / С включённым автозажатием: в прицеле миномёта **F7** — программа держит W до упора (1580 мил), затем S показанное время; прицел покажет милы решения. Скорость (9°/с) — из файлов игры: клавиатура ×300 в секунду × ввод башни ×0.03, при любой частоте кадров (у АГС-17 ×15 × 0.6 — тоже 9°/с; его 67 замеров ложатся на неё не хуже подобранных 9.08°/с, см. #5 D6). Для точности под вашу игру после наводки введите милы с прицела в «Прицел показал (мил)» и нажмите «Уточнить»: скорость подгоняется по времени удержания S и запоминается, если отличается от 9°/с не больше чем на 30 % (кнопка «Сброс» вернёт 9°/с; сохранённая скорость вне этих пределов не используется). С включённым «Читать прицел миномёта с экрана» (по умолчанию) F7 наводит по экрану, когда на нём вид миномёта: для цели с карты SquadCalc программа сначала поворачивает миномёт клавишами D/A, пока компас внизу экрана не покажет азимут цели, затем читает милы со шкалы прицела и держит W или S, пока он не покажет решение с точностью до 0,5 мил (см. ниже); наводка по времени остаётся запасной. Наводите из обычного вида миномёта, без приближения правой кнопкой: только там видны и шкала, и компас. У введённой вручную цели нет азимута — его выставляйте сами.
+* **Compass reading / чтение компаса:** the bearing is the number under the centre of the HUD compass at the bottom of the screen. The mortar's own view shows it with tenths ("182.2", the camera's yaw rounded to 0.1°); other views show whole degrees ("182", cut, read as 182.5). The digits are matched against the same digit pictures as the sight's scale. The strip must confirm the number: its ticks (one every 15 degrees, 6.33 px per degree at 1080p) must sit where the number puts them, and the labels under the nearest ticks (the 3-digit numbers 12 to 40° either side) must read as the values the number implies and sit where it puts them; so a misread number or anything that is not the compass gives no reading. The tolerance is 1.5° while the mortar stands still (the lay's confirm and settle phases; 0.8° under a number with tenths, the mortar's view) and 2.5° otherwise (the strip lags behind a turn); while the barrel turns, the lay takes the number alone and checks it against the last reading. The compass is found at HUD scales 0.8 to 1.25, and a compass drawn without its ticks is read from its labels. Checked on 270 1080p frames of current game videos (mortar, Grad and AGS-17): 245 read (201 with the earlier reader, which also gave one wrong bearing, 271 for 274); replacing every digit of those numbers with every other digit, no tens or hundreds digit passed (20% of tens did before), a units digit 2° or more off never passes on a still strip (1° or more under a number with tenths) and one 3° or more never on a turning one, and no frame without a compass (236) gave a reading; the tenths digit is not checked (under 1°). A frame where a marker covered the number or with no compass gives no reading. The game turns the mortar 0.25° × view sensitivity per frame it holds A or D: the lay stops within 0.1° or half that step, at most 0.25° (with a step over 0.5°, a view sensitivity over 2, it may end with ✗). While a mortar is laid on a map target the overlay shows the bearing left, e.g. `bearing 120.0° (+3.4)`. / Азимут — это число под центром компаса внизу экрана. В обычном виде миномёта оно с десятыми («182.2», поворот камеры, округлённый до 0,1°), в других видах — целые градусы («182», дробная часть отброшена, читается как 182,5). Цифры сравниваются с теми же образцами, что и цифры шкалы прицела. Лента должна подтвердить число: её деления (через каждые 15 градусов, 6,33 пикселя на градус на 1080p) стоят там, где их ставит число, а подписи под ближайшими делениями (трёхзначные числа в 12–40° по обе стороны) читаются как значения, которые подразумевает число, и стоят там, где оно их ставит; поэтому неверно прочитанное число или что-то, кроме компаса, не даёт показания. Допуск 1,5°, пока миномёт стоит (фазы подтверждения и остановки наводки; 0,8° под числом с десятыми, в виде миномёта), и 2,5° в остальное время (лента отстаёт при повороте); пока ствол поворачивается, наводка берёт одно число и сверяет его с предыдущим показанием. Компас находится при масштабе HUD от 0,8 до 1,25, а компас без делений читается по подписям. Проверено на 270 кадрах 1080p из свежих видео игры (миномёт, Град и АГС-17): прочитано 245 (201 прежним чтением, которое к тому же дало один неверный азимут: 271 вместо 274); при замене каждой цифры этих чисел любой другой цифра десятков или сотен не прошла ни разу (раньше проходило 20 % десятков), единицы с ошибкой от 2° не проходят на неподвижной ленте (от 1° под числом с десятыми), а от 3° — на поворачивающейся, и ни один из 236 кадров без компаса показания не дал; цифра десятых не проверяется (ошибка меньше 1°). Кадр, где число закрыла метка, и кадры без компаса показаний не дают. Игра поворачивает миномёт на 0,25° × чувствительность вида за каждый кадр, пока зажата A или D: наводка останавливается в пределах 0,1° или половины этого шага, но не дальше 0,25° (при шаге больше 0,5°, чувствительности вида выше 2, она может закончиться ✗). Пока миномёт наводится на цель с карты, оверлей показывает остаток азимута, например `азимут 120.0° (+3.4)`.
+* **Mortar sight reading / чтение прицела миномёта:** while a mortar is selected the app reads the elevation off the sight's scale left of the screen centre (several times a second) and shows it on the overlay with what is left to the solution, e.g. `sight 1041.5 mil (+4.6)`. It finds the scale's edge line, the ticks (sub-pixel) and the labels every 10 mils, reads the labels' digits against Roboto Condensed and decodes all visible labels together (they go up by 10), then interpolates the pointer between the ticks: about 0.1 mil on 1080p, any resolution and aspect ratio, HUD scale ±25 %; tested on synthetic sights and on 7 real 1080p sight frames from two game videos (within 0.2 mil of what the eye reads). A lay on the sight: two agreeing readings, then W or S held with the rate measured from the readings and released just before the target, then taps (each lay learns afresh the shortest tap that moves the barrel, the game's frame step from taps of a frame or two, and the rate from every tap that moved more than two steps); after every move two readings of separate grabs must agree; it stops within 0.5 mil or half the game's frame step (at most 1 mil: with a step over 2 mils, a high view sensitivity, the lay may end with ✗), after 12 moves, or when the sight is lost (the key is always released). With an empty *Sight shows (mil)*, *Calibrate* reads the sight off the screen; when it cannot, it saves what it grabbed to `sight-grab.png` in the settings folder. The screen is grabbed under X11 and XWayland, not under pure Wayland. / Пока выбран миномёт, программа несколько раз в секунду читает угол со шкалы прицела слева от центра экрана и пишет его на оверлее вместе с остатком до решения, например `прицел 1041.5 мил (+4.6)`. Она находит край шкалы, деления (с долями пикселя) и подписи через 10 мил, распознаёт цифры подписей по шрифту Roboto Condensed и расшифровывает все видимые подписи вместе (они растут на 10), затем интерполирует указатель между делениями: около 0,1 мил на 1080p, при любом разрешении и соотношении сторон, масштаб интерфейса ±25 %; проверено на синтетических прицелах и на 7 настоящих кадрах прицела 1080p из двух видео игры (в пределах 0,2 мил от прочитанного глазом). Наводка по прицелу: два совпавших чтения, затем W или S с измеренной по чтениям скоростью и отпусканием перед целью, затем короткие нажатия (в каждой наводке программа заново узнаёт самое короткое нажатие, которое двигает ствол, шаг кадра игры по нажатиям в один-два кадра и скорость по каждому нажатию, сдвинувшему ствол больше чем на два шага); после каждого движения должны совпасть два чтения с разных снимков экрана; останавливается в пределах 0,5 мил или половины шага кадра игры (не больше 1 мил: при шаге больше 2 мил, то есть высокой чувствительности вида, наводка может закончиться ✗), после 12 движений или если прицел пропал (клавиша всегда отпускается). С пустым полем «Прицел показал (мил)» кнопка «Уточнить» сама читает прицел с экрана, а если не может — сохраняет снимок в `sight-grab.png` в папке настроек. Экран снимается под X11 и XWayland, под чистым Wayland — нет.
+* Hold range 279–1931 m on flat ground; the model is fitted on 67 in-game measurements (hold time → distance, 0.02 s RMS) and is the same as in the Deadline SquadCalc. / Зажатием S — от 279 до 1931 м по ровной земле; модель подобрана по 67 замерам в игре (ошибка 0.02 с) и совпадает с SquadCalc Deadline.
 
 Tips / Советы:
 
@@ -113,35 +170,79 @@ Tips / Советы:
 | Hotkey (default) | Action / Действие |
 |------------------|-------------------|
 | F8 | Show / hide overlay — показать / скрыть оверлей |
-| F9 | Reset aim mark — сбросить метку |
+| F9 | Clear the target (distance, map target, mark) — сбросить цель (дистанцию, цель с карты, метку) |
 | — | Distance + / − (bind in Settings) — дистанция + / − (назначается в настройках) |
+| F7 | AGS-17 auto-hold / mortar auto-lay, when enabled — автозажатие S АГС-17 / автонаводка миномёта, если включено |
+| Mouse4 | Optic ↔ no optic for an RMB sight (QLZ87, AGS-17, SPG-9 scope, ZiS-3) — оптика ↔ без оптики для прицела по ПКМ |
 
-Hotkeys can be changed in **Settings**. On Windows they are global, so they work while the game is focused. / Клавиши меняются в **Настройках**. В Windows они глобальные и работают поверх игры.
+When F7 cannot start a lay (no target, the keyboard cannot be read, W cannot be sent, a weapon not laid by a key) or a lay stops short (the sight or the compass is lost, the key moved nothing, too many moves), the overlay line says why, e.g. `F7: no target, enter a distance in range` or `Elevation lay stopped: the key moved nothing (end of travel?)`; F7 again or another weapon clears it. A lay you stop yourself shows no ✗. A new SquadCalc target during the elevation part of a mortar lay starts the lay again from the bearing. The overlay angles follow *Primary angle unit*. / Если F7 не может начать наводку (нет цели, клавиатура не читается, нельзя нажать W, оружие не наводится клавишей) или наводка остановилась раньше цели (прицел или компас пропали, клавиша ничего не сдвинула, слишком много движений), строка оверлея пишет почему; повторное F7 или другое оружие её убирает. Остановленная вами наводка не показывает ✗. Новая цель SquadCalc во время наводки миномёта по углу начинает наводку заново с азимута. Углы на оверлее — в единицах «Primary angle unit».
 
-If the mark is slightly off in your setup, adjust **Offset calibration** in Settings. / Если метка немного не совпадает, подстройте **Калибровку смещения** в настройках.
+**Screen / Экран:** reading the mortar sight and the compass off the screen is made for 16:9 screens (tested at 1920x1080 and 2560x1440; other 16:9 sizes scale with the height). On any other aspect ratio the app says so once in the Calculator page and in the log, and the readers may fail; nothing else is changed for such screens. / Чтение прицела миномёта и компаса с экрана рассчитано на экраны 16:9 (проверено на 1920x1080 и 2560x1440; другие размеры 16:9 масштабируются по высоте). При другом соотношении сторон программа один раз сообщает об этом на странице «Калькулятор» и в логе, чтение может не работать; больше для таких экранов ничего не меняется.
+
+Hotkeys can be changed in **Settings**; the mouse side buttons Mouse4 (back) and Mouse5 (forward) can be bound like keys. They are global, so they work while the game is focused, when the keys can be read (see *Linux* below); without readable keys Mouse4 does nothing. A button is read, never taken: the game gets it too. / Клавиши меняются в **Настройках**; боковые кнопки мыши Mouse4 (назад) и Mouse5 (вперёд) назначаются как клавиши. Они глобальные и работают поверх игры, когда программа видит клавиатуру (см. *Linux* ниже); если клавиши не читаются, Mouse4 ничего не делает. Кнопка только читается, игра получает её тоже.
+
+### The mark / Метка
+
+The mark is a thin red cross, 50 px across, so the centre of the in-game marker can be laid on the exact crossing. The **Crosshair** page has its live preview, *Align with the sight* and two switches, *Range ladder* (the ticks under the mark) and *Info text*.
+
+*Align with the sight* is for when the mark does not sit on the game's sight (for example when you open the MK19's sight): *Move left/right* and *Move up/down* shift the mark and the range ladder (±300 px), *Scale* stretches them (50–150 %), the arrow keys step by 1 and *Reset* puts them back. The F9 hotkey (and the *Reset* button on the Calculator page) does not touch the alignment: it clears the target, the distance and the map target included, so the mark does not come back until a new target is given. The mortar's sight and compass are read at the screen's centre, wherever the mark is aligned. With several monitors, pick the one with the overlay in **Settings → Overlay**. Settings files of older versions load as before: the removed options are dropped. / Метка — тонкий красный крест шириной 50 px, чтобы центр маркера игры совмещать с точным пересечением линий. На странице **Crosshair** — её предпросмотр, *Align with the sight* и два переключателя, *Range ladder* (риски под меткой) и *Info text*.
+
+*Align with the sight* нужен, когда метка не совпадает с прицелом в игре (например, при открытом прицеле MK19): *Move left/right* и *Move up/down* сдвигают метку и шкалу дальности (±300 px), *Scale* растягивает их (50–150 %), стрелки двигают на 1, *Reset* возвращает всё назад. Клавиша F9 (и кнопка *Reset* на странице «Калькулятор») выравнивание не трогает: она сбрасывает цель вместе с дистанцией и целью с карты, поэтому метка не вернётся, пока не задана новая цель. Прицел и компас миномёта читаются в центре экрана, куда бы ни была выровнена метка. При нескольких мониторах монитор с оверлеем выбирается в **Settings → Overlay**. Файлы настроек старых версий загружаются как раньше, убранные пункты отбрасываются.
+
+### Aiming at the in-game marker / Наведение на маркер в игре
+
+Only for the weapons aimed with the overlay mark. The overlay line and the Calculator page show what helps to put the in-game map marker on the mark; nothing is pressed or aimed for you. / Только для оружия, которое наводится меткой. Строка оверлея и страница «Калькулятор» показывают то, что помогает поставить маркер игры на метку; ничего не нажимается и не наводится за вас.
+
+* **`1 px = 19 m`:** how far the shell lands from the target when the marker is a pixel off the mark, at this weapon, view, FOV and distance (the mark's slope over the range, from the same ballistics as the mark; checked against the independent flight in `tests/test_marker_aids.py`). At FOV 120 a pixel is about 19 m for the unzoomed MK19, 36 m for the PF98 and 1-3 m for the AGS-17 and QLZ87 optics. In a zoomed view (an optic, a scope, a gunner's sight) a pixel worth more than 5 m adds *too coarse for marker aiming*; an unzoomed view gets the number only. For the weapons that hit by contact (launchers, the SPG-9 and other direct-fire guns, tank guns; `Weapon.direct_hit`, from the `category` in `weapons.json`) the range is not what decides the hit, the height at the target is, so the line reads *`1 px = 0.17 m high`* (the SPG-9 scope, a tank gun or the ZiS-3 optic at 600 m, FOV 120; about 1.1 m for the unzoomed PF98) and *too coarse* appears only in a zoomed view above 0.6 m of height. *(whole px: 7.7 m off)* is the miss if the aim is rounded to the whole pixel of the *Mark offset* tile (shown with a tenth of a pixel). / Сколько метров дальности стоит один пиксель при этом оружии, виде, FOV и дистанции. В виде с приближением пиксель дороже 5 м даёт приписку *too coarse for marker aiming*; без приближения показывается только число. Для оружия, которое бьёт контактом (гранатомёты, SPG-9 и другие орудия прямой наводки, танковые орудия), попадание решает не дальность, а высота у цели, поэтому строка выглядит как *`1 px = 0.17 m high`* (прицел SPG-9, танковое орудие или оптика ZiS-3 на 600 м, FOV 120; около 1.1 м у PF98 без зума), а *too coarse* появляется только в виде с приближением при высоте больше 0.6 м. В скобках — промах при округлении до целого пикселя.
+* **`mark off screen past 940 m`:** the mark does not fall off the screen unannounced: the info line and the how-to steps name the range where it leaves the screen (the AGS-17 optic past ~940 m, the QLZ87 optic past ~1490 m at FOV 120, 1080p) or, above the top, the range from which it is back. The edge arrow stays. / Метка не пропадает молча: строка и шаги называют дальность, с которой она уходит за экран (или, у верхнего края, с которой возвращается).
+* **Arming line:** under the map line on the Calculator page, weapon, view (`×2.5`), distance and the map target's bearing in one line, with the notes above. / Под строкой карты на странице «Калькулятор»: оружие, вид, дистанция и азимут цели с карты одной строкой.
+* **`aim +1.5 m`:** the optional `target_height` setting in `config.json` (metres, 0-10, default 0) aims that far above the target ground, for a vehicle or a soldier on a marker that sits on the ground. The mark moves down accordingly; the angles shown are the ones that hit the lifted point. Weapons laid by elevation ignore it. Set the *Trim* with it at 0. / Необязательная настройка `target_height` в `config.json` (метры, 0–10, по умолчанию 0): целиться выше земли под маркером. Метка сдвигается вниз; показанные углы — для поднятой точки. Миномёты её игнорируют. Поправку метки задавайте при 0.
+
+The mark and the ladder ticks are drawn at their float position with anti-aliasing: the rendered centre is the computed one to 0.02 px (`tests/test_marker_aids.py`, `tests/test_mark_end_to_end.py`), so a marker centre can be aligned with it to a fraction of a pixel. / Метка и риски шкалы рисуются в дробной позиции со сглаживанием: центр совпадает с расчётным до 0,02 px.
+
+The full aiming guide (what a pixel is worth per weapon, mouse settings, calibration, error budget): [docs/aiming.md](docs/aiming.md), in Russian [docs/aiming.ru.md](docs/aiming.ru.md). / Полное руководство по наведению: [docs/aiming.ru.md](docs/aiming.ru.md), по-английски [docs/aiming.md](docs/aiming.md).
+
+Sight data (bore, zoom, launch point) of the emplaced and vehicle weapons and what is missing: [docs/sight-data.md](docs/sight-data.md), in Russian [docs/sight-data.ru.md](docs/sight-data.ru.md). / Данные прицела (угол канала, кратность, точка вылета) стационарного и машинного оружия и чего не хватает: [docs/sight-data.ru.md](docs/sight-data.ru.md), по-английски [docs/sight-data.md](docs/sight-data.md).
+
+### Linux
+
+On a Wayland session the app runs itself through XWayland so the overlay stays above the game (set `QT_QPA_PLATFORM` to override). Install and upgrade: see *Install* above. / В сессии Wayland программа сама запускается через XWayland, чтобы оверлей был поверх игры (`QT_QPA_PLATFORM` переопределяет). Установка и обновление — в разделе *Установка* выше.
+
+**The overlay needs a compositor / оверлею нужен композитор.** The overlay is a transparent window; on X11 transparency exists only while a compositing manager runs (KDE Plasma and GNOME have one on by default; Xfce: Window Manager Tweaks → Compositor; i3, Openbox and similar: start `picom`). Without one the overlay would cover the screen in black, so the app does not show it and says why. The app keeps watching: when compositing stops while the overlay is up, the overlay hides with the same warning, and once compositing runs again it comes back by itself (or press the overlay hotkey, F8). On **KDE Plasma (X11)** the usual cause is the game itself: KWin lets a fullscreen window block compositing, and games under Proton ask for it. Untick System Settings → Display & Monitor → Compositor → "Allow applications to block compositing", or add a rule for the game in System Settings → Window Management → Window Rules ("Block compositing": Force, No); if compositing is off altogether, tick "Enable on startup" there and press Alt+Shift+F12. Wayland sessions always composite. / Оверлей — прозрачное окно, а в X11 прозрачность есть, только пока работает композитный менеджер (в KDE Plasma и GNOME включён по умолчанию; Xfce: Настройки диспетчера окон → Композитинг; i3, Openbox и т. п.: запустите `picom`). Без него оверлей закрыл бы экран чёрным, поэтому программа его не показывает и объясняет почему. Программа следит за композитором и дальше: если композитинг остановился, пока оверлей на экране, оверлей прячется с тем же предупреждением, а когда композитинг снова работает, возвращается сам (или нажмите клавишу оверлея, F8). В **KDE Plasma (X11)** обычно виновата сама игра: KWin разрешает полноэкранному окну отключать композитинг, а игры через Proton об этом просят. Снимите флажок System Settings → Display & Monitor → Compositor → «Allow applications to block compositing» (в русском интерфейсе: Параметры системы → Экран и монитор → раздел композитора) или добавьте для игры правило в System Settings → Window Management → Window Rules («Block compositing»: Force, No); если композитинг выключен совсем, отметьте там «Enable on startup» и нажмите Alt+Shift+F12. Сессии Wayland композитор есть всегда.
+
+Only one copy runs at a time: a second start says that the app is already running and closes. When the settings file cannot be read, it is kept as `config.json.bad` next to the new one and the app says so; a setting with an impossible value (wrong type, `NaN`, a fraction where a whole number belongs) falls back to its default alone. / Одновременно работает только одна копия: второй запуск сообщает, что программа уже запущена, и закрывается. Если файл настроек не читается, он сохраняется как `config.json.bad` рядом с новым и программа сообщает об этом; настройка с невозможным значением (не тот тип, `NaN`, дробь вместо целого) сбрасывается к умолчанию одна, остальные остаются.
+
+The app reads the keyboard in one of two ways: / Клавиатура читается одним из двух способов:
+
+* **input group / группа input** (any session, X11 or Wayland): `sudo usermod -aG input $USER`, then log out and in. Mind what it grants: every program you run can then read every key you press, passwords included, not only this app. A keyboard or mouse (its side buttons, for Mouse4) plugged in or reconnected later (a KVM switch, a dock, Bluetooth) is picked up within a few seconds. / Любая сессия; после команды перезайдите в систему. Учтите, что это даёт: любая ваша программа сможет читать все нажатия клавиш, включая пароли, а не только эта. Клавиатура, подключённая или переподключённая позже (KVM, док-станция, Bluetooth), подхватывается за несколько секунд.
+* **X11 / XWayland** without extra rights, while the game window has the focus (Proton games run on XWayland). / Без прав, пока в фокусе окно игры (игры Proton работают через XWayland).
+
+The auto-lay presses W, S, A and D by their position on a US QWERTY keyboard (Linux key codes), not by the letter: with AZERTY, Dvorak, Colemak or a key remapper, or with the game's movement keys rebound, the lay moves the wrong way or not at all. Keep the game on the default W/A/S/D bindings for the mortar and the AGS-17. / Автонаводка нажимает W, S, A и D по их месту на клавиатуре US QWERTY (коды клавиш Linux), а не по букве: при AZERTY, Dvorak, Colemak, переназначении клавиш или других клавишах движения в игре наводка пойдёт не туда или не пойдёт. Для миномёта и АГС-17 оставьте в игре стандартные W/A/S/D.
+
+The mortar's "lay finished" beep is played with `pw-play`, `paplay` or `aplay`, whichever is installed. The game still receives the hotkeys, so bind keys the game does not use. / Сигнал окончания наводки миномёта играет `pw-play`, `paplay` или `aplay` — что установлено. Игра тоже получает горячие клавиши: назначайте те, что игра не использует.
 
 ### Map / Карта
 
-The map tab embeds [SquadCalc](https://squadcalc.app). Map tiles are cached on disk, so a map you have opened loads instantly next time. / Вкладка карты встраивает SquadCalc; тайлы кэшируются на диске.
+The map tab embeds SquadCalc: by default the Deadline build (`calc.tk104.duckdns.org`, with AGS-17 and every direct-fire weapon of this app), or [squadcalc.app](https://squadcalc.app) (Settings → Map). Map tiles are cached on disk, so a map you have opened loads instantly next time. / Вкладка карты встраивает SquadCalc: по умолчанию сборку Deadline (с АГС-17 и всеми оружиями прямой наводки этой программы), либо squadcalc.app (Настройки → Карта); тайлы кэшируются на диске.
+
+* **Map → calculator / карта → калькулятор:** with the Deadline build, the newest target on the map fills the distance and the height difference, and the bearing appears in the steps and next to the mark (Settings → Map → *Put the map target and weapon into the calculator*). Typing a value by hand takes over until the next map target. squadcalc.app does not share its targets. / Со сборкой Deadline последняя цель на карте подставляет дистанцию и перепад высот, азимут виден в шагах и у метки. Ручной ввод действует до следующей цели с карты. squadcalc.app цели не передаёт.
+* **How the map is read / как читается карта:** while the map is on the screen the app asks the page for its newest target every 150 ms (every 100 ms, and at once when the page announces a change, for a page with a change counter) and parses an answer only when it differs from the last one. The calculator's targets come from the map, so with *Put the map target and weapon into the calculator* on, the map is created shortly after the window appears (not at the first visit to the tab, which froze the window for a moment) and is still asked twice a second while its tab is hidden or the window is minimised; with the setting off nothing is read from a hidden map and it is not asked at all. For SquadCalc builds: `window.squadBallistics` may offer `revision` (a number, or a function returning one, that grows with every change of the targets), `lastTarget()` (the newest target or null) and `console.info("sb:changed")` on a change; each is used only when the page has it. / Пока карта на экране, программа спрашивает у страницы её новую цель каждые 150 мс (каждые 100 мс и сразу после сообщения страницы об изменении — для страницы со счётчиком изменений) и разбирает ответ, только если он отличается от прошлого. Цели калькулятора берутся с карты, поэтому с включённым *Put the map target and weapon into the calculator* карта создаётся вскоре после появления окна (а не при первом заходе на вкладку, когда окно на миг замирало) и опрашивается дважды в секунду, пока вкладка скрыта или окно свёрнуто; с выключенным параметром скрытая карта не опрашивается совсем. Для сборок SquadCalc: `window.squadBallistics` может предложить `revision` (число или функцию, возвращающую его; растёт с каждым изменением целей), `lastTarget()` (последняя цель или null) и `console.info("sb:changed")` при изменении; каждое используется, только если оно есть у страницы.
+* **Direct fire from the map / прямая наводка с карты:** the Deadline SquadCalc has a *Direct fire (Squad Ballistics)* group with every weapon aimed by the overlay mark here (launchers, under-barrel and automatic grenade launchers, recoilless and tank guns), computed with the same data, so the angle on the map is the one the mark aims at. The *· no optic* entries are not on the map: they fly the same trajectory as their optic entry, so pick that one on the map and the *· no optic* one here (it stays until the selection on the map changes). The weapon selected there is selected here too (also for mortars and rockets that exist in both); put the weapon and the target on the map and the overlay mark moves to the target by itself. A weapon picked here stays until the selection there changes; when the map loads or reloads, the weapon selected here is selected on the map too, and the map's starting weapon does not replace it. / В SquadCalc Deadline есть группа «Прямая наводка (Squad Ballistics)» со всеми оружиями, которые здесь наводятся меткой оверлея (гранатомёты, подствольники, АГС, безоткатки и танковые пушки), посчитанными по тем же данным: угол на карте — тот, на который ставит метка. Записей «· no optic» на карте нет: их траектория та же, что у записи с оптикой, поэтому на карте выберите её, а здесь — «· no optic» (выбор держится до смены оружия на карте). Оружие, выбранное там, выбирается и здесь (и миномёты/РСЗО, которые есть в обеих программах); поставьте оружие и цель на карте — метка оверлея встанет сама. Оружие, выбранное здесь, остаётся до следующей смены выбора в SquadCalc; при загрузке и перезагрузке карты оно выбирается и на карте, а оружие, с которым карта открылась, его не заменяет.
+* **Obstacles / препятствия:** with the Deadline build each map target also carries the heights of the terrain and the buildings on the line to it (heightmap built from the game files, ~1.6 cm steps). When the shown trajectory hits them before the target, the solution says where and how high (`⛔ 230 m` on the overlay), suggests the other trajectory when it clears, and the side view draws the terrain and the hit point. Typed values have no profile, so no check. / Со сборкой Deadline к каждой цели с карты приходят высоты рельефа и зданий на линии до неё (карта высот из файлов игры, шаг ~1,6 см). Если траектория упрётся в них раньше цели, решение покажет где и на какой высоте («⛔ 230 м» в оверлее), предложит другую траекторию, если она проходит, а боковой вид нарисует рельеф и точку удара. Для введённых вручную значений проверки нет.
 
 * **Black map / чёрная карта:** the app offers **Compatibility mode** (draws without the GPU) when the map looks black; it can also be switched in Settings → Map. / Если карта чёрная, программа предложит **режим совместимости** (Настройки → Карта).
+* **The map lags / карта тормозит:** (1) open Settings → Map: the line *In use now* says how the map is drawn. *with the GPU* is the normal mode. *without the GPU, picked automatically: Qt's OpenGL runs on the CPU (llvmpipe…)* means Qt found no hardware OpenGL (no or a broken video driver, a virtual machine, a remote session): the app then draws the map in the cheaper mode by itself, since on a software OpenGL the normal path composes every frame twice (about twice the CPU in a measurement); install the video driver (Mesa or the vendor's) to get a GPU. If the line says *with the GPU* and the map still stutters, set *Map rendering* to *Compatible* and restart. (2) If it still stutters, turn on *Open the map in the regular browser* (Settings → Map; `"map_external": true` in `config.json`): the tab then opens the map in your browser, where it runs in its own process with its own GPU path. The calculator does not receive the targets of a map in the browser; type the distance or use the embedded map for that. *Reload* keeps the browser's cache (about 3 MB less per press); *Clear map cache* removes the cache and the service worker's files (cookies and SquadCalc's own settings stay). / (1) Откройте Настройки → Карта: строка *In use now* показывает, как рисуется карта. *with the GPU* — обычный режим. *without the GPU, picked automatically: Qt's OpenGL runs on the CPU (llvmpipe…)* — у Qt нет аппаратного OpenGL (нет или сломан видеодрайвер, виртуальная машина, удалённый сеанс): программа сама рисует карту в более лёгком режиме, потому что на программном OpenGL обычный путь собирает каждый кадр дважды (в замере — вдвое больше процессора); поставьте видеодрайвер (Mesa или производителя), чтобы получить GPU. Если строка говорит *with the GPU*, а карта всё равно дёргается, поставьте *Map rendering → Compatible* и перезапустите. (2) Если и это не помогло, включите *Open the map in the regular browser* (Настройки → Карта; `"map_external": true` в `config.json`): вкладка тогда открывает карту в вашем браузере, где она работает в своём процессе со своим GPU. Цели карты в браузере калькулятор не получает: вводите дистанцию руками или пользуйтесь встроенной картой. *Reload* использует кэш браузера (на ~3 МБ меньше за нажатие); *Clear map cache* удаляет кэш и файлы service worker (cookies и настройки SquadCalc остаются).
 * **Does not load / не грузится:** press **Retry** or **Open in browser**; Settings → Map → *Open the map in the regular browser* makes that the default. / Кнопки **Повторить** и **Открыть в браузере**; в настройках можно всегда открывать карту в обычном браузере.
 * The embedded browser does not use QUIC, Encrypted Client Hello or secure DNS, which networks with blocking (e.g. in Russia) break. / Встроенный браузер не использует QUIC, ECH и защищённый DNS, которые ломаются в сетях с блокировками.
-
-## Features / Возможности
-
-* 52 standard weapons in 8 groups plus 7 popular mod weapons (hidden by default). / 52 стандартных вида оружия в 8 группах и 7 модовых (по умолчанию скрыты).
-* Rocket boost and slow-down phases (RPG-7, Carl Gustav, NLAW, UB-32). / Учёт разгона и торможения ракет.
-* Trajectory view, flight time, apex, impact angle, lead for moving targets. / График траектории, время полёта, высота подъёма, угол падения, упреждение.
-* Crosshair page with live preview, presets, color swatches, outline and glow. / Прицел с живым предпросмотром, пресетами, палитрой, обводкой и свечением.
-* Russian / English interface, accent colors, monitor choice, overlay center offset, label next to the mark. / Русский и английский интерфейс, цвет акцента, выбор монитора, смещение центра, подпись у метки.
+* **Links to other sites / ссылки на другие сайты:** the map stays on its own site (same scheme, host and port). Links to other sites (wiki, Discord, GitHub, the changelog) open in the regular browser, but only after a click or Enter on the map, one address per click; a page that tries to open sites by itself gets nothing opened. The status line above the map shows the address and whether it was opened. / Карта остаётся на своём сайте (та же схема, хост и порт). Ссылки на другие сайты (вики, Discord, GitHub, список изменений) открываются в обычном браузере, но только после щелчка или Enter на карте, один адрес на щелчок; страница, которая пытается открывать сайты сама, ничего не откроет. Строка состояния над картой показывает адрес и открыт ли он.
 
 ## How it works / Как считается
 
-* No air drag, gravity `9.78 m/s² × gravity scale` of the weapon. Rocket boost/slow-down is folded into the equivalent velocity over the distance.
-* Elevation: `θ = atan((v² ∓ √(v⁴ − g(g·d² + 2·h·v²))) / (g·d))`, low or high arc.
-* Screen offset: rectilinear projection, `offset = (screen_width / 2) / tan(FOV / 2) × tan(θ)`, so it works on any resolution.
-* Data: in-game values from the [official Squad wiki](https://squad.fandom.com/wiki/Weapons) and [SquadCalc](https://github.com/sh4rkman/SquadCalc). After a game patch, edit `weapons.json`.
+* The game's own projectile model (Squad build 26005357, `USQProjectileMovement`): no air drag, gravity `9.80 m/s² × gravity scale` of the weapon (`DefaultGravityZ` −980 cm/s²). The shell leaves the muzzle, the barrel socket `Attach_Muzzle`, which sits `muzzle_forward` along the barrel and `muzzle_up` above its axis, the barrel pivoting `launch_height` above the ground, so the launch point moves with the elevation. The game's server moves the projectile once per 50 Hz tick (20 ms substeps of Velocity Verlet) and caps its speed at the projectile's `max_speed` (`MaxSpeed`) on every substep, the first one too, so a shell fired faster than its cap (tank HEAT/HE, SPG-9) is slowed at once. A rocket motor (or the UB-32's braking) pushes with a constant `acceleration` for `acceleration_time` seconds along the projectile's rotation, which turns with the velocity (`bRotationFollowsVelocity`; along the barrel's axis for the UB-32's S-5). The coasting parabola, a motor along the barrel and the coast held at the cap are computed in closed form; a motor along the path is flown in the game's substeps and tabulated over the elevation. The elevation is found by root finding (a plain parabola uses the formula below). The result is checked against an independent flight of the game's substeps from a snapshot of the game files (`tests/flight.py`, `tests/data/game_weapons.json`, `tests/test_mark_end_to_end.py`) and agrees with SquadCalc to 1e-6°. The landing depends a little on the substep (deadline-squad/squad-ballistics#4): the server's 20 ms is the one that counts.
+* Elevation: `θ = atan((v² ∓ √(v⁴ − g(g·d² + 2·h·v²))) / (g·d))`, low or high arc; `h` is the target height above the barrel's pivot (`launch_height` above the ground).
+* Hold weapons (AGS-17): `hold = (top − θ) / rate` seconds of S after W, within `hold_elevation`.
+* Screen offset: rectilinear projection, `offset = (screen_width / 2) / tan(FOV / 2) × tan(θ − bore)`, so it works on any resolution. The game fires along the barrel socket `Attach_Muzzle`, which can be tilted against the camera: `bore` is how far above the screen centre the shot leaves, so each sight is zeroed at some range (QLZ87 tripod: +0.774° = 100 m in its optic, −0.9° from its normal view, no zero; tripod MK19 +1.674° = 330 m; SPG-9 scope +2.34° ≈ 765 m HEAT; AGS-17 open sights +4.5° ≈ 300 m; ZiS-3 +0.4° ≈ 350 m). `bore` is the barrel socket's pitch against the camera of the view the weapon is aimed through (the tripod's `AdsCamera1pPositionComponent` is tilted 1.674° on the MK19 and QLZ87 tripods). A sight that zooms the screen narrows the FOV by its `zoom` (the game sets FOV / 3 on the QLZ87, FOV / 4 on the SPG-9 scope, FOV / 2.5 on the AGS-17 optic); an FOV that the sight would narrow below 1° is held at 1° (the mark is then not exact). / Игра стреляет вдоль гнезда ствола `Attach_Muzzle`, повёрнутого относительно камеры: `bore` — насколько выше центра экрана уходит выстрел, так что каждый вид пристрелян на свою дальность; оптика, приближающая экран, делит FOV на `zoom`.
+* Data: velocity, gravity scale, rocket motor, speed cap and view are read from the game files (Squad build 26005357): the weapon's `WeaponConfig.MuzzleVelocity`, the projectile's `ProjectileGravityScale`, `ConstantAcceleration` for `ConstantAccelerationTimeout`, `MaxSpeed` and `bRotationFollowsVelocity`, the barrel socket's and the camera's pitch, and for direct-fire mounts the elevation limits (the mount's pitch limits plus the socket's pitch). `tools/game_weapons.py` writes them to `tests/data/game_weapons.json`, and `tests/test_game_weapons.py` checks `weapons.json` against that snapshot. For the weapons of a vehicle that are aimed by elevation (technical mortar and UB-32, M1064, BM-21) and the MK19, AGS-17 and SPG-9 on vehicles the snapshot also holds the launch point (`launch`: pivot height, socket reach and rise) and the pitch limits, and `tests/test_elevation_weapons.py` flies those shots by the game's rules without `ballistics.py`; the technical mortar's `angle_offset` is checked against the degrees-and-ranges table of its HUD. The other elevation limits, arcs and the AGS-17 hold model come from in-game measurements, the [official Squad wiki](https://squad.fandom.com/wiki/Weapons) and [SquadCalc](https://github.com/sh4rkman/SquadCalc). After a game patch, check `weapons.json` against the game files again and edit it; a renamed weapon goes to `RENAMED_WEAPONS` in `ballistics.py` so saved settings and older SquadCalc pages follow.
 
 ## Weapons database / База оружия
 
@@ -151,63 +252,47 @@ Weapons live in `weapons.json`. Only `velocity` is required:
 "RPG-7 · PG-7V HEAT / OG-7V": {
     "velocity": 117,
     "gravity": 1,
-    "acceleration": 187.5,
+    "acceleration": 150,
     "acceleration_time": 0.8,
+    "max_speed": 250,
     "category": "launchers",
-    "note": "English tip",
-    "note_ru": "Подсказка"
+    "note": "English tip"
 }
 ```
 
 * `gravity`: projectile gravity scale (1 = normal, 0 = no drop).
-* `acceleration` / `acceleration_time`: rocket motor phase in m/s² and seconds (negative = slows down, UB-32).
-* `arc`: default trajectory, `low` or `high`; `aim`: `overlay` (direct fire) or `elevation` (set the angle on the weapon).
+* `acceleration` / `acceleration_time`: rocket motor phase in m/s² and seconds (the game's `ConstantAccelerationTimeout`; negative = slows down, UB-32). `max_speed`: the projectile's speed cap in m/s (`MaxSpeed`, 0 or left out = none). `rotation_follows_velocity`: `true` (default) when the motor pushes along the path, `false` when it keeps the barrel's axis (UB-32).
+* `arc`: default trajectory, `low` or `high`; `aim`: `overlay` (direct fire, aimed with the overlay mark) or `elevation` (set the angle on the weapon; no overlay mark). Defaults to `elevation` for `high` and `overlay` for `low`.
 * `unit`: `mil` shows mils first (mortars).
 * `angle_offset`: subtracted from the elevation, for weapons whose readout is shifted (technical mortar).
-* `min_distance`, `elevation_limits` `[min, max]`, `category`, `mod`.
+* `launch_height`: height of the barrel's pivot above the ground in metres (the map height difference is ground to ground); `muzzle_forward` / `muzzle_up`: where the barrel socket `Attach_Muzzle` is, metres along the barrel and above its axis from the pivot. The shell starts there, so the launch point moves with the elevation (mortar, Hell Cannon, UB-32; the technical's mortar and UB-32, the M1064 and the BM-21 read from their vehicle's skeletons: the turret's mount on the vehicle's seat socket, the barrel socket on the mount, the ground where the wheels touch it in the reference pose).
+* `hold_rate` / `hold_elevation`: weapons laid by holding a key (AGS-17): degrees per second and `[lowest, top]` elevation; the high arc is then shown as a hold time.
+* `bore`: degrees above the screen centre the shot leaves in the view the weapon is aimed through (the barrel socket's tilt against that camera); `zoom`: the FOV divisor of that view (a scope, an optic or a gunner's sight; leave it out for ×1). One entry has one view; there is no view switch. A weapon whose RMB sight zooms the screen has two entries, `<base> · optic (RMB ×N)` (`"view": "optic"`, `"twin"`: the other's name) and `<base> · no optic` (`"view": "plain"`) for its normal view: the same gun with no `zoom` and the plain camera's `bore` (the QLZ87 tripod's plain camera is level with the gun mount, its RMB camera 1.674° down, so −0.9° and +0.774°). Each note says which view the entry is for.
+* Unknown keys are rejected when `weapons.json` is loaded (a misspelt key used to fall back to its default silently).
+* `min_distance`, `elevation_limits` `[min, max]`, `category`.
 
 ## Development / Разработка
 
-Windows, quick start (downloads the project into `Desktop\Squad-Ballistics`
-and installs everything). Paste into PowerShell:
-
-Windows, быстрый старт (скачает проект в `Рабочий стол\Squad-Ballistics` и
-всё установит). Вставьте в PowerShell:
-
-```powershell
-irm https://raw.githubusercontent.com/DelineDelorian/Squad-Ballistics/refs/heads/claude/trusting-cray-6sbies/tools/get.ps1 | iex
-```
-
-| File | What it does / Что делает |
-|------|---------------------------|
-| `setup.bat` | Installs Python (if missing) and dependencies — установка |
-| `run.bat` | Runs the app from source — запуск без сборки |
-| `build.bat` | Builds and self-checks the single-file `dist\SquadBallistics.exe` — сборка exe |
-| `test.bat` | Runs the tests — тесты |
-
-Manual / вручную:
-
 ```bash
-pip install -r requirements-dev.txt
-python app.py                     # run from source
-pytest                            # tests (every weapon is checked)
-pyinstaller SquadBallistics.spec  # build dist/SquadBallistics
+.venv/bin/pip install -r requirements-dev.txt     # in the venv from *Install* / в окружении из «Установки»
+.venv/bin/python app.py                           # run / запуск
+.venv/bin/python app.py --selftest                # smoke test of every weapon through the UI / проверка всех оружий через интерфейс
+.venv/bin/python -m pytest                        # tests / тесты (every weapon is checked)
+.venv/bin/python -m pyflakes *.py tests           # Python 3.11+; only the two QtWebEngineWidgets imports may be reported
 ```
 
-Every push builds the exe on GitHub Actions (**build-windows**, see
-*Artifacts*) without publishing a release. How to publish an update:
-[RELEASING.md](RELEASING.md).
+`--selftest` prints its report and the path of `selftest.log`, which it writes to a new temporary folder (never into the app's folder or your settings). The tests use their own temporary settings, cache and data folders, never `~/.config`, `~/.cache` or `~/.local/share`, and the embedded map refuses every network request during the tests. The X11 tests run Xvfb and xcompmgr when they are installed. / `--selftest` печатает отчёт и путь к `selftest.log` во временной папке (не в папке программы и не в настройках). Тесты работают со своими временными папками настроек, кэша и данных, не трогая `~/.config`, `~/.cache` и `~/.local/share`, а встроенная карта во время тестов отклоняет все сетевые запросы. Тесты X11 используют Xvfb и xcompmgr, если они установлены.
 
-Каждый push собирает exe в GitHub Actions (**build-windows**, раздел
-*Artifacts*) без публикации релиза. Как выпустить обновление:
-[RELEASING.md](RELEASING.md).
-
-The app is a single `SquadBallistics.exe` and writes nothing next to it. / Программа — один файл `SquadBallistics.exe`, рядом с ним ничего не создаётся:
+Every push runs the tests on GitHub Actions (**tests**, Ubuntu 24.04, Python 3.10 and 3.12) with exactly the versions in `requirements-dev.txt`, PyQt6-WebEngine included; the run fails on any pyflakes report other than the two deliberate imports and on any skipped test other than the two that need a writable `/dev/uinput`. A release is a tag `v<version>` on the default branch with its entry in [RELEASE_NOTES.md](RELEASE_NOTES.md); the version is `APP_VERSION` in `config.py` ([RELEASING.md](RELEASING.md)). / Каждый push запускает тесты в GitHub Actions (**tests**, Ubuntu 24.04, Python 3.10 и 3.12). Выпуск — тег `v<версия>` на основной ветке и запись в RELEASE_NOTES.md; версия — `APP_VERSION` в `config.py`.
 
 | What / Что | Where / Где |
 |------------|-------------|
-| Settings / настройки, `crash.log` | `%APPDATA%\SquadBallistics` |
-| Map cache, SquadCalc settings / кэш карты | `%LOCALAPPDATA%\SquadBallistics\WebEngine` |
-| Update download / загрузка обновления | `%TEMP%\SquadBallisticsUpdate` |
+| Settings / настройки (`config.json`, an unreadable one kept as `config.json.bad`), `crash.log` (moved to `crash.log.1` past 256 KB), `sight-grab.png`, `instance.lock`; the folder is private (0700), `config.json` and `crash.log` too (0600) / папка и файлы закрыты от других пользователей | `~/.config/SquadBallistics` (`$XDG_CONFIG_HOME`) |
+| Map cache / кэш карты (tiles; safe to delete / можно удалять) | `~/.cache/SquadBallistics` (`$XDG_CACHE_HOME`) |
+| SquadCalc settings and cookies / настройки SquadCalc и cookies (moved from `~/.cache` on the first start of 1.6 / перенесены из `~/.cache` при первом запуске 1.6) | `~/.local/share/SquadBallistics` (`$XDG_DATA_HOME`) |
 
-The old `configs/config.json` of versions ≤ 1.1.0 is migrated automatically, and their leftover `_internal` folder is removed after updating.
+The old `configs/config.json` of versions ≤ 1.1.0 (relative to the working directory) is migrated automatically. / Старый `configs/config.json` версий ≤ 1.1.0 переносится автоматически.
+
+`assets/fonts/RobotoCondensed-Digits.ttf` is the digits of Roboto Condensed (© The Roboto Project Authors), used by the sight reader, under the SIL Open Font License 1.1 (`assets/fonts/RobotoCondensed-OFL.txt`). / Цифры шрифта Roboto Condensed для чтения прицела, лицензия SIL OFL 1.1.
+
+The sidebar icons in `assets/icons/` (bullseye, crosshairs, sliders-h, map) are Font Awesome Free 5.15.4 icons by Fonticons, Inc. (https://fontawesome.com), under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); the attribution is in each file. They are only tinted. / Иконки боковой панели — Font Awesome Free 5.15.4, лицензия CC BY 4.0, только перекрашены.
