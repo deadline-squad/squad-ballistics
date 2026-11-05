@@ -22,7 +22,7 @@ divisor, the weapon Blueprints dumped with Kismet bytecode (the extractor built 
 the same muzzle velocity and projectile movement as this reader, or the run fails.
 ``--compare`` prints, after writing, a Markdown table of every value of the snapshot
 that differs from that ``weapons.json`` (velocity, gravity, acceleration and its
-time, max_speed, rotation_follows_velocity, bore, zoom, elevation limits). The output depends only on the dumps and the
+time, max_speed, lifespan, rotation_follows_velocity, bore, zoom, elevation limits). The output depends only on the dumps and the
 arguments; ``--date`` and ``--build`` are recorded in ``_source``.
 
 Sources and rules (Squad build 26005357; units in the files are cm, the snapshot is
@@ -84,6 +84,10 @@ in m, m/s and degrees):
   these weapons are the mount's pitch limits plus the socket's pitch (the barrel's pitch), or,
   for the Technical mortar, the range of its HUD's degrees table (``hud``), whose readout is
   the mount's world pitch + 40.
+* lifespan (s): the projectile Blueprint's ``InitialLifeSpan`` of the entry's first class: the
+  projectile actor is destroyed that long after it spawns (0: never). A shot that takes longer
+  cannot hit. Where the classes of an entry disagree (M72A7 LAW 20 s, RPG-26 5 s) the first
+  class is the reference, like for the velocity and the movement.
 * burst_radius (m): the widest ``ExplosiveDamageOuterRadius`` that deals damage among the
   entry's projectiles (``ExplosiveBaseDamage`` above 0, or the native 115 when the Blueprint
   sets no base damage; ``SecondaryExplosionOuterRadius`` when ``bUseSecondaryExplosion``);
@@ -945,7 +949,13 @@ class Weapon:
             "acceleration_timeout": round_to(move["ConstantAccelerationTimeout"]),
             "rotation_follows_velocity": bool(move["bRotationFollowsVelocity"]),
             "ignore_gravity_while_boosting": bool(move["bIgnoreGravityDuringConstantAcceleration"]),
+            "lifespan": self.lifespan(),
         }
+
+    def lifespan(self):
+        """The projectile's ``InitialLifeSpan`` in s (the deepest override along its class chain);
+        0 when no Blueprint sets one: the actor then lives until it hits something."""
+        return round_to(self.projectile.cdo.get("InitialLifeSpan") or 0.0)
 
     def burst_radius(self):
         """Outer radius in m of the widest explosion of the projectile that deals damage; 0 when
@@ -1240,6 +1250,7 @@ def check_resolved(snapshot, resolved_path):
             "velocity": round_to(other["config"]["MuzzleVelocity"] / 100), "gravity_scale": round_to(move["ProjectileGravityScale"]),
             "max_speed": round_to(move["MaxSpeed"] / 100), "acceleration": round_to(move["ConstantAcceleration"]["X"] / 100),
             "acceleration_timeout": round_to(move["ConstantAccelerationTimeout"]),
+            "lifespan": round_to((other.get("projectile") or {}).get("life") or 0.0),
         }
         mine = {k: weapon.ballistics()[k] for k in theirs}
         if mine != theirs:
@@ -1285,6 +1296,7 @@ def compare(snapshot, weapons_path):
             ("acceleration", game["acceleration"], app.get("acceleration", 0)),
             ("acceleration_time", game["acceleration_timeout"] if not same_boost_time(game, boost) else boost, boost),
             ("max_speed", game["max_speed"], app.get("max_speed", 0)),
+            ("lifespan", game["lifespan"], app.get("lifespan", 0)),
             ("rotation_follows_velocity", game["rotation_follows_velocity"], app.get("rotation_follows_velocity", True)),
             ("bore", game["bore"], app.get("bore", 0.0) if game["bore"] is not None else app.get("bore")),
             ("zoom", game["zoom"], app.get("zoom", 1.0) if game["zoom"] is not None else app.get("zoom")),

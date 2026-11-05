@@ -266,7 +266,33 @@ def longest(name):
     if weapon.g and limits and math.degrees(weapon.peak_elevation(reach)) - weapon.angle_offset > limits[1]:
         reach = flight.range_at(game_shot(name), math.radians(limits[1] + weapon.angle_offset), 0.0)
 
+    if weapon.lifespan:
+        reach = min(reach, lifespan_range(name))
+
     return reach
+
+
+def lifespan_range(name):
+    """The farthest flat-ground distance the low arc still reaches before the
+    projectile is destroyed (the game's InitialLifeSpan), by bisection on the
+    independent flight's time (a weapon without gravity flies straight)."""
+    weapon = LOADED[name]
+    shot = game_shot(name)
+    lifespan = GAME[name]["lifespan"]
+    low, high = 0.0, weapon.max_range() if weapon.g else LONGEST
+
+    for _ in range(50):
+        middle = (low + high) / 2
+        rad = weapon.flat_low_elevation(middle) if weapon.g else 0.0
+
+        flown = None if math.isnan(rad) else flight.fly_to(shot, rad, middle)
+
+        if flown is None or flown[3] > lifespan:
+            high = middle
+        else:
+            low = middle
+
+    return low
 
 
 def distances(name):
@@ -964,6 +990,12 @@ def test_solver_lands_on_the_target_for_every_weapon(name):
 
     for arc, distance, height in solver_cases(name):
         solution = solve(weapon, distance, height, arc)
+
+        if solution.reason_code == "out_of_range" and math.isfinite(solution.raw_angle):
+            # Refused for its lifespan: the independent flight takes longer than the projectile lives
+            took = flight.fly_to(shot, math.radians(solution.raw_angle), distance)
+            assert took is None or took[3] > GAME[name]["lifespan"], (arc, distance, height)
+            continue
 
         if solution.reason_code == "out_of_range":
             assert flight.highest_at(shot, distance, height + BOUNDARY) < height + BOUNDARY, (arc, distance, height)

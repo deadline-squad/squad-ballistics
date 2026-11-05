@@ -34,6 +34,9 @@ SquadGameServer (deadline-squad/squad-ballistics#4 has the evidence):
   the motor pushes along the path, unless its Blueprint turns that off
   (`rotation_follows_velocity` false: the S-5 rocket keeps the barrel's
   axis);
+* `lifespan` is the projectile's InitialLifeSpan: the actor is destroyed
+  that many seconds after it spawns (0: never), so `solve` refuses a shot
+  that takes longer; `max_range` stays the range of the flight without it;
 * `max_speed` (MaxSpeed) caps the speed at every substep, also on the first
   one: a shell fired faster than its cap (SPG-9 HEAT 435 -> 330 m/s, tank HE
   1100 -> 800 or 850 m/s) is slowed to it at once, a motor holds a rocket at
@@ -150,7 +153,9 @@ class Weapon:
     The flight fields follow the game files (see the module docstring):
     `velocity` m/s, `gravity` (scale of GRAVITY), `acceleration` m/s^2 for
     `acceleration_time` s, `max_speed` m/s (0: no cap) and
-    `rotation_follows_velocity`; the launch point `launch_height`,
+    `rotation_follows_velocity`; `lifespan` s (the projectile's
+    InitialLifeSpan, 0: none: the round is destroyed that long after launch,
+    so a shot that takes longer cannot hit); the launch point `launch_height`,
     `muzzle_forward` and `muzzle_up` m. The aiming fields: `arc`, `aim`
     ("overlay" mark or "elevation"), `unit`, `angle_offset` (degrees the
     weapon's readout shows less than the barrel), `elevation_limits` and
@@ -176,6 +181,7 @@ class Weapon:
     acceleration_time: float = 0.0
     max_speed: float = 0.0
     rotation_follows_velocity: bool = True
+    lifespan: float = 0.0
     min_distance: float = 0.0
     elevation_limits: tuple = (-90.0, 90.0)
     launch_height: float = 0.0
@@ -234,6 +240,7 @@ class Weapon:
         )
 
         max_speed = number("max_speed", 0.0)
+        lifespan = number("lifespan", 0.0)
         follows = data.get("rotation_follows_velocity", True)
 
         if velocity <= 0:
@@ -248,6 +255,8 @@ class Weapon:
             )
         if max_speed < 0:
             raise WeaponDataError(f"{name}: 'max_speed' must be >= 0 (0: none)")
+        if lifespan < 0:
+            raise WeaponDataError(f"{name}: 'lifespan' must be >= 0 (0: none)")
         if not isinstance(follows, bool):
             raise WeaponDataError(
                 f"{name}: 'rotation_follows_velocity' must be true or false"
@@ -347,6 +356,7 @@ class Weapon:
             acceleration_time=acceleration_time,
             max_speed=max_speed,
             rotation_follows_velocity=follows,
+            lifespan=lifespan,
             min_distance=number("min_distance", 0.0),
             elevation_limits=(low, high),
             launch_height=launch_height,
@@ -782,6 +792,12 @@ class Weapon:
         """Seconds after launch when the projectile is `distance` metres
         ahead of the pivot, fired at a barrel elevation of `rad`."""
         return self.flight_at(rad, distance)[1]
+
+    def outlives(self, rad, distance):
+        """Whether the projectile is destroyed (`lifespan`) before it is
+        `distance` metres ahead of the pivot, fired at an elevation of
+        `rad`. False for a weapon without a lifespan."""
+        return self.lifespan > 0 and self.flight_time(rad, distance) > self.lifespan
 
     def apex_height(self, rad, distance):
         """Highest height above the ground the projectile passes before it
@@ -1261,6 +1277,8 @@ def solve(weapon, distance, height_diff=0.0, arc=None, aim_lift=0.0):
         angle = math.degrees(rad) - weapon.angle_offset
         if not low_limit <= angle <= high_limit:
             continue
+        if weapon.outlives(rad, distance):
+            continue
         # The high arc of a hold weapon can only be fired by holding the key.
         if weapon.has_hold and name == "high" \
                 and not math.isfinite(weapon.hold_time(angle)):
@@ -1278,6 +1296,14 @@ def solve(weapon, distance, height_diff=0.0, arc=None, aim_lift=0.0):
         result.reason = (
             f"{arc.capitalize()} arc needs {angle:.1f}°, weapon elevation "
             f"is limited to {low_limit:g}°..{high_limit:g}°"
+        )
+        return result
+
+    if weapon.outlives(rad, distance):
+        result.reason_code = "out_of_range"
+        result.reason = (
+            f"Out of range: the round is destroyed {weapon.lifespan:g} s "
+            "after launch, before it gets there"
         )
         return result
 
@@ -1715,8 +1741,8 @@ def range_ladder(weapon, fov, screen_width, first, spacing, reach, scale=1.0,
     `spacing` pixels below the previous. Ranges are rounded up to a step
     of LADDER_STEPS that grows with the range (a quarter of it at most),
     so every label is a round number. The ladder ends where the weapon
-    cannot reach, at `reach` pixels, after LADDER_MAX_TICKS or at
-    LADDER_MAX_DISTANCE.
+    cannot reach (also where the projectile's `lifespan` ends), at `reach`
+    pixels, after LADDER_MAX_TICKS or at LADDER_MAX_DISTANCE.
     The offsets are those of the overlay mark (`mark_offset` of the
     low-arc `Solution.sight_angle`, with the weapon's `trim`); ranges
     above the centre (inside the sight's zero) get no tick. Empty for
@@ -1730,11 +1756,12 @@ def range_ladder(weapon, fov, screen_width, first, spacing, reach, scale=1.0,
 
     def offset_at(distance):
         # solve(weapon, distance, 0.0, "low").sight_angle, unless it is
-        # unreachable or beyond the elevation limits (flat_low_elevation)
+        # unreachable, beyond the elevation limits (flat_low_elevation) or
+        # takes longer than the projectile lives
         rad = weapon.flat_low_elevation(distance)
         angle = math.degrees(rad) - weapon.angle_offset
 
-        if not low_limit <= angle <= high_limit:
+        if not low_limit <= angle <= high_limit or weapon.outlives(rad, distance):
             return None
 
         rise = -weapon.launch_height
