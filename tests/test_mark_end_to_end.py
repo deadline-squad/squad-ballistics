@@ -389,6 +389,12 @@ def measure_case(rig, name, case, view=None):
         ).distance <= tolerance(distance), (name, case)
         return LIMITED
 
+    if not solution.reachable and solution.reason_code == "out_of_range" and math.isfinite(solution.raw_angle):
+        # Refused for its lifespan: the independent flight takes longer than the projectile lives
+        took = flight.fly_to(game_shot(name), math.radians(solution.raw_angle), distance)
+        assert took is None or took[3] > GAME[name]["lifespan"], (name, case)
+        return LIMITED
+
     if not solution.reachable:
         # Unreachable must mean unreachable for the game's physics too: no
         # barrel elevation brings the shell up to the target.
@@ -925,9 +931,9 @@ def test_a_fov_below_the_zoom_is_held_at_one_degree_and_is_not_exact(rig):
 def test_a_mark_off_the_screen_becomes_an_arrow_at_the_edge(rig):
     ov = rig.overlay
 
-    # Far below: a high arc of a direct-fire weapon (one without a mount
-    # limit; the SPG-9 tripod stops at +10 degrees)
-    rig.aim("RPG-7 · PG-7V HEAT / OG-7V", 90, 100, 300, 0, "high", 1920)
+    # Far below: a high arc of a weapon without a mount limit (the SPG-9 tripod stops at +10 degrees) whose
+    # projectile lives long enough for it (a 4 s rocket's high arc is refused)
+    rig.aim("M203 / M320 / GP-25 / HK79 / SL40", 90, 100, 300, 0, "high", 1920)
     assert ov.is_offscreen(ov.offset) and ov.offset > 0
     rows = rig.grab(int(ov.center_x) - 20, int(ov.center_x) + 20)
     mass = [(r, w) for r, w in enumerate(rows) if w]
