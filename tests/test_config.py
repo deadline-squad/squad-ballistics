@@ -1,5 +1,6 @@
 import json
 import os
+import re
 
 import pytest
 
@@ -289,6 +290,28 @@ def test_saved_settings_are_private(tmp_path):
     assert os.stat(path).st_mode & 0o777 == 0o600
     assert os.stat(folder).st_mode & 0o777 == 0o700
     assert json.loads(path.read_text())["fov"] == config.DEFAULT_CONFIG["fov"]
+
+
+SECRET_WORDS = re.compile(r"token|secret|password|passwd|credential|api_?key|steam|relay|session|cookie", re.I)
+
+
+def test_no_setting_is_a_secret():
+    """The settings file is readable by its owner only, but it must not hold
+    secrets at all: no setting is named like one."""
+    assert not [key for key in config.DEFAULT_CONFIG if SECRET_WORDS.search(key)]
+
+
+def test_keys_that_are_not_settings_are_not_written_back(tmp_path):
+    """A key the app does not know (a secret pasted into the file by hand,
+    one of a removed feature) is dropped at the next save, not copied."""
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({"fov": 60, "api_token": "hunter2", "steam_id": "x"}))
+
+    config.save_config(config.load_config(str(path)), str(path))
+
+    saved = json.loads(path.read_text())
+    assert set(saved) <= set(config.DEFAULT_CONFIG)
+    assert "hunter2" not in path.read_text()
 
 
 def test_a_settings_folder_of_an_older_version_is_made_private(tmp_path):

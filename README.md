@@ -202,6 +202,8 @@ The mark and the ladder ticks are drawn at their float position with anti-aliasi
 
 The full aiming guide (what a pixel is worth per weapon, mouse settings, calibration, error budget): [docs/aiming.md](docs/aiming.md), in Russian [docs/aiming.ru.md](docs/aiming.ru.md). / Полное руководство по наведению: [docs/aiming.ru.md](docs/aiming.ru.md), по-английски [docs/aiming.md](docs/aiming.md).
 
+Sight data (bore, zoom, launch point) of the emplaced and vehicle weapons and what is missing: [docs/sight-data.md](docs/sight-data.md), in Russian [docs/sight-data.ru.md](docs/sight-data.ru.md). / Данные прицела (угол канала, кратность, точка вылета) стационарного и машинного оружия и чего не хватает: [docs/sight-data.ru.md](docs/sight-data.ru.md), по-английски [docs/sight-data.md](docs/sight-data.md).
+
 ### Linux
 
 On a Wayland session the app runs itself through XWayland so the overlay stays above the game (set `QT_QPA_PLATFORM` to override). Install and upgrade: see *Install* above. / В сессии Wayland программа сама запускается через XWayland, чтобы оверлей был поверх игры (`QT_QPA_PLATFORM` переопределяет). Установка и обновление — в разделе *Установка* выше.
