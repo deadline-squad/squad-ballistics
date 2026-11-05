@@ -28,7 +28,7 @@ mutmut show <id>        # the diff of one mutant
 MUTANT_UNDER_TEST=<module>.<id> python -m pytest -x -q -p no:cacheprovider <test files>
 ```
 
-Файлы тестов для `mutmut run`: `config`: `test_config.py`, `test_config_behaviour.py`, `test_ui.py`; `keystate`: `test_keystate.py`; `ballistics`: тесты баллистики, поправки, метки и оружия; `crosshair`: `test_ui`, `test_calc_state`, `test_trim`, `test_view_toggle`, `test_marker_aids`, `test_no_hold_beep`, `test_vehicle_sights_ui`. Запуск `keystate` идёт с `max_children=1`: его X11-тесты делят дисплей `:97`. Таймаут считается выжившим мутантом, пока не разобран; падение процесса тестов (segfault, NULL `Display*`) считается убитым мутантом.
+Файлы тестов для `mutmut run`: `config`: `test_config.py`, `test_config_behaviour.py`, `test_ui.py`; `keystate`: `test_keystate.py`; `ballistics`: тесты баллистики, поправки, метки и оружия; `crosshair`: `test_ui`, `test_calc_state`, `test_trim`, `test_view_toggle`, `test_marker_aids`, `test_no_hold_beep`, `test_vehicle_sights_ui`. Запуск `keystate` идёт с `max_children=1`: его X11-тесты делят дисплей `:97`. Таймаут считается выжившим мутантом, пока не разобран; падение процесса тестов (segfault, abort, NULL `Display*`) считается убитым мутантом. Для `crosshair` файлы тестов перечислены в `pytest_add_cli_args_test_selection` (не в `tests_dir`: он запустил бы и `tests/test_hygiene.py`, чья проверка докстрингов падает на любом мутанте), `max_children=3`; прогон запущен как `nice -n 10 docker run --cpus 3 --memory 3g sb-ci-mut mutmut run --max-children 3` в цикле (`systemd-run --user`), который запускает его снова, когда mutmut останавливается с `KeyError: <pid>`, и продолжает с сохранённых результатов. Выжившие затем перепрогнаны как `MUTANT_UNDER_TEST=<id> pytest -x -p no:cacheprovider tests/test_crosshair_mutants.py <исходные файлы>` по три сразу.
 
 ## Результаты по модулям
 
@@ -38,14 +38,68 @@ MUTANT_UNDER_TEST=<module>.<id> python -m pytest -x -q -p no:cacheprovider <test
 |---|---|---|---|---|---|
 | `config.py` | 324 | 300 (+9 падение) | 6 | 9 | 0 |
 | `keystate.py` | 289 | 233 (+18 падение) | 30 (из них 4 без теста) | 8 | 0 |
-| `ballistics.py` | 2356 | 1897 | 421 | 37 | 1 |
-| `crosshair.py` | 4097 | 700 (проверено 970 из 4097) | 0 | 0 | 3397 (см. ниже) |
+| `ballistics.py` | 2356 | 1897 | 422 | 37 | 0 |
+| `crosshair.py` | 4097 | 3860 (2554 killed, 1161 + 117 crash, 27 killed after a suspicious exit code, 1 hang) | 224 (incl. 25 that had no test) | 13 | 0 |
 
-В исходном прогоне `ballistics` было 439 выживших, 11 мутантов без тестов и 9 таймаутов (459 не убито). `crosshair.py` не закончен: прогон (4097 мутантов, проверено 970: 700 убито, 158 выжило, 86 подозрительных, 25 без тестов, 1 падение) остановлен по исчерпанию времени; его выжившие перечислены ниже как не разобранные.
+В исходном прогоне `ballistics` было 439 выживших, 11 мутантов без тестов и 9 таймаутов (459 не убито). Прогон `crosshair.py` охватил все 4097 мутантов одним `mutmut run` (3 рабочих процесса, около 3 ч 15 мин, один раз перезапущен циклом ниже после `KeyError` в mutmut 3.8.1); итог: 2554 убито, 1161 падение (убиты), 212 выжило, 144 подозрительных, 25 без тестов и 1 таймаут. 144 подозрительных и таймаут перепрогнаны по одному на исходных файлах (`MUTANT_UNDER_TEST`, `pytest -x`): 117 обрывают процесс тестов, 27 роняют тест, `set_steps` 3 зависает; все убиты. 237 выживших и мутантов без тестов перепрогнаны на `tests/test_crosshair_mutants.py` плюс исходные файлы: 224 убито (последние 9 - после финальных дополнений файла), 13 эквивалентных (перечислены ниже), открытых нет. `flat_low_elevation` 18 из `ballistics` теперь убит тестом `test_a_shot_that_comes_down_to_exactly_the_ground_at_the_peak_elevation_is_the_root`.
 
 ## Новые тесты
 
 Тесты лежат в `tests/test_config_behaviour.py`, `tests/test_keystate.py` и новом `tests/test_ballistics_mutants.py`. Файл баллистики сверяет полёт, вершину и высоту настоящего и придуманного оружия с независимым эталоном `tests/flight.py` (50 Гц шаги игры), фиксирует каждое сообщение проверки в `Weapon.from_dict` и `parse_weapons`, проверяет `solve`, `mark_*`, `range_ladder`, `trim_for_landing` и `first_obstacle` точными значениями и точными граничными совпадениями (например, `GRAVITY` = 10: 100 м/с долетает на 1000 м ровно под 45 градусов).
+
+## Тесты crosshair и убитые ими мутанты
+
+Тесты лежат в `tests/test_crosshair_mutants.py` (102 теста, все через настоящий `MainWindow`; медленные или системные части Qt - окно подтверждения, `QProcess`, `QDesktopServices` и инжекторы клавиш - заменены записывающими заглушками). Они фиксируют точным переведённым текстом и значением:
+
+- поправку: округление, предел и удаление нулевой в `set_trim`, `on_trim_edited`, `reset_trim`, `apply_landing` (высота по умолчанию, выбранная дуга, уже заданная поправка, текст предела, отказ навесу, откат на прямую наводку, сообщение о переполнении, оружие с удержанием, у которого своя дуга низкая);
+- объяснение недостижимой цели для каждой причины (`out_of_range`, `too_close`, `hold_limit`, `elevation_limit`), в градусах и в милах, и что недостижимая цель очищает (метку, строку инфо, цель удержания, плитки);
+- калибровку скорости удержания автонаводки миномёта (границы и тексты `calibrate_lay`, `reset_lay_rate`, `lay_reset_time`);
+- показания прицела и компаса, азимут цели, отметку и текст сбоя наводки, конец наводки по азимуту и по прицелу, связку слоёв (`make_bearing_layer`, `apply_auto_hold`, `set_auto_hold`) и клавишу F7 (`auto_hold`, `timed_lay_blocker`, `lay_step`, `start_sight_lay`);
+- настройки: сброс, отрисовку карты и перезапуск, следование за картой и её предзагрузку, назначение клавиш, монитор, шаг дистанции, окно поверх остальных, папку настроек, `rebuild`, данные списка оружия.
+
+### Выжившие исходного прогона, убитые новыми тестами
+
+Номера мутантов - суффикс `crosshair.xǁMainWindowǁ<функция>__mutmut_<n>`.
+
+| Функция | Убито | Номера мутантов |
+|---|---|---|
+| `apply_landing` | 11 | 7, 32, 36, 62, 63, 64, 65, 74, 76, 77, 79 |
+| `auto_hold` | 3 | 41, 43, 48 |
+| `bearing_target` | 1 | 8 |
+| `calibrate_lay` | 16 | 35, 36, 42, 49, 66, 68, 70, 71, 75, 76, 85, 86, 88, 89, 93, 94 |
+| `compass_reader` | 5 | 1, 2, 3, 4, 5 |
+| `lay_mark` | 3 | 1, 4, 7 |
+| `lay_reset_time` | 1 | 2 |
+| `lay_step` | 4 | 1, 21, 23, 28 |
+| `make_bearing_layer` | 6 | 5, 8, 12, 16, 24, 25 |
+| `on_arc_changed` | 1 | 5 |
+| `on_bearing_lay_finished` | 4 | 2, 3, 5, 26 |
+| `on_input_edited` | 1 | 6 |
+| `on_map_follow_changed` | 5 | 1, 2, 3, 4, 5 |
+| `on_sight_lay_finished` | 2 | 7, 13 |
+| `on_trim_edited` | 2 | 6, 10 |
+| `open_config_dir` | 2 | 7, 8 |
+| `preload_map` | 6 | 1, 2, 3, 4, 5, 6 |
+| `rebuild` | 1 | 7 |
+| `reset_lay_rate` | 6 | 6, 10, 12, 14, 15, 16 |
+| `reset_offset` | 3 | 2, 3, 4 |
+| `reset_settings` | 17 | 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 16, 20, 23, 27, 31 |
+| `restart` | 10 | 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 |
+| `save_sight_grab` | 4 | 5, 7, 8, 16 |
+| `set_auto_hold` | 3 | 4, 9, 11 |
+| `set_distance_step` | 3 | 1, 2, 3 |
+| `set_hotkey` | 2 | 17, 33 |
+| `set_map_render` | 14 | 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21 |
+| `set_monitor` | 3 | 1, 2, 3 |
+| `set_on_top` | 1 | 4 |
+| `set_trim` | 1 | 17 |
+| `show_bearing_reading` | 11 | 1, 3, 4, 7, 8, 9, 10, 11, 12, 13, 21 |
+| `show_sight_reading` | 10 | 1, 3, 4, 7, 8, 9, 10, 11, 12, 13 |
+| `show_unreachable` | 54 | 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17, 19, 21, 22, 23, 25, 26, 27, 28, 29, 30, 31, 32, 33, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 64 |
+| `sight_target` | 2 | 2, 3 |
+| `timed_lay_blocker` | 3 | 12, 13, 17 |
+| `watch_screen` | 1 | 1 |
+| `watch_sight` | 2 | 3, 4 |
 
 ## Эквивалентные выжившие
 
@@ -120,7 +174,25 @@ MUTANT_UNDER_TEST=<module>.<id> python -m pytest -x -q -p no:cacheprovider <test
 | `x_load_weapons__mutmut_5` | `open(path, "r", ...) -> open(path, ...)` | "r" is the default mode |
 | `x_load_weapons__mutmut_10` | `encoding="utf-8" -> "UTF-8"` | alias of the same codec |
 
-## Не разобраны
+### `crosshair.py`
+
+| Мутант | Правка | Причина |
+|---|---|---|
+| `MainWindow.set_trim__mutmut_4` | `round(...) + 0.0 -> - 0.0` | отличается только нулевая поправка (0.0 и -0.0), а нулевая поправка не сохраняется |
+| `MainWindow.rebuild__mutmut_3` | `if self.map_page is not None -> is None` | build_web_page вставляет страницу карты в новый стек раньше отложенного удаления старого центрального виджета, поэтому она переживает перестройку и без отсоединения (проверено: тест перестройки проходит и с мутантом) |
+| `MainWindow.rebuild__mutmut_4` | `removeWidget(self.map_page) -> removeWidget(None)` | removeWidget(None) ничего не делает, а следующая строка (setParent(None)) всё равно отсоединяет страницу; причина та же, что у мутанта 3 |
+| `MainWindow.on_trim_edited__mutmut_9` | `trim_status.setText("") -> setText(None)` | QLabel.setText(None) показывает пустой текст (проверено на PyQt6 6.12.0) |
+| `MainWindow.on_arc_changed__mutmut_4` | `trim_status.setText("") -> setText(None)` | то же: QLabel.setText(None) - пустой текст |
+| `MainWindow.on_input_edited__mutmut_5` | `calculate(show_errors=False) -> show_errors=None` | None и False одинаково ложны в `if show_errors or ...` |
+| `MainWindow.distance_up__mutmut_4` | `calculate(show_errors=False) -> None` | ложное значение, как выше |
+| `MainWindow.distance_up__mutmut_5` | `calculate(show_errors=False) -> True` | `show_errors` важен только для пустого поля дистанции, а NumberEdit.add только что записал в него число |
+| `MainWindow.distance_down__mutmut_5` | `calculate(show_errors=False) -> None` | ложное значение, как выше |
+| `MainWindow.distance_down__mutmut_6` | `calculate(show_errors=False) -> True` | то же, что distance_up 5 |
+| `MainWindow.set_hotkey__mutmut_26` | `hotkeys.get(name, "") -> get(name, None)` | findData не находит ни тот, ни другой вариант, а `max(0, -1)` равно индексу 0 - строке пустой клавиши ("hk_none" первая в списке) |
+| `MainWindow.set_hotkey__mutmut_28` | `hotkeys.get(name, "") -> get(name, )` | то же, что 26 (по умолчанию None) |
+| `MainWindow.set_hotkey__mutmut_31` | `hotkeys.get(name, "") -> get(name, "XXXX")` | то же, что 26: такой строки нет, снова индекс 0 |
+
+`set_steps__mutmut_3` (цикл `while`, очищающий строки шагов, не заканчивается) убит зависанием: исходный набор упирается в таймаут, это считается убийством.
 
 ## Убитые мутанты по группам тестов
 
@@ -146,282 +218,4 @@ MUTANT_UNDER_TEST=<module>.<id> python -m pytest -x -q -p no:cacheprovider <test
 
 ## Не убиты и эквивалентность не доказана
 
-Выжившие `ballistics.py` после итогового перепрогона: 1. Они перечислены ниже с правками. `flat_low_elevation` 18 (`error(top) < 0` на `<= 0`) отличается, только если высота при пиковом угле ровно 0.0 до последнего бита, чего ни одно оружие набора не даёт.
-
-| Мутант | Правка |
-|---|---|
-| `Weapon.flat_low_elevation__mutmut_18` | `-    if error(top) < 0: +    if error(top) <= 0: ` |
-
-### `crosshair.py` (прогон остановлен)
-
-| Мутант | Статус | Правка |
-|---|---|---|
-| `MainWindow.rebuild__mutmut_3` | survived | `-    if self.map_page is not None: +    if self.map_page is None: ` |
-| `MainWindow.rebuild__mutmut_4` | survived | `-        self.pages.removeWidget(self.map_page) +        self.pages.removeWidget(None) ` |
-| `MainWindow.rebuild__mutmut_7` | survived | `-    self.height_entry.setText(texts[1]) +    self.height_entry.setText(None) ` |
-| `MainWindow.preload_map__mutmut_1` | no tests | `-    if not self.config["map_follow"] or self.config["map_external"]: +    if not self.config["map_follow"] and self.config["map_external"]:` |
-| `MainWindow.preload_map__mutmut_2` | no tests | `-    if not self.config["map_follow"] or self.config["map_external"]: +    if self.config["map_follow"] or self.config["map_external"]: ` |
-| `MainWindow.preload_map__mutmut_3` | no tests | `-    if not self.config["map_follow"] or self.config["map_external"]: +    if not self.config["XXmap_followXX"] or self.config["map_external` |
-| `MainWindow.preload_map__mutmut_4` | no tests | `-    if not self.config["map_follow"] or self.config["map_external"]: +    if not self.config["MAP_FOLLOW"] or self.config["map_external"]: ` |
-| `MainWindow.preload_map__mutmut_5` | no tests | `-    if not self.config["map_follow"] or self.config["map_external"]: +    if not self.config["map_follow"] or self.config["XXmap_externalXX` |
-| `MainWindow.preload_map__mutmut_6` | no tests | `-    if not self.config["map_follow"] or self.config["map_external"]: +    if not self.config["map_follow"] or self.config["MAP_EXTERNAL"]: ` |
-| `MainWindow.view_tag__mutmut_13` | suspicious | `-        return tr("info_view_plain") +        return tr(None) ` |
-| `MainWindow.set_trim__mutmut_4` | survived | `-    trim = round(clamp_trim(trim), 3) + 0.0 +    trim = round(clamp_trim(trim), 3) - 0.0 ` |
-| `MainWindow.set_trim__mutmut_16` | suspicious | `-        self.config["mark_trim"].pop(weapon.name, None) +        self.config["mark_trim"].pop(None) ` |
-| `MainWindow.set_trim__mutmut_17` | survived | `-        self.config["mark_trim"].pop(weapon.name, None) +        self.config["mark_trim"].pop(weapon.name, ) ` |
-| `MainWindow.set_trim__mutmut_18` | suspicious | `-        self.config["mark_trim"].pop(weapon.name, None) +        self.config["XXmark_trimXX"].pop(weapon.name, None) ` |
-| `MainWindow.set_trim__mutmut_19` | suspicious | `-        self.config["mark_trim"].pop(weapon.name, None) +        self.config["MARK_TRIM"].pop(weapon.name, None) ` |
-| `MainWindow.on_trim_edited__mutmut_1` | suspicious | `-    value = self.trim_entry.value(0.0) +    value = None ` |
-| `MainWindow.on_trim_edited__mutmut_2` | suspicious | `-    value = self.trim_entry.value(0.0) +    value = self.trim_entry.value(None) ` |
-| `MainWindow.on_trim_edited__mutmut_4` | suspicious | `-    self.set_trim(value) +    self.set_trim(None) ` |
-| `MainWindow.on_trim_edited__mutmut_5` | suspicious | `-    if abs(value) > TRIM_LIMIT: +    if abs(None) > TRIM_LIMIT: ` |
-| `MainWindow.on_trim_edited__mutmut_6` | survived | `-    if abs(value) > TRIM_LIMIT: +    if abs(value) >= TRIM_LIMIT: ` |
-| `MainWindow.on_trim_edited__mutmut_7` | suspicious | `-        self.trim_entry.set_value(self.current_trim(self.current_weapon())) +        self.trim_entry.set_value(None) ` |
-| `MainWindow.on_trim_edited__mutmut_9` | survived | `-    self.trim_status.setText("") +    self.trim_status.setText(None) ` |
-| `MainWindow.on_trim_edited__mutmut_10` | survived | `-    self.trim_status.setText("") +    self.trim_status.setText("XXXX") ` |
-| `MainWindow.reset_trim__mutmut_1` | suspicious | `-    self.set_trim(0.0) +    self.set_trim(None) ` |
-| `MainWindow.apply_landing__mutmut_7` | survived | `-    height = self.height_entry.value(0.0) +    height = self.height_entry.value(1.0) ` |
-| `MainWindow.apply_landing__mutmut_19` | suspicious | `-        arc = resolve_arc(weapon, self.config["arc"]) +        arc = resolve_arc(None, self.config["arc"]) ` |
-| `MainWindow.apply_landing__mutmut_21` | suspicious | `-        arc = resolve_arc(weapon, self.config["arc"]) +        arc = resolve_arc(self.config["arc"]) ` |
-| `MainWindow.apply_landing__mutmut_22` | suspicious | `-        arc = resolve_arc(weapon, self.config["arc"]) +        arc = resolve_arc(weapon, ) ` |
-| `MainWindow.apply_landing__mutmut_23` | suspicious | `-        arc = resolve_arc(weapon, self.config["arc"]) +        arc = resolve_arc(weapon, self.config["XXarcXX"]) ` |
-| `MainWindow.apply_landing__mutmut_24` | suspicious | `-        arc = resolve_arc(weapon, self.config["arc"]) +        arc = resolve_arc(weapon, self.config["ARC"]) ` |
-| `MainWindow.apply_landing__mutmut_29` | suspicious | `-            if solve(weapon, distance, height, "high").reachable: +            if solve(None, distance, height, "high").reachable: ` |
-| `MainWindow.apply_landing__mutmut_30` | suspicious | `-            if solve(weapon, distance, height, "high").reachable: +            if solve(weapon, None, height, "high").reachable: ` |
-| `MainWindow.apply_landing__mutmut_31` | suspicious | `-            if solve(weapon, distance, height, "high").reachable: +            if solve(weapon, distance, None, "high").reachable: ` |
-| `MainWindow.apply_landing__mutmut_32` | survived | `-            if solve(weapon, distance, height, "high").reachable: +            if solve(weapon, distance, height, None).reachable: ` |
-| `MainWindow.apply_landing__mutmut_33` | suspicious | `-            if solve(weapon, distance, height, "high").reachable: +            if solve(distance, height, "high").reachable: ` |
-| `MainWindow.apply_landing__mutmut_35` | suspicious | `-            if solve(weapon, distance, height, "high").reachable: +            if solve(weapon, distance, "high").reachable: ` |
-| `MainWindow.apply_landing__mutmut_36` | survived | `-            if solve(weapon, distance, height, "high").reachable: +            if solve(weapon, distance, height, ).reachable: ` |
-| `MainWindow.apply_landing__mutmut_46` | suspicious | `-        trim = trim_for_landing( -            weapon, -            distance, -            height, -            landed, -            self.cu` |
-| `MainWindow.apply_landing__mutmut_47` | suspicious | `-            weapon, +            None, ` |
-| `MainWindow.apply_landing__mutmut_53` | suspicious | `-            weapon, ` |
-| `MainWindow.apply_landing__mutmut_62` | survived | `-        self.trim_status.setText(tr("bad_number")) +        self.trim_status.setText(None) ` |
-| `MainWindow.apply_landing__mutmut_63` | survived | `-        self.trim_status.setText(tr("bad_number")) +        self.trim_status.setText(tr(None)) ` |
-| `MainWindow.apply_landing__mutmut_64` | survived | `-        self.trim_status.setText(tr("bad_number")) +        self.trim_status.setText(tr("XXbad_numberXX")) ` |
-| `MainWindow.apply_landing__mutmut_65` | survived | `-        self.trim_status.setText(tr("bad_number")) +        self.trim_status.setText(tr("BAD_NUMBER")) ` |
-| `MainWindow.apply_landing__mutmut_66` | suspicious | `-    self.set_trim(trim) +    self.set_trim(None) ` |
-| `MainWindow.apply_landing__mutmut_67` | suspicious | `-    trim = self.current_trim(weapon) +    trim = None ` |
-| `MainWindow.apply_landing__mutmut_70` | suspicious | `-        tr("trim_set_limit" if abs(trim) >= TRIM_LIMIT else "trim_set", trim=f"{trim:+g}") +        tr(None, trim=f"{trim:+g}") ` |
-| `MainWindow.apply_landing__mutmut_72` | suspicious | `-        tr("trim_set_limit" if abs(trim) >= TRIM_LIMIT else "trim_set", trim=f"{trim:+g}") +        tr(trim=f"{trim:+g}") ` |
-| `MainWindow.apply_landing__mutmut_74` | survived | `-        tr("trim_set_limit" if abs(trim) >= TRIM_LIMIT else "trim_set", trim=f"{trim:+g}") +        tr("trim_set_limit" if (abs(trim) >= TR` |
-| `MainWindow.apply_landing__mutmut_76` | survived | `-        tr("trim_set_limit" if abs(trim) >= TRIM_LIMIT else "trim_set", trim=f"{trim:+g}") +        tr("XXtrim_set_limitXX" if abs(trim) >=` |
-| `MainWindow.apply_landing__mutmut_77` | survived | `-        tr("trim_set_limit" if abs(trim) >= TRIM_LIMIT else "trim_set", trim=f"{trim:+g}") +        tr("TRIM_SET_LIMIT" if abs(trim) >= TRI` |
-| `MainWindow.apply_landing__mutmut_78` | suspicious | `-        tr("trim_set_limit" if abs(trim) >= TRIM_LIMIT else "trim_set", trim=f"{trim:+g}") +        tr("trim_set_limit" if abs(None) >= TRI` |
-| `MainWindow.apply_landing__mutmut_79` | survived | `-        tr("trim_set_limit" if abs(trim) >= TRIM_LIMIT else "trim_set", trim=f"{trim:+g}") +        tr("trim_set_limit" if abs(trim) > TRIM` |
-| `MainWindow.on_arc_changed__mutmut_4` | survived | `-    self.trim_status.setText("") +    self.trim_status.setText(None) ` |
-| `MainWindow.on_arc_changed__mutmut_5` | survived | `-    self.trim_status.setText("") +    self.trim_status.setText("XXXX") ` |
-| `MainWindow.on_input_edited__mutmut_2` | suspicious | `-    if self.config["auto_calc"]: +    if self.config["XXauto_calcXX"]: ` |
-| `MainWindow.on_input_edited__mutmut_3` | suspicious | `-    if self.config["auto_calc"]: +    if self.config["AUTO_CALC"]: ` |
-| `MainWindow.on_input_edited__mutmut_5` | survived | `-        self.calculate(show_errors=False) +        self.calculate(show_errors=None) ` |
-| `MainWindow.on_input_edited__mutmut_6` | survived | `-        self.calculate(show_errors=False) +        self.calculate(show_errors=True) ` |
-| `MainWindow.forget_map_target__mutmut_2` | suspicious | `-    self.map_target = None +    self.map_target = "" ` |
-| `MainWindow.calibrate_lay__mutmut_35` | survived | `-    if weapon is None or not weapon.has_hold or weapon.aim != "elevation": +    if weapon is None or not weapon.has_hold and weapon.aim != ` |
-| `MainWindow.calibrate_lay__mutmut_36` | survived | `-    if weapon is None or not weapon.has_hold or weapon.aim != "elevation": +    if weapon is None and not weapon.has_hold or weapon.aim != ` |
-| `MainWindow.calibrate_lay__mutmut_42` | survived | `-        return False +        return True ` |
-| `MainWindow.calibrate_lay__mutmut_49` | survived | `-    if held < LAY_CALIBRATION_MIN_HOLD: +    if held <= LAY_CALIBRATION_MIN_HOLD: ` |
-| `MainWindow.calibrate_lay__mutmut_66` | survived | `-    if abs(rate - base) > LAY_RATE_TOLERANCE * base: +    if abs(rate - base) >= LAY_RATE_TOLERANCE * base: ` |
-| `MainWindow.calibrate_lay__mutmut_68` | survived | `-        self.lay_status.setText(tr("lay_out_of_range", rate=f"{rate:.2f}", base=f"{base:g}")) +        self.lay_status.setText(None) ` |
-| `MainWindow.calibrate_lay__mutmut_70` | survived | `-        self.lay_status.setText(tr("lay_out_of_range", rate=f"{rate:.2f}", base=f"{base:g}")) +        self.lay_status.setText(tr("lay_out_` |
-| `MainWindow.calibrate_lay__mutmut_71` | survived | `-        self.lay_status.setText(tr("lay_out_of_range", rate=f"{rate:.2f}", base=f"{base:g}")) +        self.lay_status.setText(tr("lay_out_` |
-| `MainWindow.calibrate_lay__mutmut_75` | survived | `-        self.lay_status.setText(tr("lay_out_of_range", rate=f"{rate:.2f}", base=f"{base:g}")) +        self.lay_status.setText(tr("XXlay_ou` |
-| `MainWindow.calibrate_lay__mutmut_76` | survived | `-        self.lay_status.setText(tr("lay_out_of_range", rate=f"{rate:.2f}", base=f"{base:g}")) +        self.lay_status.setText(tr("LAY_OUT_` |
-| `MainWindow.calibrate_lay__mutmut_85` | survived | `-    self.config["lay_rates"][weapon.name] = round(rate, 4) +    self.config["lay_rates"][weapon.name] = round(rate, 5) ` |
-| `MainWindow.calibrate_lay__mutmut_86` | survived | `-    self.lay_status.setText(tr("lay_done", rate=f"{rate:.2f}", base=f"{base:g}")) +    self.lay_status.setText(None) ` |
-| `MainWindow.calibrate_lay__mutmut_88` | survived | `-    self.lay_status.setText(tr("lay_done", rate=f"{rate:.2f}", base=f"{base:g}")) +    self.lay_status.setText(tr("lay_done", rate=None, ba` |
-| `MainWindow.calibrate_lay__mutmut_89` | survived | `-    self.lay_status.setText(tr("lay_done", rate=f"{rate:.2f}", base=f"{base:g}")) +    self.lay_status.setText(tr("lay_done", rate=f"{rate:` |
-| `MainWindow.calibrate_lay__mutmut_93` | survived | `-    self.lay_status.setText(tr("lay_done", rate=f"{rate:.2f}", base=f"{base:g}")) +    self.lay_status.setText(tr("XXlay_doneXX", rate=f"{r` |
-| `MainWindow.calibrate_lay__mutmut_94` | survived | `-    self.lay_status.setText(tr("lay_done", rate=f"{rate:.2f}", base=f"{base:g}")) +    self.lay_status.setText(tr("LAY_DONE", rate=f"{rate:` |
-| `MainWindow.reset_lay_rate__mutmut_6` | survived | `-    if weapon is None or self.config["lay_rates"].pop(weapon.name, None) is None: +    if weapon is None or self.config["lay_rates"].pop(we` |
-| `MainWindow.reset_lay_rate__mutmut_10` | survived | `-    self.lay_status.setText(tr("lay_reset_done", base=f"{self.file_weapons[weapon.name].hold_rate:g}")) +    self.lay_status.setText(None) ` |
-| `MainWindow.reset_lay_rate__mutmut_12` | survived | `-    self.lay_status.setText(tr("lay_reset_done", base=f"{self.file_weapons[weapon.name].hold_rate:g}")) +    self.lay_status.setText(tr("la` |
-| `MainWindow.reset_lay_rate__mutmut_14` | survived | `-    self.lay_status.setText(tr("lay_reset_done", base=f"{self.file_weapons[weapon.name].hold_rate:g}")) +    self.lay_status.setText(tr("la` |
-| `MainWindow.reset_lay_rate__mutmut_15` | survived | `-    self.lay_status.setText(tr("lay_reset_done", base=f"{self.file_weapons[weapon.name].hold_rate:g}")) +    self.lay_status.setText(tr("XX` |
-| `MainWindow.reset_lay_rate__mutmut_16` | survived | `-    self.lay_status.setText(tr("lay_reset_done", base=f"{self.file_weapons[weapon.name].hold_rate:g}")) +    self.lay_status.setText(tr("LA` |
-| `MainWindow.lay_reset_time__mutmut_2` | survived | `-    if weapon is None or not weapon.has_hold or weapon.aim != "elevation": +    if weapon is None and not weapon.has_hold or weapon.aim != ` |
-| `MainWindow.lay_step__mutmut_1` | survived | `-    if not self.config["auto_hold"] or self.hold_timer.auto_hold is None: +    if not self.config["auto_hold"] and self.hold_timer.auto_hol` |
-| `MainWindow.lay_step__mutmut_21` | survived | `-        hotkey=self.config["hotkeys"].get("auto_hold", ""), +        hotkey=self.config["hotkeys"].get("auto_hold", None), ` |
-| `MainWindow.lay_step__mutmut_23` | survived | `-        hotkey=self.config["hotkeys"].get("auto_hold", ""), +        hotkey=self.config["hotkeys"].get("auto_hold", ), ` |
-| `MainWindow.lay_step__mutmut_28` | survived | `-        hotkey=self.config["hotkeys"].get("auto_hold", ""), +        hotkey=self.config["hotkeys"].get("auto_hold", "XXXX"), ` |
-| `MainWindow.auto_hold__mutmut_41` | survived | `-        self.set_lay_info(tr(blocker, key=self.config["hotkeys"].get("auto_hold", ""))) +        self.set_lay_info(tr(blocker, key=self.con` |
-| `MainWindow.auto_hold__mutmut_43` | survived | `-        self.set_lay_info(tr(blocker, key=self.config["hotkeys"].get("auto_hold", ""))) +        self.set_lay_info(tr(blocker, key=self.con` |
-| `MainWindow.auto_hold__mutmut_48` | survived | `-        self.set_lay_info(tr(blocker, key=self.config["hotkeys"].get("auto_hold", ""))) +        self.set_lay_info(tr(blocker, key=self.con` |
-| `MainWindow.timed_lay_blocker__mutmut_12` | survived | `-    if self.lay_reset_time(weapon) > 0 and timer.auto_hold.reset_injector is None: +    if self.lay_reset_time(weapon) >= 0 and timer.auto_` |
-| `MainWindow.timed_lay_blocker__mutmut_13` | survived | `-    if self.lay_reset_time(weapon) > 0 and timer.auto_hold.reset_injector is None: +    if self.lay_reset_time(weapon) > 1 and timer.auto_h` |
-| `MainWindow.timed_lay_blocker__mutmut_17` | survived | `-    if not timer.active or not timer.available: +    if not timer.active and not timer.available: ` |
-| `MainWindow.lay_failure_text__mutmut_8` | suspicious | `-        "lay_failed", +        None, ` |
-| `MainWindow.lay_failure_text__mutmut_11` | suspicious | `-        "lay_failed", ` |
-| `MainWindow.lay_failure_text__mutmut_12` | suspicious | `-        what=tr(axis), ` |
-| `MainWindow.lay_failure_text__mutmut_13` | suspicious | `-        why=tr(f"lay_why_{failure}", moves=MAX_MOVES) -    ) +        ) ` |
-| `MainWindow.lay_failure_text__mutmut_17` | suspicious | `-        why=tr(f"lay_why_{failure}", moves=MAX_MOVES) +        why=tr(None, moves=MAX_MOVES) ` |
-| `MainWindow.lay_failure_text__mutmut_19` | suspicious | `-        why=tr(f"lay_why_{failure}", moves=MAX_MOVES) +        why=tr(moves=MAX_MOVES) ` |
-| `MainWindow.sight_target__mutmut_2` | survived | `-    if not self.lays_by_sight(self.current_weapon()) or solution is None \ -                or not math.isfinite(solution.hold_time): +    ` |
-| `MainWindow.sight_target__mutmut_3` | survived | `-    if not self.lays_by_sight(self.current_weapon()) or solution is None \ +    if not self.lays_by_sight(self.current_weapon()) and soluti` |
-| `MainWindow.bearing_target__mutmut_8` | survived | `-    return target.bearing % 360.0 +    return target.bearing % 361.0 ` |
-| `MainWindow.save_sight_grab__mutmut_5` | survived | `-    os.makedirs(config_dir(), exist_ok=True) +    os.makedirs(config_dir(), exist_ok=None) ` |
-| `MainWindow.save_sight_grab__mutmut_7` | survived | `-    os.makedirs(config_dir(), exist_ok=True) +    os.makedirs(config_dir(), ) ` |
-| `MainWindow.save_sight_grab__mutmut_8` | survived | `-    os.makedirs(config_dir(), exist_ok=True) +    os.makedirs(config_dir(), exist_ok=False) ` |
-| `MainWindow.save_sight_grab__mutmut_16` | survived | `-        return "" +        return "XXXX" ` |
-| `MainWindow.laying__mutmut_1` | suspicious | `-        layer is not None and layer.active -        for layer in (self.bearing_layer, self.sight_layer) +        None ` |
-| `MainWindow.laying__mutmut_2` | suspicious | `-        layer is not None and layer.active +        layer is not None or layer.active ` |
-| `MainWindow.laying__mutmut_3` | suspicious | `-        layer is not None and layer.active +        layer is None and layer.active ` |
-| `MainWindow.watch_sight__mutmut_3` | survived | `-        self.set_bearing_info("") +        self.set_bearing_info(None) ` |
-| `MainWindow.watch_sight__mutmut_4` | survived | `-        self.set_bearing_info("") +        self.set_bearing_info("XXXX") ` |
-| `MainWindow.compass_reader__mutmut_1` | survived | `-    if self.bearing_layer is not None: +    if self.bearing_layer is None: ` |
-| `MainWindow.compass_reader__mutmut_2` | survived | `-    if self.own_compass_reader is None: +    if self.own_compass_reader is not None: ` |
-| `MainWindow.compass_reader__mutmut_3` | survived | `-        self.own_compass_reader = CompassReader(DigitReader(self.templates())) +        self.own_compass_reader = None ` |
-| `MainWindow.compass_reader__mutmut_4` | survived | `-        self.own_compass_reader = CompassReader(DigitReader(self.templates())) +        self.own_compass_reader = CompassReader(None) ` |
-| `MainWindow.compass_reader__mutmut_5` | survived | `-        self.own_compass_reader = CompassReader(DigitReader(self.templates())) +        self.own_compass_reader = CompassReader(DigitReader` |
-| `MainWindow.show_sight_reading__mutmut_1` | survived | `-def show_sight_reading(self, reading, mark=""): +def show_sight_reading(self, reading, mark="XXXX"): ` |
-| `MainWindow.show_sight_reading__mutmut_3` | survived | `-        self.set_sight_info("") +        self.set_sight_info(None) ` |
-| `MainWindow.show_sight_reading__mutmut_4` | survived | `-        self.set_sight_info("") +        self.set_sight_info("XXXX") ` |
-| `MainWindow.show_sight_reading__mutmut_7` | survived | `-        text = tr("sight_reading", mils=f"{reading.mils:.1f}") +        text = None ` |
-| `MainWindow.show_sight_reading__mutmut_8` | survived | `-        text = tr("sight_reading", mils=f"{reading.mils:.1f}") +        text = tr(None, mils=f"{reading.mils:.1f}") ` |
-| `MainWindow.show_sight_reading__mutmut_9` | survived | `-        text = tr("sight_reading", mils=f"{reading.mils:.1f}") +        text = tr("sight_reading", mils=None) ` |
-| `MainWindow.show_sight_reading__mutmut_10` | survived | `-        text = tr("sight_reading", mils=f"{reading.mils:.1f}") +        text = tr(mils=f"{reading.mils:.1f}") ` |
-| `MainWindow.show_sight_reading__mutmut_11` | survived | `-        text = tr("sight_reading", mils=f"{reading.mils:.1f}") +        text = tr("sight_reading", ) ` |
-| `MainWindow.show_sight_reading__mutmut_12` | survived | `-        text = tr("sight_reading", mils=f"{reading.mils:.1f}") +        text = tr("XXsight_readingXX", mils=f"{reading.mils:.1f}") ` |
-| `MainWindow.show_sight_reading__mutmut_13` | survived | `-        text = tr("sight_reading", mils=f"{reading.mils:.1f}") +        text = tr("SIGHT_READING", mils=f"{reading.mils:.1f}") ` |
-| `MainWindow.show_bearing_reading__mutmut_1` | survived | `-def show_bearing_reading(self, reading, mark=""): +def show_bearing_reading(self, reading, mark="XXXX"): ` |
-| `MainWindow.show_bearing_reading__mutmut_3` | survived | `-        self.set_bearing_info("") +        self.set_bearing_info(None) ` |
-| `MainWindow.show_bearing_reading__mutmut_4` | survived | `-        self.set_bearing_info("") +        self.set_bearing_info("XXXX") ` |
-| `MainWindow.show_bearing_reading__mutmut_7` | survived | `-        text = tr("compass_reading", deg=f"{reading.degrees:.1f}") +        text = None ` |
-| `MainWindow.show_bearing_reading__mutmut_8` | survived | `-        text = tr("compass_reading", deg=f"{reading.degrees:.1f}") +        text = tr(None, deg=f"{reading.degrees:.1f}") ` |
-| `MainWindow.show_bearing_reading__mutmut_9` | survived | `-        text = tr("compass_reading", deg=f"{reading.degrees:.1f}") +        text = tr("compass_reading", deg=None) ` |
-| `MainWindow.show_bearing_reading__mutmut_10` | survived | `-        text = tr("compass_reading", deg=f"{reading.degrees:.1f}") +        text = tr(deg=f"{reading.degrees:.1f}") ` |
-| `MainWindow.show_bearing_reading__mutmut_11` | survived | `-        text = tr("compass_reading", deg=f"{reading.degrees:.1f}") +        text = tr("compass_reading", ) ` |
-| `MainWindow.show_bearing_reading__mutmut_12` | survived | `-        text = tr("compass_reading", deg=f"{reading.degrees:.1f}") +        text = tr("XXcompass_readingXX", deg=f"{reading.degrees:.1f}") ` |
-| `MainWindow.show_bearing_reading__mutmut_13` | survived | `-        text = tr("compass_reading", deg=f"{reading.degrees:.1f}") +        text = tr("COMPASS_READING", deg=f"{reading.degrees:.1f}") ` |
-| `MainWindow.show_bearing_reading__mutmut_14` | suspicious | `-        left = BEARING.difference(target, reading.degrees) +        left = None ` |
-| `MainWindow.show_bearing_reading__mutmut_15` | suspicious | `-        left = BEARING.difference(target, reading.degrees) +        left = BEARING.difference(None, reading.degrees) ` |
-| `MainWindow.show_bearing_reading__mutmut_16` | suspicious | `-        left = BEARING.difference(target, reading.degrees) +        left = BEARING.difference(target, None) ` |
-| `MainWindow.show_bearing_reading__mutmut_17` | suspicious | `-        left = BEARING.difference(target, reading.degrees) +        left = BEARING.difference(reading.degrees) ` |
-| `MainWindow.show_bearing_reading__mutmut_18` | suspicious | `-        left = BEARING.difference(target, reading.degrees) +        left = BEARING.difference(target, ) ` |
-| `MainWindow.show_bearing_reading__mutmut_20` | suspicious | `-        text = tr("compass_reading_left", deg=f"{reading.degrees:.1f}", left=f"{left:+.1f}") +        text = tr(None, deg=f"{reading.degree` |
-| `MainWindow.show_bearing_reading__mutmut_21` | survived | `-        text = tr("compass_reading_left", deg=f"{reading.degrees:.1f}", left=f"{left:+.1f}") +        text = tr("compass_reading_left", deg` |
-| `MainWindow.show_bearing_reading__mutmut_23` | suspicious | `-        text = tr("compass_reading_left", deg=f"{reading.degrees:.1f}", left=f"{left:+.1f}") +        text = tr(deg=f"{reading.degrees:.1f}` |
-| `MainWindow.show_bearing_reading__mutmut_24` | suspicious | `-        text = tr("compass_reading_left", deg=f"{reading.degrees:.1f}", left=f"{left:+.1f}") +        text = tr("compass_reading_left", lef` |
-| `MainWindow.show_bearing_reading__mutmut_25` | suspicious | `-        text = tr("compass_reading_left", deg=f"{reading.degrees:.1f}", left=f"{left:+.1f}") +        text = tr("compass_reading_left", deg` |
-| `MainWindow.lay_mark__mutmut_1` | survived | `-        return "  ✓" +        return "XX  ✓XX" ` |
-| `MainWindow.lay_mark__mutmut_4` | survived | `-    return "" if layer is not None and layer.stopped else "  ✗" +    return "XXXX" if layer is not None and layer.stopped else "  ✗" ` |
-| `MainWindow.lay_mark__mutmut_7` | survived | `-    return "" if layer is not None and layer.stopped else "  ✗" +    return "" if layer is not None and layer.stopped else "XX  ✗XX" ` |
-| `MainWindow.on_bearing_lay_finished__mutmut_2` | survived | `-    self.show_bearing_reading(reading, self.lay_mark(turning, on_target)) +    self.show_bearing_reading(None, self.lay_mark(turning, on_ta` |
-| `MainWindow.on_bearing_lay_finished__mutmut_3` | survived | `-    self.show_bearing_reading(reading, self.lay_mark(turning, on_target)) +    self.show_bearing_reading(reading, None) ` |
-| `MainWindow.on_bearing_lay_finished__mutmut_4` | suspicious | `-    self.show_bearing_reading(reading, self.lay_mark(turning, on_target)) +    self.show_bearing_reading(self.lay_mark(turning, on_target))` |
-| `MainWindow.on_bearing_lay_finished__mutmut_5` | survived | `-    self.show_bearing_reading(reading, self.lay_mark(turning, on_target)) +    self.show_bearing_reading(reading, ) ` |
-| `MainWindow.on_bearing_lay_finished__mutmut_8` | suspicious | `-    self.show_bearing_reading(reading, self.lay_mark(turning, on_target)) +    self.show_bearing_reading(reading, self.lay_mark(on_target))` |
-| `MainWindow.on_bearing_lay_finished__mutmut_9` | suspicious | `-    self.show_bearing_reading(reading, self.lay_mark(turning, on_target)) +    self.show_bearing_reading(reading, self.lay_mark(turning, ))` |
-| `MainWindow.on_bearing_lay_finished__mutmut_12` | suspicious | `-        self.set_lay_info(self.lay_failure_text(turning, "lay_bearing")) +        self.set_lay_info(self.lay_failure_text(None, "lay_bearin` |
-| `MainWindow.on_bearing_lay_finished__mutmut_14` | suspicious | `-        self.set_lay_info(self.lay_failure_text(turning, "lay_bearing")) +        self.set_lay_info(self.lay_failure_text("lay_bearing")) ` |
-| `MainWindow.on_bearing_lay_finished__mutmut_15` | suspicious | `-        self.set_lay_info(self.lay_failure_text(turning, "lay_bearing")) +        self.set_lay_info(self.lay_failure_text(turning, )) ` |
-| `MainWindow.on_bearing_lay_finished__mutmut_26` | survived | `-    if stopped or not self.start_sight_lay(): +    if stopped or self.start_sight_lay(): ` |
-| `MainWindow.on_sight_lay_finished__mutmut_7` | survived | `-    self.show_sight_reading(reading, self.lay_mark(layer, on_target)) +    self.show_sight_reading(reading, self.lay_mark(layer, None)) ` |
-| `MainWindow.on_sight_lay_finished__mutmut_13` | survived | `-    failure = "" if layer is None else self.lay_failure_text(layer, "lay_elevation") +    failure = "XXXX" if layer is None else self.lay_f` |
-| `MainWindow.on_sight_lay_finished__mutmut_15` | suspicious | `-    failure = "" if layer is None else self.lay_failure_text(layer, "lay_elevation") +    failure = "" if layer is None else self.lay_failu` |
-| `MainWindow.on_sight_lay_finished__mutmut_17` | suspicious | `-    failure = "" if layer is None else self.lay_failure_text(layer, "lay_elevation") +    failure = "" if layer is None else self.lay_failu` |
-| `MainWindow.on_sight_lay_finished__mutmut_18` | suspicious | `-    failure = "" if layer is None else self.lay_failure_text(layer, "lay_elevation") +    failure = "" if layer is None else self.lay_failu` |
-| `MainWindow.make_bearing_layer__mutmut_5` | survived | `-    if right is None or left is None: +    if right is None and left is None: ` |
-| `MainWindow.make_bearing_layer__mutmut_8` | survived | `-            if injector is not None: +            if injector is None: ` |
-| `MainWindow.make_bearing_layer__mutmut_10` | suspicious | `-    self.bearing_layer = SightLayer( -        lambda: self.screen_sight.grab_compass(), -        templates, -        self.bearing_target, -` |
-| `MainWindow.make_bearing_layer__mutmut_12` | survived | `-        templates, +        None, ` |
-| `MainWindow.make_bearing_layer__mutmut_14` | suspicious | `-        right, +        None, ` |
-| `MainWindow.make_bearing_layer__mutmut_15` | suspicious | `-        left, +        None, ` |
-| `MainWindow.make_bearing_layer__mutmut_16` | survived | `-        self, +        None, ` |
-| `MainWindow.make_bearing_layer__mutmut_17` | suspicious | `-        axis=BEARING, +        axis=None, ` |
-| `MainWindow.make_bearing_layer__mutmut_19` | suspicious | `-        lambda: self.screen_sight.grab_compass(), ` |
-| `MainWindow.make_bearing_layer__mutmut_20` | suspicious | `-        templates, ` |
-| `MainWindow.make_bearing_layer__mutmut_21` | suspicious | `-        self.bearing_target, ` |
-| `MainWindow.make_bearing_layer__mutmut_22` | suspicious | `-        right, ` |
-| `MainWindow.make_bearing_layer__mutmut_23` | suspicious | `-        left, ` |
-| `MainWindow.make_bearing_layer__mutmut_24` | survived | `-        self, ` |
-| `MainWindow.make_bearing_layer__mutmut_25` | survived | `-        axis=BEARING, ` |
-| `MainWindow.make_bearing_layer__mutmut_30` | suspicious | `-    self.bearing_layer.read.connect(self.show_bearing_reading) +    self.bearing_layer.read.connect(None) ` |
-| `MainWindow.make_bearing_layer__mutmut_31` | suspicious | `-    self.bearing_layer.finished.connect(self.on_bearing_lay_finished) +    self.bearing_layer.finished.connect(None) ` |
-| `MainWindow.set_auto_hold__mutmut_1` | suspicious | `-    teardown_hotkeys(self) +    teardown_hotkeys(None) ` |
-| `MainWindow.set_auto_hold__mutmut_3` | suspicious | `-    setup_hotkeys(self) +    setup_hotkeys(None) ` |
-| `MainWindow.set_auto_hold__mutmut_4` | survived | `-    if not ok: +    if ok: ` |
-| `MainWindow.set_auto_hold__mutmut_5` | suspicious | `-        toggle = self.controls["auto_hold"] +        toggle = None ` |
-| `MainWindow.set_auto_hold__mutmut_6` | suspicious | `-        toggle = self.controls["auto_hold"] +        toggle = self.controls["XXauto_holdXX"] ` |
-| `MainWindow.set_auto_hold__mutmut_7` | suspicious | `-        toggle = self.controls["auto_hold"] +        toggle = self.controls["AUTO_HOLD"] ` |
-| `MainWindow.set_auto_hold__mutmut_8` | suspicious | `-        toggle.blockSignals(True) +        toggle.blockSignals(None) ` |
-| `MainWindow.set_auto_hold__mutmut_9` | survived | `-        toggle.blockSignals(True) +        toggle.blockSignals(False) ` |
-| `MainWindow.set_auto_hold__mutmut_10` | suspicious | `-        toggle.setChecked(False) +        toggle.setChecked(None) ` |
-| `MainWindow.set_auto_hold__mutmut_11` | survived | `-        toggle.setChecked(False) +        toggle.setChecked(True) ` |
-| `MainWindow.set_auto_hold__mutmut_12` | suspicious | `-        toggle.blockSignals(False) +        toggle.blockSignals(None) ` |
-| `MainWindow.how_overlay_view__mutmut_18` | suspicious | `-            name for name, other in self.weapons.items() if other.twin == weapon.name +            None ` |
-| `MainWindow.how_overlay_view__mutmut_20` | suspicious | `-        return tr("how_view_plain", twin=optic, fov=f"{fov:g}") +        return tr(None, twin=optic, fov=f"{fov:g}") ` |
-| `MainWindow.how_overlay_view__mutmut_23` | suspicious | `-        return tr("how_view_plain", twin=optic, fov=f"{fov:g}") +        return tr(twin=optic, fov=f"{fov:g}") ` |
-| `MainWindow.how_overlay_view__mutmut_24` | suspicious | `-        return tr("how_view_plain", twin=optic, fov=f"{fov:g}") +        return tr("how_view_plain", fov=f"{fov:g}") ` |
-| `MainWindow.how_overlay_view__mutmut_25` | suspicious | `-        return tr("how_view_plain", twin=optic, fov=f"{fov:g}") +        return tr("how_view_plain", twin=optic, ) ` |
-| `MainWindow.reset_offset__mutmut_2` | survived | `-    self.direct_solution = None +    self.direct_solution = "" ` |
-| `MainWindow.reset_offset__mutmut_3` | survived | `-    self.overlay.set_offset(self.current_offset()) +    self.overlay.set_offset(None) ` |
-| `MainWindow.reset_offset__mutmut_4` | survived | `-    self.set_overlay_info("") +    self.set_overlay_info(None) ` |
-| `MainWindow.toggle_view__mutmut_2` | suspicious | `-    twin = view_twin(self.weapons, self.picker.current) +    twin = view_twin(None, self.picker.current) ` |
-| `MainWindow.toggle_view__mutmut_4` | suspicious | `-    twin = view_twin(self.weapons, self.picker.current) +    twin = view_twin(self.picker.current) ` |
-| `MainWindow.toggle_view__mutmut_5` | suspicious | `-    twin = view_twin(self.weapons, self.picker.current) +    twin = view_twin(self.weapons, ) ` |
-| `MainWindow.distance_up__mutmut_4` | survived | `-    self.calculate(show_errors=False) +    self.calculate(show_errors=None) ` |
-| `MainWindow.distance_up__mutmut_5` | survived | `-    self.calculate(show_errors=False) +    self.calculate(show_errors=True) ` |
-| `MainWindow.distance_down__mutmut_5` | survived | `-    self.calculate(show_errors=False) +    self.calculate(show_errors=None) ` |
-| `MainWindow.distance_down__mutmut_6` | survived | `-    self.calculate(show_errors=False) +    self.calculate(show_errors=True) ` |
-| `MainWindow.set_setting__mutmut_1` | suspicious | `-    self.config[key] = value +    self.config[key] = None ` |
-| `MainWindow.watch_screen__mutmut_1` | no tests | `-    screen.geometryChanged.connect(self.update_monitor_choice) +    screen.geometryChanged.connect(None) ` |
-| `MainWindow.open_config_dir__mutmut_7` | survived | `-    if QDesktopServices.openUrl(QUrl.fromLocalFile(path)): +    if QDesktopServices.openUrl(None): ` |
-| `MainWindow.open_config_dir__mutmut_8` | survived | `-    if QDesktopServices.openUrl(QUrl.fromLocalFile(path)): +    if QDesktopServices.openUrl(QUrl.fromLocalFile(None)): ` |
-| `MainWindow.set_on_top__mutmut_4` | survived | `-    self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, checked) +    self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, ) ` |
-| `MainWindow.set_distance_step__mutmut_1` | survived | `-    self.config["distance_step"] = step +    self.config["distance_step"] = None ` |
-| `MainWindow.set_distance_step__mutmut_2` | survived | `-    self.config["distance_step"] = step +    self.config["XXdistance_stepXX"] = step ` |
-| `MainWindow.set_distance_step__mutmut_3` | survived | `-    self.config["distance_step"] = step +    self.config["DISTANCE_STEP"] = step ` |
-| `MainWindow.set_monitor__mutmut_1` | no tests | `-    self.config["monitor"] = index +    self.config["monitor"] = None ` |
-| `MainWindow.set_monitor__mutmut_2` | no tests | `-    self.config["monitor"] = index +    self.config["XXmonitorXX"] = index ` |
-| `MainWindow.set_monitor__mutmut_3` | no tests | `-    self.config["monitor"] = index +    self.config["MONITOR"] = index ` |
-| `MainWindow.set_hotkey__mutmut_17` | survived | `-        box.blockSignals(True) +        box.blockSignals(False) ` |
-| `MainWindow.set_hotkey__mutmut_26` | survived | `-        box.setCurrentIndex(max(0, box.findData(self.config["hotkeys"].get(name, "")))) +        box.setCurrentIndex(max(0, box.findData(se` |
-| `MainWindow.set_hotkey__mutmut_28` | survived | `-        box.setCurrentIndex(max(0, box.findData(self.config["hotkeys"].get(name, "")))) +        box.setCurrentIndex(max(0, box.findData(se` |
-| `MainWindow.set_hotkey__mutmut_31` | survived | `-        box.setCurrentIndex(max(0, box.findData(self.config["hotkeys"].get(name, "")))) +        box.setCurrentIndex(max(0, box.findData(se` |
-| `MainWindow.set_hotkey__mutmut_33` | survived | `-        box.blockSignals(False) +        box.blockSignals(True) ` |
-| `MainWindow.reset_settings__mutmut_2` | survived | `-        self, +        None, ` |
-| `MainWindow.reset_settings__mutmut_3` | survived | `-        "Squad Ballistics", +        None, ` |
-| `MainWindow.reset_settings__mutmut_4` | survived | `-        tr("s_reset_confirm") +        None ` |
-| `MainWindow.reset_settings__mutmut_5` | survived | `-        self, ` |
-| `MainWindow.reset_settings__mutmut_6` | survived | `-        "Squad Ballistics", ` |
-| `MainWindow.reset_settings__mutmut_7` | survived | `-        tr("s_reset_confirm") -    ) +        ) ` |
-| `MainWindow.reset_settings__mutmut_8` | survived | `-        "Squad Ballistics", +        "XXSquad BallisticsXX", ` |
-| `MainWindow.reset_settings__mutmut_9` | survived | `-        "Squad Ballistics", +        "squad ballistics", ` |
-| `MainWindow.reset_settings__mutmut_10` | survived | `-        "Squad Ballistics", +        "SQUAD BALLISTICS", ` |
-| `MainWindow.reset_settings__mutmut_11` | survived | `-        tr("s_reset_confirm") +        tr(None) ` |
-| `MainWindow.reset_settings__mutmut_12` | survived | `-        tr("s_reset_confirm") +        tr("XXs_reset_confirmXX") ` |
-| `MainWindow.reset_settings__mutmut_13` | survived | `-        tr("s_reset_confirm") +        tr("S_RESET_CONFIRM") ` |
-| `MainWindow.reset_settings__mutmut_16` | survived | `-    old_map_url = map_url(self.config) +    old_map_url = None ` |
-| `MainWindow.reset_settings__mutmut_20` | survived | `-    self.config.update(copy.deepcopy(DEFAULT_CONFIG)) +    self.config.update(copy.copy(DEFAULT_CONFIG)) ` |
-| `MainWindow.reset_settings__mutmut_23` | survived | `-    self.set_on_top(False) +    self.set_on_top(True) ` |
-| `MainWindow.reset_settings__mutmut_27` | survived | `-    if self.map_page is not None and map_url(self.config) != old_map_url: +    if self.map_page is not None or map_url(self.config) != old_` |
-| `MainWindow.reset_settings__mutmut_31` | survived | `-    save_config(self.config) +    save_config(None) ` |
-| `MainWindow.on_map_follow_changed__mutmut_1` | no tests | `-        QTimer.singleShot(0, self.preload_map) +        QTimer.singleShot(None, self.preload_map) ` |
-| `MainWindow.on_map_follow_changed__mutmut_2` | no tests | `-        QTimer.singleShot(0, self.preload_map) +        QTimer.singleShot(0, None) ` |
-| `MainWindow.on_map_follow_changed__mutmut_3` | no tests | `-        QTimer.singleShot(0, self.preload_map) +        QTimer.singleShot(self.preload_map) ` |
-| `MainWindow.on_map_follow_changed__mutmut_4` | no tests | `-        QTimer.singleShot(0, self.preload_map) +        QTimer.singleShot(0, ) ` |
-| `MainWindow.on_map_follow_changed__mutmut_5` | no tests | `-        QTimer.singleShot(0, self.preload_map) +        QTimer.singleShot(1, self.preload_map) ` |
-| `MainWindow.set_map_render__mutmut_8` | survived | `-    answer = QMessageBox.question( -        self, -        tr("restart_title"), -        tr("restart_text") -    ) +    answer = None ` |
-| `MainWindow.set_map_render__mutmut_9` | survived | `-        self, +        None, ` |
-| `MainWindow.set_map_render__mutmut_10` | survived | `-        tr("restart_title"), +        None, ` |
-| `MainWindow.set_map_render__mutmut_11` | survived | `-        tr("restart_text") +        None ` |
-| `MainWindow.set_map_render__mutmut_12` | survived | `-        self, ` |
-| `MainWindow.set_map_render__mutmut_13` | survived | `-        tr("restart_title"), ` |
-| `MainWindow.set_map_render__mutmut_14` | survived | `-        tr("restart_text") -    ) +        ) ` |
-| `MainWindow.set_map_render__mutmut_15` | survived | `-        tr("restart_title"), +        tr(None), ` |
-| `MainWindow.set_map_render__mutmut_16` | survived | `-        tr("restart_title"), +        tr("XXrestart_titleXX"), ` |
-| `MainWindow.set_map_render__mutmut_17` | survived | `-        tr("restart_title"), +        tr("RESTART_TITLE"), ` |
-| `MainWindow.set_map_render__mutmut_18` | survived | `-        tr("restart_text") +        tr(None) ` |
-| `MainWindow.set_map_render__mutmut_19` | survived | `-        tr("restart_text") +        tr("XXrestart_textXX") ` |
-| `MainWindow.set_map_render__mutmut_20` | survived | `-        tr("restart_text") +        tr("RESTART_TEXT") ` |
-| `MainWindow.set_map_render__mutmut_21` | survived | `-    if answer == QMessageBox.StandardButton.Yes: +    if answer != QMessageBox.StandardButton.Yes: ` |
-| `MainWindow.restart__mutmut_1` | no tests | `-    program = sys.executable +    program = None ` |
-| `MainWindow.restart__mutmut_2` | no tests | `-    arguments = [os.path.abspath(sys.argv[0])] + sys.argv[1:] +    arguments = None ` |
-| `MainWindow.restart__mutmut_3` | no tests | `-    arguments = [os.path.abspath(sys.argv[0])] + sys.argv[1:] +    arguments = [os.path.abspath(sys.argv[0])] - sys.argv[1:] ` |
-| `MainWindow.restart__mutmut_4` | no tests | `-    arguments = [os.path.abspath(sys.argv[0])] + sys.argv[1:] +    arguments = [os.path.abspath(None)] + sys.argv[1:] ` |
-| `MainWindow.restart__mutmut_5` | no tests | `-    arguments = [os.path.abspath(sys.argv[0])] + sys.argv[1:] +    arguments = [os.path.abspath(sys.argv[1])] + sys.argv[1:] ` |
-| `MainWindow.restart__mutmut_6` | no tests | `-    arguments = [os.path.abspath(sys.argv[0])] + sys.argv[1:] +    arguments = [os.path.abspath(sys.argv[0])] + sys.argv[2:] ` |
-| `MainWindow.restart__mutmut_7` | no tests | `-    QProcess.startDetached(program, arguments) +    QProcess.startDetached(None, arguments) ` |
-| `MainWindow.restart__mutmut_8` | no tests | `-    QProcess.startDetached(program, arguments) +    QProcess.startDetached(program, None) ` |
-| `MainWindow.restart__mutmut_9` | no tests | `-    QProcess.startDetached(program, arguments) +    QProcess.startDetached(arguments) ` |
-| `MainWindow.restart__mutmut_10` | no tests | `-    QProcess.startDetached(program, arguments) +    QProcess.startDetached(program, ) ` |
+Нет: каждый мутант `config.py`, `keystate.py`, `ballistics.py` и `crosshair.py` убит или назван эквивалентным выше.

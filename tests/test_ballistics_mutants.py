@@ -1300,6 +1300,23 @@ def test_a_capped_flight_never_reaches_a_point_beyond_where_it_has_turned_straig
     assert weapon.flight_at(rad, near - 1.0)[0] > -math.inf
 
 
+def test_a_capped_flight_within_rounding_of_the_end_of_its_reach_does_not_raise():
+    """deadline-squad/squad-ballistics#16: just below the end of the reach,
+    sin(turn) rounds to 1.0 and atanh used to raise a math domain error."""
+    weapon = Weapon.from_dict("w", FASTER_THAN_ITS_CAP)
+    rad = math.radians(20.0)
+    unreachable = (-math.inf, math.inf, -math.pi / 2)
+
+    assert weapon.flight_at(rad, 5353.138623046875) == unreachable
+    assert math.isfinite(weapon.flight_at(rad, 5353.13857421875)[0])
+
+    step = 2.0 ** -13
+    for index in range(-2000, 2000):
+        height, _, angle = weapon.flight_at(rad, 5353.138 + index * step * 1e-3)
+        assert height == -math.inf or math.isfinite(height)
+        assert -math.pi / 2 <= angle < 0.0
+
+
 def test_a_capped_flight_comes_down_more_and_more_steeply_to_the_end_of_its_reach():
     weapon = Weapon.from_dict("w", FASTER_THAN_ITS_CAP)
     rad = math.radians(20.0)
@@ -1307,6 +1324,16 @@ def test_a_capped_flight_comes_down_more_and_more_steeply_to_the_end_of_its_reac
 
     assert angles == sorted(angles, reverse=True)
     assert angles[-1] < -math.pi / 3 or math.isinf(weapon.flight_at(rad, 4000.0)[0])
+
+
+def test_a_shot_that_comes_down_to_exactly_the_ground_at_the_peak_elevation_is_the_root(monkeypatch):
+    """The height at the highest elevation is bit-exactly 0.0 (the target is
+    the longest range): that elevation is the answer, not NaN."""
+    weapon = Weapon.from_dict("w", ROCKET)
+    longest, top = weapon._max_range
+    monkeypatch.setattr(Weapon, "flight_height", lambda self, rad, distance: 100.0 * (rad - top))
+
+    assert weapon.flat_low_elevation(longest) == top
 
 
 def test_the_peak_search_height_is_a_target_the_shot_can_just_reach():

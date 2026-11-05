@@ -637,7 +637,7 @@ class Weapon:
                 cos_onset = min(1.0, vx / cap)
                 turn = math.acos(cos_onset) + (ahead - x - vx * onset) / radius
 
-                if turn >= math.pi / 2:
+                if turn >= math.pi / 2 or math.sin(turn) >= 1.0:
                     return -math.inf, math.inf, -math.pi / 2
 
                 # t = (cap / g) (atanh sin gamma_onset - atanh sin gamma)
