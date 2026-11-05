@@ -4,7 +4,7 @@ tests/data/game_weapons.json is the snapshot tools/game_weapons.py writes from
 the game's paks (build and date in its `_source`), one entry per weapons.json
 entry: the muzzle velocity, the projectile's movement (gravity scale,
 MaxSpeed, ConstantAcceleration and its timeout, bRotationFollowsVelocity,
-bIgnoreGravityDuringConstantAcceleration), the view (bore, zoom) and the
+bIgnoreGravityDuringConstantAcceleration, and the projectile's InitialLifeSpan), the view (bore, zoom) and the
 elevation limits of the shot, and the radius of the projectile's damaging explosion (`burst_radius`) with the
 `warhead` it gives. Nothing in it is read from weapons.json, so an
 entry copied from the wrong view or projectile fails here.
@@ -50,6 +50,7 @@ def test_the_flight_is_the_games(name):
 
     assert weapon.velocity == pytest.approx(game["velocity"])
     assert weapon.max_speed == pytest.approx(game["max_speed"])
+    assert weapon.lifespan == pytest.approx(game["lifespan"])
 
     if boosted and game["ignore_gravity_while_boosting"] and game["acceleration_timeout"] <= 0:
         # Gravity waits for a motor that never stops (NLAW): a straight flight.

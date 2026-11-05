@@ -90,7 +90,7 @@ def test_every_weapon_hits_target(name, fraction, height):
 def test_default_arc_reachable_somewhere(name):
     weapon = WEAPONS[name]
 
-    for fraction in (0.3, 0.6, 0.85):
+    for fraction in (0.3, 0.6, 0.85, 0.05):
         distance = max(
             weapon.min_distance + 1,
             min(weapon.max_range() * fraction, 2000)
@@ -671,7 +671,8 @@ def test_rocket_boost_speeds_up():
 
 
 def test_boost_max_range_matches_reachability():
-    weapon = WEAPONS["M3 MAAWS · HEAT / Smoke"]
+    # The geometric range: the 4 s lifespan of the rocket is tested apart
+    weapon = replace(WEAPONS["M3 MAAWS · HEAT / Smoke"], lifespan=0.0)
     limit = weapon.max_range()
 
     assert solve(weapon, limit * 0.99).reachable
@@ -739,7 +740,7 @@ def test_sight_angle_follows_the_riflemans_rule(name):
 def test_trajectory_ends_on_target(name):
     weapon = WEAPONS[name]
 
-    for fraction in (0.3, 0.6, 0.85):
+    for fraction in (0.3, 0.6, 0.85, 0.05):
         distance = max(
             weapon.min_distance + 1,
             min(weapon.max_range() * fraction, 2000)
@@ -1245,6 +1246,8 @@ def test_the_flight_time_starts_at_the_muzzle():
     ({"velocity": 100, "max_speed": -1}, "max_speed"),
     ({"velocity": 100, "rotation_follows_velocity": "no"}, "rotation_follows_velocity"),
     ({"velocity": 300, "gravity": 0, "max_speed": 250}, "max_speed"),
+    ({"velocity": 100, "lifespan": -1}, "lifespan"),
+    ({"velocity": 100, "lifespan": "long"}, "lifespan"),
 ])
 def test_invalid_flight_fields_are_rejected(data, match):
     with pytest.raises(WeaponDataError, match=match):
@@ -1271,3 +1274,58 @@ def test_gravity_is_the_games_980_cm_per_s2():
     """DefaultGravityZ = -980 (game files) and SquadCalc's 9.80: the two apps
     must agree, tools/direct_fire/compare.py checks them at 1e-6 degrees."""
     assert GRAVITY == 9.80
+
+
+def test_a_shot_that_takes_longer_than_the_lifespan_is_refused():
+    """The game destroys the projectile `lifespan` seconds after it spawns
+    (InitialLifeSpan): a target it would reach later cannot be hit."""
+    plain = Weapon.from_dict("p", {"velocity": 100, "gravity": 1})
+    mortal = Weapon.from_dict("m", {"velocity": 100, "gravity": 1, "lifespan": 3})
+
+    near = solve(mortal, 250)
+    far = solve(mortal, 400)
+
+    assert near.reachable
+    assert near.time_of_flight < 3
+    assert solve(plain, 400).time_of_flight > 3
+    assert not far.reachable
+    assert far.reason_code == "out_of_range"
+    assert "3 s" in far.reason
+    assert solve(plain, 400).reachable
+
+
+def test_the_lifespan_is_compared_with_the_time_of_the_requested_arc():
+    """The high arc of a lob takes longer than the low one: with a lifespan
+    between the two times only the low arc is left, in `alternatives` too."""
+    shell = Weapon.from_dict("s", {"velocity": 100, "gravity": 1, "lifespan": 12})
+    low, high = solve(shell, 800, arc="low"), solve(shell, 800, arc="high")
+    unlimited = solve(replace(shell, lifespan=0.0), 800, arc="high")
+
+    assert low.time_of_flight < 12 < unlimited.time_of_flight
+    assert low.reachable
+    assert not high.reachable
+    assert high.reason_code == "out_of_range"
+    assert list(low.alternatives) == ["low"]
+
+
+def test_the_range_ladder_ends_where_the_projectile_is_gone():
+    rocket = Weapon.from_dict("r", {"velocity": 120, "gravity": 1, "lifespan": 3})
+    unlimited = replace(rocket, lifespan=0.0)
+    ticks = range_ladder(rocket, 90, 1920, first=20, spacing=18, reach=2000)
+
+    assert ticks
+    assert len(range_ladder(unlimited, 90, 1920, first=20, spacing=18, reach=2000)) > len(ticks)
+    assert all(solve(rocket, distance, 0.0, "low").reachable for distance, _ in ticks)
+
+
+def test_the_real_weapons_carry_the_games_lifespan():
+    """RPG-7 4 s, M203 grenade 20 s, AGS-17 VOG 40 s, the mortar's shell none."""
+    assert WEAPONS["RPG-7 · PG-7V HEAT / OG-7V"].lifespan == 4
+    assert WEAPONS["M203 / M320 / GP-25 / HK79 / SL40"].lifespan == 20
+    assert WEAPONS["AGS-17 · emplacement · optic (RMB ×2.5)"].lifespan == 40
+    assert WEAPONS["Mortar (M252 / 2B14 / L16 / Type 63)"].lifespan == 0
+
+    rpg = WEAPONS["RPG-7 · PG-7V HEAT / OG-7V"]
+
+    assert solve(rpg, 600).reachable
+    assert not solve(rpg, 1500).reachable

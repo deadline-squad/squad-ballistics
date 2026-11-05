@@ -42,7 +42,7 @@ The sight's zoom divides the FOV (`Weapon.sight_view`, `B`), the shot leaves `bo
 
 ### 2.2 Per weapon and view, FOV 120, flat ground
 
-"–" in a distance column = the weapon does not reach that distance (a 40 mm grenade, 76 m/s, reaches about 590 m). "Off screen past" = the range from which the mark leaves the screen (top and bottom margins of 20 px; `B` `mark_visible_range`, `Cr`); "–" = on screen to the 5000 m search limit. `V` (computed with `ballistics.mark_resolution` and `mark_visible_range`, `weapons.json` of `dev` 6e35528).
+"–" in a distance column = the weapon does not reach that distance (a 40 mm grenade, 76 m/s, reaches about 590 m). "Off screen past" = the range from which the mark leaves the screen (top and bottom margins of 20 px; `B` `mark_visible_range`, `Cr`); "–" = on screen to the 8000 m search limit (`LADDER_MAX_DISTANCE`, the longest play area of the game; the table was computed with 5000 m, and with 8000 m the mark of 17 entries that show "–" here leaves the screen past 5.1 to 7.9 km, for example RPG-28 6360 m, Carl Gustav FFV441D 6620 m, T-62 AP 6510 m, T-64BM2 HEAT/HE 6120 m; see `sight-scales.md`). `V` (computed with `ballistics.mark_resolution` and `mark_visible_range`, `weapons.json` of `dev` 6e35528).
 
 | Entry (merged when identical) | view FOV | 1080p: m per px at 100 / 300 / 600 / 1000 m | 1440p: same | off screen past (1080p) |
 |---|---|---|---|---|
