@@ -77,7 +77,7 @@ def test_corrupted_config(tmp_path, monkeypatch):
     path = tmp_path / "config.json"
     path.write_text("{not json")
 
-    assert config.load_config(str(path))["fov"] == 90
+    assert config.load_config(str(path))["fov"] == 120
 
 
 def test_wrong_types_ignored(tmp_path, monkeypatch):
@@ -90,8 +90,54 @@ def test_wrong_types_ignored(tmp_path, monkeypatch):
 
     cfg = config.load_config(str(path))
 
-    assert cfg["fov"] == 90
+    assert cfg["fov"] == 120
     assert cfg["info_enabled"] is True
+
+
+def test_the_default_fov_is_120(tmp_path):
+    cfg = config.load_config(str(tmp_path / "config.json"))
+
+    assert config.DEFAULT_CONFIG["fov"] == 120
+    assert cfg["fov"] == 120
+    assert cfg["settings_version"] == config.SETTINGS_VERSION
+
+
+def test_a_file_of_before_the_new_default_keeps_no_90(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({"fov": 90, "offset_scale": 110}))
+
+    cfg = config.load_config(str(path))
+
+    assert cfg["fov"] == 120
+    assert cfg["offset_scale"] == 110
+    assert cfg["settings_version"] == config.SETTINGS_VERSION
+
+
+def test_a_file_of_before_the_new_default_keeps_another_fov(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({"fov": 100}))
+
+    assert config.load_config(str(path))["fov"] == 100
+
+
+def test_a_90_chosen_after_the_new_default_stays(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({"fov": 90, "settings_version": config.SETTINGS_VERSION}))
+
+    assert config.load_config(str(path))["fov"] == 90
+
+
+def test_the_migrated_fov_is_saved_with_the_version(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({"fov": 90}))
+
+    config.save_config(config.load_config(str(path)), str(path))
+
+    saved = json.loads(path.read_text())
+
+    assert saved["fov"] == 120
+    assert saved["settings_version"] == config.SETTINGS_VERSION
+    assert config.load_config(str(path))["fov"] == 120
 
 
 def test_legacy_config_migrated(tmp_path, monkeypatch):
@@ -445,9 +491,11 @@ def test_a_missing_file_is_not_reported(tmp_path):
     assert (cfg, bad) == (config.DEFAULT_CONFIG, None)
 
 
+# settings_version marks the file format, it is not a setting with a range.
 NUMERIC_SETTINGS = [
     key for key, value in config.DEFAULT_CONFIG.items()
     if isinstance(value, (int, float)) and not isinstance(value, bool)
+    and key != "settings_version"
 ]
 
 

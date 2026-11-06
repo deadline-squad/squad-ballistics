@@ -691,8 +691,9 @@ class MainWindow(QMainWindow):
         return frame
 
     def build_trim_box(self):
-        """The field correction of the mark: the trim of the weapon and view,
-        and the landing that sets it. Shown for weapons aimed with the overlay."""
+        """The field correction of the mark: how far the last shot missed
+        (which sets the trim) and the trim of the weapon and view it sets.
+        Shown for weapons aimed with the overlay."""
         self.trim_box = QWidget()
 
         column = QVBoxLayout(self.trim_box)
@@ -709,11 +710,11 @@ class MainWindow(QMainWindow):
 
         self.trim_entry.stepped.connect(self.on_trim_edited)
 
-        self.landed_entry = NumberEdit(allow_negative=False, step=self.config["distance_step"])
+        self.miss_entry = NumberEdit(allow_negative=True, step=self.config["distance_step"])
 
-        self.landed_entry.setPlaceholderText(tr("landed_hint"))
+        self.miss_entry.setPlaceholderText(tr("miss_hint"))
 
-        self.landed_entry.returnPressed.connect(self.apply_landing)
+        self.miss_entry.returnPressed.connect(self.apply_landing)
 
         apply_button = QPushButton(tr("trim_apply"))
 
@@ -726,8 +727,8 @@ class MainWindow(QMainWindow):
         reset_button.clicked.connect(lambda: self.reset_trim())
 
         for caption, entry, button in (
-            (tr("trim"), self.trim_entry, reset_button),
-            (tr("landed"), self.landed_entry, apply_button)
+            (tr("miss"), self.miss_entry, apply_button),
+            (tr("trim"), self.trim_entry, reset_button)
         ):
             column.addWidget(label(caption.upper(), "section"))
 
@@ -989,7 +990,7 @@ class MainWindow(QMainWindow):
 
         self.trim_entry.set_value(self.current_trim(weapon))
 
-        self.landed_entry.clear()
+        self.miss_entry.clear()
 
         self.trim_status.setText("")
 
@@ -1032,9 +1033,10 @@ class MainWindow(QMainWindow):
 
     def apply_landing(self):
         """Set the trim from one real shot: fired at the typed distance (and
-        height difference) on the chosen arc, landed at the typed landed
-        distance. The status shows the new trim, or what is wrong with the
-        numbers.
+        height difference) on the chosen arc, it missed by the typed miss
+        (positive: landed past the target, negative: short of it), so it
+        landed at the distance plus the miss. The status shows the new trim,
+        or what is wrong with the numbers.
 
         A hold weapon's lob (AGS-17 high arc) is laid by holding the key,
         not with the mark, so its landing is refused: it must not change
@@ -1047,15 +1049,15 @@ class MainWindow(QMainWindow):
             return
 
         distance = self.distance_entry.value()
-        landed = self.landed_entry.value()
+        miss = self.miss_entry.value()
         height = self.height_entry.value(0.0)
 
         try:
             if distance is None:
                 raise ValueError(tr("enter_distance"))
 
-            if landed is None:
-                raise ValueError(tr("enter_landed"))
+            if miss is None:
+                raise ValueError(tr("enter_miss"))
 
             arc = resolve_arc(weapon, self.config["arc"])
 
@@ -1069,7 +1071,7 @@ class MainWindow(QMainWindow):
                 weapon,
                 distance,
                 height,
-                landed,
+                distance + miss,
                 self.current_trim(weapon),
                 arc
             )
@@ -3092,13 +3094,13 @@ class MainWindow(QMainWindow):
         self.recalculate_if_ready()
 
     def set_distance_step(self, step):
-        """Step the distance and the landed distance (wheel, arrow keys,
-        distance hotkeys) by `step` metres."""
+        """Step the distance and the miss (wheel, arrow keys, distance
+        hotkeys) by `step` metres."""
         self.config["distance_step"] = step
 
         self.distance_entry.step = step
 
-        self.landed_entry.step = step
+        self.miss_entry.step = step
 
         self.schedule_save()
 

@@ -20,7 +20,7 @@ from ballistics import WeaponDataError, clamp_trim, current_weapon_name, load_we
 from utils import resource_path
 
 APP_NAME = "SquadBallistics"
-APP_VERSION = "1.6.1"
+APP_VERSION = "1.6.2"
 
 # Versions up to 1.1.0 kept "configs/config.json" relative to the working
 # directory. It is read once from there and migrated to the per-user
@@ -33,8 +33,18 @@ def legacy_config_paths():
     return [LEGACY_CONFIG_PATH]
 
 
+# Version of the settings file's meaning. 2: the default FOV is 120 (it was
+# 90), and a file from before it that still holds 90, the old default, gets
+# the new one (see `_migrate`).
+SETTINGS_VERSION = 2
+PREVIOUS_DEFAULT_FOV = 90
+
 DEFAULT_CONFIG = {
-    "fov": 90,
+    "settings_version": SETTINGS_VERSION,
+
+    # The in-game FOV (the game's setting, not a sight's): every overlay mark
+    # is laid for it.
+    "fov": 120,
 
     # Aligning the mark with the in-game sight: the mark's centre moves by
     # the offsets (px) and its distance from the centre is multiplied by
@@ -393,6 +403,28 @@ def _merge(loaded):
     return config
 
 
+def _migrate(loaded):
+    """The settings object `loaded` in the meaning of SETTINGS_VERSION.
+
+    A file written before the version existed holds the FOV 90 either because
+    that was the default or because the player typed it, and the two cannot
+    be told apart: it gets the current default FOV, 120. Any other FOV is
+    kept. A file of the current version is returned as it is, so a 90
+    chosen since then stays.
+    """
+    if loaded.get("settings_version") == SETTINGS_VERSION:
+        return loaded
+
+    migrated = dict(loaded)
+
+    if migrated.get("fov") == PREVIOUS_DEFAULT_FOV:
+        migrated["fov"] = DEFAULT_CONFIG["fov"]
+
+    migrated["settings_version"] = SETTINGS_VERSION
+
+    return migrated
+
+
 def _read(path):
     """The settings object in `path`.
 
@@ -444,7 +476,7 @@ def read_config(path=None):
 
     if os.path.exists(path):
         try:
-            return _merge(_read(path)), None
+            return _merge(_migrate(_read(path))), None
         except (OSError, ValueError):
             bad_path = _keep_bad_file(path)
 
@@ -453,7 +485,7 @@ def read_config(path=None):
             continue
 
         try:
-            config = _merge(_read(candidate))
+            config = _merge(_migrate(_read(candidate)))
         except (OSError, ValueError):
             continue
 

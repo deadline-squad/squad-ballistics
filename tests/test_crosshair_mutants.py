@@ -114,7 +114,7 @@ def test_resetting_the_trim_removes_it_and_shows_zero(window):
 
 def test_apply_without_a_height_difference_lands_on_the_flat_ground(window):
     fire_at(window, M203, 300)
-    window.landed_entry.setText("260")
+    window.miss_entry.setText("-40")
 
     window.apply_landing()
 
@@ -127,7 +127,7 @@ def test_apply_uses_the_chosen_arc_and_the_trim_already_set(window):
     window.config["arc"] = "high"
     window.set_trim(0.3)
     window.distance_entry.setText("300")
-    window.landed_entry.setText("280")
+    window.miss_entry.setText("-20")
 
     window.apply_landing()
 
@@ -137,7 +137,7 @@ def test_apply_uses_the_chosen_arc_and_the_trim_already_set(window):
 
 def test_a_trim_that_reaches_the_limit_is_reported_as_the_limit(window):
     fire_at(window, M203, 300)
-    window.landed_entry.setText("100")
+    window.miss_entry.setText("-200")
 
     window.apply_landing()
 
@@ -147,7 +147,7 @@ def test_a_trim_that_reaches_the_limit_is_reported_as_the_limit(window):
 
 def test_a_trim_just_under_the_limit_is_not_reported_as_the_limit(window):
     fire_at(window, M203, 300)
-    window.landed_entry.setText("260")
+    window.miss_entry.setText("-40")
 
     window.apply_landing()
 
@@ -158,7 +158,7 @@ def test_the_lob_of_a_hold_weapon_is_not_applied_where_it_can_reach(window):
     window.select_weapon(AGS)
     window.config["arc"] = "high"
     window.distance_entry.setText("300")
-    window.landed_entry.setText("250")
+    window.miss_entry.setText("-50")
 
     window.apply_landing()
 
@@ -172,7 +172,7 @@ def test_the_direct_fire_of_a_hold_weapon_is_applied_where_the_lob_cannot_reach(
     window.config["arc"] = "high"
     assert not solve(weapon, 100, 0.0, "high").reachable
     window.distance_entry.setText("100")
-    window.landed_entry.setText("90")
+    window.miss_entry.setText("-10")
 
     window.apply_landing()
 
@@ -188,7 +188,7 @@ def test_a_landing_that_overflows_says_bad_number(window, monkeypatch):
 
     monkeypatch.setattr(crosshair, "trim_for_landing", overflow)
     fire_at(window, M203, 300)
-    window.landed_entry.setText("260")
+    window.miss_entry.setText("-40")
 
     window.apply_landing()
 
@@ -1205,7 +1205,7 @@ def test_the_distance_step_goes_to_both_distance_fields_and_the_config(window):
 
     assert window.config["distance_step"] == 50
     assert window.distance_entry.step == 50
-    assert window.landed_entry.step == 50
+    assert window.miss_entry.step == 50
     assert window.save_timer.isActive()
 
 
@@ -1435,7 +1435,7 @@ def test_the_lob_check_asks_for_the_high_arc_whatever_the_default_arc_of_the_wea
     window.config["arc"] = "high"
     assert not solve(weapon, 100, 0.0, "high").reachable
     window.distance_entry.setText("100")
-    window.landed_entry.setText("90")
+    window.miss_entry.setText("-10")
 
     window.apply_landing()
 
