@@ -16,11 +16,11 @@ import json
 import math
 import os
 
-from ballistics import WeaponDataError, clamp_trim, current_weapon_name, load_weapons
+from ballistics import WeaponDataError, current_weapon_name, load_weapons
 from utils import resource_path
 
 APP_NAME = "SquadBallistics"
-APP_VERSION = "1.6.2"
+APP_VERSION = "1.6.3"
 
 # Versions up to 1.1.0 kept "configs/config.json" relative to the working
 # directory. It is read once from there and migrated to the per-user
@@ -98,16 +98,10 @@ DEFAULT_CONFIG = {
     # the mils the sight showed after a lay; replaces weapons.json's.
     "lay_rates": {},
 
-    # Field correction of the overlay mark, in degrees added to the barrel
-    # elevation, per weapon: {weapon name: degrees}.
-    # Set from one real shot (see ballistics.trim_for_landing).
-    "mark_trim": {},
-
     # Metres above the target ground the overlay mark is laid for (a vehicle's
     # hull, a standing soldier), for weapons aimed with the mark: the in-game
     # map marker sits on the ground. 0 = the ground. Shown on the overlay as
-    # "aim +1.5 m". Set the trim with it at 0: the trim is the error of the
-    # weapon, not of the aim point.
+    # "aim +1.5 m".
     "target_height": 0.0,
 
     "hotkeys": {
@@ -224,14 +218,6 @@ def file_hold_rates():
     }
 
 
-def plain_view_name(name):
-    """The entry of the normal view (RMB not held) of weapon `name`: the
-    "· no optic" twin of an RMB sight, else `name` itself."""
-    weapon = file_weapons().get(name)
-
-    return weapon.twin if weapon is not None and weapon.twin else name
-
-
 def _valid_lay_rates(loaded):
     """The usable entries of a saved `lay_rates`: {weapon name: positive
     finite rate}, renamed weapons under their current name. The rate of a
@@ -256,48 +242,6 @@ def _valid_lay_rates(loaded):
         rates[name] = rate
 
     return rates
-
-
-def _valid_mark_trims(loaded):
-    """The usable entries of a saved `mark_trim`: {weapon name: degrees},
-    a finite number (clamped), not zero. Anything else is dropped.
-
-    Versions with a view switch kept one trim per weapon and view, under
-    "<weapon name>|plain", "|optic" or "|optic2". The plain (unzoomed) one
-    becomes the trim of the weapon's plain view: the "· no optic" twin of an
-    RMB sight (the plain name now means the sight's optic), else the weapon
-    itself; the others are dropped.
-    """
-    trims = {}
-
-    for key, trim in loaded.items():
-        if not isinstance(key, str) or not key:
-            continue
-
-        name, bar, view = key.rpartition("|")
-
-        if bar:
-            if view != "plain" or not name:
-                continue
-        else:
-            name = key
-
-        trim = finite_number(trim)
-
-        if trim is None:
-            continue
-
-        trim = clamp_trim(trim)
-
-        if trim:
-            name = current_weapon_name(name)
-
-            if bar:
-                name = plain_view_name(name)
-
-            trims[name] = trim
-
-    return trims
 
 
 def _valid_number(key, value):
@@ -371,11 +315,6 @@ def _merge(loaded):
         if key == "lay_rates":
             if isinstance(value, dict):
                 config[key] = _valid_lay_rates(value)
-            continue
-
-        if key == "mark_trim":
-            if isinstance(value, dict):
-                config[key] = _valid_mark_trims(value)
             continue
 
         if key == "last_weapon":

@@ -1,6 +1,6 @@
 """Behaviour of crosshair.py found by mutation testing (mutmut) that the other
 test files did not pin: the texts and values the Calculator page puts on its
-labels, the trim, the lay (auto-hold, sight and compass), the settings and the
+labels, the lay (auto-hold, sight and compass), the settings and the
 window rebuild. Every test drives the real main window."""
 
 import math
@@ -12,7 +12,7 @@ import pytest
 pytest.importorskip("PyQt6.QtWidgets")
 
 import config
-from ballistics import TRIM_LIMIT, load_weapons, solve, trim_for_landing
+from ballistics import load_weapons, solve
 from conftest import ROOT
 from i18n import tr
 from keystate import KEY_A, KEY_D
@@ -46,154 +46,6 @@ def fire_at(window, name, distance, height=""):
     window.distance_entry.setText(str(distance))
     window.height_entry.setText(height)
     window.calculate()
-
-
-# ---------- the trim ----------
-
-def test_set_trim_stores_the_limited_rounded_trim_and_drops_a_zero_one(window):
-    window.select_weapon(M203)
-
-    window.set_trim(0.12345)
-    assert window.config["mark_trim"] == {M203: 0.123}
-
-    window.set_trim(9.0)
-    assert window.config["mark_trim"] == {M203: TRIM_LIMIT}
-
-    window.set_trim(-0.0004)
-    assert window.config["mark_trim"] == {}
-
-    window.set_trim(0.0)
-    assert window.config["mark_trim"] == {}
-
-
-def test_typing_a_trim_stores_it_and_clears_the_status(window):
-    window.select_weapon(M203)
-    window.trim_status.setText("old status")
-    window.trim_entry.setText("0.5")
-
-    window.on_trim_edited()
-
-    assert window.config["mark_trim"] == {M203: 0.5}
-    assert window.trim_status.text() == ""
-    assert window.trim_entry.text() == "0.5"
-
-
-def test_an_empty_trim_entry_is_a_zero_trim(window):
-    window.select_weapon(M203)
-    window.set_trim(0.5)
-    window.trim_entry.setText("")
-
-    window.on_trim_edited()
-
-    assert window.config["mark_trim"] == {}
-
-
-def test_a_trim_over_the_limit_is_shown_as_the_limit_and_one_at_the_limit_is_left_as_typed(window):
-    window.select_weapon(M203)
-
-    window.trim_entry.setText("7")
-    window.on_trim_edited()
-    assert window.config["mark_trim"] == {M203: TRIM_LIMIT}
-    assert window.trim_entry.text() == "5"
-
-    window.trim_entry.setText("5.00")
-    window.on_trim_edited()
-    assert window.trim_entry.text() == "5.00"
-
-
-def test_resetting_the_trim_removes_it_and_shows_zero(window):
-    window.select_weapon(M203)
-    window.set_trim(0.5)
-    window.show_trim()
-
-    window.reset_trim()
-
-    assert window.config["mark_trim"] == {}
-    assert window.trim_entry.text() == "0"
-
-
-def test_apply_without_a_height_difference_lands_on_the_flat_ground(window):
-    fire_at(window, M203, 300)
-    window.miss_entry.setText("-40")
-
-    window.apply_landing()
-
-    assert window.config["mark_trim"] == {M203: round(trim_for_landing(window.current_weapon(), 300, 0.0, 260), 3)}
-
-
-def test_apply_uses_the_chosen_arc_and_the_trim_already_set(window):
-    window.select_weapon(M203)
-    weapon = window.current_weapon()
-    window.config["arc"] = "high"
-    window.set_trim(0.3)
-    window.distance_entry.setText("300")
-    window.miss_entry.setText("-20")
-
-    window.apply_landing()
-
-    expected = round(trim_for_landing(weapon, 300, 0.0, 280, 0.3, "high"), 3)
-    assert window.config["mark_trim"] == {M203: expected}
-
-
-def test_a_trim_that_reaches_the_limit_is_reported_as_the_limit(window):
-    fire_at(window, M203, 300)
-    window.miss_entry.setText("-200")
-
-    window.apply_landing()
-
-    assert window.config["mark_trim"] == {M203: TRIM_LIMIT}
-    assert window.trim_status.text() == tr("trim_set_limit", trim="+5")
-
-
-def test_a_trim_just_under_the_limit_is_not_reported_as_the_limit(window):
-    fire_at(window, M203, 300)
-    window.miss_entry.setText("-40")
-
-    window.apply_landing()
-
-    assert window.trim_status.text() == tr("trim_set", trim=f"{window.config['mark_trim'][M203]:+g}")
-
-
-def test_the_lob_of_a_hold_weapon_is_not_applied_where_it_can_reach(window):
-    window.select_weapon(AGS)
-    window.config["arc"] = "high"
-    window.distance_entry.setText("300")
-    window.miss_entry.setText("-50")
-
-    window.apply_landing()
-
-    assert window.trim_status.text() == tr("trim_lob_refused")
-    assert window.config["mark_trim"] == {}
-
-
-def test_the_direct_fire_of_a_hold_weapon_is_applied_where_the_lob_cannot_reach(window):
-    window.select_weapon(AGS)
-    weapon = window.current_weapon()
-    window.config["arc"] = "high"
-    assert not solve(weapon, 100, 0.0, "high").reachable
-    window.distance_entry.setText("100")
-    window.miss_entry.setText("-10")
-
-    window.apply_landing()
-
-    expected = round(trim_for_landing(weapon, 100, 0.0, 90, 0.0, "low"), 3)
-    assert window.config["mark_trim"] == {AGS: expected}
-
-
-def test_a_landing_that_overflows_says_bad_number(window, monkeypatch):
-    import crosshair
-
-    def overflow(*_):
-        raise OverflowError
-
-    monkeypatch.setattr(crosshair, "trim_for_landing", overflow)
-    fire_at(window, M203, 300)
-    window.miss_entry.setText("-40")
-
-    window.apply_landing()
-
-    assert window.trim_status.text() == tr("bad_number")
-    assert window.config["mark_trim"] == {}
 
 
 # ---------- a target that cannot be hit ----------
@@ -1123,15 +975,12 @@ def test_without_auto_calc_a_typed_distance_waits_for_calculate(window):
     assert window.last_solution is None
 
 
-def test_changing_the_arc_stores_it_and_clears_the_trim_status(window):
+def test_changing_the_arc_stores_it(window):
     window.select_weapon(M203)
-    window.trim_status.setText("old status")
 
     window.on_arc_changed("high")
 
     assert window.config["arc"] == "high"
-    assert window.trim_status.text() == ""
-    assert window.trim_entry.placeholderText() == tr("trim_hint_high")
 
 
 def test_the_distance_hotkeys_step_the_distance_and_forget_the_map_target(window):
@@ -1200,12 +1049,11 @@ def test_keeping_the_window_on_top_sets_the_flag(window):
     assert not window.windowFlags() & Qt.WindowType.WindowStaysOnTopHint
 
 
-def test_the_distance_step_goes_to_both_distance_fields_and_the_config(window):
+def test_the_distance_step_goes_to_the_distance_field_and_the_config(window):
     window.set_distance_step(50)
 
     assert window.config["distance_step"] == 50
     assert window.distance_entry.step == 50
-    assert window.miss_entry.step == 50
     assert window.save_timer.isActive()
 
 
@@ -1278,12 +1126,10 @@ def test_resetting_the_settings_restores_the_defaults_without_sharing_them(windo
     on_top = []
     monkeypatch.setattr(window, "set_on_top", on_top.append)
     window.config["offset_scale"] = 120
-    window.config["mark_trim"] = {M203: 0.5}
 
     window.reset_settings()
 
     assert window.config["offset_scale"] == crosshair.DEFAULT_CONFIG["offset_scale"]
-    assert window.config["mark_trim"] == {}
     assert window.config["hotkeys"] is not crosshair.DEFAULT_CONFIG["hotkeys"]
     assert on_top == [False]
     assert saved and saved[-1]["offset_scale"] == crosshair.DEFAULT_CONFIG["offset_scale"]
@@ -1422,22 +1268,3 @@ def test_the_window_shows_the_root_widget_with_the_sidebar_and_the_pages(window)
 
     assert root.objectName() == "root"
     assert window.pages.parent() is root
-
-
-def test_the_lob_check_asks_for_the_high_arc_whatever_the_default_arc_of_the_weapon(window):
-    """The chosen high arc is asked for by name: a hold weapon whose own arc is
-    the low one (none in weapons.json) must not make the lob look reachable."""
-    import dataclasses
-
-    weapon = dataclasses.replace(window.weapons[AGS], arc="low")
-    window.weapons[AGS] = weapon
-    window.select_weapon(AGS)
-    window.config["arc"] = "high"
-    assert not solve(weapon, 100, 0.0, "high").reachable
-    window.distance_entry.setText("100")
-    window.miss_entry.setText("-10")
-
-    window.apply_landing()
-
-    assert window.trim_status.text() != tr("trim_lob_refused")
-    assert window.config["mark_trim"] == {AGS: round(trim_for_landing(weapon, 100, 0.0, 90, 0.0, "low"), 3)}

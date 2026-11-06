@@ -1,6 +1,6 @@
 # Aiming guide: Squad Ballistics and the Deadline SquadCalc
 
-How to get the best accuracy out of the overlay mark, the range ladder, the trim and the SquadCalc map, weapon by weapon. Russian version: [aiming.ru.md](aiming.ru.md).
+How to get the best accuracy out of the overlay mark, the range ladder and the SquadCalc map, weapon by weapon. Russian version: [aiming.ru.md](aiming.ru.md).
 
 Scope: Linux, X11 or XWayland, a 16:9 screen (1920x1080 or 2560x1440), the game's FOV 120, flat ground unless a section says otherwise. The mark is a thin red cross, 50 px across and 1 px thick (it has no style, colour or size settings); *Align with the sight* and the range ladder stay. The mouse side button **Mouse4**, which switches the selected weapon between its `· optic (RMB ×N)` and `· no optic` entry, (default key; Settings → hotkeys) is on `dev`.
 
@@ -10,7 +10,7 @@ Every number has a source tag. **V** = verified: read in code or game data, or r
 
 | Tag | Source |
 |---|---|
-| `B` | `ballistics.py` (`mark_offset`, `mark_resolution`, `mark_visible_range`, `range_ladder`, `trim_for_landing`) |
+| `B` | `ballistics.py` (`mark_offset`, `mark_resolution`, `mark_visible_range`, `range_ladder`) |
 | `Cr` / `Cf` | `crosshair.py` (`marker_notes`, how-to steps) / `config.py` |
 | `README` / `RN` | `README.md` / `RELEASE_NOTES.md` (1.6.0) |
 | `T-aids`, `T-e2e` | `tests/test_marker_aids.py`, `tests/test_mark_end_to_end.py` (independent oracle `tests/flight.py`) |
@@ -26,11 +26,11 @@ Every number has a source tag. **V** = verified: read in code or game data, or r
 3. **The mark's centre can be placed to a fraction of a pixel; your hand cannot.** The cross is drawn at its float position, centre error 0.02 px (`T-aids`, `T-e2e`). The limit is the mouse step (section 3) and your eye: plan for +-1 px, +-0.5 px at best.
 4. **Lower the in-game mouse sensitivity for the aiming views.** With the Global slider times the per-zoom slider equal to 1, one mouse count is 2.3 px unzoomed and 3.5-3.7 px in the optics (section 3.2), i.e. 3.5 px x 1.7 m = 6 m of range per count on the AGS-17 optic. Aim for at most 1 px per count (the product of the sliders about 0.25 at 1080p). `A` (the engine constant 0.07 behind this is not confirmed, test 7.6)
 5. **The position error that counts in marker mode is the range error** (your position and the target position clicked on the map: sigma = sqrt(2) x the error of one click). Bearing does not matter, the marker supplies it. Place both points at map zoom 6 or deeper (0.25 m per screen pixel on a 4 km map) on a landmark visible in the game too. `V`
-6. **Raise the aim point for direct-hit weapons.** The in-game marker is a ground trace (terrain, never a roof or tree, `#6-6`), so aiming at it puts half of the shots under a vehicle. Set `target_height` (`config.json`, 0-10 m, no UI yet) to about 1.2 m. At 600 m, with perfect inputs, this lifts the hit chance on a 3.6 x 2.4 m box from about 50 % to 100 % for PF98, AT-4 and SPG-9 scope; with typical errors from 49 % to 71 / 72 / 100 % (section 5.3). Set the trim with `target_height` at 0. `C` / `Cf`
-7. **Calibrate once, on flat ground, with several shots.** One shot sets the trim to the accuracy of the round-to-round spread (AGS-17 optic +-3 m, QLZ87 +-6 m, MK19 +-10 m at 600 m); four shots halve it (section 4.3). `C`
+6. **Raise the aim point for direct-hit weapons.** The in-game marker is a ground trace (terrain, never a roof or tree, `#6-6`), so aiming at it puts half of the shots under a vehicle. Set `target_height` (`config.json`, 0-10 m, no UI yet) to about 1.2 m. At 600 m, with perfect inputs, this lifts the hit chance on a 3.6 x 2.4 m box from about 50 % to 100 % for PF98, AT-4 and SPG-9 scope; with typical errors from 49 % to 71 / 72 / 100 % (section 5.3). `C` / `Cf`
+7. **There is nothing to calibrate by shooting.** The app has no trim or other field correction: the FOV comes from the game's settings file and the rest from the game data, so a miss is not entered anywhere. Only *Align with the sight* (where the mark sits on the screen) is yours to set (section 4.3). `Cf`
 8. **The marker flash is short.** Beyond 60 m the world icon is fully visible for about 0.5 s only, and at 20 % opacity while you are zoomed (`#6-6`). Pre-turn to the bearing and pre-set the pitch so that the marker appears within 3-5 px of the mark. `V` (file) / `A` (as seen in game: unknown, test 7.1)
 9. **Keys are for coarse moves, the mouse is for the last pixel.** A held key turns at a fixed rate with no ramp (tripod MK19/QLZ87/SPG-9: 66 deg/s pitch, 120 deg/s yaw; AGS-17: 9 and 18 deg/s). One frame at 60 fps of the AGS-17 pitch key is 0.15 deg = 5.6 px in its optic. `V` (`NR` 6, `GD`)
-10. **Hold Focus (hold breath) on handheld launchers.** The game narrows its FOV to two thirds (`README`); type that FOV in (120 becomes 80) and the pixel cost halves (section 3.3); the mouse step shrinks with the FOV too. Sway data exists for handheld launchers only, and prone is 4x steadier than standing (12 / 7 / 3 for standing / crouch / prone, units unknown). `V` (data) / `A` (Focus on emplaced weapons: unknown, test 7.4)
+10. **Hold Focus (hold breath) on handheld launchers.** The game narrows its FOV to two thirds (`README`); the pixel cost halves at that FOV (section 3.3), but the app reads the FOV from the game's settings file and does not follow Focus, so its mark is not valid while Focus is held; the mouse step shrinks with the FOV too. Sway data exists for handheld launchers only, and prone is 4x steadier than standing (12 / 7 / 3 for standing / crouch / prone, units unknown). `V` (data) / `A` (Focus on emplaced weapons: unknown, test 7.4)
 
 ## 2. What one pixel is worth (question 1)
 
@@ -103,7 +103,7 @@ Mortars, the Hell Cannon, rocket artillery and the AGS-17 lob have no mark (laid
 
 ### 2.3 Smallest step, maximum range on screen, ranking
 
-- **Smallest step.** The mark moves in whole screen pixels only in the sense that you can place a marker on it to +-1 px; the mark itself is drawn at its float position (0.02 px). The setting steps are: *Align* offsets 1 px, scale 1 % (at 500 px below the centre that is 5 px), trim typed to 0.001 deg (0.01 px at FOV 120), trim mouse wheel 0.05 deg (0.5 px unzoomed, 2.3 px in a FOV 40 view). `V` (`Cf` `RANGES`, `Cr` `set_trim`)
+- **Smallest step.** The mark moves in whole screen pixels only in the sense that you can place a marker on it to +-1 px; the mark itself is drawn at its float position (0.02 px). The setting steps are: *Align* offsets 1 px, scale 1 % (at 500 px below the centre that is 5 px). `V` (`Cf` `RANGES`)
 - **Maximum range on screen at FOV 120, 1080p.** AGS-17 optic 940 m (1440p: 943 m), QLZ87 optic 1490 m (1502 m), AGS-30 BTR-4 1590 m, SPG-9 FRAG scope 1960 m, SPG-9 HEAT scope 3400 m; unzoomed views stay on screen to their reach or further. Beyond it the info line says "mark off screen past N m" and the edge arrow stays. The limit scales only slightly with the resolution because the screen margin is fixed at 20 px. `V` (`T-aids`: 940 and 1490 against the oracle)
 - **Ranking by metres of range per pixel (best first), FOV 120, 600 m** (the under-barrel and rifle grenades are 1.3-2.2 m/px within their 500-620 m reach and are not ranked): AGS-17 optic 1.7 < QLZ87 optic = AGS-30 optic 2.7 < SPG-9 FRAG optic 3.0 < SPG-9 HEAT optic 5.2 < 2A70 FRAG 5.9 < AGS-17 iron / no optic 6.5 < M72 LAW 7.2 < TBG-7V 8.1 < Grom FRAG 9.3 < QLZ87 no optic 13 < ZiS-3 optic 14 < SMAW / PF98 HE-I 18 < RPG-7 / MAAWS 19-20 < MK19 19-20 < Carl Gustav 20-35 < AT-4 31 < SPG-9 open 33 < PF98 Tandem 36 < tank AP 39-212 < ZiS-3 open 90. `V`
 - **Which view can honestly be aimed at a marker.** Criterion: a pixel (+-1 px of aim) is worth less than the weapon's own range spread (section 5.3, `sd`) and less than the 5 m that `MARK_PIXEL_LIMIT` (`B`) uses.
@@ -159,7 +159,7 @@ What this means: pixels per count is almost the same in every view (FOVScaling i
 | SPG-9 HEAT no optic (600 m) | 19.3 | 23.0 | 27.6 | 33.5 | 16.2 |
 | Tank AP 2A46 ×4 (600 m) | 28.6 | 31.9 | 35.2 | 38.5 | – |
 
-Going from FOV 120 to 90 makes every pixel 1.73x cheaper, at the cost of a narrower view: the world marker is only drawn inside the view (clamped to the edge with a 32 px margin otherwise, `#6-6`), and a pre-turn error of 20 degrees is out of the frame earlier. The zoomed views (÷2.5, ÷3, ÷4) already give the biggest gain; if you play at 120 for situational awareness, keep it and use Focus (FOV 80) for the handheld launchers. The mouse step also scales with the FOV (section 3.1), so the narrower FOV is more precise in two ways. In SB type the FOV that is actually on screen. `V` (numbers) / `A` (that the game narrows to exactly 2/3 under Focus, from `README`; test 7.4)
+Going from FOV 120 to 90 makes every pixel 1.73x cheaper, at the cost of a narrower view: the world marker is only drawn inside the view (clamped to the edge with a 32 px margin otherwise, `#6-6`), and a pre-turn error of 20 degrees is out of the frame earlier. The zoomed views (÷2.5, ÷3, ÷4) already give the biggest gain; if you play at 120 for situational awareness, keep it and use Focus (FOV 80) for the handheld launchers, aiming without the mark while it is held. The mouse step also scales with the FOV (section 3.1), so the narrower FOV is more precise in two ways. SB takes the FOV from the game's settings file. `V` (numbers) / `A` (that the game narrows to exactly 2/3 under Focus, from `README`; test 7.4)
 
 ### 3.4 Turret keys, sway, spread, stance, bipod
 
@@ -170,7 +170,7 @@ Going from FOV 120 to 90 makes every pixel 1.73x cheaper, at the cost of a narro
 
 ## 4. Procedures (question 3)
 
-Common preparation (once per session): Linux compositor on, game borderless or fullscreen at 16:9, the **game FOV typed in SB** (120, or 80 under Focus), weapon entry matching the view (RMB held = `· optic`, not held = `· no optic`; Mouse4 switches it), overlay on (F8). The Calculator page's "How to fire" steps and the info line say the same for the weapon you chose (`Cr`).
+Common preparation (once per session): Linux compositor on, game borderless or fullscreen at 16:9, the **game FOV read by SB from the game's settings file** (the window says "from the game"; under Focus the mark is not valid), weapon entry matching the view (RMB held = `· optic`, not held = `· no optic`; Mouse4 switches it), overlay on (F8). The Calculator page's "How to fire" steps and the info line say the same for the weapon you chose (`Cr`).
 
 ### 4.1 (a) Marker-aided direct fire
 
@@ -192,25 +192,12 @@ The mark is a pitch reference over the line of sight to the target, so you need 
 - **Target out of view or behind terrain:** turn to the bearing from the map (the calculator shows it, 0.1 deg on SquadCalc, whole degrees on the game compass: +-0.5 deg is +-2.6 / 5.2 / 8.7 m of lateral error at 300 / 600 / 1000 m; the compass has a 0.1 deg mode in the mortar view, `GD`). For the pitch there is no on-screen reference except visible ground: put a *visible ground point of known distance on the ladder tick of that distance* (the ladder is the flat-ground screen position for each range, `README`); the camera is modelled at the barrel pivot (`B`, `T-aids` oracle), so the error is the difference of the depression angles of the two ground points, about `eye_height x (1/d1 - 1/d2)` rad (2 px at FOV 120 for 2 m, 300 m and 600 m, `A` for the eye height, test 7.3). Treat the result as area fire, not a marker-class shot.
 - For the **AGS-17 lob** the aim is not a mark but the S hold time (`README`, 67 measured holds, residual 5.5 m RMS at 9.00 deg/s, `NR` 6).
 
-### 4.3 (c) Calibrating the mark: *Align with the sight* and the trim
+### 4.3 (c) Aligning the mark: *Align with the sight*
 
-Purpose: remove the model-versus-game difference of your sight (alignment: where the mark sits on the screen; trim: where the shot goes). Do it on flat ground at Training, never on `squad1`.
+Purpose: remove the difference between the mark's place on the screen and your sight (alignment: where the mark sits on the screen). Do it on flat ground at Training, never on `squad1`.
 
-1. **Setup.** Flat, level ground, a straight line of 300 m (a longer one for the optics: 600 m). Measure the distance on the SquadCalc map with both points at zoom 6+ (error about 0.5 m), or use two placed objects. Weapon entry correct for the view, FOV typed in, trim 0, `target_height` 0, alignment reset.
-2. **Align with the sight** (Crosshair page). Open the weapon's sight in the game and compare the mark with the sight's reticle at the weapon's zero distance, where the mark should sit on the reticle's zero line: QLZ87 optic 100 m, tripod MK19 330 m, SPG-9 scope about 765 m (HEAT), AGS-17 open sights about 300 m, ZiS-3 about 350 m (`README`, bore values). Move the mark with *Move left/right* and *Move up/down* (arrow keys step 1 px) onto the sight. Accuracy: +-1 px by eye, i.e. one pixel's metres (section 2.2): 1.7 m on the AGS-17 optic, 2.8 m on the QLZ87 optic, 5.2 m on the SPG-9 scope. Leave *Scale* at 100 % unless two reticle marks at different ranges both disagree: the scale is a whole percent (5 px at 500 px below the centre, 8 m on the AGS-17 optic), and the trim is a better tool.
-3. **Trim from shots.** Fire `n` shots with the same mark at one target at the typed distance, from rest and one shot per about 20 s so the GMG spread resets (`#6-2` protocol); read where each burst landed (in the absence of hit feedback: a map marker at the target and a row of placed objects every 5 m, landing read to about +-2.5 m, `A`). Type the **mean** miss (landing minus the typed distance, + past the target, - short of it) into *Miss, m* and press **Apply**: `trim = trim + elevation(distance) - elevation(landed)` (`B` `trim_for_landing`), limit +-5 deg. One trim fixes all ranges because it is an angle. Accuracy of the result: the landing reading error plus `sd/sqrt(n)` with `sd` from section 5.3:
-
-| Weapon (600 m) | sd of one shot (m) | n = 1 | n = 4 | n = 9 |
-|---|---|---|---|---|
-| AGS-17 optic | 3.3 | 3.3 | 1.7 | 1.1 |
-| QLZ87 optic | 6.5 | 6.5 | 3.3 | 2.2 |
-| AGS-30 BTR-4 | 6.4 | 6.4 | 3.2 | 2.1 |
-| SPG-9 scope | 3.4 | 3.4 | 1.7 | 1.1 |
-| MK19 | 9.7 | 9.7 | 4.9 | 3.2 |
-
-   `C`. The model is checked against the independent oracle to 0.5 m / 0.05 % of the range (`T-e2e`), so with the correct view the trim should stay near zero; a trim above about 0.2 deg (2 px unzoomed, 12 px at ×4) means a wrong entry, FOV or view. The trim has the unit degrees of barrel; the mouse wheel moves it 0.05 deg, i.e. 2.3 px in a ×3 view: type values to 0.001 deg.
-4. **Check on flat ground at Training.** After the trim, fire 3-5 shots at 300 m and at 600 m; the mean landing must be within `sd/sqrt(n)` of the target at both ranges. A mean that is right at 300 m and wrong at 600 m grows with the range: that is the scale or the FOV, not the trim (QLZ87 optic beyond 400 m is an open item, `#5` D11, "unknown, fire D11").
-5. **Do not trim with `target_height` set,** and do not trim an AGS-17 lob (the app refuses it).
+1. **Setup.** Flat, level ground, a straight line of 300 m (a longer one for the optics: 600 m). Measure the distance on the SquadCalc map with both points at zoom 6+ (error about 0.5 m), or use two placed objects. Weapon entry correct for the view, the FOV read from the game (the window says so), `target_height` 0, alignment reset.
+2. **Align with the sight** (Crosshair page). Open the weapon's sight in the game and compare the mark with the sight's reticle at the weapon's zero distance, where the mark should sit on the reticle's zero line: QLZ87 optic 100 m, tripod MK19 330 m, SPG-9 scope about 765 m (HEAT), AGS-17 open sights about 300 m, ZiS-3 about 350 m (`README`, bore values). Move the mark with *Move left/right* and *Move up/down* (arrow keys step 1 px) onto the sight. Accuracy: +-1 px by eye, i.e. one pixel's metres (section 2.2): 1.7 m on the AGS-17 optic, 2.8 m on the QLZ87 optic, 5.2 m on the SPG-9 scope. Leave *Scale* at 100 % unless two reticle marks at different ranges both disagree: the scale is a whole percent (5 px at 500 px below the centre, 8 m on the AGS-17 optic).
 
 ### 4.4 (d) Mortars, Hell Cannon, rocket artillery
 
@@ -256,29 +243,29 @@ No mark. The angle comes from the calculator and the sight is the game's.
 
 ### 5.1 Model
 
-One-off Monte Carlo (`C`; 1500 shots per cell, seed fixed, pure Python over `ballistics.solve`/`Weapon.flight_height`, not in the repository). For each shot: the target is at the distance D on flat ground; the calculator distance is `D + e`, `e ~ N(0, 2 sigma_pos^2)` (own + target click); the barrel is `lambda_true + (theta(D_calc) - lambda_calc) + aim error + trim error`; the aim error is `sigma_aim` pixels of the mark row in the view's projection; the trim error `sigma_trim` metres of range converted by `dtheta/dD`; the cone: pitch error `phi cos psi`, yaw error `phi sin psi`, `phi` uniform on `[0, MOA/120 deg]`, `psi` uniform (`NR` 1). Ground hit: impact within 5 m of the aim point on the ground (a lethal-radius proxy for splash rounds). Box hit: the shell crosses the target plane inside a 3.6 m wide x 2.4 m high box standing on the ground (aim at the foot `L0` or at 1.2 m `L1.2`). Camera at the pivot (parallax of the real camera, 0.23 m up and 0.34 m right on the QLZ87, is -8.5 / -5.6 / -4.2 m at 200 / 300 / 400 m in the plain view, `#5`, and is not in the model). The comparison with the existing SquadCalc model: that model (`hitProbability`, `squadDamage.js`) uses spread only (no target size, no position error, `SC` ran) and has no direct-fire hit probability on `dev` (`#8` of `deadline-squadcalc`; the work is in an uncommitted worktree, and `tools/direct_fire/hit_probability_check.mjs` crashes on `dev` with `getHitSpread is not a function` for that reason). The "ideal" columns agree with `#6-2` (AGS-17 optic 84 %, QLZ87 optic 57 %, MK19 43 %).
+One-off Monte Carlo (`C`; 1500 shots per cell, seed fixed, pure Python over `ballistics.solve`/`Weapon.flight_height`, not in the repository). For each shot: the target is at the distance D on flat ground; the calculator distance is `D + e`, `e ~ N(0, 2 sigma_pos^2)` (own + target click); the barrel is `lambda_true + (theta(D_calc) - lambda_calc) + aim error`; the aim error is `sigma_aim` pixels of the mark row in the view's projection; the cone: pitch error `phi cos psi`, yaw error `phi sin psi`, `phi` uniform on `[0, MOA/120 deg]`, `psi` uniform (`NR` 1). Ground hit: impact within 5 m of the aim point on the ground (a lethal-radius proxy for splash rounds). Box hit: the shell crosses the target plane inside a 3.6 m wide x 2.4 m high box standing on the ground (aim at the foot `L0` or at 1.2 m `L1.2`). Camera at the pivot (parallax of the real camera, 0.23 m up and 0.34 m right on the QLZ87, is -8.5 / -5.6 / -4.2 m at 200 / 300 / 400 m in the plain view, `#5`, and is not in the model). The comparison with the existing SquadCalc model: that model (`hitProbability`, `squadDamage.js`) uses spread only (no target size, no position error, `SC` ran) and has no direct-fire hit probability on `dev` (`#8` of `deadline-squadcalc`; the work is in an uncommitted worktree, and `tools/direct_fire/hit_probability_check.mjs` crashes on `dev` with `getHitSpread is not a function` for that reason). The "ideal" columns agree with `#6-2` (AGS-17 optic 84 %, QLZ87 optic 57 %, MK19 43 %).
 
-Scenarios (sigma per click of position / aim px / trim m): **ideal** 0 / 0 / 0, **best** 1 / 0.5 / 1, **typical** 2 / 1 / 2, **poor** 3 / 3 / 3.
+Scenarios (sigma per click of position / aim px): **ideal** 0 / 0, **best** 1 / 0.5, **typical** 2 / 1, **poor** 3 / 3. The first run also had a trim error (sigma 0 / 1 / 2 / 3 m of range) as a third source; the app has no trim now, so the totals in 5.2 are the originals less that term in quadrature (`sqrt(total^2 - 2^2)`), and the hit probabilities in 5.3 still include it.
 
 ### 5.2 Sources of error at 600 m, 1 sigma in metres of ground range ("typical" scenario)
 
 `C`. Model error is at most 0.5 m against the oracle (`T-e2e` tolerance) but the oracle is itself written from the same decompiled rules (not an independent check against the live game); the AGS-17 hold model has 5.5 m RMS (`NR` 6), the QLZ87 optic beyond 400 m is unexplained (`#5` D11), parallax up to 9 m at 200 m in the plain QLZ87 view.
 
-| Weapon / view | own + target (2 m / click) | aim pixel (1 px) | trim (2 m) | round spread | total | dominant |
-|---|---|---|---|---|---|---|
-| MK19 tripod, sights | 2.8 | 19.3 | 2.0 | 9.7 (15 MOA; sustained 50 MOA: 32) | 21.9 | aim pixel |
-| AGS-17 optic ×2.5 | 2.8 | 1.7 | 2.0 | 3.3 | 5.1 | spread |
-| AGS-17 iron sights | 2.8 | 6.5 | 2.0 | 3.2 | 8.1 | aim pixel |
-| QLZ87 optic ×3 | 2.8 | 2.7 | 2.0 | 6.5 | 7.9 | spread |
-| QLZ87 no optic | 2.8 | 13.0 | 2.0 | 6.3 | 14.9 | aim pixel |
-| AGS-30 BTR-4 ×3 | 2.8 | 2.8 | 2.0 | 6.4 | 7.8 | spread |
-| RPG-7 PG-7V | 2.8 | 20.0 | 2.0 | 13.2 | 24.2 | aim pixel |
-| PF98 Tandem | 2.8 | 35.7 | 2.0 | 8.5 | 36.8 | aim pixel |
-| AT-4 | 2.8 | 30.9 | 2.0 | 9.8 | 32.6 | aim pixel |
-| SPG-9 scope ×4 | 2.8 | 5.2 | 2.0 | 3.4 | 7.1 | aim pixel |
-| SPG-9 no optic | 2.8 | 33.5 | 2.0 | 3.3 | 33.8 | aim pixel |
-| ZiS-3 optic ×4 | 2.8 | 13.9 | 2.0 | 8.9 | 16.9 | aim pixel |
-| Tank AP ×4 (2A46) | 2.8 | 38.5 | 2.0 | 12.7 | 40.7 | aim pixel |
+| Weapon / view | own + target (2 m / click) | aim pixel (1 px) | round spread | total | dominant |
+|---|---|---|---|---|---|
+| MK19 tripod, sights | 2.8 | 19.3 | 9.7 (15 MOA; sustained 50 MOA: 32) | 21.8 | aim pixel |
+| AGS-17 optic ×2.5 | 2.8 | 1.7 | 3.3 | 4.7 | spread |
+| AGS-17 iron sights | 2.8 | 6.5 | 3.2 | 7.8 | aim pixel |
+| QLZ87 optic ×3 | 2.8 | 2.7 | 6.5 | 7.6 | spread |
+| QLZ87 no optic | 2.8 | 13.0 | 6.3 | 14.8 | aim pixel |
+| AGS-30 BTR-4 ×3 | 2.8 | 2.8 | 6.4 | 7.5 | spread |
+| RPG-7 PG-7V | 2.8 | 20.0 | 13.2 | 24.1 | aim pixel |
+| PF98 Tandem | 2.8 | 35.7 | 8.5 | 36.7 | aim pixel |
+| AT-4 | 2.8 | 30.9 | 9.8 | 32.5 | aim pixel |
+| SPG-9 scope ×4 | 2.8 | 5.2 | 3.4 | 6.8 | aim pixel |
+| SPG-9 no optic | 2.8 | 33.5 | 3.3 | 33.7 | aim pixel |
+| ZiS-3 optic ×4 | 2.8 | 13.9 | 8.9 | 16.8 | aim pixel |
+| Tank AP ×4 (2A46) | 2.8 | 38.5 | 12.7 | 40.7 | aim pixel |
 
 For the **direct-hit weapons** the same pixels are small in the plane that decides the hit:
 
@@ -299,7 +286,7 @@ For the **direct-hit weapons** the same pixels are small in the plane that decid
 `C`. P5 = shell lands within 5 m of the aim point on the ground (splash weapons); Box = shell inside the 3.6 x 2.4 m box, aim at the foot (L0) or at 1.2 m (L1.2). Percent.
 
 | Weapon / view | D | ideal P5 | best P5 | typical P5 | poor P5 | Box L0 ideal / typical | Box L1.2 ideal / best / typical / poor |
-|---|---|---|---|---|---|---|---|
+|---|---|---|---|---|---|---|
 | MK19 tripod (15 MOA) | 300 | 44 | 29 | 17 | 8 | | |
 | | 600 | 44 | 26 | 17 | 6 | | |
 | | 1000 | 42 | 28 | 17 | 6 | | |
@@ -354,9 +341,7 @@ Ranked by expected gain in metres per effort. These feed the roadmap in `#8` (se
 | 7 | SquadCalc: arrow-key nudge (1 m / 5 m) of the selected weapon / target, a *Move to* keypad field for targets, 3.7 m and 11 m sub-grids drawn at zoom 6+, keypad to 5 sub-levels | `squadMarker.js`, `squadTargetMarker.js`, `squadGrid.js`, `squadMinimap.js` | position repeatability 0.25 m instead of mouse jitter; typed targets | S-M |
 | 8 | SquadCalc: show the weapon's and target's ground heights next to the difference; show range per displayed step (0.1 deg of the UB-32 is 6-10 m) | `squadTargetMarker.js:323,348-368,437` | catches a roof/treetop height before firing | S |
 | 9 | "Turn N deg" and "pitch about N deg" pre-aim hint for the marker flash (the compass reader exists only for the mortar) | `compassreader.py`, overlay | lands the first 0.5 s flash within 3-5 px | M |
-| 10 | Hit feedback for Training (`#6` plan): graded damage, calibrated radius, then a measured miss vector to fill the trim automatically (n shots) | `#6` P3 | trim without the manual landing reading (+-2.5 m) | L |
-| 11 | In-game-grid overlay for Skorpo (6849 x 6869 against about 6900 x 6900) once measured | SquadCalc `maps.js`, `squadGrid.js` | up to 50 m on one map | M |
-| 12 | Trim wheel step by view: 0.01 deg in zoomed views (0.05 deg is 2.3 px at ×3) | `widgets.py`, `crosshair.py` | removes a coarse step | S |
+| 10 | In-game-grid overlay for Skorpo (6849 x 6869 against about 6900 x 6900) once measured | SquadCalc `maps.js`, `squadGrid.js` | up to 50 m on one map | M |
 
 ## 7. Tests the game has to answer (unknown, test X)
 

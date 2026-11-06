@@ -2,6 +2,8 @@
 
 How the test suite was checked with [mutmut](https://mutmut.readthedocs.io/) 3.8.1 (a mutant is a one-token change of the code; a test suite that still passes has missed it). Russian version: [mutation-testing.ru.md](mutation-testing.ru.md).
 
+This is the record of the run on 1.6.x. Version 1.6.3 removed the mark trim (`trim_for_landing`, `set_trim`, `on_trim_edited` and their tests); its rows and bullets are gone, the other counts are those of the run.
+
 ## Commands
 
 Image `sb-ci-mut` is the CI image plus `pip install mutmut` (mutmut 3.8.1, Python 3.12). Each module is mutated in its own copy of the repository, with this `setup.cfg`:
@@ -28,7 +30,7 @@ mutmut show <id>        # the diff of one mutant
 MUTANT_UNDER_TEST=<module>.<id> python -m pytest -x -q -p no:cacheprovider <test files>
 ```
 
-Test files given to `mutmut run`: `config`: `test_config.py`, `test_config_behaviour.py`, `test_ui.py`; `keystate`: `test_keystate.py`; `ballistics`: the ballistics, trim, mark and weapons tests of the suite; `crosshair`: `test_ui`, `test_calc_state`, `test_trim`, `test_view_toggle`, `test_marker_aids`, `test_no_hold_beep`, `test_vehicle_sights_ui`. The `keystate` run uses `max_children=1`: its X11 tests share the display `:97`. A timeout counts as a survivor until it is examined; a crash of the test process (segfault, abort, a NULL `Display*`) counts as killed. `crosshair` lists its test files with `pytest_add_cli_args_test_selection` (not `tests_dir`, which would also run `tests/test_hygiene.py`, whose docstring check fails on every mutant), `max_children=3`; the run was started as `nice -n 10 docker run --cpus 3 --memory 3g sb-ci-mut mutmut run --max-children 3` in a loop (`systemd-run --user`) that starts it again when mutmut stops with `KeyError: <pid>`, and resumes from the saved results. The survivors were then re-run by `MUTANT_UNDER_TEST=<id> pytest -x -p no:cacheprovider tests/test_crosshair_mutants.py <original files>` with three at a time.
+Test files given to `mutmut run`: `config`: `test_config.py`, `test_config_behaviour.py`, `test_ui.py`; `keystate`: `test_keystate.py`; `ballistics`: the ballistics, mark and weapons tests of the suite; `crosshair`: `test_ui`, `test_calc_state`, `test_view_toggle`, `test_marker_aids`, `test_no_hold_beep`, `test_vehicle_sights_ui`. The `keystate` run uses `max_children=1`: its X11 tests share the display `:97`. A timeout counts as a survivor until it is examined; a crash of the test process (segfault, abort, a NULL `Display*`) counts as killed. `crosshair` lists its test files with `pytest_add_cli_args_test_selection` (not `tests_dir`, which would also run `tests/test_hygiene.py`, whose docstring check fails on every mutant), `max_children=3`; the run was started as `nice -n 10 docker run --cpus 3 --memory 3g sb-ci-mut mutmut run --max-children 3` in a loop (`systemd-run --user`) that starts it again when mutmut stops with `KeyError: <pid>`, and resumes from the saved results. The survivors were then re-run by `MUTANT_UNDER_TEST=<id> pytest -x -p no:cacheprovider tests/test_crosshair_mutants.py <original files>` with three at a time.
 
 ## Results per module
 
@@ -45,13 +47,12 @@ The original `ballistics` run had 439 survivors, 11 mutants without tests and 9 
 
 ## New tests and the mutants they kill
 
-Tests are in `tests/test_config_behaviour.py`, `tests/test_keystate.py` and the new `tests/test_ballistics_mutants.py`. The ballistics file checks the flight, the apex and the height of real and made-up weapons against the independent oracle `tests/flight.py` (the game's 50 Hz substeps), pins every validation message of `Weapon.from_dict` and `parse_weapons`, and checks `solve`, `mark_*`, `range_ladder`, `trim_for_landing` and `first_obstacle` with exact values and with exact boundary ties (for example `GRAVITY` patched to 10 so that 100 m/s reaches 1000 m at exactly 45 degrees).
+Tests are in `tests/test_config_behaviour.py`, `tests/test_keystate.py` and the new `tests/test_ballistics_mutants.py`. The ballistics file checks the flight, the apex and the height of real and made-up weapons against the independent oracle `tests/flight.py` (the game's 50 Hz substeps), pins every validation message of `Weapon.from_dict` and `parse_weapons`, and checks `solve`, `mark_*`, `range_ladder` and `first_obstacle` with exact values and with exact boundary ties (for example `GRAVITY` patched to 10 so that 100 m/s reaches 1000 m at exactly 45 degrees).
 
 ## Crosshair tests and the mutants they kill
 
 Tests are in `tests/test_crosshair_mutants.py` (102 tests, all through the real `MainWindow`; Qt objects that are slow or need a system, such as the confirmation box, `QProcess`, `QDesktopServices` and the key injectors, are replaced by recorders). They pin, with the exact translated text and value:
 
-- the trim: `set_trim` rounding, limit and zero removal, `on_trim_edited`, `reset_trim`, `apply_landing` (height default, chosen arc, trim already set, limit text, lob refusal, direct-fire fallback, overflow message, a hold weapon whose own arc is the low one);
 - the explanation of an unreachable target for each reason (`out_of_range`, `too_close`, `hold_limit`, `elevation_limit`), in degrees and in mils, and what an unreachable target clears (mark, info line, hold target, tiles);
 - the hold-rate calibration of the mortar auto-lay (`calibrate_lay` boundaries and texts, `reset_lay_rate`, `lay_reset_time`);
 - the sight and compass readings, the bearing target, the lay mark and failure text, the end of a bearing or sight lay, the layer wiring (`make_bearing_layer`, `apply_auto_hold`, `set_auto_hold`) and the F7 hotkey (`auto_hold`, `timed_lay_blocker`, `lay_step`, `start_sight_lay`);
@@ -77,7 +78,6 @@ Mutant numbers are the suffix of `crosshair.xǁMainWindowǁ<function>__mutmut_<n
 | `on_input_edited` | 1 | 6 |
 | `on_map_follow_changed` | 5 | 1, 2, 3, 4, 5 |
 | `on_sight_lay_finished` | 2 | 7, 13 |
-| `on_trim_edited` | 2 | 6, 10 |
 | `open_config_dir` | 2 | 7, 8 |
 | `preload_map` | 6 | 1, 2, 3, 4, 5, 6 |
 | `rebuild` | 1 | 7 |
@@ -92,7 +92,6 @@ Mutant numbers are the suffix of `crosshair.xǁMainWindowǁ<function>__mutmut_<n
 | `set_map_render` | 14 | 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21 |
 | `set_monitor` | 3 | 1, 2, 3 |
 | `set_on_top` | 1 | 4 |
-| `set_trim` | 1 | 17 |
 | `show_bearing_reading` | 11 | 1, 3, 4, 7, 8, 9, 10, 11, 12, 13, 21 |
 | `show_sight_reading` | 10 | 1, 3, 4, 7, 8, 9, 10, 11, 12, 13 |
 | `show_unreachable` | 54 | 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17, 19, 21, 22, 23, 25, 26, 27, 28, 29, 30, 31, 32, 33, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 64 |
@@ -169,7 +168,6 @@ Mutant numbers are the suffix of `crosshair.xǁMainWindowǁ<function>__mutmut_<n
 | `x_mark_resolution__mutmut_22` | `solve(..., arc, aim_lift) -> solve(..., arc)` | only the line of sight is used, the same on every arc and for every aim_lift |
 | `x_mark_height_resolution__mutmut_30` | `solve(..., arc) -> solve(..., None)` | the high arc has a negative slope, so mark_resolution returns None first |
 | `x_mark_visible_range__mutmut_50` | `high - low > 0.01 -> >=` | one more halving; the edge is only specified to 1 cm |
-| `x_trim_for_landing__mutmut_40` | `distance <= 0 -> < 0` | solve raises the same message for distance 0 |
 | `x_range_ladder__mutmut_67` | `s <= distance / 4 -> <` | LADDER_STEPS divide each other, so the rounding is the same at the tie |
 | `x_load_weapons__mutmut_5` | `open(path, "r", ...) -> open(path, ...)` | "r" is the default mode |
 | `x_load_weapons__mutmut_10` | `encoding="utf-8" -> "UTF-8"` | alias of the same codec |
@@ -178,11 +176,8 @@ Mutant numbers are the suffix of `crosshair.xǁMainWindowǁ<function>__mutmut_<n
 
 | Mutant | Diff | Reason |
 |---|---|---|
-| `MainWindow.set_trim__mutmut_4` | `round(...) + 0.0 -> - 0.0` | only a zero trim differs (0.0 vs -0.0) and a zero trim is not stored |
 | `MainWindow.rebuild__mutmut_3` | `if self.map_page is not None -> is None` | build_web_page puts the map page into the new stack before the old central widget's deferred delete runs, so it survives without the detach (checked: test_rebuilding_keeps_the_typed_inputs_the_page_and_the_map passes with the mutant) |
 | `MainWindow.rebuild__mutmut_4` | `removeWidget(self.map_page) -> removeWidget(None)` | removeWidget(None) is a no-op and the next line (setParent(None)) detaches the page anyway; same reason as mutant 3 |
-| `MainWindow.on_trim_edited__mutmut_9` | `trim_status.setText("") -> setText(None)` | QLabel.setText(None) shows the empty text (checked with PyQt6 6.12.0) |
-| `MainWindow.on_arc_changed__mutmut_4` | `trim_status.setText("") -> setText(None)` | same: QLabel.setText(None) is the empty text |
 | `MainWindow.on_input_edited__mutmut_5` | `calculate(show_errors=False) -> show_errors=None` | None and False are both falsy in `if show_errors or ...` |
 | `MainWindow.distance_up__mutmut_4` | `calculate(show_errors=False) -> None` | falsy, as above |
 | `MainWindow.distance_up__mutmut_5` | `calculate(show_errors=False) -> True` | `show_errors` only matters for an empty distance field, and NumberEdit.add has just written a number into it |
@@ -210,7 +205,7 @@ Mutant numbers are the suffix of `ballistics.<function>__mutmut_<n>` (the 459 no
 | solve and trajectory: test_a_target_the_elevation_limits_refuse_*, test_an_arc_at_exactly_the_lowest_elevation_limit_*, test_an_arc_beyond_the_limits_*, test_the_apex_of_a_shot_that_only_falls_is_its_muzzle, the solve message / aim / limit tests, test_a_path_is_sampled_at_sixty_five_points_by_default | `solve`: 13, 14, 15, 16, 19, 20, 21, 22, 43, 46, 50, 51, 72, 73, 81, 84, 85, 86, 105, 106, 144, 145, 146, 155<br>`trajectory`: 1<br>`resolve_arc`: 2, 6 |
 | Obstacle search: the first_obstacle tests, test_a_path_that_just_touches_the_terrain_does_not_pass_under_it, test_an_obstacle_search_for_a_target_out_of_reach_finds_nothing | `first_obstacle`: 1, 17, 21, 32, 35, 41 |
 | Mark: test_a_pixel_of_the_mark_is_worth_*, the mark_visible_range tests, test_a_weapon_with_a_gravity_of_exactly_one_has_a_mark, test_a_weapon_laid_by_elevation_has_no_mark_*, the screen_offset / mark_offset tests | `mark_resolution`: 2, 6, 11, 25, 28, 30, 31, 32, 33, 44, 57, 58, 59, 60, 62, 63, 64, 69, 71<br>`mark_height_resolution`: 2, 5, 14, 24, 36<br>`mark_visible_range`: 6, 11, 38, 43, 45, 49, 55, 66, 71, 73, 84, 87, 88<br>`_mark_at`: 11, 24<br>`mark_offset`: 4, 5, 6, 8, 9, 10, 11<br>`screen_offset`: 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18 |
-| Trim and ladder: test_a_trim_is_refused_with_the_reason_in_words, test_a_shot_one_metre_away_*, the range_ladder tests | `trim_for_landing`: 8, 9, 14, 15, 27, 28, 30, 31, 37, 38, 41, 43, 47, 49<br>`range_ladder`: 13, 16, 17, 41, 44, 47, 50, 51, 52, 53, 54, 60, 70, 81, 82 |
+| Ladder: the range_ladder tests | `range_ladder`: 13, 16, 17, 41, 44, 47, 50, 51, 52, 53, 54, 60, 70, 81, 82 |
 
 ## Capped boost weapons against the oracle
 
