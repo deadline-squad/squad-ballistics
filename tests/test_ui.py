@@ -1809,8 +1809,8 @@ def test_reset_settings_drops_the_calibration_and_the_fov(window, monkeypatch):
     window.reset_settings()
 
     assert window.weapons[MORTAR].hold_rate == window.file_weapons[MORTAR].hold_rate
-    assert window.fov_entry.text() == "90"
-    assert window.config["fov"] == 90
+    assert window.fov_entry.text() == "120"
+    assert window.config["fov"] == 120
     # The typed target stays
     assert window.distance_entry.text() == "900"
 
@@ -1920,6 +1920,7 @@ def test_range_ladder_follows_the_weapon(window):
 
     window.overlay.setGeometry(0, 0, 1920, 1080)
     window.distance_entry.setText("")
+    window.fov_entry.setText("90")
     window.select_weapon("RPG-7 · PG-7V HEAT / OG-7V")
     window.recalculate_if_ready()
 
@@ -2345,7 +2346,7 @@ def test_the_distance_step_applies_to_the_landed_distance_too(window):
     window.set_distance_step(50)
 
     assert window.distance_entry.step == 50
-    assert window.landed_entry.step == 50
+    assert window.miss_entry.step == 50
 
 
 def test_the_ladder_ends_at_the_screen_edge_below_the_aligned_centre(window):
@@ -2385,6 +2386,7 @@ def test_the_ladder_is_computed_once_per_change(window, monkeypatch, change):
         calls.append(args[0].name)
         return real(*args, **kwargs)
 
+    window.fov_entry.setText("90")
     window.select_weapon("M203 / M320 / GP-25 / HK79 / SL40")
     window.distance_entry.setText("300")
     window.calculate()
