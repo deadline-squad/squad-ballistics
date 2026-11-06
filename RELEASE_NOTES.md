@@ -1,3 +1,13 @@
+## Squad Ballistics 1.6.2
+
+Изменения с версии 1.6.1. / Changes since 1.6.1.
+
+### Изменено / Changed
+- **Поправка метки вводится промахом в метрах:** вместо «Landed at, m» поле *Miss, m*: впишите **+300**, если снаряд упал на 300 м дальше цели, **-100**, если не долетел 100 м, и нажмите Apply или Enter; программа сама считает угол поправки. Поле «Trim, deg» остаётся как результат и для ручной правки. / The mark correction is entered as the miss in metres: the *Landed at, m* field became *Miss, m*. Type **+300** if the shot landed 300 m past the target, **-100** if it fell 100 m short, and press Apply or Enter; the app works out the trim angle itself. *Trim, deg* stays as the result and for hand edits.
+
+### Исправлено / Fixed
+- **FOV по умолчанию 120 вместо 90:** метка всех прицелов считается под FOV из поля «FOV», а программа начинала с 90. При игре на 120 это даёт перелёт: QLZ87 (оптика ×3) на 1000 м ложился на 1306 м вместо 1000 м. Файл настроек, где ещё стоит старое значение по умолчанию 90, при загрузке получает 120; любое другое значение и 90, выбранное после этой версии, остаются. / The default FOV is 120, not 90: every overlay mark is laid for the FOV in the FOV field, and the app started at 90. For a game at 120 that overshoots: the QLZ87 optic (x3) at 1000 m landed at 1306 m instead of 1000 m. A settings file that still holds the old default 90 gets 120 when it is loaded; any other value, and a 90 chosen with this version, stay.
+
 ## Squad Ballistics 1.6.1
 
 Изменения с версии 1.6.0. / Changes since 1.6.0.

@@ -353,7 +353,7 @@ def test_apply_sets_the_trim_and_moves_the_mark(window, fov):
 
     assert before == pytest.approx(expected_pixels(weapon, sight, float(fov), 0.0))
 
-    window.landed_entry.setText("260")
+    window.miss_entry.setText("-40")
     button(window, "Apply").click()
 
     trim = trim_for_landing(weapon, 300, 0.0, 260)
@@ -366,7 +366,7 @@ def test_apply_sets_the_trim_and_moves_the_mark(window, fov):
         expected_pixels(weapon, sight, float(fov), round(trim, 3))
     )
     assert window.overlay.offset > before
-    assert window.landed_entry.text() == ""
+    assert window.miss_entry.text() == ""
     assert f"trim {round(trim, 3):+g}" in window.overlay.info_text
     assert any(f"trim {round(trim, 3):+g}" in step for step in window.current_steps)
 
@@ -375,7 +375,7 @@ def test_apply_with_a_height_difference(window):
     fire_at(window, M203, 300, height="12")
     weapon = window.current_weapon()
 
-    window.landed_entry.setText("330")
+    window.miss_entry.setText("30")
     button(window, "Apply").click()
 
     trim = trim_for_landing(weapon, 300, 12.0, 330)
@@ -519,16 +519,17 @@ def test_the_trim_survives_a_restart_and_unknown_weapons_are_dropped(window, tmp
         restarted.close()
 
 
-@pytest.mark.parametrize("distance, landed, message", [
-    ("300", "", "Enter where the shot landed"),
-    ("", "250", "Enter the distance"),
-    ("300", "900", "Landed at: Out of range"),
-    ("900", "250", "Distance: Out of range"),
+@pytest.mark.parametrize("distance, miss, message", [
+    ("300", "", "Enter how far the shot missed"),
+    ("", "-50", "Enter the distance"),
+    ("300", "600", "Landed at: Out of range"),
+    ("900", "-650", "Distance: Out of range"),
+    ("300", "-300", "Landed distance must be greater than 0"),
 ])
-def test_apply_says_what_is_wrong(window, distance, landed, message):
+def test_apply_says_what_is_wrong(window, distance, miss, message):
     window.select_weapon(M203)
     window.distance_entry.setText(distance)
-    window.landed_entry.setText(landed)
+    window.miss_entry.setText(miss)
 
     button(window, "Apply").click()
 
@@ -603,7 +604,7 @@ def test_apply_on_the_ags_lob_keeps_the_direct_fire_trim(window):
     direct_offset = window.overlay.offset
 
     for _ in range(3):
-        window.landed_entry.setText("560")
+        window.miss_entry.setText("-40")
         button(window, "Apply").click()
         window.calculate()
 
@@ -625,7 +626,7 @@ def test_apply_on_the_ags_high_arc_inside_the_lob_minimum_is_direct_fire(window)
 
     assert window.last_solution.arc == "low"
 
-    window.landed_entry.setText("240")
+    window.miss_entry.setText("-10")
     button(window, "Apply").click()
 
     expected = trim_for_landing(window.current_weapon(), 250, 0.0, 240, 0.0, "low")
@@ -645,7 +646,7 @@ def test_apply_on_the_high_arc_solves_the_high_arc(window):
     fire_at(window, M203, 300)
     assert window.last_solution.arc == "high"
 
-    window.landed_entry.setText("270")
+    window.miss_entry.setText("-30")
     button(window, "Apply").click()
 
     expected = trim_for_landing(window.current_weapon(), 300, 0.0, 270, 0.0, "high")
@@ -661,7 +662,7 @@ def test_apply_starts_from_the_current_trim(window):
     fire_at(window, M203, 300)
     window.set_trim(0.5)
 
-    window.landed_entry.setText("300")
+    window.miss_entry.setText("0")
     button(window, "Apply").click()
 
     assert window.config["mark_trim"] == {M203: 0.5}
