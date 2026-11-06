@@ -42,8 +42,6 @@ from dataclasses import replace
 
 from ballistics import (
     MILS_PER_DEGREE,
-    TRIM_LIMIT,
-    clamp_trim,
     current_weapon_name,
     MARK_HEIGHT_LIMIT,
     MARK_PIXEL_LIMIT,
@@ -51,13 +49,11 @@ from ballistics import (
     mark_height_resolution,
     mark_resolution,
     mark_visible_range,
-    resolve_arc,
     solve,
     mark_offset,
     range_ladder,
     screen_offset,
     trajectory,
-    trim_for_landing,
     view_twin
 )
 
@@ -72,6 +68,8 @@ from config import (
     load_config,
     save_config,
 )
+
+from gamesettings import WINDOWED, find_game_settings, read_game_settings, screen_mismatch
 
 from holdtimer import HoldTimer
 
@@ -132,6 +130,9 @@ LAY_RATE_TOLERANCE = 0.3
 # How often the mortar sight is read while a mortar is selected (ms), and
 # where a grab it could not read is saved (in the settings folder).
 SIGHT_WATCH_MS = 300
+
+# How often the game's settings file is checked for a change.
+GAME_SETTINGS_WATCH_MS = 2000
 SIGHT_GRAB_FILE = "sight-grab.png"
 
 # The hotkey hint under the inputs: no-break spaces keep a "key — action"
@@ -199,14 +200,13 @@ class MainWindow(QMainWindow):
 
         self.config = load_config()
 
-        # Trims of weapons that weapons.json no longer has are dropped.
-        self.config["mark_trim"] = {
-            key: trim
-            for key, trim in self.config["mark_trim"].items()
-            if key in self.weapons
-        }
-
         self.apply_lay_rates()
+
+        # The game's own settings (gamesettings.py), read before the UI is
+        # built; `game_settings_stamp` says which file state they come from.
+        self.game_settings = None
+        self.game_settings_stamp = None
+        self.load_game_settings()
 
         self.last_solution = None
 
@@ -228,6 +228,7 @@ class MainWindow(QMainWindow):
         # overlay: the mark and the ladder follow the new screen size.
         self.overlay.screen_changed.connect(self.recalculate_if_ready)
         self.overlay.screen_changed.connect(self.check_screen_ratio)
+        self.overlay.screen_changed.connect(self.show_game_screen)
 
         # Set once per session when the screen is not 16:9 (see
         # `check_screen_ratio`); shown on the calculator page.
@@ -273,6 +274,11 @@ class MainWindow(QMainWindow):
         self.key_reader = system_key_reader()
 
         self.hold_timer = HoldTimer(self.key_reader, self)
+
+        self.game_settings_timer = QTimer(self)
+        self.game_settings_timer.setInterval(GAME_SETTINGS_WATCH_MS)
+        self.game_settings_timer.timeout.connect(self.watch_game_settings)
+        self.game_settings_timer.start()
 
         self.save_timer = QTimer(self)
         self.save_timer.setSingleShot(True)
@@ -549,7 +555,7 @@ class MainWindow(QMainWindow):
 
     def build_target_card(self):
         """The target card: the weapon picker, the arc, the distance, height
-        and FOV inputs, the trim, the map target line, the Calculate and Reset
+        and FOV inputs, the map target line, the Calculate and Reset
         buttons and the hotkey hint."""
         frame, layout = card()
 
@@ -616,7 +622,15 @@ class MainWindow(QMainWindow):
 
         self.fov_entry.setPlaceholderText(tr("fov_hint"))
 
-        self.fov_entry.set_value(self.config["fov"])
+        self.fov_source_label = label("", "small")
+
+        self.fov_source_label.setWordWrap(True)
+
+        self.game_screen_label = label("", "small")
+
+        self.game_screen_label.setWordWrap(True)
+
+        self.game_screen_label.setProperty("state", "error")
 
         for caption, entry in (
             (tr("distance"), self.distance_entry),
@@ -636,6 +650,15 @@ class MainWindow(QMainWindow):
 
             entry.returnPressed.connect(lambda: self.calculate())
 
+            if entry is self.fov_entry:
+                layout.addWidget(self.fov_source_label)
+
+        layout.addWidget(self.game_screen_label)
+
+        self.show_fov_source()
+
+        self.show_game_screen()
+
         self.map_label = label("", "small")
 
         self.map_label.setWordWrap(True)
@@ -643,8 +666,6 @@ class MainWindow(QMainWindow):
         self.arming_label = label("", "small")
 
         self.arming_label.setWordWrap(True)
-
-        layout.addWidget(self.build_trim_box())
 
         layout.addWidget(self.map_label)
 
@@ -689,64 +710,6 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.hotkey_hint)
 
         return frame
-
-    def build_trim_box(self):
-        """The field correction of the mark: how far the last shot missed
-        (which sets the trim) and the trim of the weapon and view it sets.
-        Shown for weapons aimed with the overlay."""
-        self.trim_box = QWidget()
-
-        column = QVBoxLayout(self.trim_box)
-
-        column.setContentsMargins(0, 0, 0, 0)
-
-        column.setSpacing(10)
-
-        self.trim_entry = NumberEdit(allow_negative=True, step=0.05)
-
-        self.trim_entry.setPlaceholderText(tr("trim_hint"))
-
-        self.trim_entry.textEdited.connect(self.on_trim_edited)
-
-        self.trim_entry.stepped.connect(self.on_trim_edited)
-
-        self.miss_entry = NumberEdit(allow_negative=True, step=self.config["distance_step"])
-
-        self.miss_entry.setPlaceholderText(tr("miss_hint"))
-
-        self.miss_entry.returnPressed.connect(self.apply_landing)
-
-        apply_button = QPushButton(tr("trim_apply"))
-
-        apply_button.clicked.connect(lambda: self.apply_landing())
-
-        reset_button = QPushButton(tr("trim_reset"))
-
-        reset_button.setProperty("flat_style", True)
-
-        reset_button.clicked.connect(lambda: self.reset_trim())
-
-        for caption, entry, button in (
-            (tr("miss"), self.miss_entry, apply_button),
-            (tr("trim"), self.trim_entry, reset_button)
-        ):
-            column.addWidget(label(caption.upper(), "section"))
-
-            row = QHBoxLayout()
-
-            row.addWidget(entry, 1)
-
-            row.addWidget(button)
-
-            column.addLayout(row)
-
-        self.trim_status = label("", "small")
-
-        self.trim_status.setWordWrap(True)
-
-        column.addWidget(self.trim_status)
-
-        return self.trim_box
 
     def update_hotkey_hint(self):
         """The keys that work now (auto-hold's only while it is on).
@@ -848,7 +811,7 @@ class MainWindow(QMainWindow):
         self.picker.set_current(name)
 
     def on_weapon_changed(self, name, user=True):
-        """Weapon `name` was picked: show its info and trim and solve again.
+        """Weapon `name` was picked: show its info and solve again.
         `user` True (picked here) also remembers it among the recent weapons
         and selects it on the embedded map."""
         weapon = self.weapons.get(name)
@@ -872,8 +835,6 @@ class MainWindow(QMainWindow):
             self.schedule_save()
 
         self.update_weapon_info(weapon)
-
-        self.show_trim()
 
         # The calibration status and the lay's note are about the previous
         # weapon.
@@ -946,13 +907,6 @@ class MainWindow(QMainWindow):
 
         return ""
 
-    def current_trim(self, weapon):
-        """The trim (degrees) set for `weapon`."""
-        if weapon is None:
-            return 0.0
-
-        return self.config["mark_trim"].get(weapon.name, 0.0)
-
     def aim_lift(self, weapon):
         """Metres above the target ground the shot is aimed at: the
         `target_height` setting for a weapon aimed with the overlay mark,
@@ -962,146 +916,11 @@ class MainWindow(QMainWindow):
 
         return self.config["target_height"]
 
-    def mark_arc(self, weapon):
-        """The arc ("low" or "high") the overlay mark of `weapon` is laid
-        for with the chosen arc. A hold weapon's lob (AGS-17 high arc) is
-        laid by holding the key: its mark is the direct fire, the low arc.
-        """
-        arc = resolve_arc(weapon, self.config["arc"])
-
-        return "low" if weapon.has_hold else arc
-
-    def update_trim_hint(self):
-        """Say which way the trim moves the shot on the mark's arc: more
-        elevation carries farther on the low arc, nearer on the high arc."""
-        weapon = self.current_weapon()
-
-        high = weapon is not None and self.mark_arc(weapon) == "high"
-
-        self.trim_entry.setPlaceholderText(tr("trim_hint_high" if high else "trim_hint"))
-
-    def show_trim(self):
-        """Load the trim of the current weapon into the controls."""
-        weapon = self.current_weapon()
-
-        self.trim_box.setVisible(weapon is not None and weapon.aim == "overlay")
-
-        self.update_trim_hint()
-
-        self.trim_entry.set_value(self.current_trim(weapon))
-
-        self.miss_entry.clear()
-
-        self.trim_status.setText("")
-
-    def set_trim(self, trim):
-        """Store `trim` (degrees, limited and rounded to 0.001) for the
-        current weapon; the mark and the ladder follow at once."""
-        weapon = self.current_weapon()
-
-        if weapon is None:
-            return
-
-        trim = round(clamp_trim(trim), 3) + 0.0
-
-        if trim:
-            self.config["mark_trim"][weapon.name] = trim
-        else:
-            self.config["mark_trim"].pop(weapon.name, None)
-
-        self.schedule_save()
-
-        self.recalculate_if_ready()
-
-    def on_trim_edited(self, *_):
-        """The trim was typed or stepped: store it (limited); a value over the
-        limit is shown as the limit."""
-        value = self.trim_entry.value(0.0)
-
-        self.set_trim(value)
-
-        if abs(value) > TRIM_LIMIT:
-            self.trim_entry.set_value(self.current_trim(self.current_weapon()))
-
-        self.trim_status.setText("")
-
-    def reset_trim(self):
-        """Remove the trim of the current weapon."""
-        self.set_trim(0.0)
-
-        self.show_trim()
-
-    def apply_landing(self):
-        """Set the trim from one real shot: fired at the typed distance (and
-        height difference) on the chosen arc, it missed by the typed miss
-        (positive: landed past the target, negative: short of it), so it
-        landed at the distance plus the miss. The status shows the new trim,
-        or what is wrong with the numbers.
-
-        A hold weapon's lob (AGS-17 high arc) is laid by holding the key,
-        not with the mark, so its landing is refused: it must not change
-        the direct-fire trim. Where the lob cannot reach, the shot is the
-        direct fire (as `calculate` shows it), so its landing is applied.
-        """
-        weapon = self.current_weapon()
-
-        if weapon is None:
-            return
-
-        distance = self.distance_entry.value()
-        miss = self.miss_entry.value()
-        height = self.height_entry.value(0.0)
-
-        try:
-            if distance is None:
-                raise ValueError(tr("enter_distance"))
-
-            if miss is None:
-                raise ValueError(tr("enter_miss"))
-
-            arc = resolve_arc(weapon, self.config["arc"])
-
-            if weapon.has_hold and arc == "high":
-                if solve(weapon, distance, height, "high").reachable:
-                    raise ValueError(tr("trim_lob_refused"))
-
-                arc = "low"
-
-            trim = trim_for_landing(
-                weapon,
-                distance,
-                height,
-                distance + miss,
-                self.current_trim(weapon),
-                arc
-            )
-        except ValueError as e:
-            self.trim_status.setText(str(e))
-            return
-        except ArithmeticError:
-            self.trim_status.setText(tr("bad_number"))
-            return
-
-        self.set_trim(trim)
-
-        trim = self.current_trim(weapon)
-
-        self.show_trim()
-
-        self.trim_status.setText(
-            tr("trim_set_limit" if abs(trim) >= TRIM_LIMIT else "trim_set", trim=f"{trim:+g}")
-        )
-
     def on_arc_changed(self, key):
-        """Fire on arc `key` ("auto", "low" or "high"): the trim's hint and
-        the result follow."""
+        """Fire on arc `key` ("auto", "low" or "high"): the result follows."""
         self.config["arc"] = key
 
         self.schedule_save()
-
-        self.update_trim_hint()
-
-        self.trim_status.setText("")
 
         self.recalculate_if_ready()
 
@@ -1207,6 +1026,96 @@ class MainWindow(QMainWindow):
             text = tr("map_target", t="  ·  ".join(parts))
 
         self.map_label.setText(text)
+
+    def active_fov(self):
+        """The FOV (degrees) every mark is laid for: the game's own while its
+        settings give one, else the one typed in the app."""
+        if self.game_settings is not None and self.game_settings.fov is not None:
+            return self.game_settings.fov
+
+        return self.config["fov"]
+
+    def load_game_settings(self):
+        """Read the game's settings file again, remembering which file state
+        (path and modification time) it was read from. None when the game's
+        settings are not found."""
+        path = find_game_settings()
+
+        try:
+            stamp = (path, os.stat(path).st_mtime_ns) if path else None
+        except OSError:
+            path = stamp = None
+
+        self.game_settings_stamp = stamp
+        self.game_settings = read_game_settings(path) if path else None
+
+    def watch_game_settings(self):
+        """Follow the game's settings file: when it appeared, went or was
+        rewritten, read it and lay the marks for the new FOV and screen."""
+        old = self.game_settings_stamp
+
+        path = find_game_settings()
+
+        try:
+            stamp = (path, os.stat(path).st_mtime_ns) if path else None
+        except OSError:
+            stamp = None
+
+        if stamp == old:
+            return
+
+        self.load_game_settings()
+
+        self.show_fov_source()
+
+        self.show_game_screen()
+
+        self.recalculate_if_ready()
+
+    def show_fov_source(self):
+        """Show where the FOV comes from. Taken from the game, the field
+        shows it and cannot be edited; otherwise it holds the typed FOV and
+        the text says it is not the game's."""
+        from_game = self.game_settings is not None and self.game_settings.fov is not None
+
+        self.fov_entry.setEnabled(not from_game)
+
+        if from_game:
+            self.fov_entry.set_value(self.game_settings.fov)
+
+            self.fov_source_label.setText(tr("fov_from_game", fov=f"{self.game_settings.fov:g}"))
+        else:
+            self.fov_entry.set_value(self.config["fov"])
+
+            self.fov_source_label.setText(tr("fov_not_from_game"))
+
+        self.fov_source_label.setProperty("state", "" if from_game else "error")
+
+        self.fov_source_label.style().unpolish(self.fov_source_label)
+        self.fov_source_label.style().polish(self.fov_source_label)
+
+    def show_game_screen(self):
+        """Warn when the game does not fill the overlay's screen, which
+        puts every mark off (gamesettings.screen_mismatch)."""
+        settings = self.game_settings
+        width, height = self.overlay.width(), self.overlay.height()
+
+        if settings is None or not screen_mismatch(settings, width, height):
+            self.game_screen_label.setVisible(False)
+            return
+
+        if settings.window_mode == WINDOWED:
+            text = tr("game_windowed")
+        else:
+            text = tr(
+                "game_resolution",
+                game=f"{settings.width}x{settings.height}",
+                screen=f"{width}x{height}"
+            )
+
+        self.game_screen_label.setText(text)
+
+        self.game_screen_label.setVisible(True)
 
     def check_screen_ratio(self):
         """Tell once per session that the overlay's screen is not 16:9: the
@@ -1352,7 +1261,8 @@ class MainWindow(QMainWindow):
         # The FOV applies without a distance too: the range ladder follows it.
         fov = self.fov_entry.value()
 
-        if fov is not None and RANGES["fov"][0] <= fov <= RANGES["fov"][1] \
+        if self.fov_entry.isEnabled() and fov is not None \
+                and RANGES["fov"][0] <= fov <= RANGES["fov"][1] \
                 and self.config["fov"] != fov:
             self.config["fov"] = fov
             self.schedule_save()
@@ -1456,7 +1366,7 @@ class MainWindow(QMainWindow):
         the how-to steps.
 
         Weapons aimed with the overlay are read over the line of sight with
-        their trim (as `mark_offset` lays the mark); a hold weapon's lob is
+        (as `mark_offset` lays the mark); a hold weapon's lob is
         read as the hold time, with its direct-fire aim beside it; weapons laid
         by elevation are read to the horizon.
         """
@@ -1491,16 +1401,12 @@ class MainWindow(QMainWindow):
 
         self.overlay.set_offset(offset)
 
-        # The mark is laid for the barrel raised by the trim too
-        # (mark_offset): every angle shown with it includes the trim.
-        trim = self.current_trim(weapon) if weapon.aim == "overlay" else 0.0
-
         # Weapons aimed with the overlay are laid relative to the target, not
         # the horizon (see Solution.sight_angle).
-        aimed = solution.sight_angle + trim if weapon.aim == "overlay" else solution.angle
+        aimed = solution.sight_angle if weapon.aim == "overlay" else solution.angle
 
         direct_text = (
-            format_angle(direct.sight_angle + trim, unit)
+            format_angle(direct.sight_angle, unit)
             if direct is not None else ""
         )
 
@@ -1515,9 +1421,6 @@ class MainWindow(QMainWindow):
 
         if weapon.view:
             info = self.view_tag(weapon) + "  ·  " + info
-
-        if trim:
-            info += "  ·  " + tr("info_trim", trim=f"{trim:+g}")
 
         if direct is not None:
             info += "  ·  " + tr("direct_short", angle=direct_text)
@@ -1569,7 +1472,7 @@ class MainWindow(QMainWindow):
 
             if weapon.aim == "overlay":
                 sub += "  ·  " + tr(
-                    "to_horizon", angle=format_angle(solution.angle + trim, "deg")
+                    "to_horizon", angle=format_angle(solution.angle, "deg")
                 )
 
             if laid_by_angle:
@@ -1618,15 +1521,14 @@ class MainWindow(QMainWindow):
             )
 
             # Read as the main result reads that arc: an overlay weapon's
-            # direct fire over the line of sight (with the trim, like the
-            # "direct fire" text), its lob by the hold; weapons laid by
-            # elevation to the horizon.
+            # direct fire over the line of sight,
+            # its lob by the hold; weapons laid by elevation to the horizon.
             if weapon.aim != "overlay":
                 alt_text = format_angle(alt, unit)
             elif math.isfinite(alt_solution.hold_time):
                 alt_text = f"S {alt_solution.hold_time:.2f} {s}"
             else:
-                alt_text = format_angle(alt_solution.sight_angle + trim, unit)
+                alt_text = format_angle(alt_solution.sight_angle, unit)
 
             self.stats["stat_alt"].set(alt_text)
 
@@ -1675,9 +1577,6 @@ class MainWindow(QMainWindow):
                         tr("how_overlay_on", hotkey=toggle_key)
                         + " " + steps[0]
                     )
-
-            if trim:
-                steps.append(tr("how_trim", trim=f"{trim:+g}"))
 
             steps.append(
                 tr(
@@ -1737,14 +1636,13 @@ class MainWindow(QMainWindow):
             notes.append(tr("info_lift", lift=f"{lift:+g}"))
 
         scale = self.config["offset_scale"] / 100
-        trim = self.current_trim(weapon)
         width = self.overlay.screen_width()
 
         if self.overlay.is_offscreen(offset):
             top, bottom = self.overlay.mark_bounds()
             nearest, farthest = mark_visible_range(
                 weapon, solution.height_diff, fov, width, top, bottom,
-                scale, trim, arc, lift
+                scale, arc, lift
             )
 
             where = ""
@@ -1760,7 +1658,7 @@ class MainWindow(QMainWindow):
         measure = mark_height_resolution if direct else mark_resolution
         metres = measure(
             weapon, solution.distance, solution.height_diff, fov, width,
-            scale, trim, arc, lift
+            scale, arc, lift
         )
 
         if metres is None:
@@ -1812,13 +1710,10 @@ class MainWindow(QMainWindow):
             steps.append(tr("how_blocked_all"))
             return steps
 
-        # As the mark is laid: with the trim of an overlay weapon.
-        trim = self.current_trim(weapon) if weapon.aim == "overlay" else 0.0
-
         if weapon.has_hold and alt_solution.arc == "high":
             aim = f"S {alt_solution.hold_time:.2f} {tr('unit_s')}"
         elif weapon.aim == "overlay" or weapon.has_hold:
-            aim = format_angle(alt_solution.sight_angle + trim, unit)
+            aim = format_angle(alt_solution.sight_angle, unit)
         else:
             aim = format_angle(alt_solution.angle, unit)
 
@@ -2509,7 +2404,7 @@ class MainWindow(QMainWindow):
         if weapon is None:
             return screen_offset(
                 solution.sight_angle,
-                self.config["fov"],
+                self.active_fov(),
                 self.overlay.screen_width(),
                 self.config["offset_scale"] / 100
             )
@@ -2517,10 +2412,9 @@ class MainWindow(QMainWindow):
         return mark_offset(
             weapon,
             solution.sight_angle,
-            self.config["fov"],
+            self.active_fov(),
             self.overlay.screen_width(),
-            self.config["offset_scale"] / 100,
-            trim=self.current_trim(weapon)
+            self.config["offset_scale"] / 100
         )
 
     def how_overlay_view(self, weapon, fov):
@@ -2560,19 +2454,18 @@ class MainWindow(QMainWindow):
 
         self.overlay.set_ladder(range_ladder(
             weapon,
-            self.config["fov"],
+            self.active_fov(),
             self.overlay.screen_width(),
             first,
             spacing,
             reach,
-            self.config["offset_scale"] / 100,
-            trim=self.current_trim(weapon)
+            self.config["offset_scale"] / 100
         ))
 
     def reset_offset(self):
         """Clear the target (Reset, the reset hotkey): the distance and the
-        map target go with the result, so no later recalculation (an arc,
-        trim or alignment change) brings the mark back. The height, the FOV
+        map target go with the result, so no later recalculation (an arc
+        or alignment change) brings the mark back. The height, the FOV
         and the alignment stay."""
         self.distance_entry.clear()
 
@@ -2599,7 +2492,7 @@ class MainWindow(QMainWindow):
     def toggle_view(self):
         """Switch the picked RMB sight to its other view, optic <-> no optic
         (the toggle-view hotkey, Mouse4 by default). The distance and the
-        target stay; the trim is the other entry's own. A weapon without an
+        target stay. A weapon without an
         RMB sight ignores it."""
         twin = view_twin(self.weapons, self.picker.current)
 
@@ -3094,13 +2987,11 @@ class MainWindow(QMainWindow):
         self.recalculate_if_ready()
 
     def set_distance_step(self, step):
-        """Step the distance and the miss (wheel, arrow keys, distance
+        """Step the distance (wheel, arrow keys, distance
         hotkeys) by `step` metres."""
         self.config["distance_step"] = step
 
         self.distance_entry.step = step
-
-        self.miss_entry.step = step
 
         self.schedule_save()
 
@@ -3160,7 +3051,7 @@ class MainWindow(QMainWindow):
 
     def reset_settings(self):
         """After the player confirms, put every setting back to its default
-        (trims and calibrations too) and rebuild the UI; the typed inputs stay."""
+        (calibrations too) and rebuild the UI; the typed inputs stay."""
         answer = QMessageBox.question(
             self,
             "Squad Ballistics",
@@ -3190,7 +3081,7 @@ class MainWindow(QMainWindow):
         self.apply_lay_rates()
 
         # rebuild() keeps the typed inputs; the FOV is a setting.
-        self.fov_entry.set_value(self.config["fov"])
+        self.show_fov_source()
 
         self.update_ladder()
 

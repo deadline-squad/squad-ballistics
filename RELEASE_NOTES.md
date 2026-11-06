@@ -1,3 +1,14 @@
+## Squad Ballistics 1.6.3
+
+Изменения с версии 1.6.2. / Changes since 1.6.2.
+
+### Изменено / Changed
+- **FOV берётся из настроек игры:** при запуске и при каждом изменении файла `GameUserSettings.ini` игры (Steam Proton, любая библиотека Steam, в том числе из `libraryfolders.vdf`) программа читает оттуда FOV и считает по нему все метки; окно пишет «FOV 120, from the game», и поле не переопределяет значение игры. Если файла или значения (60–120) нет, поле «FOV» работает как раньше (по умолчанию 120), а окно пишет, что FOV не из игры. Формат файла проверен на синтетическом файле: настоящего файла игры на машине разработки нет. / The FOV comes from the game's settings: at the start and whenever the game's `GameUserSettings.ini` changes (Steam Proton, any Steam library, including those listed in `libraryfolders.vdf`) the app reads the FOV from it and lays every mark for it; the window says "FOV 120, from the game" and the field does not override the game's value. If the file or the value (60-120) is not found, the *FOV* field works as before (default 120) and the window says the FOV is not from the game. The file format was tested on a synthetic file only: there is no real game file on the development machine.
+- **Предупреждение об экране игры:** из того же файла читаются разрешение и режим окна; если игра в окне или в другом разрешении, чем экран оверлея, окно предупреждает, что метка упадёт мимо. / A warning about the game's screen: the resolution and window mode are read from the same file; if the game is windowed or runs at another resolution than the overlay's screen, the window warns that the mark will land off.
+
+### Удалено / Removed
+- **Поправка метки (trim) убрана целиком:** поля *Miss, m*, *Trim, deg*, кнопки Apply и Reset trim, «trim» в строке оверлея и шагах «How to fire», `mark_trim` в настройках. Игроку не нужно знать, какую поправку вводить: метка считается по данным игры и FOV игры. Сохранённые `mark_trim` из старых версий читаются без ошибок и не влияют на метку; при следующем сохранении они пропадают из файла. / The mark correction (trim) is gone: the *Miss, m* and *Trim, deg* fields, the Apply and Reset trim buttons, "trim" in the overlay line and the how-to steps, and `mark_trim` in the settings. The player does not have to know what trim to enter: the mark is laid from the game's data and the game's FOV. A `mark_trim` saved by an older version loads without errors, does not affect the mark and disappears from the file on the next save.
+
 ## Squad Ballistics 1.6.2
 
 Изменения с версии 1.6.1. / Changes since 1.6.1.

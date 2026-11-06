@@ -1,5 +1,5 @@
 """Behaviour of config.py found by mutation testing (mutmut): the folders,
-the saved trims and rates, the numeric limits and the files written."""
+the saved rates, the numeric limits and the files written."""
 
 import json
 import os
@@ -33,12 +33,6 @@ def test_the_hold_rates_are_those_of_the_weapons_laid_by_elevation():
     assert config.file_hold_rates() == {MORTAR: 9.0}
 
 
-def test_the_plain_view_of_an_rmb_sight_is_its_twin_and_other_names_stay():
-    assert config.plain_view_name("QLZ87 · optic (RMB ×3)") == "QLZ87 · no optic"
-    assert config.plain_view_name("Hell Cannon") == "Hell Cannon"
-    assert config.plain_view_name("not a weapon") == "not a weapon"
-
-
 def test_lay_rates_within_30_percent_of_the_file_are_kept_and_others_dropped():
     base = 9.0
 
@@ -53,42 +47,6 @@ def test_lay_rates_within_30_percent_of_the_file_are_kept_and_others_dropped():
     assert config._valid_lay_rates({MORTAR: base * 0.69}) == {}
     assert config._valid_lay_rates({MORTAR: 0, "A": -1, "B": True, "C": "9", "D": float("nan")}) == {}
     assert config._valid_lay_rates({5: 9.0}) == {}
-
-
-def test_mark_trims_are_clamped_and_zero_or_junk_is_dropped():
-    trims = config._valid_mark_trims({
-        "SPG-9 · HEAT": 0.35,
-        "SPG-9 · FRAG": 99,
-        "AT-4": -99,
-        "Zero": 0,
-        "Junk": "1",
-        "Bool": True,
-        "": 1.0,
-        5: 1.0,
-        "Inf": float("inf"),
-    })
-
-    assert trims == {"SPG-9 · HEAT": 0.35, "SPG-9 · FRAG": config.clamp_trim(99), "AT-4": config.clamp_trim(-99)}
-    assert trims["SPG-9 · FRAG"] == 5.0 and trims["AT-4"] == -5.0
-
-
-def test_a_trim_saved_per_view_keeps_only_the_plain_one_under_the_plain_views_name():
-    trims = config._valid_mark_trims({
-        "QLZ87|plain": 0.2,
-        "QLZ87|optic": 0.4,
-        "QLZ87|optic2": 0.6,
-        "SPG-9 · HEAT|plain": 0.3,
-        "|plain": 0.9,
-        "AT-4|plain": 0,
-    })
-
-    assert trims == {"QLZ87 · no optic": 0.2, "SPG-9 · HEAT": 0.3}
-
-
-def test_a_renamed_weapons_trim_follows_its_new_name():
-    trims = config._valid_mark_trims({"QLZ87": 0.5})
-
-    assert trims == {"QLZ87 · optic (RMB ×3)": 0.5}
 
 
 def test_numbers_are_clamped_to_their_range_and_fractions_only_where_allowed():
@@ -117,7 +75,6 @@ def test_merge_keeps_valid_values_and_drops_the_rest_one_by_one():
         "last_weapon": "QLZ87",
         "hotkeys": {"toggle_overlay": "F5", "reset_offset": 5, "bogus": "F1"},
         "map_external": True,
-        "mark_trim": "text",
         "lay_rates": [],
     })
 
@@ -133,7 +90,25 @@ def test_merge_keeps_valid_values_and_drops_the_rest_one_by_one():
     assert merged["hotkeys"]["reset_offset"] == "F9"
     assert "bogus" not in merged["hotkeys"]
     assert merged["map_external"] is True
-    assert merged["mark_trim"] == {} and merged["lay_rates"] == {}
+    assert merged["lay_rates"] == {}
+
+
+def test_trims_saved_by_an_older_version_are_dropped_and_not_written_back(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({
+        "fov": 110,
+        "mark_trim": {"AT-4": 0.5, "QLZ87|plain": -1.2},
+    }))
+
+    loaded, bad = config.read_config(str(path))
+
+    assert bad is None
+    assert "mark_trim" not in loaded
+    assert loaded["fov"] == 110
+
+    config.save_config(loaded, str(path))
+
+    assert "mark_trim" not in json.loads(path.read_text())
 
 
 def test_merge_of_something_else_than_an_object_is_the_defaults():
@@ -154,10 +129,8 @@ def test_a_new_action_whose_key_is_used_by_a_saved_one_is_left_unbound():
 def test_the_defaults_are_never_shared_with_a_loaded_config():
     merged = config._merge({})
     merged["hotkeys"]["toggle_overlay"] = "X"
-    merged["mark_trim"]["a"] = 1
 
     assert config.DEFAULT_CONFIG["hotkeys"]["toggle_overlay"] == "F8"
-    assert config.DEFAULT_CONFIG["mark_trim"] == {}
 
 
 def test_reading_nested_json_deeper_than_the_parser_allows_is_an_error(tmp_path):
@@ -313,16 +286,6 @@ def test_a_dropped_lay_rate_does_not_stop_the_ones_after_it():
     assert rates == {"Other": 3.0}
 
 
-def test_junk_trim_entries_do_not_stop_the_ones_after_them():
-    for junk in ({5: 1.0}, {"": 1.0}, {"Other|optic": 1.0}, {"Other|": 1.0}, {"Other": "x"}):
-        assert config._valid_mark_trims({**junk, "AT-4": 0.5}) == {"AT-4": 0.5}
-
-
-def test_a_trim_key_is_split_at_its_last_bar():
-    assert config._valid_mark_trims({"Odd|name|plain": 0.5}) == {"Odd|name": 0.5}
-    assert config._valid_mark_trims({"Odd|plain|optic": 0.5}) == {}
-
-
 def test_a_setting_missing_from_the_file_does_not_stop_the_ones_after_it():
     merged = config._merge({"arc": "high", "map_follow": False})
 
@@ -331,7 +294,7 @@ def test_a_setting_missing_from_the_file_does_not_stop_the_ones_after_it():
 
 
 def test_every_default_setting_is_checked_by_a_branch_of_its_own():
-    special = {"hotkeys", "recent_weapons", "lay_rates", "mark_trim", "last_weapon"}
+    special = {"hotkeys", "recent_weapons", "lay_rates", "last_weapon"}
     plain = {
         key: default for key, default in config.DEFAULT_CONFIG.items()
         if key not in special and key not in config.CHOICES

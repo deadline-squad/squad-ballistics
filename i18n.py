@@ -23,22 +23,19 @@ STRINGS = {
     "height_hint": "target higher +, lower −",
     "fov": "FOV",
     "fov_hint": "horizontal FOV",
-    "trim": "Trim, deg",
-    "trim_hint": "+ farther, − nearer",
-    "trim_hint_high": "high arc: + nearer, − farther",
-    "miss": "Miss, m",
-    "miss_hint": "+ past the target, − short",
-    "trim_apply": "Apply",
-    "trim_reset": "Reset trim",
-    "enter_miss": "Enter how far the shot missed: + past the target, − short of it",
-    "trim_set": "Trim set to {trim} deg",
-    "trim_set_limit": "Trim set to {trim} deg (the limit)",
-    "trim_lob_refused": (
-        "Not applied: the lob is laid by holding S, not with the mark, so "
-        "its landing says nothing about the trim. Set the trim from a "
-        "direct-fire shot on the Low arc."
+    "fov_from_game": "FOV {fov}, from the game",
+    "fov_not_from_game": (
+        "Not from the game: its settings file or the FOV in it was not found. "
+        "Type the FOV you play with."
     ),
-    "info_trim": "trim {trim}",
+    "game_windowed": (
+        "The game runs in a window, so the marks land off. Play in full "
+        "screen or windowed fullscreen."
+    ),
+    "game_resolution": (
+        "The game resolution {game} differs from the screen {screen}, so the "
+        "marks land off. Set the game to the screen's resolution."
+    ),
     "info_lift": "aim {lift} m",
     "info_pixel": "1 px = {m} m",
     "info_pixel_high": "1 px = {m} m high",
@@ -46,10 +43,6 @@ STRINGS = {
     "info_pixel_coarse": "too coarse for marker aiming",
     "info_offscreen_far": "mark off screen past {limit} m",
     "info_offscreen_near": "mark off screen closer than {limit} m",
-    "how_trim": (
-        "Your trim {trim}° is on for this weapon and view "
-        "(Reset trim removes it)."
-    ),
     "calculate": "Calculate",
     "reset_aim": "Reset",
     "ready": "Enter the distance",

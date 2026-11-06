@@ -106,20 +106,6 @@ def test_mouse4_switches_the_view_and_everything_follows(pressed_window):
     assert "optic ×4" in window.overlay.info_text
 
 
-def test_the_trim_belongs_to_each_entry(pressed_window):
-    window, pressed = pressed_window
-    window.select_weapon(OPTIC)
-    window.set_trim(0.5)
-
-    click(window, pressed)
-    assert window.current_trim(window.current_weapon()) == 0.0
-    window.set_trim(-0.25)
-
-    click(window, pressed)
-    assert window.current_trim(window.current_weapon()) == 0.5
-    assert window.trim_entry.value() == 0.5
-
-
 def test_mouse4_does_nothing_for_a_weapon_without_an_rmb_sight(pressed_window):
     window, pressed = pressed_window
     window.select_weapon("AT-4")

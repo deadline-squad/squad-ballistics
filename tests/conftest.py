@@ -7,6 +7,8 @@ The tests never touch the developer's files or the network:
   `config.CONFIG_PATH`, `crash.log`, the instance lock and the map's
   WebEngine profile (cookies, tile cache) live there, not in ~/.config,
   ~/.cache and ~/.local/share.
+* No test looks for the player's Steam folders: `gamesettings.STEAM_ROOTS`
+  is empty unless a test sets it.
 * The map's WebEngine profile refuses every http(s) request
   (`BlockedRequests`): pages load the live SquadCalc only in name, so a
   test still sees which URL was asked for (`requestedUrl()`) without the
@@ -98,6 +100,14 @@ def qapp():
             pass
 
     yield _APP[0]
+
+
+@pytest.fixture(autouse=True)
+def no_steam_folders(monkeypatch):
+    """Keep the game's real settings file out of every test."""
+    import gamesettings
+
+    monkeypatch.setattr(gamesettings, "STEAM_ROOTS", ())
 
 
 @pytest.fixture

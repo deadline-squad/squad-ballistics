@@ -2309,8 +2309,8 @@ def test_the_other_arc_tile_reads_as_the_main_result(window):
 
 
 def test_reset_clears_the_target_for_good(window):
-    """Reset (F9) clears the distance and the map target: a later arc,
-    trim or alignment change does not bring the mark back."""
+    """Reset (F9) clears the distance and the map target: a later arc
+    or alignment change does not bring the mark back."""
     from maplink import MapTarget
 
     window.select_weapon("M203 / M320 / GP-25 / HK79 / SL40")
@@ -2323,7 +2323,6 @@ def test_reset_clears_the_target_for_good(window):
     assert window.overlay.offset == 0
 
     window.on_arc_changed("low")
-    window.set_trim(0.5)
     window.controls["center_offset_y"].slider.setValue(10)
     assert window.last_solution is None
     assert window.overlay.offset == 0
@@ -2339,14 +2338,6 @@ def test_the_alignment_caption_names_the_reset_key(window):
 
     window.set_hotkey("reset_offset", "")
     assert f"{tr('reset_aim')} clears the target" in window.align_caption.text()
-
-
-def test_the_distance_step_applies_to_the_landed_distance_too(window):
-    assert window.config["distance_step"] != 50
-    window.set_distance_step(50)
-
-    assert window.distance_entry.step == 50
-    assert window.miss_entry.step == 50
 
 
 def test_the_ladder_ends_at_the_screen_edge_below_the_aligned_centre(window):

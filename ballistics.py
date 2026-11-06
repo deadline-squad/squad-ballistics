@@ -1457,25 +1457,11 @@ LADDER_MAX_TICKS = 24
 LADDER_MAX_DISTANCE = 8000
 
 
-# The most the field trim may add to or take off the barrel elevation (degrees).
-TRIM_LIMIT = 5.0
-
-
-def clamp_trim(trim):
-    """`trim` limited to +-TRIM_LIMIT degrees."""
-    return max(-TRIM_LIMIT, min(TRIM_LIMIT, trim))
-
-
-def mark_offset(weapon, sight_angle, fov, screen_width, scale=1.0, trim=0.0):
+def mark_offset(weapon, sight_angle, fov, screen_width, scale=1.0):
     """Pixels below the screen centre to put the target on, for a shot
     `sight_angle` degrees over the line of sight (`Solution.sight_angle`)
     from the view `Weapon.sight_view` gives: the shot already leaves `bore`
     degrees above the centre, so the mark is that much higher.
-
-    `trim` (degrees, limited to +-TRIM_LIMIT) is the player's field
-    correction of the weapon, added to the barrel elevation: positive raises
-    the barrel, so the shot goes farther and the mark moves down. It is an
-    angle, so one value is right at every range.
 
     A view narrower than 1 degree (a small FOV through a strong sight) is
     held at 1 degree, the narrowest `screen_offset` takes; the mark is not
@@ -1487,7 +1473,7 @@ def mark_offset(weapon, sight_angle, fov, screen_width, scale=1.0, trim=0.0):
     view_fov, bore = weapon.sight_view(fov)
 
     return screen_offset(
-        sight_angle - bore + clamp_trim(trim),
+        sight_angle - bore,
         max(view_fov, 1.0),
         screen_width,
         scale
@@ -1507,8 +1493,7 @@ MARK_PIXEL_LIMIT = 5.0
 MARK_HEIGHT_LIMIT = 0.6
 
 
-def _mark_at(weapon, distance, height, fov, screen_width, scale, trim, arc,
-             aim_lift):
+def _mark_at(weapon, distance, height, fov, screen_width, scale, arc, aim_lift):
     """Pixels below the centre of the mark for a target at `distance` and
     `height`, None when the target cannot be hit on `arc`."""
     solution = solve(weapon, distance, height, arc, aim_lift)
@@ -1517,12 +1502,12 @@ def _mark_at(weapon, distance, height, fov, screen_width, scale, trim, arc,
         return None
 
     return mark_offset(
-        weapon, solution.sight_angle, fov, screen_width, scale, trim
+        weapon, solution.sight_angle, fov, screen_width, scale
     )
 
 
 def mark_resolution(weapon, distance, height, fov, screen_width, scale=1.0,
-                    trim=0.0, arc="low", aim_lift=0.0):
+                    arc="low", aim_lift=0.0):
     """Metres of range one pixel of the mark is worth for a target at
     `distance` and `height`, the same inputs `mark_offset` and `solve` take
     (`arc` is the one the mark is laid for, `aim_lift` as in `solve`).
@@ -1555,7 +1540,7 @@ def mark_resolution(weapon, distance, height, fov, screen_width, scale=1.0,
         if solution.reachable:
             points.append((at, mark_offset(
                 weapon, solution.angle - line_of_sight, fov, screen_width,
-                scale, trim
+                scale
             )))
 
     if len(points) < 2:
@@ -1571,7 +1556,7 @@ def mark_resolution(weapon, distance, height, fov, screen_width, scale=1.0,
 
 
 def mark_height_resolution(weapon, distance, height, fov, screen_width,
-                           scale=1.0, trim=0.0, arc="low", aim_lift=0.0):
+                           scale=1.0, arc="low", aim_lift=0.0):
     """Metres of height at the target one pixel of the mark is worth, for the
     same inputs as `mark_resolution`: how far above or below the target the
     path passes it when the player lays the target one pixel off the mark.
@@ -1584,7 +1569,7 @@ def mark_height_resolution(weapon, distance, height, fov, screen_width,
     the target only 0.17 m higher. None where `mark_resolution` is.
     """
     metres = mark_resolution(
-        weapon, distance, height, fov, screen_width, scale, trim, arc,
+        weapon, distance, height, fov, screen_width, scale, arc,
         aim_lift
     )
 
@@ -1597,7 +1582,7 @@ def mark_height_resolution(weapon, distance, height, fov, screen_width,
 
 
 def mark_visible_range(weapon, height, fov, screen_width, top, bottom,
-                       scale=1.0, trim=0.0, arc="low", aim_lift=0.0):
+                       scale=1.0, arc="low", aim_lift=0.0):
     """(nearest, farthest) range in metres whose mark lies between `top`
     and `bottom` pixels below the centre (`top` is negative above it), for
     targets `height` metres above the weapon's ground. A side is None when
@@ -1616,7 +1601,7 @@ def mark_visible_range(weapon, height, fov, screen_width, top, bottom,
 
     def offset_at(distance):
         return _mark_at(
-            weapon, distance, height, fov, screen_width, scale, trim, arc, aim_lift
+            weapon, distance, height, fov, screen_width, scale, arc, aim_lift
         )
 
     # The closest range the weapon can take on this arc: the low arc of a
@@ -1674,68 +1659,7 @@ def mark_visible_range(weapon, height, fov, screen_width, top, bottom,
     return nearest, farthest
 
 
-def trim_for_landing(weapon, distance, height, landed, trim=0.0, arc="low"):
-    """The trim that would have made a shot land at `distance`.
-
-    The player fired at `distance` (with `height` metres between the weapon
-    and the target ground, as in `solve`) on `arc` ("low", "high", or
-    None/"auto" for the weapon's default) with `trim` set, and the shot
-    landed at the horizontal distance `landed` on the same ground. The
-    barrel was off by the difference between the elevations for the two
-    ranges on that arc, so the new trim is
-    `trim + elevation(distance) - elevation(landed)`, limited to
-    +-TRIM_LIMIT. On the low arc it is positive when the shot landed short
-    (the barrel needs more elevation); on the high arc more elevation
-    shortens the shot, so it is negative then.
-
-    A hold weapon's high arc (the AGS-17 lob) is laid by holding a key, not
-    with the overlay mark, so its landing says nothing about the trim and
-    is refused.
-
-    Raises ValueError, with a message fit to show the player, when an
-    input is not a finite number, the arc is unknown or a hold lob, the
-    weapon is not aimed with the overlay or has no drop, or `distance` or
-    `landed` cannot be reached on that arc.
-    """
-    if weapon.aim != "overlay":
-        raise ValueError("This weapon is not aimed with the overlay mark")
-
-    if weapon.g == 0:
-        raise ValueError("This weapon has no drop, so there is nothing to trim")
-
-    arc = resolve_arc(weapon, arc)
-
-    if weapon.has_hold and arc == "high":
-        raise ValueError(
-            "The lob is laid by holding the key, not with the mark: "
-            "set the trim from a direct-fire shot"
-        )
-
-    for value in (distance, height, landed, trim):
-        if not isinstance(value, (int, float)) or not math.isfinite(value):
-            raise ValueError("Enter numbers for the distance, height and landing")
-
-    if distance <= 0:
-        raise ValueError("Distance must be greater than 0")
-
-    if landed <= 0:
-        raise ValueError("Landed distance must be greater than 0")
-
-    aimed = solve(weapon, distance, height, arc)
-
-    if not aimed.reachable:
-        raise ValueError(f"Distance: {aimed.reason}")
-
-    hit = solve(weapon, landed, height, arc)
-
-    if not hit.reachable:
-        raise ValueError(f"Landed at: {hit.reason}")
-
-    return clamp_trim(trim + aimed.angle - hit.angle)
-
-
-def range_ladder(weapon, fov, screen_width, first, spacing, reach, scale=1.0,
-                 trim=0.0):
+def range_ladder(weapon, fov, screen_width, first, spacing, reach, scale=1.0):
     """Range ticks of the overlay ladder: where to put a target at each
     range on flat ground, as [(distance m, pixels below the centre)].
 
@@ -1747,7 +1671,7 @@ def range_ladder(weapon, fov, screen_width, first, spacing, reach, scale=1.0,
     cannot reach (also where the projectile's `lifespan` ends), at `reach`
     pixels, after LADDER_MAX_TICKS or at LADDER_MAX_DISTANCE.
     The offsets are those of the overlay mark (`mark_offset` of the
-    low-arc `Solution.sight_angle`, with the weapon's `trim`); ranges
+    low-arc `Solution.sight_angle`); ranges
     above the centre (inside the sight's zero) get no tick. Empty for
     weapons laid by elevation and for weapons without gravity (every range
     is on the centre).
@@ -1771,7 +1695,7 @@ def range_ladder(weapon, fov, screen_width, first, spacing, reach, scale=1.0,
         sight_angle = angle - math.degrees(math.atan2(rise, distance))
 
         return mark_offset(
-            weapon, sight_angle, fov, screen_width, scale, trim
+            weapon, sight_angle, fov, screen_width, scale
         )
 
     ticks = []

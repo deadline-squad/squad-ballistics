@@ -1,7 +1,7 @@
 """Behaviour of ballistics.py found by mutation testing (mutmut) that the other
 test files did not pin: the flight of every weapon against the game's own
 substep integration (tests/flight.py, no code of the app), the straight-flight
-helpers, the weapons.json checks and the mark and trim geometry."""
+helpers, the weapons.json checks and the mark geometry."""
 
 import json
 import math
@@ -29,7 +29,6 @@ from ballistics import (
     screen_offset,
     solve,
     trajectory,
-    trim_for_landing,
     view_twin,
 )
 import ballistics
@@ -618,17 +617,17 @@ FOV = 90
 WIDTH = 1920
 
 
-def mark_at(weapon, distance, height=0.0, scale=1.0, trim=0.0, arc="low", lift=0.0):
+def mark_at(weapon, distance, height=0.0, scale=1.0, arc="low", lift=0.0):
     """Pixels below the centre of the mark of a target, None if it cannot be hit."""
     solution = solve(weapon, distance, height, arc, lift)
 
     if not solution.reachable:
         return None
 
-    return mark_offset(weapon, solution.sight_angle, FOV, WIDTH, scale, trim)
+    return mark_offset(weapon, solution.sight_angle, FOV, WIDTH, scale)
 
 
-def pixel_resolution(weapon, distance, height=0.0, scale=1.0, trim=0.0, arc="low", lift=0.0):
+def pixel_resolution(weapon, distance, height=0.0, scale=1.0, arc="low", lift=0.0):
     """Metres of range per pixel from the marks 1 cm either side of `distance`,
     all laid over the line of sight to the target itself."""
     centre = solve(weapon, distance, height, arc, lift)
@@ -636,7 +635,7 @@ def pixel_resolution(weapon, distance, height=0.0, scale=1.0, trim=0.0, arc="low
 
     def offset(at):
         angle = solve(weapon, at, height, arc, lift).angle - line_of_sight
-        return mark_offset(weapon, angle, FOV, WIDTH, scale, trim)
+        return mark_offset(weapon, angle, FOV, WIDTH, scale)
 
     return 0.02 / (offset(distance + 0.01) - offset(distance - 0.01))
 
@@ -645,8 +644,7 @@ def pixel_resolution(weapon, distance, height=0.0, scale=1.0, trim=0.0, arc="low
     {},
     {"height": 20.0},
     {"height": -15.0, "lift": 2.0},
-    {"trim": 2.0},
-    {"scale": 1.25, "trim": -1.5},
+    {"scale": 1.25},
 ])
 def test_a_pixel_of_the_mark_is_worth_the_range_the_marks_either_side_show(kwargs):
     weapon = Weapon.from_dict("w", {**SHELL, "launch_height": 1.5})
@@ -654,20 +652,20 @@ def test_a_pixel_of_the_mark_is_worth_the_range_the_marks_either_side_show(kwarg
 
     result = mark_resolution(
         weapon, 500.0, kwargs.get("height", 0.0), FOV, WIDTH, kwargs.get("scale", 1.0),
-        kwargs.get("trim", 0.0), "low", **lift
+        "low", **lift
     )
 
     assert result == pytest.approx(pixel_resolution(weapon, 500.0, **kwargs), rel=1e-5)
 
 
-def test_the_mark_resolution_defaults_are_no_trim_the_low_arc_and_no_lift():
+def test_the_mark_resolution_defaults_are_the_low_arc_and_no_lift():
     weapon = Weapon.from_dict("w", SHELL)
 
     assert mark_resolution(weapon, 500.0, 0.0, FOV, WIDTH) == mark_resolution(
-        weapon, 500.0, 0.0, FOV, WIDTH, 1.0, 0.0, "low", 0.0
+        weapon, 500.0, 0.0, FOV, WIDTH, 1.0, "low", 0.0
     )
     assert mark_height_resolution(weapon, 500.0, 0.0, FOV, WIDTH) == mark_height_resolution(
-        weapon, 500.0, 0.0, FOV, WIDTH, 1.0, 0.0, "low", 0.0
+        weapon, 500.0, 0.0, FOV, WIDTH, 1.0, "low", 0.0
     )
 
 
@@ -719,12 +717,12 @@ def test_a_pixel_of_the_mark_is_worth_the_height_the_path_passes_the_target_by()
         )
 
 
-def test_the_mark_of_a_lifted_aim_and_a_trim_is_what_the_visible_range_is_judged_by():
+def test_the_mark_of_a_lifted_aim_is_what_the_visible_range_is_judged_by():
     weapon = Weapon.from_dict("w", {**SHELL, "min_distance": 100})
-    options = {"scale": 1.1, "trim": 1.5, "arc": "low", "aim_lift": 2.0}
+    options = {"scale": 1.1, "arc": "low", "aim_lift": 2.0}
 
     def lifted(distance):
-        return mark_at(weapon, distance, 0.0, 1.1, 1.5, "low", 2.0)
+        return mark_at(weapon, distance, 0.0, 1.1, "low", 2.0)
 
     top = lifted(200.0)
     bottom = lifted(600.0)
@@ -801,44 +799,6 @@ def test_the_farthest_is_none_when_the_mark_stays_on_the_screen_to_the_end_of_th
     assert mark_visible_range(weapon, 0.0, FOV, WIDTH, 0.0, bottom)[1] is None
 
 
-# ---------- the trim ----------
-
-def test_a_trim_is_refused_with_the_reason_in_words():
-    shell = Weapon.from_dict("w", SHELL)
-    lob = Weapon.from_dict("l", {
-        **SHELL, "arc": "high", "aim": "overlay", "hold_rate": 10, "hold_elevation": [20, 80],
-    })
-
-    assert refusal(trim_for_landing, WEAPONS[MORTAR], 300.0, 0.0, 290.0) == (
-        "This weapon is not aimed with the overlay mark"
-    )
-    assert refusal(trim_for_landing, Weapon.from_dict("s", {"velocity": 100, "gravity": 0}), 300.0, 0.0, 290.0) == (
-        "This weapon has no drop, so there is nothing to trim"
-    )
-    assert refusal(trim_for_landing, lob, 300.0, 0.0, 290.0, arc="high") == (
-        "The lob is laid by holding the key, not with the mark: set the trim from a direct-fire shot"
-    )
-    for junk in (math.nan, "300", None, True and math.inf):
-        assert refusal(trim_for_landing, shell, junk, 0.0, 290.0) == (
-            "Enter numbers for the distance, height and landing"
-        )
-    assert refusal(trim_for_landing, shell, -1.0, 0.0, 290.0) == "Distance must be greater than 0"
-    assert refusal(trim_for_landing, shell, 300.0, 0.0, 0.0) == "Landed distance must be greater than 0"
-    assert refusal(trim_for_landing, shell, 5000.0, 0.0, 290.0).startswith("Distance: Out of range")
-    assert refusal(trim_for_landing, shell, 300.0, 0.0, 5000.0).startswith("Landed at: Out of range")
-
-
-def test_a_shot_one_metre_away_or_landing_one_metre_away_can_be_trimmed():
-    shell = Weapon.from_dict("w", SHELL)
-
-    assert trim_for_landing(shell, 1.0, 0.0, 2.0) == pytest.approx(
-        solve(shell, 1.0).angle - solve(shell, 2.0).angle
-    )
-    assert trim_for_landing(shell, 2.0, 0.0, 1.0) == pytest.approx(
-        solve(shell, 2.0).angle - solve(shell, 1.0).angle
-    )
-
-
 # ---------- the range ladder ----------
 
 def ladder_distances(weapon, *args, **kwargs):
@@ -895,10 +855,9 @@ def test_the_ladder_ends_at_the_greatest_distance_and_a_tick_exactly_there_is_ke
     assert ladder_distances(past, 1, 1, 100000) == []
 
 
-def test_the_ladder_follows_the_weapons_trim_launch_height_and_angle_scale():
+def test_the_ladder_follows_the_weapons_launch_height_and_angle_scale():
     base = {"velocity": 100}
 
-    assert ladder_distances(Weapon.from_dict("w", base), 40, 30, 5000, trim=1.5)[:3] == [50, 125, 200]
     assert ladder_distances(Weapon.from_dict("w", {**base, "angle_offset": 2.0}), 40, 30, 5000)[:3] == [175, 250, 350]
     lifted = Weapon.from_dict("w", {**base, "launch_height": 2.0})
     for distance, offset in range_ladder(lifted, FOV, WIDTH, 40, 30, 5000):
@@ -1199,7 +1158,7 @@ def test_a_boost_that_pushes_harder_than_gravity_pulls_has_no_apex_while_it_burn
     assert weapon.apex_height(math.radians(60.0), 25.0) == -math.inf
 
 
-# ---------- solve, the trim and the ladder: what is left ----------
+# ---------- solve and the ladder: what is left ----------
 
 def test_a_target_the_elevation_limits_refuse_still_has_the_speed_of_its_straight_line():
     weapon = Weapon.from_dict("w", {

@@ -592,11 +592,10 @@ def assert_valid(cfg):
 
     assert all(isinstance(v, str) for v in cfg["hotkeys"].values())
     assert all(isinstance(v, str) for v in cfg["recent_weapons"])
-    for table in ("lay_rates", "mark_trim"):
-        assert all(
-            isinstance(v, float) and v == v and abs(v) != float("inf")
-            for v in cfg[table].values()
-        ), table
+    assert all(
+        isinstance(v, float) and v == v and abs(v) != float("inf")
+        for v in cfg["lay_rates"].values()
+    )
     json.dumps(cfg, allow_nan=False)
 
 
