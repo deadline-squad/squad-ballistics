@@ -43,7 +43,7 @@ from PyQt6.QtGui import QImage, QPainter
 
 import config
 import overlay as overlay_module
-from ballistics import load_weapons
+from ballistics import load_weapons, mark_offset, solve
 from conftest import ROOT
 
 import flight
@@ -295,12 +295,52 @@ def lifespan_range(name):
     return low
 
 
+# A sight at this zoom or above shows a few degrees of elevation: the mark of most distances of the
+# weapon's range is past the edge of the screen, so its distances are those the mark stays on it for.
+NARROW_VIEW_ZOOM = 5.0
+NARROW_VIEW_FOV = min(FOVS)
+NARROW_VIEW_WIDTH = min(WIDTHS)
+NARROW_VIEW_SCALE = max(SCALES) / 100
+NARROW_VIEW_SHARE = 0.5
+
+
+def narrow_view_range(weapon):
+    """The farthest flat-ground distance whose mark is within half of the screen's half height at
+    the narrowest FOV, the widest calibration and the smallest screen (bisection: the mark of the low
+    arc moves down as the range grows)."""
+    limit = NARROW_VIEW_SHARE * NARROW_VIEW_WIDTH * 9 / 32
+
+    def pixels(distance):
+        solution = solve(weapon, distance, 0.0, "low")
+
+        if not solution.reachable:
+            return math.inf
+
+        return mark_offset(weapon, solution.sight_angle, NARROW_VIEW_FOV, NARROW_VIEW_WIDTH, NARROW_VIEW_SCALE)
+
+    low, high = max(weapon.min_distance, 30.0), LONGEST
+
+    for _ in range(50):
+        middle = (low + high) / 2
+
+        if pixels(middle) <= limit:
+            low = middle
+        else:
+            high = middle
+
+    return low
+
+
 def distances(name):
     """8 distances from 30 m to ~95 % of the weapon's longest range (at most
-    the map's width)."""
+    the map's width); for a sight with a narrow view (NARROW_VIEW_ZOOM) up to the
+    range its mark stays on the screen for."""
     weapon = LOADED[name]
     low = max(weapon.min_distance, 30.0)
     high = min(0.95 * longest(name), LONGEST)
+
+    if weapon.zoom >= NARROW_VIEW_ZOOM:
+        high = min(high, narrow_view_range(weapon))
 
     return sorted({
         round(low + (high - low) * i / (DISTANCE_STEPS - 1))
@@ -494,8 +534,14 @@ def print_report(request):
 GAME_VIEWS = [
     "QLZ87 · optic (RMB ×3)",
     "QLZ87 · no optic",
-    "QLZ87 · Lynx / CSK131 · optic (RMB ×3)",
-    "QLZ87 · Lynx / CSK131 · no optic",
+    "QLZ87 · Lynx · optic (RMB ×3)",
+    "QLZ87 · Lynx · no optic",
+    "QLZ87 · CSK131 / WZ551 · optic (RMB ×3)",
+    "QLZ87 · CSK131 / WZ551 · no optic",
+    "QLZ87 · ZBL08 · optic (RMB ×3)",
+    "QLZ87 · ZBL08 · no optic",
+    "QLZ87 · bunker tripod · optic (RMB ×3)",
+    "QLZ87 · bunker tripod · no optic",
     "AGS-17 · emplacement · optic (RMB ×2.5)",
     "AGS-17 · emplacement · no optic",
     "MK19 · emplacement / C16 / L134A1",

@@ -80,6 +80,13 @@ AIMS = ("overlay", "elevation")
 # The views of an RMB sight (`Weapon.view`); "" is a weapon without one.
 VIEWS = ("", "optic", "plain")
 
+# While the Focus key is held, the camera of a plain view of an open turret or a
+# tripod (`Weapon.focus_narrows_view`) lerps to this fraction of the FOV setting:
+# Multiply(0.666, FOV) in the bytecode of BP_GenericVehicleOpenTurret and
+# BP_GenericDeployableTripodVehicle (tools/game_weapons.py reads it as
+# `focus_view_factor`). The game lerps over time; the mark switches at once.
+FOCUS_FOV_FACTOR = 0.666
+
 
 # Weapons renamed when their data was checked against the game files (Squad build
 # 26005357): old weapons.json name -> current name. Settings saved by older
@@ -95,7 +102,11 @@ RENAMED_WEAPONS = {
     # The RMB sights that have a normal-view twin: the plain name used to be
     # the optic's, so it stays the optic's (a saved weapon keeps its meaning).
     "QLZ87": "QLZ87 · optic (RMB ×3)",
-    "QLZ87 · Lynx / CSK131": "QLZ87 · Lynx / CSK131 · optic (RMB ×3)",
+    "QLZ87 · Lynx / CSK131": "QLZ87 · Lynx · optic (RMB ×3)",
+    # The Lynx, the CSK131 with the WZ551, the ZBL-08 and the bunker tripod got entries of their own
+    # (Focus and the elevation limits differ); the Lynx is the name's first half.
+    "QLZ87 · Lynx / CSK131 · optic (RMB ×3)": "QLZ87 · Lynx · optic (RMB ×3)",
+    "QLZ87 · Lynx / CSK131 · no optic": "QLZ87 · Lynx · no optic",
     "AGS-17 · emplacement": "AGS-17 · emplacement · optic (RMB ×2.5)",
     "SPG-9 · HEAT · scope": "SPG-9 · HEAT · scope · optic (RMB ×4)",
     "SPG-9 · FRAG · scope": "SPG-9 · FRAG · scope · optic (RMB ×4)",
@@ -163,7 +174,8 @@ class Weapon:
     `zoom`; a barrel laid by holding a key, `hold_rate` (deg/s) and
     `hold_elevation`; `category`, `warhead` ("direct" or "splash": whether the
     round's burst reaches beyond 10 m, from the game files) and `note` for the
-    UI. An RMB sight that
+    UI; `focus_narrows_view` marks a plain view that the Focus key narrows to
+    `FOCUS_FOV_FACTOR` of the FOV (see `sight_view`). An RMB sight that
     zooms the screen comes as two entries, `view` "optic" (through the
     sight, RMB held) and its `twin`, `view` "plain" (the normal view, RMB
     not held); the other weapons have no `view`. Build one with
@@ -196,6 +208,7 @@ class Weapon:
     note: str = ""
     view: str = ""
     twin: str = ""
+    focus_narrows_view: bool = False
 
     @classmethod
     def from_dict(cls, name, data):
@@ -315,6 +328,14 @@ class Weapon:
                 "the 'optic' view, and only there"
             )
 
+        focus_narrows_view = data.get("focus_narrows_view", False)
+        if not isinstance(focus_narrows_view, bool):
+            raise WeaponDataError(f"{name}: 'focus_narrows_view' must be true or false")
+        if focus_narrows_view and zoom:
+            raise WeaponDataError(
+                f"{name}: only a plain view (no 'zoom') is narrowed by Focus"
+            )
+
         hold_rate = number("hold_rate", 0.0)
         if hold_rate < 0:
             raise WeaponDataError(f"{name}: 'hold_rate' must be >= 0")
@@ -371,6 +392,7 @@ class Weapon:
             note=str(data.get("note", "")),
             view=view,
             twin=twin,
+            focus_narrows_view=focus_narrows_view,
         )
 
     @property
@@ -461,16 +483,21 @@ class Weapon:
         t = self._axis_boost_time
         return self.velocity * t + 0.5 * self.acceleration * t * t
 
-    def sight_view(self, fov):
+    def sight_view(self, fov, focus=False):
         """(field of view, bore) of the view the weapon is aimed through.
 
         `fov` is the game's FOV setting; the game draws the weapon's sight
         at fov / `zoom` (a scope, an optic or a gunner's sight; 0 = the
-        plain view). The bore (degrees) is how far above the screen centre
-        the shot leaves: the game fires along the barrel socket
+        plain view). With `focus` (the Focus key held) a view that
+        `focus_narrows_view` is drawn at `FOCUS_FOV_FACTOR` of the FOV; other
+        views are not changed. The bore (degrees) is how far above the screen
+        centre the shot leaves: the game fires along the barrel socket
         (`Attach_Muzzle`), which can be tilted against the camera, so the
         view is zeroed at some range.
         """
+        if focus and self.focus_narrows_view:
+            fov *= FOCUS_FOV_FACTOR
+
         return fov / (self.zoom or 1.0), self.bore
 
     @property
@@ -1457,11 +1484,12 @@ LADDER_MAX_TICKS = 24
 LADDER_MAX_DISTANCE = 8000
 
 
-def mark_offset(weapon, sight_angle, fov, screen_width, scale=1.0):
+def mark_offset(weapon, sight_angle, fov, screen_width, scale=1.0, focus=False):
     """Pixels below the screen centre to put the target on, for a shot
     `sight_angle` degrees over the line of sight (`Solution.sight_angle`)
-    from the view `Weapon.sight_view` gives: the shot already leaves `bore`
-    degrees above the centre, so the mark is that much higher.
+    from the view `Weapon.sight_view` gives (`focus`: the Focus key is held):
+    the shot already leaves `bore` degrees above the centre, so the mark is
+    that much higher.
 
     A view narrower than 1 degree (a small FOV through a strong sight) is
     held at 1 degree, the narrowest `screen_offset` takes; the mark is not
@@ -1470,7 +1498,7 @@ def mark_offset(weapon, sight_angle, fov, screen_width, scale=1.0):
     if not 1 <= fov <= 179:
         raise ValueError("FOV must be between 1 and 179 degrees")
 
-    view_fov, bore = weapon.sight_view(fov)
+    view_fov, bore = weapon.sight_view(fov, focus)
 
     return screen_offset(
         sight_angle - bore,
@@ -1493,7 +1521,7 @@ MARK_PIXEL_LIMIT = 5.0
 MARK_HEIGHT_LIMIT = 0.6
 
 
-def _mark_at(weapon, distance, height, fov, screen_width, scale, arc, aim_lift):
+def _mark_at(weapon, distance, height, fov, screen_width, scale, arc, aim_lift, focus):
     """Pixels below the centre of the mark for a target at `distance` and
     `height`, None when the target cannot be hit on `arc`."""
     solution = solve(weapon, distance, height, arc, aim_lift)
@@ -1502,15 +1530,16 @@ def _mark_at(weapon, distance, height, fov, screen_width, scale, arc, aim_lift):
         return None
 
     return mark_offset(
-        weapon, solution.sight_angle, fov, screen_width, scale
+        weapon, solution.sight_angle, fov, screen_width, scale, focus
     )
 
 
 def mark_resolution(weapon, distance, height, fov, screen_width, scale=1.0,
-                    arc="low", aim_lift=0.0):
+                    arc="low", aim_lift=0.0, focus=False):
     """Metres of range one pixel of the mark is worth for a target at
     `distance` and `height`, the same inputs `mark_offset` and `solve` take
-    (`arc` is the one the mark is laid for, `aim_lift` as in `solve`).
+    (`arc` is the one the mark is laid for, `aim_lift` as in `solve`, `focus`
+    as in `mark_offset`).
 
     How far the shell lands from the target when the player lays the target
     one pixel off the mark: the elevations that land the shell 1 m either
@@ -1540,7 +1569,7 @@ def mark_resolution(weapon, distance, height, fov, screen_width, scale=1.0,
         if solution.reachable:
             points.append((at, mark_offset(
                 weapon, solution.angle - line_of_sight, fov, screen_width,
-                scale
+                scale, focus
             )))
 
     if len(points) < 2:
@@ -1556,7 +1585,7 @@ def mark_resolution(weapon, distance, height, fov, screen_width, scale=1.0,
 
 
 def mark_height_resolution(weapon, distance, height, fov, screen_width,
-                           scale=1.0, arc="low", aim_lift=0.0):
+                           scale=1.0, arc="low", aim_lift=0.0, focus=False):
     """Metres of height at the target one pixel of the mark is worth, for the
     same inputs as `mark_resolution`: how far above or below the target the
     path passes it when the player lays the target one pixel off the mark.
@@ -1570,7 +1599,7 @@ def mark_height_resolution(weapon, distance, height, fov, screen_width,
     """
     metres = mark_resolution(
         weapon, distance, height, fov, screen_width, scale, arc,
-        aim_lift
+        aim_lift, focus
     )
 
     if metres is None:
@@ -1582,7 +1611,7 @@ def mark_height_resolution(weapon, distance, height, fov, screen_width,
 
 
 def mark_visible_range(weapon, height, fov, screen_width, top, bottom,
-                       scale=1.0, arc="low", aim_lift=0.0):
+                       scale=1.0, arc="low", aim_lift=0.0, focus=False):
     """(nearest, farthest) range in metres whose mark lies between `top`
     and `bottom` pixels below the centre (`top` is negative above it), for
     targets `height` metres above the weapon's ground. A side is None when
@@ -1601,7 +1630,8 @@ def mark_visible_range(weapon, height, fov, screen_width, top, bottom,
 
     def offset_at(distance):
         return _mark_at(
-            weapon, distance, height, fov, screen_width, scale, arc, aim_lift
+            weapon, distance, height, fov, screen_width, scale, arc, aim_lift,
+            focus
         )
 
     # The closest range the weapon can take on this arc: the low arc of a
@@ -1659,7 +1689,8 @@ def mark_visible_range(weapon, height, fov, screen_width, top, bottom,
     return nearest, farthest
 
 
-def range_ladder(weapon, fov, screen_width, first, spacing, reach, scale=1.0):
+def range_ladder(weapon, fov, screen_width, first, spacing, reach, scale=1.0,
+                 focus=False):
     """Range ticks of the overlay ladder: where to put a target at each
     range on flat ground, as [(distance m, pixels below the centre)].
 
@@ -1695,7 +1726,7 @@ def range_ladder(weapon, fov, screen_width, first, spacing, reach, scale=1.0):
         sight_angle = angle - math.degrees(math.atan2(rise, distance))
 
         return mark_offset(
-            weapon, sight_angle, fov, screen_width, scale
+            weapon, sight_angle, fov, screen_width, scale, focus
         )
 
     ticks = []

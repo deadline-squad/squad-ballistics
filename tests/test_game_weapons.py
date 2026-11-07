@@ -33,11 +33,6 @@ with open(os.path.join(ROOT, "tests", "data", "game_weapons.json"), encoding="ut
 # against the camera's 0.1, so its 0.575 is written 0.58 and 0.57.
 BORE_ROUNDING = 0.0051
 
-# The AGS-17 hold tops are where the measured lay stops (85.87 and 89.52
-# degrees, tests/test_ballistics.py), 0.02 above the mount limits plus the
-# socket (85.85 and 89.5); the entries keep the measurement as their top.
-HOLD_TOP_OVER_LIMIT = 0.03
-
 
 def test_every_entry_has_its_game_values():
     assert set(GAME) == set(WEAPONS)
@@ -91,11 +86,7 @@ def test_the_elevation_limits_are_the_games(name):
     low, top = weapon.elevation_limits
 
     assert low == pytest.approx(game_low)
-
-    if weapon.has_hold:
-        assert game_top <= top <= game_top + HOLD_TOP_OVER_LIMIT
-    else:
-        assert top == pytest.approx(game_top)
+    assert top == pytest.approx(game_top)
 
 
 CONTACT_ENTRIES = [n for n in GAME if WEAPONS[n].category in DIRECT_HIT_CATEGORIES]
@@ -148,7 +139,9 @@ def test_the_vehicles_that_carry_the_ags17_mk19_and_spg9_have_entries():
     assert {n for n in VEHICLE_MOUNTS if n.startswith("MK19 · ")} == {
         "MK19 · AAVP-7A1", "MK19 · PARS III RWS", "MK19 · TAPV C16 RWS", "MK19 · M113 open turret",
         "MK19 · M113 open turret · no sights", "MK19 · M1151 open turret", "MK19 · M1151 open turret · no sights",
-        "MK19 · MATV open turret", "MK19 · MATV open turret · no sights"}
+        "MK19 · MATV open turret", "MK19 · MATV open turret · no sights",
+        "MK19 · AAVP-7A1 · gunner sight ×4.5", "MK19 · PARS III RWS · gunner sight ×3", "MK19 · PARS III RWS · gunner sight ×9",
+        "MK19 · TAPV C16 RWS · gunner sight ×5", "MK19 · TAPV C16 RWS · gunner sight ×12"}
     assert {n for n in VEHICLE_MOUNTS if n.startswith("SPG-9 · ")} == {
         f"SPG-9 · {shell} · {mount} · {view}" for shell in ("HEAT", "FRAG") for mount in ("technical", "INS armoured technical")
         for view in ("optic (RMB ×4)", "no optic")}

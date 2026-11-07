@@ -1,5 +1,5 @@
 {
-    "_comment": "velocity m/s, gravity = projectile gravity scale. Optional: acceleration (m/s^2, negative = slows down) + acceleration_time (s, the game's ConstantAccelerationTimeout: the motor acts in the 20 ms flight substeps that start before it), max_speed (m/s, the projectile's MaxSpeed: the speed is capped at every substep, the first one too; omitted or 0 = no cap), lifespan (s, the projectile's InitialLifeSpan: the round is destroyed that long after launch, so a shot that takes longer is refused; omitted = the game sets none, the mortar's shell), rotation_follows_velocity (default true: the motor pushes along the path; false: along the barrel's axis at launch, the UB-32's S-5), arc low/high, aim overlay/elevation, unit deg/mil, angle_offset, min_distance, elevation_limits [min,max], bore (deg: how far above the screen centre the shot leaves in the view the weapon is aimed through; the game fires along the barrel socket Attach_Muzzle, tilted against the camera), zoom (FOV divisor of that view: a scope, an optic or the gunner's sight; omitted = ×1; a weapon whose RMB sight zooms the screen has two entries: '<base> · optic (RMB ×N)' for the sight and '<base> · no optic' for its normal view, with that camera's bore and no zoom), view ('optic' on the RMB sight, 'plain' on its normal-view twin; the app shows it next to the weapon) + twin (on an optic entry: the name of its plain twin), launch_height + muzzle_forward + muzzle_up (m: the barrel pivot above the ground and the barrel socket along and above the barrel), hold_rate + hold_elevation (a barrel laid by holding a key), category, warhead (direct/splash, launchers, guns and tanks: splash when the round's damaging explosion reaches beyond 10 m in the game files, tools/game_weapons.py burst_radius; the marker note judges a splash round by the ground like a grenade), note. Sources: velocity, gravity, rocket motor, speed cap, lifespan, view and the elevation limits of the direct-fire mounts read from the game files (Squad build 26005357: WeaponConfig.MuzzleVelocity; the projectile's ProjectileGravityScale, ConstantAcceleration/Timeout, MaxSpeed, bRotationFollowsVelocity and InitialLifeSpan; the mount's pitch limits plus the barrel socket's pitch; snapshot tests/data/game_weapons.json, written by tools/game_weapons.py); the other elevation limits, arcs and the AGS-17 hold model from in-game measurements, the official Squad wiki (squad.fandom.com) and SquadCalc (github.com/sh4rkman/SquadCalc).",
+    "_comment": "velocity m/s, gravity = projectile gravity scale. Optional: acceleration (m/s^2, negative = slows down) + acceleration_time (s, the game's ConstantAccelerationTimeout: the motor acts in the 20 ms flight substeps that start before it), max_speed (m/s, the projectile's MaxSpeed: the speed is capped at every substep, the first one too; omitted or 0 = no cap), lifespan (s, the projectile's InitialLifeSpan: the round is destroyed that long after launch, so a shot that takes longer is refused; omitted = the game sets none, the mortar's shell), rotation_follows_velocity (default true: the motor pushes along the path; false: along the barrel's axis at launch, the UB-32's S-5), arc low/high, aim overlay/elevation, unit deg/mil, angle_offset, min_distance, elevation_limits [min,max], bore (deg: how far above the screen centre the shot leaves in the view the weapon is aimed through; the game fires along the barrel socket Attach_Muzzle, tilted against the camera), zoom (FOV divisor of that view: a scope, an optic or the gunner's sight; omitted = ×1; a weapon whose RMB sight zooms the screen has two entries: '<base> · optic (RMB ×N)' for the sight and '<base> · no optic' for its normal view, with that camera's bore and no zoom), view ('optic' on the RMB sight, 'plain' on its normal-view twin; the app shows it next to the weapon) + twin (on an optic entry: the name of its plain twin), focus_narrows_view (true on a plain view that holding the Focus key narrows to 0.666 of the FOV: the mount allows Focus in the game files, tools/game_weapons.py; the mark follows the key), launch_height + muzzle_forward + muzzle_up (m: the barrel pivot above the ground and the barrel socket along and above the barrel), hold_rate + hold_elevation (a barrel laid by holding a key), category, warhead (direct/splash, launchers, guns and tanks: splash when the round's damaging explosion reaches beyond 10 m in the game files, tools/game_weapons.py burst_radius; the marker note judges a splash round by the ground like a grenade), note. Sources: velocity, gravity, rocket motor, speed cap, lifespan, view and the elevation limits of the direct-fire mounts read from the game files (Squad build 26234431: WeaponConfig.MuzzleVelocity; ZoomLevels of the gunner sights and the Focus flags of the mounts; the projectile's ProjectileGravityScale, ConstantAcceleration/Timeout, MaxSpeed, bRotationFollowsVelocity and InitialLifeSpan; the mount's pitch limits plus the barrel socket's pitch; snapshot tests/data/game_weapons.json, written by tools/game_weapons.py); the other elevation limits, arcs and the AGS-17 hold model from in-game measurements, the official Squad wiki (squad.fandom.com) and SquadCalc (github.com/sh4rkman/SquadCalc).",
     "M203 / M320 / GP-25 / HK79 / SL40": {
         "velocity": 76,
         "gravity": 1,
@@ -40,8 +40,21 @@
         "gravity": 1,
         "lifespan": 20,
         "category": "agl",
-        "note": "Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m. M1117: the gunner's sight at ×1; the barrel and the camera are aligned (the shot leaves through the screen centre); no launch height, the files do not settle it (deadline-squad/squad-ballistics#12). The tripod MK19 (and C16 / L134A1) fires faster: pick \"MK19 · emplacement / C16 / L134A1\" (or its \"· no sights\" entry without RMB); for the AGS-17 pick \"AGS-17 · emplacement · optic (RMB ×2.5)\". AAVP-7A1, PARS III, TAPV, M113, M1151 and MATV have their own entries, with their launch points; the M113, M1151 and MATV open turrets without RMB have \"· no sights\" entries. RHIB open turret without RMB: this entry (its camera is on the barrel's axis).",
+        "note": "Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m. M1117: the gunner's sight at its first zoom level, ×1 (at ×4.5 pick \"MK19 · M1117 · gunner sight ×4.5\"); the barrel and the camera are aligned (the shot leaves through the screen centre); no launch height, the files do not settle it (deadline-squad/squad-ballistics#12). The tripod MK19 (and C16 / L134A1) fires faster: pick \"MK19 · emplacement / C16 / L134A1\" (or its \"· no sights\" entry without RMB); for the AGS-17 pick \"AGS-17 · emplacement · optic (RMB ×2.5)\". AAVP-7A1, PARS III, TAPV, M113, M1151 and MATV have their own entries, with their launch points; the M113, M1151 and MATV open turrets without RMB have \"· no sights\" entries. RHIB open turret without RMB: \"MK19 · RHIB open turret · no sights\".",
         "bore": 0.0,
+        "elevation_limits": [
+            -15.0,
+            30.0
+        ]
+    },
+    "MK19 · M1117 · gunner sight ×4.5": {
+        "velocity": 230,
+        "gravity": 1,
+        "lifespan": 20,
+        "category": "agl",
+        "note": "Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m. M1117: the gunner's sight at its second zoom level, ×4.5; the barrel and the camera are aligned, so the shot leaves through the screen centre. The sight has the zoom levels ×1, ×4.5: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.0,
+        "zoom": 4.5,
         "elevation_limits": [
             -15.0,
             30.0
@@ -55,8 +68,24 @@
         "muzzle_forward": 1.0868,
         "muzzle_up": 0.0748,
         "category": "agl",
-        "note": "AAVP-7A1 turret (also its Woodland Blueprint): the gunner's sight at ×1; the barrel and the camera are aligned, so the shot leaves through the screen centre. Launch point from the game files: the barrel pivots 3.2232 m above the ground, the muzzle is 1.0868 m along the barrel and 0.0748 m above its axis. Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m. The M1117 has the \"MK19\" entry.",
+        "note": "AAVP-7A1 turret (also its Woodland Blueprint): the gunner's sight at its first zoom level, ×1; the barrel and the camera are aligned, so the shot leaves through the screen centre. Launch point from the game files: the barrel pivots 3.2232 m above the ground, the muzzle is 1.0868 m along the barrel and 0.0748 m above its axis. Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m. The M1117 has the \"MK19\" entry. The sight has the zoom levels ×1, ×4.5: pick the entry of the level you have set (search \"gunner sight\").",
         "bore": 0.0,
+        "elevation_limits": [
+            -10.0,
+            30.0
+        ]
+    },
+    "MK19 · AAVP-7A1 · gunner sight ×4.5": {
+        "velocity": 230,
+        "gravity": 1,
+        "lifespan": 20,
+        "launch_height": 3.2232,
+        "muzzle_forward": 1.0868,
+        "muzzle_up": 0.0748,
+        "category": "agl",
+        "note": "AAVP-7A1 turret (also its Woodland Blueprint): the gunner's sight at its second zoom level, ×4.5; the barrel and the camera are aligned, so the shot leaves through the screen centre. Launch point from the game files: the barrel pivots 3.2232 m above the ground, the muzzle is 1.0868 m along the barrel and 0.0748 m above its axis. Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m. The M1117 has the \"MK19\" entry. The sight has the zoom levels ×1, ×4.5: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.0,
+        "zoom": 4.5,
         "elevation_limits": [
             -10.0,
             30.0
@@ -70,8 +99,40 @@
         "muzzle_forward": 0.4161,
         "muzzle_up": 0.0257,
         "category": "agl",
-        "note": "PARS III remote turret: the gunner's sight at ×1; the shot leaves 0.95° above the screen centre (zero ~180 m). Launch point from the game files: the barrel pivots 2.6617 m above the ground, the muzzle is 0.4161 m along the barrel and 0.0257 m above its axis. The desert Blueprint is the same.",
+        "note": "PARS III remote turret: the gunner's sight at its first zoom level, ×1; the shot leaves 0.95° above the screen centre (zero ~180 m). Launch point from the game files: the barrel pivots 2.6617 m above the ground, the muzzle is 0.4161 m along the barrel and 0.0257 m above its axis. The desert Blueprint is the same. The sight has the zoom levels ×1, ×3, ×9: pick the entry of the level you have set (search \"gunner sight\").",
         "bore": 0.95,
+        "elevation_limits": [
+            -24.05,
+            40.95
+        ]
+    },
+    "MK19 · PARS III RWS · gunner sight ×3": {
+        "velocity": 230,
+        "gravity": 1,
+        "lifespan": 20,
+        "launch_height": 2.6617,
+        "muzzle_forward": 0.4161,
+        "muzzle_up": 0.0257,
+        "category": "agl",
+        "note": "PARS III remote turret: the gunner's sight at its second zoom level, ×3; the shot leaves 0.95° above the screen centre (zero ~180 m). Launch point from the game files: the barrel pivots 2.6617 m above the ground, the muzzle is 0.4161 m along the barrel and 0.0257 m above its axis. The desert Blueprint is the same. The sight has the zoom levels ×1, ×3, ×9: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.95,
+        "zoom": 3.0,
+        "elevation_limits": [
+            -24.05,
+            40.95
+        ]
+    },
+    "MK19 · PARS III RWS · gunner sight ×9": {
+        "velocity": 230,
+        "gravity": 1,
+        "lifespan": 20,
+        "launch_height": 2.6617,
+        "muzzle_forward": 0.4161,
+        "muzzle_up": 0.0257,
+        "category": "agl",
+        "note": "PARS III remote turret: the gunner's sight at its third zoom level, ×9; the shot leaves 0.95° above the screen centre (zero ~180 m). Launch point from the game files: the barrel pivots 2.6617 m above the ground, the muzzle is 0.4161 m along the barrel and 0.0257 m above its axis. The desert Blueprint is the same. The sight has the zoom levels ×1, ×3, ×9: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.95,
+        "zoom": 9.0,
         "elevation_limits": [
             -24.05,
             40.95
@@ -85,8 +146,40 @@
         "muzzle_forward": 0.6256,
         "muzzle_up": -0.0155,
         "category": "agl",
-        "note": "TAPV C16 remote turret: the gunner's sight at ×1; the shot leaves 1.55° above the screen centre (zero ~295 m). Launch point from the game files: the barrel pivots 3.093 m above the ground, the muzzle is 0.6256 m along the barrel and -0.0155 m above its axis. The desert Blueprint is the same.",
+        "note": "TAPV C16 remote turret: the gunner's sight at its first zoom level, ×1; the shot leaves 1.55° above the screen centre (zero ~295 m). Launch point from the game files: the barrel pivots 3.093 m above the ground, the muzzle is 0.6256 m along the barrel and -0.0155 m above its axis. The desert Blueprint is the same. The sight has the zoom levels ×1, ×5, ×12: pick the entry of the level you have set (search \"gunner sight\").",
         "bore": 1.55,
+        "elevation_limits": [
+            -8.45,
+            46.55
+        ]
+    },
+    "MK19 · TAPV C16 RWS · gunner sight ×5": {
+        "velocity": 230,
+        "gravity": 1,
+        "lifespan": 20,
+        "launch_height": 3.093,
+        "muzzle_forward": 0.6256,
+        "muzzle_up": -0.0155,
+        "category": "agl",
+        "note": "TAPV C16 remote turret: the gunner's sight at its second zoom level, ×5; the shot leaves 1.55° above the screen centre (zero ~295 m). Launch point from the game files: the barrel pivots 3.093 m above the ground, the muzzle is 0.6256 m along the barrel and -0.0155 m above its axis. The desert Blueprint is the same. The sight has the zoom levels ×1, ×5, ×12: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 1.55,
+        "zoom": 5.0,
+        "elevation_limits": [
+            -8.45,
+            46.55
+        ]
+    },
+    "MK19 · TAPV C16 RWS · gunner sight ×12": {
+        "velocity": 230,
+        "gravity": 1,
+        "lifespan": 20,
+        "launch_height": 3.093,
+        "muzzle_forward": 0.6256,
+        "muzzle_up": -0.0155,
+        "category": "agl",
+        "note": "TAPV C16 remote turret: the gunner's sight at its third zoom level, ×12; the shot leaves 1.55° above the screen centre (zero ~295 m). Launch point from the game files: the barrel pivots 3.093 m above the ground, the muzzle is 0.6256 m along the barrel and -0.0155 m above its axis. The desert Blueprint is the same. The sight has the zoom levels ×1, ×5, ×12: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 1.55,
+        "zoom": 12.0,
         "elevation_limits": [
             -8.45,
             46.55
@@ -115,12 +208,13 @@
         "muzzle_forward": 0.6951,
         "muzzle_up": -0.0087,
         "category": "agl",
-        "note": "M113A3 / M113A2T (TLF; desert and cage Blueprints too) open turret fired from the normal view, without RMB: the camera is on the barrel's axis, so the shot leaves through the screen centre. Launch point from the game files: the barrel pivots 2.6316 m above the ground, the muzzle is 0.6951 m along the barrel and -0.0087 m above its axis. Through the sights (RMB) pick \"MK19 · M113 open turret\". Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m.",
         "bore": 0.0,
         "elevation_limits": [
             -15.0,
             30.0
-        ]
+        ],
+        "focus_narrows_view": true,
+        "note": "M113A3 / M113A2T (TLF; desert and cage Blueprints too) open turret fired from the normal view, without RMB: the camera is on the barrel's axis, so the shot leaves through the screen centre. Launch point from the game files: the barrel pivots 2.6316 m above the ground, the muzzle is 0.6951 m along the barrel and -0.0087 m above its axis. Through the sights (RMB) pick \"MK19 · M113 open turret\". Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m. Holding Focus (Left Shift) narrows this view to two thirds of the FOV: the mark follows the key when the app can read it; the game's own change takes a moment, the mark switches at once."
     },
     "MK19 · M1151 open turret": {
         "velocity": 230,
@@ -145,12 +239,13 @@
         "muzzle_forward": 0.6951,
         "muzzle_up": -0.0087,
         "category": "agl",
-        "note": "M1151 (plain, Woodland, Light) open turret fired from the normal view, without RMB: the camera is on the barrel's axis, so the shot leaves through the screen centre. Launch point from the game files: the barrel pivots 2.3056 m above the ground, the muzzle is 0.6951 m along the barrel and -0.0087 m above its axis. Through the sights (RMB) pick \"MK19 · M1151 open turret\". Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m.",
         "bore": 0.0,
         "elevation_limits": [
             -20.0,
             30.0
-        ]
+        ],
+        "focus_narrows_view": true,
+        "note": "M1151 (plain, Woodland, Light) open turret fired from the normal view, without RMB: the camera is on the barrel's axis, so the shot leaves through the screen centre. Launch point from the game files: the barrel pivots 2.3056 m above the ground, the muzzle is 0.6951 m along the barrel and -0.0087 m above its axis. Through the sights (RMB) pick \"MK19 · M1151 open turret\". Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m. Holding Focus (Left Shift) narrows this view to two thirds of the FOV: the mark follows the key when the app can read it; the game's own change takes a moment, the mark switches at once."
     },
     "MK19 · MATV open turret": {
         "velocity": 230,
@@ -175,24 +270,38 @@
         "muzzle_forward": 0.6951,
         "muzzle_up": -0.0087,
         "category": "agl",
-        "note": "MATV (USMC, Woodland) open turret fired from the normal view, without RMB: the camera is on the barrel's axis, so the shot leaves through the screen centre. Launch point from the game files: the barrel pivots 3.0282 m above the ground, the muzzle is 0.6951 m along the barrel and -0.0087 m above its axis. Through the sights (RMB) pick \"MK19 · MATV open turret\". Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m.",
         "bore": 0.0,
         "elevation_limits": [
             -20.0,
             30.0
-        ]
+        ],
+        "focus_narrows_view": true,
+        "note": "MATV (USMC, Woodland) open turret fired from the normal view, without RMB: the camera is on the barrel's axis, so the shot leaves through the screen centre. Launch point from the game files: the barrel pivots 3.0282 m above the ground, the muzzle is 0.6951 m along the barrel and -0.0087 m above its axis. Through the sights (RMB) pick \"MK19 · MATV open turret\". Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m. Holding Focus (Left Shift) narrows this view to two thirds of the FOV: the mark follows the key when the app can read it; the game's own change takes a moment, the mark switches at once."
     },
     "MK19 · RHIB open turret": {
         "velocity": 230,
         "gravity": 1,
         "lifespan": 20,
         "category": "agl",
-        "note": "RHIB open turret, aimed through the sights (RMB, no zoom): they look 1.7286° below the barrel, so the shot leaves 1.7286° above the screen centre (zero ~325 m). No launch height: how high the boat floats is not in the game files (deadline-squad/squad-ballistics#12), so the shot is taken from the ground. Without RMB the camera is on the barrel's axis: pick \"MK19\". Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m.",
+        "note": "RHIB open turret, aimed through the sights (RMB, no zoom): they look 1.7286° below the barrel, so the shot leaves 1.7286° above the screen centre (zero ~325 m). No launch height: how high the boat floats is not in the game files (deadline-squad/squad-ballistics#12), so the shot is taken from the ground. Without RMB pick \"MK19 · RHIB open turret · no sights\". Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m.",
         "bore": 1.7286,
         "elevation_limits": [
             -20.0,
             30.0
         ]
+    },
+    "MK19 · RHIB open turret · no sights": {
+        "velocity": 230,
+        "gravity": 1,
+        "lifespan": 20,
+        "category": "agl",
+        "bore": 0.0,
+        "elevation_limits": [
+            -20.0,
+            30.0
+        ],
+        "focus_narrows_view": true,
+        "note": "RHIB open turret fired from the normal view, without RMB: the camera is on the barrel's axis, so the shot leaves through the screen centre. No launch height: how high the boat floats is not in the game files (deadline-squad/squad-ballistics#12), so the shot is taken from the ground. Through the sights (RMB) pick \"MK19 · RHIB open turret\". Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m. Holding Focus (Left Shift) narrows this view to two thirds of the FOV: the mark follows the key when the app can read it; the game's own change takes a moment, the mark switches at once."
     },
     "MK19 · emplacement / C16 / L134A1": {
         "velocity": 235,
@@ -211,12 +320,13 @@
         "gravity": 1,
         "lifespan": 20,
         "category": "agl",
-        "note": "Tripod MK19, C16 and L134A1 fired from the normal view, without RMB: the camera is on the barrel's axis, so the shot leaves through the screen centre. Through the sights (RMB) pick \"MK19 · emplacement / C16 / L134A1\". Fire short bursts; minimum arming range ~30 m.",
         "bore": 0.0,
         "elevation_limits": [
             -35.0,
             20.0
-        ]
+        ],
+        "focus_narrows_view": true,
+        "note": "Tripod MK19, C16 and L134A1 fired from the normal view, without RMB: the camera is on the barrel's axis, so the shot leaves through the screen centre. Through the sights (RMB) pick \"MK19 · emplacement / C16 / L134A1\". Fire short bursts; minimum arming range ~30 m. Holding Focus (Left Shift) narrows this view to two thirds of the FOV: the mark follows the key when the app can read it; the game's own change takes a moment, the mark switches at once."
     },
     "AGS-17 · emplacement · optic (RMB ×2.5)": {
         "velocity": 185,
@@ -228,18 +338,18 @@
         "hold_rate": 9.08,
         "hold_elevation": [
             47.81,
-            85.87
+            85.85
         ],
         "elevation_limits": [
             -12.15,
-            85.87
+            85.85
         ],
         "bore": 0.85,
         "zoom": 2.5,
         "view": "optic",
         "twin": "AGS-17 · emplacement · no optic",
         "category": "agl",
-        "note": "AGS-17 with the PAG-17 optic, aimed through the optic (RMB, ×2.5). High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark, which accounts for the optic's 0.85° socket (zero ~58 m); from the normal view, without RMB, pick \"AGS-17 · emplacement · no optic\". Velocity 185 m/s and gravity ×1.8 come from the game files; the hold rate and the top of the mount are fitted on 67 in-game hold-time measurements (280–1930 m, 7 m RMS error), the same as the Deadline SquadCalc. The fitted top, 85.87°, is the mount's 85° limit plus this optic's 0.85°, so the fit is of the optic gun; for the open-sight gun pick \"AGS-17 · iron sights emplacement\". The game files give 9.00°/s (keyboard pitch ×15 × turret input ×0.6), which fits the same measurements as well (top 85.69°, 5.5 m RMS); deadline-squad/squad-ballistics#5 (D6) settles which."
+        "note": "AGS-17 with the PAG-17 optic, aimed through the optic (RMB, ×2.5). High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark, which accounts for the optic's 0.85° socket (zero ~58 m); from the normal view, without RMB, pick \"AGS-17 · emplacement · no optic\". Velocity 185 m/s and gravity ×1.8 come from the game files; the hold rate and the top of the mount are fitted on 67 in-game hold-time measurements (280–1930 m, 7 m RMS error), the same as the Deadline SquadCalc. The top, 85.85°, is the mount's 85° limit plus this optic's 0.85° (the fit gave 85.87°), so the fit is of the optic gun; for the open-sight gun pick \"AGS-17 · iron sights emplacement\". The game files give 9.00°/s (keyboard pitch ×15 × turret input ×0.6), which fits the same measurements as well (top 85.69°, 5.5 m RMS); deadline-squad/squad-ballistics#5 (D6) settles which."
     },
     "AGS-17 · emplacement · no optic": {
         "velocity": 185,
@@ -251,11 +361,11 @@
         "hold_rate": 9.08,
         "hold_elevation": [
             47.81,
-            85.87
+            85.85
         ],
         "elevation_limits": [
             -12.15,
-            85.87
+            85.85
         ],
         "bore": 0.85,
         "view": "plain",
@@ -272,15 +382,16 @@
         "hold_rate": 9.08,
         "hold_elevation": [
             47.81,
-            89.52
+            89.5
         ],
         "elevation_limits": [
             -8.5,
-            89.52
+            89.5
         ],
         "bore": 4.5,
         "category": "agl",
-        "note": "AGS-17 with open sights. Its barrel socket is tilted 4.5° up (the optic gun's is 0.85°), so the same mount angle shoots 3.65° higher: the top of the hold is 89.52° (the mount's 85° limit + 4.5°) and a target 33 m away can be lobbed. High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark; the sights are zeroed at ~300 m. Velocity, gravity and the hold rate are those of \"AGS-17 · emplacement · optic (RMB ×2.5)\"; the top is derived from the game files, not measured in game."
+        "focus_narrows_view": true,
+        "note": "AGS-17 with open sights. Its barrel socket is tilted 4.5° up (the optic gun's is 0.85°), so the same mount angle shoots 3.65° higher: the top of the hold is 89.5° (the mount's 85° limit + 4.5°) and a target 33 m away can be lobbed. High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark; the sights are zeroed at ~300 m. Velocity, gravity and the hold rate are those of \"AGS-17 · emplacement · optic (RMB ×2.5)\"; the top is derived from the game files, not measured in game. Holding Focus (Left Shift) narrows this view to two thirds of the FOV: the mark follows the key when the app can read it; the game's own change takes a moment, the mark switches at once."
     },
     "AGS-17 · Technical": {
         "velocity": 185,
@@ -302,7 +413,8 @@
         ],
         "bore": 4.5,
         "category": "agl",
-        "note": "AGS-17 on the Technical (2-seater pickup; white, camo and armoured Blueprints): open sights, the barrel socket tilted 4.5° up, the camera on the same pitch in the normal view and on RMB (no optic, no zoom), so the shot leaves 4.5° above the screen centre (zero ~305 m). Launch point from the game files: the barrel pivots 2.2118 m above the ground, the muzzle is 0.87 m along the barrel and 0.068 m above its axis. The mount's pitch runs -13°..85°, so the top of the hold is 89.5° (85° + 4.5°). High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark. Velocity 185 m/s and gravity ×1.8 are the game's; the hold rate and its lowest elevation are those of \"AGS-17 · iron sights emplacement\" (the vehicle turret takes the same input, pitch ×0.6), not measured in game on this vehicle."
+        "focus_narrows_view": true,
+        "note": "AGS-17 on the Technical (2-seater pickup; white, camo and armoured Blueprints): open sights, the barrel socket tilted 4.5° up, the camera on the same pitch in the normal view and on RMB (no optic, no zoom), so the shot leaves 4.5° above the screen centre (zero ~305 m). Launch point from the game files: the barrel pivots 2.2118 m above the ground, the muzzle is 0.87 m along the barrel and 0.068 m above its axis. The mount's pitch runs -13°..85°, so the top of the hold is 89.5° (85° + 4.5°). High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark. Velocity 185 m/s and gravity ×1.8 are the game's; the hold rate and its lowest elevation are those of \"AGS-17 · iron sights emplacement\" (the vehicle turret takes the same input, pitch ×0.6), not measured in game on this vehicle. Holding Focus (Left Shift) narrows this view to two thirds of the FOV: the mark follows the key when the app can read it; the game's own change takes a moment, the mark switches at once."
     },
     "AGS-17 · Tigr": {
         "velocity": 185,
@@ -324,7 +436,8 @@
         ],
         "bore": 4.5,
         "category": "agl",
-        "note": "AGS-17 on the Tigr (desert too): open sights, the barrel socket tilted 4.5° up, the camera on the same pitch in the normal view and on RMB (no optic, no zoom), so the shot leaves 4.5° above the screen centre (zero ~305 m). Launch point from the game files: the barrel pivots 2.5927 m above the ground, the muzzle is 0.87 m along the barrel and 0.068 m above its axis. The mount's pitch runs -13°..85°, so the top of the hold is 89.5° (85° + 4.5°). High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark. Velocity 185 m/s and gravity ×1.8 are the game's; the hold rate and its lowest elevation are those of \"AGS-17 · iron sights emplacement\" (the vehicle turret takes the same input, pitch ×0.6), not measured in game on this vehicle."
+        "focus_narrows_view": true,
+        "note": "AGS-17 on the Tigr (desert too): open sights, the barrel socket tilted 4.5° up, the camera on the same pitch in the normal view and on RMB (no optic, no zoom), so the shot leaves 4.5° above the screen centre (zero ~305 m). Launch point from the game files: the barrel pivots 2.5927 m above the ground, the muzzle is 0.87 m along the barrel and 0.068 m above its axis. The mount's pitch runs -13°..85°, so the top of the hold is 89.5° (85° + 4.5°). High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark. Velocity 185 m/s and gravity ×1.8 are the game's; the hold rate and its lowest elevation are those of \"AGS-17 · iron sights emplacement\" (the vehicle turret takes the same input, pitch ×0.6), not measured in game on this vehicle. Holding Focus (Left Shift) narrows this view to two thirds of the FOV: the mark follows the key when the app can read it; the game's own change takes a moment, the mark switches at once."
     },
     "AGS-17 · Safir": {
         "velocity": 185,
@@ -346,7 +459,8 @@
         ],
         "bore": 4.5,
         "category": "agl",
-        "note": "AGS-17 on the Safir: open sights, the barrel socket tilted 4.5° up, the camera on the same pitch in the normal view and on RMB (no optic, no zoom), so the shot leaves 4.5° above the screen centre (zero ~305 m). Launch point from the game files: the barrel pivots 1.7967 m above the ground, the muzzle is 0.87 m along the barrel and 0.068 m above its axis. The mount's pitch runs -13°..85°, so the top of the hold is 89.5° (85° + 4.5°). High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark. Velocity 185 m/s and gravity ×1.8 are the game's; the hold rate and its lowest elevation are those of \"AGS-17 · iron sights emplacement\" (the vehicle turret takes the same input, pitch ×0.6), not measured in game on this vehicle."
+        "focus_narrows_view": true,
+        "note": "AGS-17 on the Safir: open sights, the barrel socket tilted 4.5° up, the camera on the same pitch in the normal view and on RMB (no optic, no zoom), so the shot leaves 4.5° above the screen centre (zero ~305 m). Launch point from the game files: the barrel pivots 1.7967 m above the ground, the muzzle is 0.87 m along the barrel and 0.068 m above its axis. The mount's pitch runs -13°..85°, so the top of the hold is 89.5° (85° + 4.5°). High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark. Velocity 185 m/s and gravity ×1.8 are the game's; the hold rate and its lowest elevation are those of \"AGS-17 · iron sights emplacement\" (the vehicle turret takes the same input, pitch ×0.6), not measured in game on this vehicle. Holding Focus (Left Shift) narrows this view to two thirds of the FOV: the mark follows the key when the app can read it; the game's own change takes a moment, the mark switches at once."
     },
     "AGS-17 · M1151": {
         "velocity": 185,
@@ -368,7 +482,8 @@
         ],
         "bore": 4.5,
         "category": "agl",
-        "note": "AGS-17 on the M1151 technical: open sights, the barrel socket tilted 4.5° up, the camera on the same pitch in the normal view and on RMB (no optic, no zoom), so the shot leaves 4.5° above the screen centre (zero ~305 m). Launch point from the game files: the barrel pivots 2.2891 m above the ground, the muzzle is 0.87 m along the barrel and 0.068 m above its axis. The mount's pitch runs -13°..85°, so the top of the hold is 89.5° (85° + 4.5°). High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark. Velocity 185 m/s and gravity ×1.8 are the game's; the hold rate and its lowest elevation are those of \"AGS-17 · iron sights emplacement\" (the vehicle turret takes the same input, pitch ×0.6), not measured in game on this vehicle."
+        "focus_narrows_view": true,
+        "note": "AGS-17 on the M1151 technical: open sights, the barrel socket tilted 4.5° up, the camera on the same pitch in the normal view and on RMB (no optic, no zoom), so the shot leaves 4.5° above the screen centre (zero ~305 m). Launch point from the game files: the barrel pivots 2.2891 m above the ground, the muzzle is 0.87 m along the barrel and 0.068 m above its axis. The mount's pitch runs -13°..85°, so the top of the hold is 89.5° (85° + 4.5°). High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark. Velocity 185 m/s and gravity ×1.8 are the game's; the hold rate and its lowest elevation are those of \"AGS-17 · iron sights emplacement\" (the vehicle turret takes the same input, pitch ×0.6), not measured in game on this vehicle. Holding Focus (Left Shift) narrows this view to two thirds of the FOV: the mark follows the key when the app can read it; the game's own change takes a moment, the mark switches at once."
     },
     "AGS-17 · BTR-D": {
         "velocity": 185,
@@ -390,7 +505,8 @@
         ],
         "bore": 4.5,
         "category": "agl",
-        "note": "AGS-17 on the BTR-D (desert too): open sights, the barrel socket tilted 4.5° up, the camera on the same pitch in the normal view and on RMB (no optic, no zoom), so the shot leaves 4.5° above the screen centre (zero ~305 m). Launch point from the game files: the barrel pivots 2.2635 m above the ground, the muzzle is 0.87 m along the barrel and 0.068 m above its axis. The mount's pitch runs -13°..85°, so the top of the hold is 89.5° (85° + 4.5°). High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark. Velocity 185 m/s and gravity ×1.8 are the game's; the hold rate and its lowest elevation are those of \"AGS-17 · iron sights emplacement\" (the vehicle turret takes the same input, pitch ×0.6), not measured in game on this vehicle."
+        "focus_narrows_view": true,
+        "note": "AGS-17 on the BTR-D (desert too): open sights, the barrel socket tilted 4.5° up, the camera on the same pitch in the normal view and on RMB (no optic, no zoom), so the shot leaves 4.5° above the screen centre (zero ~305 m). Launch point from the game files: the barrel pivots 2.2635 m above the ground, the muzzle is 0.87 m along the barrel and 0.068 m above its axis. The mount's pitch runs -13°..85°, so the top of the hold is 89.5° (85° + 4.5°). High arc: W puts the barrel up, hold S for the shown time. Low arc: aim with the overlay mark. Velocity 185 m/s and gravity ×1.8 are the game's; the hold rate and its lowest elevation are those of \"AGS-17 · iron sights emplacement\" (the vehicle turret takes the same input, pitch ×0.6), not measured in game on this vehicle. Holding Focus (Left Shift) narrows this view to two thirds of the FOV: the mark follows the key when the app can read it; the game's own change takes a moment, the mark switches at once."
     },
     "QLZ87 · optic (RMB ×3)": {
         "velocity": 190,
@@ -401,7 +517,7 @@
         "view": "optic",
         "twin": "QLZ87 · no optic",
         "category": "agl",
-        "note": "Tripod QLZ87 aimed through its optic (RMB, ×3). The optic is zeroed at 100 m: the shot leaves 0.774° above the screen centre. Aiming from the normal view, without RMB? Pick \"QLZ87 · no optic\": this mark is for the ×3 view and overshoots there. Fire short bursts; minimum arming range ~30 m.",
+        "note": "Tripod QLZ87 aimed through its optic (RMB, ×3). The optic is zeroed at 100 m: the shot leaves 0.774° above the screen centre. Aiming from the normal view, without RMB? Pick \"QLZ87 · no optic\": this mark is for the ×3 view and overshoots there. Fire short bursts; minimum arming range ~30 m. On the bunker tripod pick \"QLZ87 · bunker tripod · optic (RMB ×3)\".",
         "elevation_limits": [
             -23.4,
             44.1
@@ -414,38 +530,123 @@
         "bore": -0.9,
         "view": "plain",
         "category": "agl",
-        "note": "Tripod QLZ87 aimed from the normal view: no RMB, no zoom (×1). The barrel points 0.9° below the screen centre, so the shot leaves 0.9° under it and the view has no zero range. Aiming through the optic (RMB, ×3)? Pick \"QLZ87 · optic (RMB ×3)\". Fire short bursts; minimum arming range ~30 m.",
+        "note": "Tripod QLZ87 aimed from the normal view: no RMB, no zoom (×1). The barrel points 0.9° below the screen centre, so the shot leaves 0.9° under it and the view has no zero range. Aiming through the optic (RMB, ×3)? Pick \"QLZ87 · optic (RMB ×3)\". Fire short bursts; minimum arming range ~30 m. On the bunker tripod pick \"QLZ87 · bunker tripod · no optic\".",
         "elevation_limits": [
             -23.4,
             44.1
         ]
     },
-    "QLZ87 · Lynx / CSK131 · optic (RMB ×3)": {
+    "QLZ87 · bunker tripod · optic (RMB ×3)": {
+        "velocity": 190,
+        "gravity": 1,
+        "lifespan": 20,
+        "bore": 0.774,
+        "zoom": 3,
+        "view": "optic",
+        "twin": "QLZ87 · bunker tripod · no optic",
+        "category": "agl",
+        "note": "QLZ87 on the bunker tripod aimed through its optic (RMB, ×3). The optic is zeroed at 100 m: the shot leaves 0.774° above the screen centre. Aiming from the normal view, without RMB? Pick \"QLZ87 · bunker tripod · no optic\": this mark is for the ×3 view and overshoots there. Fire short bursts; minimum arming range ~30 m. The bunker tripod lays the barrel between -20.9° and 25.1° (the free-standing tripod: -23.4° to 44.1°).",
+        "elevation_limits": [
+            -20.9,
+            25.1
+        ]
+    },
+    "QLZ87 · bunker tripod · no optic": {
+        "velocity": 190,
+        "gravity": 1,
+        "lifespan": 20,
+        "bore": -0.9,
+        "view": "plain",
+        "category": "agl",
+        "note": "QLZ87 on the bunker tripod aimed from the normal view: no RMB, no zoom (×1). The barrel points 0.9° below the screen centre, so the shot leaves 0.9° under it and the view has no zero range. Aiming through the optic (RMB, ×3)? Pick \"QLZ87 · bunker tripod · optic (RMB ×3)\". Fire short bursts; minimum arming range ~30 m. The bunker tripod lays the barrel between -20.9° and 25.1° (the free-standing tripod: -23.4° to 44.1°).",
+        "elevation_limits": [
+            -20.9,
+            25.1
+        ]
+    },
+    "QLZ87 · CSK131 / WZ551 · optic (RMB ×3)": {
         "velocity": 190,
         "gravity": 1,
         "lifespan": 20,
         "bore": 0.85,
         "zoom": 3,
         "view": "optic",
-        "twin": "QLZ87 · Lynx / CSK131 · no optic",
+        "twin": "QLZ87 · CSK131 / WZ551 · no optic",
         "category": "agl",
-        "note": "QLZ87 on the Lynx, CSK131, WZ551 and ZBL-08 aimed through the optic (RMB, ×3). The shot leaves 0.85° above the screen centre (zero ~110 m). Aiming from the normal view, without RMB? Pick \"QLZ87 · Lynx / CSK131 · no optic\". Fire short bursts; minimum arming range ~30 m.",
+        "note": "QLZ87 on the CSK131 and WZ551 (their turret does not react to Focus) aimed through the optic (RMB, ×3). The shot leaves 0.85° above the screen centre (zero ~110 m). Aiming from the normal view, without RMB? Pick \"QLZ87 · CSK131 / WZ551 · no optic\". Fire short bursts; minimum arming range ~30 m. The Lynx and the ZBL-08 have their own entries.",
         "elevation_limits": [
             -13.15,
             55.85
         ]
     },
-    "QLZ87 · Lynx / CSK131 · no optic": {
+    "QLZ87 · CSK131 / WZ551 · no optic": {
         "velocity": 190,
         "gravity": 1,
         "lifespan": 20,
         "bore": 0.85,
         "view": "plain",
         "category": "agl",
-        "note": "QLZ87 on the Lynx, CSK131, WZ551 and ZBL-08 aimed from the normal view: no RMB, no zoom (×1). The shot leaves 0.85° above the screen centre (zero ~110 m), as through the optic. Aiming through the optic (RMB, ×3)? Pick \"QLZ87 · Lynx / CSK131 · optic (RMB ×3)\". Fire short bursts; minimum arming range ~30 m.",
+        "note": "QLZ87 on the CSK131 and WZ551 (their turret does not react to Focus) aimed from the normal view: no RMB, no zoom (×1). The shot leaves 0.85° above the screen centre (zero ~110 m), as through the optic. Aiming through the optic (RMB, ×3)? Pick \"QLZ87 · CSK131 / WZ551 · optic (RMB ×3)\". Fire short bursts; minimum arming range ~30 m. The Lynx and the ZBL-08 have their own entries.",
         "elevation_limits": [
             -13.15,
             55.85
+        ]
+    },
+    "QLZ87 · Lynx · optic (RMB ×3)": {
+        "velocity": 190,
+        "gravity": 1,
+        "lifespan": 20,
+        "bore": 0.85,
+        "zoom": 3,
+        "view": "optic",
+        "twin": "QLZ87 · Lynx · no optic",
+        "category": "agl",
+        "note": "QLZ87 on the Lynx aimed through the optic (RMB, ×3). The shot leaves 0.85° above the screen centre (zero ~110 m). Aiming from the normal view, without RMB? Pick \"QLZ87 · Lynx · no optic\". Fire short bursts; minimum arming range ~30 m.",
+        "elevation_limits": [
+            -13.15,
+            55.85
+        ]
+    },
+    "QLZ87 · Lynx · no optic": {
+        "velocity": 190,
+        "gravity": 1,
+        "lifespan": 20,
+        "bore": 0.85,
+        "view": "plain",
+        "category": "agl",
+        "elevation_limits": [
+            -13.15,
+            55.85
+        ],
+        "focus_narrows_view": true,
+        "note": "QLZ87 on the Lynx aimed from the normal view: no RMB, no zoom (×1). The shot leaves 0.85° above the screen centre (zero ~110 m), as through the optic. Aiming through the optic (RMB, ×3)? Pick \"QLZ87 · Lynx · optic (RMB ×3)\". Fire short bursts; minimum arming range ~30 m. Holding Focus (Left Shift) narrows this view to two thirds of the FOV: the mark follows the key when the app can read it; the game's own change takes a moment, the mark switches at once."
+    },
+    "QLZ87 · ZBL08 · optic (RMB ×3)": {
+        "velocity": 190,
+        "gravity": 1,
+        "lifespan": 20,
+        "bore": 0.85,
+        "zoom": 3,
+        "view": "optic",
+        "twin": "QLZ87 · ZBL08 · no optic",
+        "category": "agl",
+        "note": "QLZ87 on the ZBL-08 (cupola) aimed through the optic (RMB, ×3). The shot leaves 0.85° above the screen centre (zero ~110 m). Aiming from the normal view, without RMB? Pick \"QLZ87 · ZBL08 · no optic\". Fire short bursts; minimum arming range ~30 m.",
+        "elevation_limits": [
+            -11.65,
+            68.35
+        ]
+    },
+    "QLZ87 · ZBL08 · no optic": {
+        "velocity": 190,
+        "gravity": 1,
+        "lifespan": 20,
+        "bore": 0.85,
+        "view": "plain",
+        "category": "agl",
+        "note": "QLZ87 on the ZBL-08 (cupola) aimed from the normal view: no RMB, no zoom (×1). The shot leaves 0.85° above the screen centre (zero ~110 m), as through the optic. Aiming through the optic (RMB, ×3)? Pick \"QLZ87 · ZBL08 · optic (RMB ×3)\". Fire short bursts; minimum arming range ~30 m.",
+        "elevation_limits": [
+            -11.65,
+            68.35
         ]
     },
     "AGS-30 / BTR-4 AGS": {
@@ -453,9 +654,22 @@
         "gravity": 1,
         "lifespan": 20,
         "category": "agl",
-        "note": "Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m. BTR-4: the gunner's sight at its first zoom level, ×3; the shot leaves 1.6° above the screen centre (zero ~205 m). For the BMP-1TS and the BMP-2M pick their own entries.",
+        "note": "Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m. BTR-4: the gunner's sight at its first zoom level, ×3; the shot leaves 1.6° above the screen centre (zero ~205 m). For the BMP-1TS and the BMP-2M pick their own entries. The sight's higher zoom levels (×9) have their own entries (search \"gunner sight\").",
         "bore": 1.6,
         "zoom": 3.0,
+        "elevation_limits": [
+            -3.3,
+            46.7
+        ]
+    },
+    "AGS-30 / BTR-4 AGS · gunner sight ×9": {
+        "velocity": 190,
+        "gravity": 1,
+        "lifespan": 20,
+        "category": "agl",
+        "note": "Fire short bursts and walk the impacts onto the target; minimum arming range ~30 m. BTR-4: the gunner's sight at its second zoom level, ×9; the shot leaves 1.6° above the screen centre (zero ~205 m). The sight has the zoom levels ×3, ×9: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 1.6,
+        "zoom": 9.0,
         "elevation_limits": [
             -3.3,
             46.7
@@ -466,9 +680,22 @@
         "gravity": 1,
         "lifespan": 20,
         "category": "agl",
-        "note": "BMP-1TS: the gunner's sight at its first zoom level, ×3; the shot leaves 1.55° above the screen centre (zero ~200 m). Fire short bursts; minimum arming range ~30 m.",
+        "note": "BMP-1TS: the gunner's sight at its first zoom level, ×3; the shot leaves 1.55° above the screen centre (zero ~200 m). Fire short bursts; minimum arming range ~30 m. The sight's higher zoom levels (×9) have their own entries (search \"gunner sight\").",
         "bore": 1.55,
         "zoom": 3.0,
+        "elevation_limits": [
+            -3.35,
+            46.65
+        ]
+    },
+    "AGS-30 (BMP-1TS) · gunner sight ×9": {
+        "velocity": 190,
+        "gravity": 1,
+        "lifespan": 20,
+        "category": "agl",
+        "note": "BMP-1TS: the gunner's sight at its second zoom level, ×9; the shot leaves 1.55° above the screen centre (zero ~200 m). The sight has the zoom levels ×3, ×9: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 1.55,
+        "zoom": 9.0,
         "elevation_limits": [
             -3.35,
             46.65
@@ -479,9 +706,22 @@
         "gravity": 1,
         "lifespan": 20,
         "category": "agl",
-        "note": "BMP-2M: the gunner's sight at its first zoom level, ×1.5; the shot leaves 1.55° above the screen centre (zero ~200 m).",
+        "note": "BMP-2M: the gunner's sight at its first zoom level, ×1.5; the shot leaves 1.55° above the screen centre (zero ~200 m). The sight's higher zoom levels (×6) have their own entries (search \"gunner sight\").",
         "bore": 1.55,
         "zoom": 1.5,
+        "elevation_limits": [
+            -3.45,
+            75.55
+        ]
+    },
+    "AGS-30 (BMP-2M) · gunner sight ×6": {
+        "velocity": 190,
+        "gravity": 1,
+        "lifespan": 20,
+        "category": "agl",
+        "note": "BMP-2M (desert Blueprint too): the gunner's sight at its second zoom level, ×6; the shot leaves 1.55° above the screen centre (zero ~200 m). The sight has the zoom levels ×1.5, ×6: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 1.55,
+        "zoom": 6.0,
         "elevation_limits": [
             -3.45,
             75.55
@@ -708,11 +948,12 @@
         "bore": 0.13,
         "category": "guns",
         "warhead": "direct",
-        "note": "SPG-9 with open sights: the shot leaves 0.13° above the screen centre (zero ~47 m). HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. With the PGO-9 scope pick \"SPG-9 · HEAT · scope · optic (RMB ×4)\".",
         "elevation_limits": [
             -9.87,
             10.13
-        ]
+        ],
+        "focus_narrows_view": true,
+        "note": "SPG-9 with open sights: the shot leaves 0.13° above the screen centre (zero ~47 m). HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. With the PGO-9 scope pick \"SPG-9 · HEAT · scope · optic (RMB ×4)\". Holding Focus (Left Shift) narrows this view to two thirds of the FOV: the mark follows the key when the app can read it; the game's own change takes a moment, the mark switches at once."
     },
     "SPG-9 · HEAT · scope · optic (RMB ×4)": {
         "velocity": 435,
@@ -760,11 +1001,12 @@
         "bore": 0.13,
         "category": "guns",
         "warhead": "splash",
-        "note": "SPG-9 with open sights: the shot leaves 0.13° above the screen centre (zero ~27 m). HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. With the PGO-9 scope pick \"SPG-9 · FRAG · scope · optic (RMB ×4)\".",
         "elevation_limits": [
             -9.87,
             10.13
-        ]
+        ],
+        "focus_narrows_view": true,
+        "note": "SPG-9 with open sights: the shot leaves 0.13° above the screen centre (zero ~27 m). HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. With the PGO-9 scope pick \"SPG-9 · FRAG · scope · optic (RMB ×4)\". Holding Focus (Left Shift) narrows this view to two thirds of the FOV: the mark follows the key when the app can read it; the game's own change takes a moment, the mark switches at once."
     },
     "SPG-9 · FRAG · scope · optic (RMB ×4)": {
         "velocity": 315,
@@ -979,9 +1221,26 @@
         "lifespan": 8,
         "category": "guns",
         "warhead": "direct",
-        "note": "HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. BMP-1 (also the BMP-1 technical): the gunner's sight at its first zoom level, ×1.5; the shot leaves 1.4° above the screen centre (zero ~460 m). For the BMD-1M pick its own entry.",
+        "note": "HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. BMP-1 (also the BMP-1 technical): the gunner's sight at its first zoom level, ×1.5; the shot leaves 1.4° above the screen centre (zero ~460 m). For the BMD-1M pick its own entry. The sight's higher zoom levels (×6) have their own entries (search \"gunner sight\").",
         "bore": 1.4,
         "zoom": 1.5,
+        "elevation_limits": [
+            -2.5,
+            34.5
+        ]
+    },
+    "2A28 Grom (BMP-1) · HEAT · gunner sight ×6": {
+        "velocity": 435,
+        "gravity": 1.2,
+        "acceleration": 100,
+        "acceleration_time": 1.1,
+        "max_speed": 330,
+        "lifespan": 8,
+        "category": "guns",
+        "warhead": "direct",
+        "note": "HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. BMP-1 (every faction, also the BMP-1 technical): the gunner's sight at its second zoom level, ×6; the shot leaves 1.4° above the screen centre (zero ~460 m). The sight has the zoom levels ×1.5, ×6: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 1.4,
+        "zoom": 6.0,
         "elevation_limits": [
             -2.5,
             34.5
@@ -996,9 +1255,26 @@
         "lifespan": 8,
         "category": "guns",
         "warhead": "direct",
-        "note": "BMD-1M: the gunner's sight at its first zoom level, ×1.5; the shot leaves 1.57° above the screen centre (zero ~515 m).",
+        "note": "BMD-1M: the gunner's sight at its first zoom level, ×1.5; the shot leaves 1.57° above the screen centre (zero ~515 m). The sight's higher zoom levels (×6) have their own entries (search \"gunner sight\").",
         "bore": 1.57,
         "zoom": 1.5,
+        "elevation_limits": [
+            -5.33,
+            21.67
+        ]
+    },
+    "2A28 Grom (BMD-1M) · HEAT · gunner sight ×6": {
+        "velocity": 435,
+        "gravity": 1.2,
+        "acceleration": 100,
+        "acceleration_time": 1.1,
+        "max_speed": 330,
+        "lifespan": 8,
+        "category": "guns",
+        "warhead": "direct",
+        "note": "BMD-1M (desert Blueprint too): the gunner's sight at its second zoom level, ×6; the shot leaves 1.57° above the screen centre (zero ~515 m). The sight has the zoom levels ×1.5, ×6: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 1.57,
+        "zoom": 6.0,
         "elevation_limits": [
             -5.33,
             21.67
@@ -1013,9 +1289,26 @@
         "lifespan": 8,
         "category": "guns",
         "warhead": "splash",
-        "note": "HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. BMP-1 (also the BMP-1 technical): the gunner's sight at its first zoom level, ×1.5; the shot leaves 1.4° above the screen centre (zero ~265 m). For the BMD-1M pick its own entry.",
+        "note": "HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. BMP-1 (also the BMP-1 technical): the gunner's sight at its first zoom level, ×1.5; the shot leaves 1.4° above the screen centre (zero ~265 m). For the BMD-1M pick its own entry. The sight's higher zoom levels (×6) have their own entries (search \"gunner sight\").",
         "bore": 1.4,
         "zoom": 1.5,
+        "elevation_limits": [
+            -2.5,
+            34.5
+        ]
+    },
+    "2A28 Grom (BMP-1) · FRAG · gunner sight ×6": {
+        "velocity": 290,
+        "gravity": 1.2,
+        "acceleration": 100,
+        "acceleration_time": 1.1,
+        "max_speed": 250,
+        "lifespan": 8,
+        "category": "guns",
+        "warhead": "splash",
+        "note": "HEAT and FRAG shells fly at different speeds — pick the shell you have loaded. BMP-1 (every faction, also the BMP-1 technical): the gunner's sight at its second zoom level, ×6; the shot leaves 1.4° above the screen centre (zero ~265 m). The sight has the zoom levels ×1.5, ×6: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 1.4,
+        "zoom": 6.0,
         "elevation_limits": [
             -2.5,
             34.5
@@ -1030,9 +1323,26 @@
         "lifespan": 8,
         "category": "guns",
         "warhead": "splash",
-        "note": "BMD-1M: the gunner's sight at its first zoom level, ×1.5; the shot leaves 1.57° above the screen centre (zero ~295 m).",
+        "note": "BMD-1M: the gunner's sight at its first zoom level, ×1.5; the shot leaves 1.57° above the screen centre (zero ~295 m). The sight's higher zoom levels (×6) have their own entries (search \"gunner sight\").",
         "bore": 1.57,
         "zoom": 1.5,
+        "elevation_limits": [
+            -5.33,
+            21.67
+        ]
+    },
+    "2A28 Grom (BMD-1M) · FRAG · gunner sight ×6": {
+        "velocity": 290,
+        "gravity": 1.2,
+        "acceleration": 100,
+        "acceleration_time": 1.1,
+        "max_speed": 250,
+        "lifespan": 8,
+        "category": "guns",
+        "warhead": "splash",
+        "note": "BMD-1M (desert Blueprint too): the gunner's sight at its second zoom level, ×6; the shot leaves 1.57° above the screen centre (zero ~295 m). The sight has the zoom levels ×1.5, ×6: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 1.57,
+        "zoom": 6.0,
         "elevation_limits": [
             -5.33,
             21.67
@@ -1043,11 +1353,28 @@
         "gravity": 2,
         "max_speed": 850,
         "lifespan": 20,
+        "rotation_follows_velocity": false,
         "category": "guns",
         "warhead": "splash",
-        "note": "BMP-3M: the gunner's sight at its first zoom level, ×2.5; the shot leaves 0.58° above the screen centre (zero ~130 m). For the BMD-4M and the ZBD-04A pick their own entries.",
+        "note": "BMP-3M: the gunner's sight at its first zoom level, ×2.5; the shot leaves 0.58° above the screen centre (zero ~130 m). For the BMD-4M and the ZBD-04A pick their own entries. The sight's higher zoom levels (×4, ×14) have their own entries (search \"gunner sight\").",
         "bore": 0.58,
         "zoom": 2.5,
+        "elevation_limits": [
+            -5.325,
+            60.675
+        ]
+    },
+    "2A70 100mm (BMP-3) · FRAG · gunner sight ×4": {
+        "velocity": 355,
+        "gravity": 2,
+        "max_speed": 850,
+        "lifespan": 20,
+        "rotation_follows_velocity": false,
+        "category": "guns",
+        "warhead": "splash",
+        "note": "BMP-3 (desert Blueprint too): the gunner's sight at its second zoom level, ×4; the shot leaves 0.575° above the screen centre (zero ~130 m). The sight has the zoom levels ×2.5, ×4, ×14: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.575,
+        "zoom": 4.0,
         "elevation_limits": [
             -5.325,
             60.675
@@ -1058,11 +1385,44 @@
         "gravity": 2,
         "max_speed": 850,
         "lifespan": 20,
+        "rotation_follows_velocity": false,
         "category": "guns",
         "warhead": "splash",
-        "note": "ZBD-04A: the gunner's sight at its first zoom level, ×2.5; the shot leaves 0.95° above the screen centre (zero ~215 m).",
+        "note": "ZBD-04A: the gunner's sight at its first zoom level, ×2.5; the shot leaves 0.95° above the screen centre (zero ~215 m). The sight's higher zoom levels (×4, ×14) have their own entries (search \"gunner sight\").",
         "bore": 0.95,
         "zoom": 2.5,
+        "elevation_limits": [
+            -1.95,
+            61.05
+        ]
+    },
+    "2A70 100mm (ZBD-04A) · FRAG · gunner sight ×4": {
+        "velocity": 355,
+        "gravity": 2,
+        "max_speed": 850,
+        "lifespan": 20,
+        "rotation_follows_velocity": false,
+        "category": "guns",
+        "warhead": "splash",
+        "note": "ZBD-04A (desert Blueprint too): the gunner's sight at its second zoom level, ×4; the shot leaves 0.95° above the screen centre (zero ~215 m). The sight has the zoom levels ×2.5, ×4, ×14: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.95,
+        "zoom": 4.0,
+        "elevation_limits": [
+            -1.95,
+            61.05
+        ]
+    },
+    "2A70 100mm (ZBD-04A) · FRAG · gunner sight ×14": {
+        "velocity": 355,
+        "gravity": 2,
+        "max_speed": 850,
+        "lifespan": 20,
+        "rotation_follows_velocity": false,
+        "category": "guns",
+        "warhead": "splash",
+        "note": "ZBD-04A (desert Blueprint too): the gunner's sight at its third zoom level, ×14; the shot leaves 0.95° above the screen centre (zero ~215 m). The sight has the zoom levels ×2.5, ×4, ×14: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.95,
+        "zoom": 14.0,
         "elevation_limits": [
             -1.95,
             61.05
@@ -1073,11 +1433,44 @@
         "gravity": 2,
         "max_speed": 850,
         "lifespan": 20,
+        "rotation_follows_velocity": false,
         "category": "guns",
         "warhead": "splash",
-        "note": "BMD-4M: the gunner's sight at its first zoom level, ×2.5; the shot leaves 0.57° above the screen centre (zero ~130 m).",
+        "note": "BMD-4M: the gunner's sight at its first zoom level, ×2.5; the shot leaves 0.57° above the screen centre (zero ~130 m). The sight's higher zoom levels (×5, ×14) have their own entries (search \"gunner sight\").",
         "bore": 0.57,
         "zoom": 2.5,
+        "elevation_limits": [
+            -5.325,
+            60.675
+        ]
+    },
+    "2A70 100mm (BMD-4M) · FRAG · gunner sight ×5": {
+        "velocity": 355,
+        "gravity": 2,
+        "max_speed": 850,
+        "lifespan": 20,
+        "rotation_follows_velocity": false,
+        "category": "guns",
+        "warhead": "splash",
+        "note": "BMD-4M (desert Blueprint too): the gunner's sight at its second zoom level, ×5; the shot leaves 0.575° above the screen centre (zero ~130 m). The sight has the zoom levels ×2.5, ×5, ×14: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.575,
+        "zoom": 5.0,
+        "elevation_limits": [
+            -5.325,
+            60.675
+        ]
+    },
+    "2A70 100mm (BMP-3 / BMD-4M) · FRAG · gunner sight ×14": {
+        "velocity": 355,
+        "gravity": 2,
+        "max_speed": 850,
+        "lifespan": 20,
+        "rotation_follows_velocity": false,
+        "category": "guns",
+        "warhead": "splash",
+        "note": "BMD-4M and BMP-3 (desert Blueprints too): the gunner's sight at its third zoom level, ×14; the shot leaves 0.575° above the screen centre (zero ~130 m). The sight has the zoom levels ×2.5, ×5, ×14: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.575,
+        "zoom": 14.0,
         "elevation_limits": [
             -5.325,
             60.675
@@ -1088,6 +1481,7 @@
         "gravity": 2,
         "max_speed": 700,
         "lifespan": 20,
+        "rotation_follows_velocity": false,
         "bore": 0.4,
         "zoom": 4,
         "view": "optic",
@@ -1105,6 +1499,7 @@
         "gravity": 2,
         "max_speed": 700,
         "lifespan": 20,
+        "rotation_follows_velocity": false,
         "bore": 0.4,
         "view": "plain",
         "category": "guns",
@@ -1122,9 +1517,54 @@
         "lifespan": 8,
         "category": "tanks",
         "warhead": "direct",
-        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. T-72A / T-72S / T-72B3 / T-90A / Sprut-SDM1 (the gunner's sight): the gunner's sight at its first zoom level, ×4; the shot leaves 0.28° above the screen centre (zero ~675 m). For the other tanks pick their own entry.",
+        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. T-72A / T-72S / T-72B3 / T-90A (the gunner's sight): the gunner's sight at its first zoom level, ×4; the shot leaves 0.28° above the screen centre (zero ~675 m). For the other tanks, the Sprut-SDM1 included, pick their own entry. The sight's higher zoom levels (×12) have their own entries (search \"gunner sight\").",
         "bore": 0.28,
         "zoom": 4.0,
+        "elevation_limits": [
+            -5.62,
+            14.38
+        ]
+    },
+    "Tank AP · Sprut-SDM1 (2A45) · gunner sight ×4": {
+        "velocity": 1300,
+        "gravity": 2.5,
+        "max_speed": 1500,
+        "lifespan": 8,
+        "category": "tanks",
+        "warhead": "direct",
+        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. Sprut-SDM1 (desert Blueprint too): the gunner's sight at its first zoom level, ×4; the shot leaves 0.29° above the screen centre (zero ~700 m). The sight has the zoom levels ×4, ×12: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.29,
+        "zoom": 4.0,
+        "elevation_limits": [
+            -5.61,
+            14.39
+        ]
+    },
+    "Tank AP · Sprut-SDM1 (2A45) · gunner sight ×12": {
+        "velocity": 1300,
+        "gravity": 2.5,
+        "max_speed": 1500,
+        "lifespan": 8,
+        "category": "tanks",
+        "warhead": "direct",
+        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. Sprut-SDM1 (desert Blueprint too): the gunner's sight at its second zoom level, ×12; the shot leaves 0.29° above the screen centre (zero ~700 m). The sight has the zoom levels ×4, ×12: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.29,
+        "zoom": 12.0,
+        "elevation_limits": [
+            -5.61,
+            14.39
+        ]
+    },
+    "Tank AP · T-72 / T-90 (2A46) · gunner sight ×12": {
+        "velocity": 1300,
+        "gravity": 2.5,
+        "max_speed": 1500,
+        "lifespan": 8,
+        "category": "tanks",
+        "warhead": "direct",
+        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. T-72A / T-72S / T-72B3 / T-90A (desert Blueprints too): the gunner's sight at its second zoom level, ×12; the shot leaves 0.28° above the screen centre (zero ~675 m). The sight has the zoom levels ×4, ×12: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.28,
+        "zoom": 12.0,
         "elevation_limits": [
             -5.62,
             14.38
@@ -1137,9 +1577,24 @@
         "lifespan": 8,
         "category": "tanks",
         "warhead": "direct",
-        "note": "T-62: the gunner's sight at its first zoom level, ×3.5; the shot leaves 0.05° above the screen centre, practically on it.",
+        "note": "T-62: the gunner's sight at its first zoom level, ×3.5; the shot leaves 0.05° above the screen centre, practically on it. The sight's higher zoom levels (×7) have their own entries (search \"gunner sight\").",
         "bore": 0.05,
         "zoom": 3.5,
+        "elevation_limits": [
+            -5.85,
+            16.15
+        ]
+    },
+    "Tank AP · T-62 (2A20) · gunner sight ×7": {
+        "velocity": 1300,
+        "gravity": 2.5,
+        "max_speed": 1500,
+        "lifespan": 8,
+        "category": "tanks",
+        "warhead": "direct",
+        "note": "T-62 (all three Blueprints): the gunner's sight at its second zoom level, ×7; the shot leaves 0.05° above the screen centre, practically on it. The sight has the zoom levels ×3.5, ×7: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.05,
+        "zoom": 7.0,
         "elevation_limits": [
             -5.85,
             16.15
@@ -1152,9 +1607,24 @@
         "lifespan": 8,
         "category": "tanks",
         "warhead": "direct",
-        "note": "T-64BM2: the gunner's sight at its first zoom level, ×2.7; the shot leaves 0.29° above the screen centre (zero ~700 m).",
+        "note": "T-64BM2: the gunner's sight at its first zoom level, ×2.7; the shot leaves 0.29° above the screen centre (zero ~700 m). The sight's higher zoom levels (×12) have their own entries (search \"gunner sight\").",
         "bore": 0.29,
         "zoom": 2.7,
+        "elevation_limits": [
+            -5.61,
+            14.39
+        ]
+    },
+    "Tank AP · T-64BM2 (KBA3) · gunner sight ×12": {
+        "velocity": 1300,
+        "gravity": 2.5,
+        "max_speed": 1500,
+        "lifespan": 8,
+        "category": "tanks",
+        "warhead": "direct",
+        "note": "T-64BM2 (cage Blueprint too): the gunner's sight at its second zoom level, ×12; the shot leaves 0.29° above the screen centre (zero ~700 m). The sight has the zoom levels ×2.7, ×12: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.29,
+        "zoom": 12.0,
         "elevation_limits": [
             -5.61,
             14.39
@@ -1167,9 +1637,24 @@
         "lifespan": 8,
         "category": "tanks",
         "warhead": "direct",
-        "note": "ZTZ-99: the gunner's sight at its first zoom level, ×4; the shot leaves 0.1° above the screen centre (zero ~240 m).",
+        "note": "ZTZ-99: the gunner's sight at its first zoom level, ×4; the shot leaves 0.1° above the screen centre (zero ~240 m). The sight's higher zoom levels (×12) have their own entries (search \"gunner sight\").",
         "bore": 0.1,
         "zoom": 4.0,
+        "elevation_limits": [
+            -5.8,
+            14.2
+        ]
+    },
+    "Tank AP · ZTZ-99 (ZPT-98) · gunner sight ×12": {
+        "velocity": 1300,
+        "gravity": 2.5,
+        "max_speed": 1500,
+        "lifespan": 8,
+        "category": "tanks",
+        "warhead": "direct",
+        "note": "ZTZ-99 (cage and desert cage Blueprints too): the gunner's sight at its second zoom level, ×12; the shot leaves 0.1° above the screen centre (zero ~240 m). The sight has the zoom levels ×4, ×12: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.1,
+        "zoom": 12.0,
         "elevation_limits": [
             -5.8,
             14.2
@@ -1182,9 +1667,39 @@
         "lifespan": 8,
         "category": "tanks",
         "warhead": "direct",
-        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. M1A1 / M1A2 (the gunner's sight): the gunner's sight at its first zoom level, ×3; the shot leaves 0.31° above the screen centre (zero ~635 m). For the other tanks pick their own entry.",
+        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. M1A1 / M1A2 (the gunner's sight): the gunner's sight at its first zoom level, ×3; the shot leaves 0.31° above the screen centre (zero ~635 m). For the other tanks pick their own entry. The sight's higher zoom levels (×6, ×12) have their own entries (search \"gunner sight\").",
         "bore": 0.31,
         "zoom": 3.0,
+        "elevation_limits": [
+            -9.59,
+            20.41
+        ]
+    },
+    "Tank AP · M1A1 / M1A2 (M256) · gunner sight ×6": {
+        "velocity": 1200,
+        "gravity": 2.5,
+        "max_speed": 1500,
+        "lifespan": 8,
+        "category": "tanks",
+        "warhead": "direct",
+        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. M1A1 (Australian, USMC) and M1A2 (Woodland Blueprints too): the gunner's sight at its second zoom level, ×6; the shot leaves 0.31° above the screen centre (zero ~635 m). The sight has the zoom levels ×3, ×6, ×12: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.31,
+        "zoom": 6.0,
+        "elevation_limits": [
+            -9.59,
+            20.41
+        ]
+    },
+    "Tank AP · M1A1 / M1A2 (M256) · gunner sight ×12": {
+        "velocity": 1200,
+        "gravity": 2.5,
+        "max_speed": 1500,
+        "lifespan": 8,
+        "category": "tanks",
+        "warhead": "direct",
+        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. M1A1 (Australian, USMC) and M1A2 (Woodland Blueprints too): the gunner's sight at its third zoom level, ×12; the shot leaves 0.31° above the screen centre (zero ~635 m). The sight has the zoom levels ×3, ×6, ×12: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.31,
+        "zoom": 12.0,
         "elevation_limits": [
             -9.59,
             20.41
@@ -1197,9 +1712,24 @@
         "lifespan": 8,
         "category": "tanks",
         "warhead": "direct",
-        "note": "Leopard 2A6: the gunner's sight at its first zoom level, ×3; the shot leaves 0.25° above the screen centre (zero ~515 m).",
+        "note": "Leopard 2A6: the gunner's sight at its first zoom level, ×3; the shot leaves 0.25° above the screen centre (zero ~515 m). The sight's higher zoom levels (×12) have their own entries (search \"gunner sight\").",
         "bore": 0.25,
         "zoom": 3.0,
+        "elevation_limits": [
+            -9.65,
+            20.35
+        ]
+    },
+    "Tank AP · Leopard 2A6 (Rh120) · gunner sight ×12": {
+        "velocity": 1200,
+        "gravity": 2.5,
+        "max_speed": 1500,
+        "lifespan": 8,
+        "category": "tanks",
+        "warhead": "direct",
+        "note": "Leopard 2A6 (desert, Woodland and cage Blueprints): the gunner's sight at its second zoom level, ×12; the shot leaves 0.25° above the screen centre (zero ~515 m). The sight has the zoom levels ×3, ×12: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.25,
+        "zoom": 12.0,
         "elevation_limits": [
             -9.65,
             20.35
@@ -1212,8 +1742,38 @@
         "lifespan": 8,
         "category": "tanks",
         "warhead": "direct",
-        "note": "M60T: the gunner's sight at ×1; the shot leaves 0.5° above the screen centre (zero ~1030 m).",
+        "note": "M60T: the gunner's sight at ×1; the shot leaves 0.5° above the screen centre (zero ~1030 m). The sight's higher zoom levels (×3, ×8) have their own entries (search \"gunner sight\").",
         "bore": 0.5,
+        "elevation_limits": [
+            -8.4,
+            20.6
+        ]
+    },
+    "Tank AP · M60T (MG253) · gunner sight ×3": {
+        "velocity": 1200,
+        "gravity": 2.5,
+        "max_speed": 1500,
+        "lifespan": 8,
+        "category": "tanks",
+        "warhead": "direct",
+        "note": "M60T (desert and WPMC Blueprints too): the gunner's sight at its second zoom level, ×3; the shot leaves 0.5° above the screen centre (zero ~1025 m). The sight has the zoom levels ×1, ×3, ×8: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.5,
+        "zoom": 3.0,
+        "elevation_limits": [
+            -8.4,
+            20.6
+        ]
+    },
+    "Tank AP · M60T (MG253) · gunner sight ×8": {
+        "velocity": 1200,
+        "gravity": 2.5,
+        "max_speed": 1500,
+        "lifespan": 8,
+        "category": "tanks",
+        "warhead": "direct",
+        "note": "M60T (desert and WPMC Blueprints too): the gunner's sight at its third zoom level, ×8; the shot leaves 0.5° above the screen centre (zero ~1025 m). The sight has the zoom levels ×1, ×3, ×8: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.5,
+        "zoom": 8.0,
         "elevation_limits": [
             -8.4,
             20.6
@@ -1226,9 +1786,39 @@
         "lifespan": 8,
         "category": "tanks",
         "warhead": "direct",
-        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. Challenger 2: the gunner's sight at its first zoom level, ×1.5; the shot leaves 0.31° above the screen centre (zero ~995 m). For the M1128 MGS pick its own entry.",
+        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. Challenger 2: the gunner's sight at its first zoom level, ×1.5; the shot leaves 0.31° above the screen centre (zero ~995 m). For the M1128 MGS pick its own entry. The sight's higher zoom levels (×4, ×10) have their own entries (search \"gunner sight\").",
         "bore": 0.31,
         "zoom": 1.5,
+        "elevation_limits": [
+            -9.59,
+            20.41
+        ]
+    },
+    "Tank AP · Challenger 2 (L30A1) · gunner sight ×4": {
+        "velocity": 1500,
+        "gravity": 2.5,
+        "max_speed": 1500,
+        "lifespan": 8,
+        "category": "tanks",
+        "warhead": "direct",
+        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. Challenger 2 (Woodland Blueprint too): the gunner's sight at its second zoom level, ×4; the shot leaves 0.31° above the screen centre (zero ~995 m). The sight has the zoom levels ×1.5, ×4, ×10: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.31,
+        "zoom": 4.0,
+        "elevation_limits": [
+            -9.59,
+            20.41
+        ]
+    },
+    "Tank AP · Challenger 2 (L30A1) · gunner sight ×10": {
+        "velocity": 1500,
+        "gravity": 2.5,
+        "max_speed": 1500,
+        "lifespan": 8,
+        "category": "tanks",
+        "warhead": "direct",
+        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. Challenger 2 (Woodland Blueprint too): the gunner's sight at its third zoom level, ×10; the shot leaves 0.31° above the screen centre (zero ~995 m). The sight has the zoom levels ×1.5, ×4, ×10: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.31,
+        "zoom": 10.0,
         "elevation_limits": [
             -9.59,
             20.41
@@ -1241,9 +1831,24 @@
         "lifespan": 8,
         "category": "tanks",
         "warhead": "direct",
-        "note": "M1128 MGS: the gunner's sight at its first zoom level, ×3; the shot leaves 0.6° above the screen centre (zero ~1925 m).",
+        "note": "M1128 MGS: the gunner's sight at its first zoom level, ×3; the shot leaves 0.6° above the screen centre (zero ~1925 m). The sight's higher zoom levels (×8) have their own entries (search \"gunner sight\").",
         "bore": 0.6,
         "zoom": 3.0,
+        "elevation_limits": [
+            -4.3,
+            15.7
+        ]
+    },
+    "Tank AP · M1128 MGS (M68A2) · gunner sight ×8": {
+        "velocity": 1500,
+        "gravity": 2.5,
+        "max_speed": 1500,
+        "lifespan": 8,
+        "category": "tanks",
+        "warhead": "direct",
+        "note": "M1128 MGS (Woodland Blueprint too): the gunner's sight at its second zoom level, ×8; the shot leaves 0.6° above the screen centre (zero ~1925 m). The sight has the zoom levels ×3, ×8: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.6,
+        "zoom": 8.0,
         "elevation_limits": [
             -4.3,
             15.7
@@ -1254,11 +1859,60 @@
         "gravity": 2,
         "max_speed": 850,
         "lifespan": 20,
+        "rotation_follows_velocity": false,
         "category": "tanks",
         "warhead": "splash",
-        "note": "The shell leaves the gun at 1100 m/s and is slowed at once to 850 m/s, its top speed (the 120 mm HEAT of the M1A1/M1A2, Leopard 2A6 and M1128: 800 m/s, in their own entries). T-72A / T-72S / T-72B3 / T-90A / Sprut-SDM1 (the gunner's sight): the gunner's sight at its first zoom level, ×4; the shot leaves 0.28° above the screen centre (zero ~375 m). For the other tanks pick their own entry.",
+        "note": "The shell leaves the gun at 1100 m/s and is slowed at once to 850 m/s, its top speed (the 120 mm HEAT of the M1A1/M1A2, Leopard 2A6 and M1128: 800 m/s, in their own entries). T-72A / T-72S / T-72B3 / T-90A (the gunner's sight): the gunner's sight at its first zoom level, ×4; the shot leaves 0.28° above the screen centre (zero ~375 m). For the other tanks, the Sprut-SDM1 included, pick their own entry. The sight's higher zoom levels (×12) have their own entries (search \"gunner sight\").",
         "bore": 0.28,
         "zoom": 4.0,
+        "elevation_limits": [
+            -5.62,
+            14.38
+        ]
+    },
+    "Tank HEAT/HE · Sprut-SDM1 (2A45) · gunner sight ×4": {
+        "velocity": 1100,
+        "gravity": 2,
+        "max_speed": 850,
+        "lifespan": 20,
+        "rotation_follows_velocity": false,
+        "category": "tanks",
+        "warhead": "splash",
+        "note": "The shell leaves the gun at 1100 m/s and is slowed at once to 850 m/s, its top speed (the 120 mm HEAT of the M1A1/M1A2, Leopard 2A6 and M1128: 800 m/s, in their own entries). Sprut-SDM1 (desert Blueprint too): the gunner's sight at its first zoom level, ×4; the shot leaves 0.29° above the screen centre (zero ~385 m). The sight has the zoom levels ×4, ×12: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.29,
+        "zoom": 4.0,
+        "elevation_limits": [
+            -5.61,
+            14.39
+        ]
+    },
+    "Tank HEAT/HE · Sprut-SDM1 (2A45) · gunner sight ×12": {
+        "velocity": 1100,
+        "gravity": 2,
+        "max_speed": 850,
+        "lifespan": 20,
+        "rotation_follows_velocity": false,
+        "category": "tanks",
+        "warhead": "splash",
+        "note": "The shell leaves the gun at 1100 m/s and is slowed at once to 850 m/s, its top speed (the 120 mm HEAT of the M1A1/M1A2, Leopard 2A6 and M1128: 800 m/s, in their own entries). Sprut-SDM1 (desert Blueprint too): the gunner's sight at its second zoom level, ×12; the shot leaves 0.29° above the screen centre (zero ~385 m). The sight has the zoom levels ×4, ×12: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.29,
+        "zoom": 12.0,
+        "elevation_limits": [
+            -5.61,
+            14.39
+        ]
+    },
+    "Tank HEAT/HE · T-72 / T-90 (2A46) · gunner sight ×12": {
+        "velocity": 1100,
+        "gravity": 2,
+        "max_speed": 850,
+        "lifespan": 20,
+        "rotation_follows_velocity": false,
+        "category": "tanks",
+        "warhead": "splash",
+        "note": "The shell leaves the gun at 1100 m/s and is slowed at once to 850 m/s, its top speed (the 120 mm HEAT of the M1A1/M1A2, Leopard 2A6 and M1128: 800 m/s, in their own entries). T-72A / T-72S / T-72B3 / T-90A (desert Blueprints too): the gunner's sight at its second zoom level, ×12; the shot leaves 0.28° above the screen centre (zero ~375 m). The sight has the zoom levels ×4, ×12: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.28,
+        "zoom": 12.0,
         "elevation_limits": [
             -5.62,
             14.38
@@ -1271,9 +1925,39 @@
         "lifespan": 20,
         "category": "tanks",
         "warhead": "splash",
-        "note": "M1A1 / M1A2: the gunner's sight at its first zoom level, ×3; the shot leaves 0.31° above the screen centre (zero ~370 m).",
+        "note": "M1A1 / M1A2: the gunner's sight at its first zoom level, ×3; the shot leaves 0.31° above the screen centre (zero ~370 m). The sight's higher zoom levels (×6, ×12) have their own entries (search \"gunner sight\").",
         "bore": 0.31,
         "zoom": 3.0,
+        "elevation_limits": [
+            -9.59,
+            20.41
+        ]
+    },
+    "Tank HEAT/HE · M1A1 / M1A2 (M256) · gunner sight ×6": {
+        "velocity": 1100,
+        "gravity": 2,
+        "max_speed": 800,
+        "lifespan": 20,
+        "category": "tanks",
+        "warhead": "splash",
+        "note": "M1A1 (Australian, USMC) and M1A2 (Woodland Blueprints too): the gunner's sight at its second zoom level, ×6; the shot leaves 0.31° above the screen centre (zero ~370 m). The sight has the zoom levels ×3, ×6, ×12: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.31,
+        "zoom": 6.0,
+        "elevation_limits": [
+            -9.59,
+            20.41
+        ]
+    },
+    "Tank HEAT/HE · M1A1 / M1A2 (M256) · gunner sight ×12": {
+        "velocity": 1100,
+        "gravity": 2,
+        "max_speed": 800,
+        "lifespan": 20,
+        "category": "tanks",
+        "warhead": "splash",
+        "note": "M1A1 (Australian, USMC) and M1A2 (Woodland Blueprints too): the gunner's sight at its third zoom level, ×12; the shot leaves 0.31° above the screen centre (zero ~370 m). The sight has the zoom levels ×3, ×6, ×12: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.31,
+        "zoom": 12.0,
         "elevation_limits": [
             -9.59,
             20.41
@@ -1286,9 +1970,24 @@
         "lifespan": 20,
         "category": "tanks",
         "warhead": "splash",
-        "note": "Leopard 2A6: the gunner's sight at its first zoom level, ×3; the shot leaves 0.25° above the screen centre (zero ~300 m).",
+        "note": "Leopard 2A6: the gunner's sight at its first zoom level, ×3; the shot leaves 0.25° above the screen centre (zero ~300 m). The sight's higher zoom levels (×12) have their own entries (search \"gunner sight\").",
         "bore": 0.25,
         "zoom": 3.0,
+        "elevation_limits": [
+            -9.65,
+            20.35
+        ]
+    },
+    "Tank HEAT/HE · Leopard 2A6 (Rh120) · gunner sight ×12": {
+        "velocity": 1100,
+        "gravity": 2,
+        "max_speed": 800,
+        "lifespan": 20,
+        "category": "tanks",
+        "warhead": "splash",
+        "note": "Leopard 2A6 (desert, Woodland and cage Blueprints): the gunner's sight at its second zoom level, ×12; the shot leaves 0.25° above the screen centre (zero ~300 m). The sight has the zoom levels ×3, ×12: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.25,
+        "zoom": 12.0,
         "elevation_limits": [
             -9.65,
             20.35
@@ -1301,9 +2000,24 @@
         "lifespan": 20,
         "category": "tanks",
         "warhead": "splash",
-        "note": "M1128 MGS: the gunner's sight at its first zoom level, ×3; the shot leaves 0.6° above the screen centre (zero ~700 m).",
+        "note": "M1128 MGS: the gunner's sight at its first zoom level, ×3; the shot leaves 0.6° above the screen centre (zero ~700 m). The sight's higher zoom levels (×8) have their own entries (search \"gunner sight\").",
         "bore": 0.6,
         "zoom": 3.0,
+        "elevation_limits": [
+            -4.3,
+            15.7
+        ]
+    },
+    "Tank HEAT/HE · M1128 MGS (M68A2) · gunner sight ×8": {
+        "velocity": 1100,
+        "gravity": 2,
+        "max_speed": 800,
+        "lifespan": 20,
+        "category": "tanks",
+        "warhead": "splash",
+        "note": "M1128 MGS (Woodland Blueprint too): the gunner's sight at its second zoom level, ×8; the shot leaves 0.6° above the screen centre (zero ~700 m). The sight has the zoom levels ×3, ×8: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.6,
+        "zoom": 8.0,
         "elevation_limits": [
             -4.3,
             15.7
@@ -1314,10 +2028,43 @@
         "gravity": 2,
         "max_speed": 850,
         "lifespan": 20,
+        "rotation_follows_velocity": false,
         "category": "tanks",
         "warhead": "splash",
-        "note": "M60T: the gunner's sight at ×1; the shot leaves 0.5° above the screen centre (zero ~655 m).",
+        "note": "M60T: the gunner's sight at ×1; the shot leaves 0.5° above the screen centre (zero ~655 m). The sight's higher zoom levels (×3, ×8) have their own entries (search \"gunner sight\").",
         "bore": 0.5,
+        "elevation_limits": [
+            -8.4,
+            20.6
+        ]
+    },
+    "Tank HEAT/HE · M60T (MG253) · gunner sight ×3": {
+        "velocity": 1100,
+        "gravity": 2,
+        "max_speed": 850,
+        "lifespan": 20,
+        "rotation_follows_velocity": false,
+        "category": "tanks",
+        "warhead": "splash",
+        "note": "M60T (desert and WPMC Blueprints too): the gunner's sight at its second zoom level, ×3; the shot leaves 0.5° above the screen centre (zero ~655 m). The sight has the zoom levels ×1, ×3, ×8: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.5,
+        "zoom": 3.0,
+        "elevation_limits": [
+            -8.4,
+            20.6
+        ]
+    },
+    "Tank HEAT/HE · M60T (MG253) · gunner sight ×8": {
+        "velocity": 1100,
+        "gravity": 2,
+        "max_speed": 850,
+        "lifespan": 20,
+        "rotation_follows_velocity": false,
+        "category": "tanks",
+        "warhead": "splash",
+        "note": "M60T (desert and WPMC Blueprints too): the gunner's sight at its third zoom level, ×8; the shot leaves 0.5° above the screen centre (zero ~655 m). The sight has the zoom levels ×1, ×3, ×8: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.5,
+        "zoom": 8.0,
         "elevation_limits": [
             -8.4,
             20.6
@@ -1328,11 +2075,28 @@
         "gravity": 2,
         "max_speed": 850,
         "lifespan": 20,
+        "rotation_follows_velocity": false,
         "category": "tanks",
         "warhead": "splash",
-        "note": "ZTZ-99: the gunner's sight at its first zoom level, ×4; the shot leaves 0.1° above the screen centre (zero ~140 m).",
+        "note": "ZTZ-99: the gunner's sight at its first zoom level, ×4; the shot leaves 0.1° above the screen centre (zero ~140 m). The sight's higher zoom levels (×12) have their own entries (search \"gunner sight\").",
         "bore": 0.1,
         "zoom": 4.0,
+        "elevation_limits": [
+            -5.8,
+            14.2
+        ]
+    },
+    "Tank HEAT/HE · ZTZ-99 (ZPT-98) · gunner sight ×12": {
+        "velocity": 1100,
+        "gravity": 2,
+        "max_speed": 850,
+        "lifespan": 20,
+        "rotation_follows_velocity": false,
+        "category": "tanks",
+        "warhead": "splash",
+        "note": "ZTZ-99 (cage and desert cage Blueprints too): the gunner's sight at its second zoom level, ×12; the shot leaves 0.1° above the screen centre (zero ~140 m). The sight has the zoom levels ×4, ×12: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.1,
+        "zoom": 12.0,
         "elevation_limits": [
             -5.8,
             14.2
@@ -1343,11 +2107,28 @@
         "gravity": 2,
         "max_speed": 850,
         "lifespan": 20,
+        "rotation_follows_velocity": false,
         "category": "tanks",
         "warhead": "splash",
-        "note": "T-62: the gunner's sight at its first zoom level, ×3.5; the shot leaves 0.05° above the screen centre, practically on it.",
+        "note": "T-62: the gunner's sight at its first zoom level, ×3.5; the shot leaves 0.05° above the screen centre, practically on it. The sight's higher zoom levels (×7) have their own entries (search \"gunner sight\").",
         "bore": 0.05,
         "zoom": 3.5,
+        "elevation_limits": [
+            -5.85,
+            16.15
+        ]
+    },
+    "Tank HEAT/HE · T-62 (2A20) · gunner sight ×7": {
+        "velocity": 1100,
+        "gravity": 2,
+        "max_speed": 850,
+        "lifespan": 20,
+        "rotation_follows_velocity": false,
+        "category": "tanks",
+        "warhead": "splash",
+        "note": "T-62 (all three Blueprints): the gunner's sight at its second zoom level, ×7; the shot leaves 0.05° above the screen centre, practically on it. The sight has the zoom levels ×3.5, ×7: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.05,
+        "zoom": 7.0,
         "elevation_limits": [
             -5.85,
             16.15
@@ -1358,11 +2139,28 @@
         "gravity": 2,
         "max_speed": 850,
         "lifespan": 20,
+        "rotation_follows_velocity": false,
         "category": "tanks",
         "warhead": "splash",
-        "note": "T-64BM2: the gunner's sight at its first zoom level, ×2.7; the shot leaves 0.29° above the screen centre (zero ~385 m).",
+        "note": "T-64BM2: the gunner's sight at its first zoom level, ×2.7; the shot leaves 0.29° above the screen centre (zero ~385 m). The sight's higher zoom levels (×12) have their own entries (search \"gunner sight\").",
         "bore": 0.29,
         "zoom": 2.7,
+        "elevation_limits": [
+            -5.61,
+            14.39
+        ]
+    },
+    "Tank HEAT/HE · T-64BM2 (KBA3) · gunner sight ×12": {
+        "velocity": 1100,
+        "gravity": 2,
+        "max_speed": 850,
+        "lifespan": 20,
+        "rotation_follows_velocity": false,
+        "category": "tanks",
+        "warhead": "splash",
+        "note": "T-64BM2 (cage Blueprint too): the gunner's sight at its second zoom level, ×12; the shot leaves 0.29° above the screen centre (zero ~385 m). The sight has the zoom levels ×2.7, ×12: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.29,
+        "zoom": 12.0,
         "elevation_limits": [
             -5.61,
             14.39
@@ -1375,9 +2173,39 @@
         "lifespan": 20,
         "category": "tanks",
         "warhead": "splash",
-        "note": "Slow shell (670 m/s, the L30A1 smoke too): it drops noticeably, enter the distance precisely. Challenger 2: the gunner's sight at its first zoom level, ×1.5; the shot leaves 0.31° above the screen centre (zero ~250 m).",
+        "note": "Slow shell (670 m/s, the L30A1 smoke too): it drops noticeably, enter the distance precisely. Challenger 2: the gunner's sight at its first zoom level, ×1.5; the shot leaves 0.31° above the screen centre (zero ~250 m). The sight's higher zoom levels (×4, ×10) have their own entries (search \"gunner sight\").",
         "bore": 0.31,
         "zoom": 1.5,
+        "elevation_limits": [
+            -9.59,
+            20.41
+        ]
+    },
+    "Tank HESH · Challenger 2 (L30A1) · gunner sight ×4": {
+        "velocity": 670,
+        "gravity": 2,
+        "max_speed": 800,
+        "lifespan": 20,
+        "category": "tanks",
+        "warhead": "splash",
+        "note": "Slow shell (670 m/s, the L30A1 smoke too): it drops noticeably, enter the distance precisely. Challenger 2 (Woodland Blueprint too): the gunner's sight at its second zoom level, ×4; the shot leaves 0.31° above the screen centre (zero ~250 m). The sight has the zoom levels ×1.5, ×4, ×10: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.31,
+        "zoom": 4.0,
+        "elevation_limits": [
+            -9.59,
+            20.41
+        ]
+    },
+    "Tank HESH · Challenger 2 (L30A1) · gunner sight ×10": {
+        "velocity": 670,
+        "gravity": 2,
+        "max_speed": 800,
+        "lifespan": 20,
+        "category": "tanks",
+        "warhead": "splash",
+        "note": "Slow shell (670 m/s, the L30A1 smoke too): it drops noticeably, enter the distance precisely. Challenger 2 (Woodland Blueprint too): the gunner's sight at its third zoom level, ×10; the shot leaves 0.31° above the screen centre (zero ~250 m). The sight has the zoom levels ×1.5, ×4, ×10: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.31,
+        "zoom": 10.0,
         "elevation_limits": [
             -9.59,
             20.41
@@ -1390,9 +2218,24 @@
         "lifespan": 8,
         "category": "tanks",
         "warhead": "direct",
-        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. ZTD-05: the gunner's sight at its first zoom level, ×3.5; the shot leaves 0.02° above the screen centre, practically on it.",
+        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. ZTD-05: the gunner's sight at its first zoom level, ×3.5; the shot leaves 0.02° above the screen centre, practically on it. The sight's higher zoom levels (×7) have their own entries (search \"gunner sight\").",
         "bore": 0.02,
         "zoom": 3.5,
+        "elevation_limits": [
+            -5.88,
+            16.12
+        ]
+    },
+    "ZPL-98A 105mm (ZTD-05) · AP · gunner sight ×7": {
+        "velocity": 1110,
+        "gravity": 2.5,
+        "max_speed": 1500,
+        "lifespan": 8,
+        "category": "tanks",
+        "warhead": "direct",
+        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. ZTD-05 (Woodland Blueprint too): the gunner's sight at its second zoom level, ×7; the shot leaves 0.02° above the screen centre, practically on it. The sight has the zoom levels ×3.5, ×7: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.02,
+        "zoom": 7.0,
         "elevation_limits": [
             -5.88,
             16.12
@@ -1403,11 +2246,28 @@
         "gravity": 2,
         "max_speed": 850,
         "lifespan": 20,
+        "rotation_follows_velocity": false,
         "category": "tanks",
         "warhead": "splash",
-        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. ZTD-05: the gunner's sight at its first zoom level, ×3.5; the shot leaves 0.02° above the screen centre, practically on it.",
+        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. ZTD-05: the gunner's sight at its first zoom level, ×3.5; the shot leaves 0.02° above the screen centre, practically on it. The sight's higher zoom levels (×7) have their own entries (search \"gunner sight\").",
         "bore": 0.02,
         "zoom": 3.5,
+        "elevation_limits": [
+            -5.88,
+            16.12
+        ]
+    },
+    "ZPL-98A 105mm (ZTD-05) · HEAT / HE · gunner sight ×7": {
+        "velocity": 730,
+        "gravity": 2,
+        "max_speed": 850,
+        "lifespan": 20,
+        "rotation_follows_velocity": false,
+        "category": "tanks",
+        "warhead": "splash",
+        "note": "Fast shell, small drop: the correction matters mostly beyond ~800 m. ZTD-05 (Woodland Blueprint too): the gunner's sight at its second zoom level, ×7; the shot leaves 0.02° above the screen centre, practically on it. The sight has the zoom levels ×3.5, ×7: pick the entry of the level you have set (search \"gunner sight\").",
+        "bore": 0.02,
+        "zoom": 7.0,
         "elevation_limits": [
             -5.88,
             16.12

@@ -362,7 +362,9 @@ class _PickerPopup(QFrame):
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
 
-        self.list.setTextElideMode(Qt.TextElideMode.ElideRight)
+        # A name too long for the list loses its middle, never its end: the end
+        # says the sight's zoom ("gunner sight ×12") or whether it is the optic.
+        self.list.setTextElideMode(Qt.TextElideMode.ElideMiddle)
 
         self.list.itemActivated.connect(self.pick_item)
 
