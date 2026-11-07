@@ -69,7 +69,6 @@ from config import (
     save_config,
 )
 
-from gamesettings import find_game_settings, read_game_settings
 
 from holdtimer import HoldTimer
 
@@ -132,7 +131,6 @@ LAY_RATE_TOLERANCE = 0.3
 SIGHT_WATCH_MS = 300
 
 # How often the game's settings file is checked for a change.
-GAME_SETTINGS_WATCH_MS = 2000
 
 # How often the Focus key is read while a weapon whose view Focus narrows is
 # selected (ms): short enough that the mark follows a press at once.
@@ -224,12 +222,6 @@ class MainWindow(QMainWindow):
 
         self.apply_lay_rates()
 
-        # The game's own settings (gamesettings.py), read before the UI is
-        # built; `game_settings_stamp` says which file state they come from.
-        self.game_settings = None
-        self.game_settings_stamp = None
-        self.load_game_settings()
-
         self.last_solution = None
 
         # Direct-fire (low arc) solution of a hold weapon while it lobs,
@@ -304,11 +296,6 @@ class MainWindow(QMainWindow):
         self.focus_timer = QTimer(self)
         self.focus_timer.setInterval(FOCUS_WATCH_MS)
         self.focus_timer.timeout.connect(self.watch_focus)
-
-        self.game_settings_timer = QTimer(self)
-        self.game_settings_timer.setInterval(GAME_SETTINGS_WATCH_MS)
-        self.game_settings_timer.timeout.connect(self.watch_game_settings)
-        self.game_settings_timer.start()
 
         self.save_timer = QTimer(self)
         self.save_timer.setSingleShot(True)
@@ -652,10 +639,6 @@ class MainWindow(QMainWindow):
 
         self.fov_entry.setPlaceholderText(tr("fov_hint"))
 
-        self.fov_source_label = label("", "small")
-
-        self.fov_source_label.setWordWrap(True)
-
         for caption, entry in (
             (tr("distance"), self.distance_entry),
             (tr("height"), self.height_entry),
@@ -674,10 +657,7 @@ class MainWindow(QMainWindow):
 
             entry.returnPressed.connect(lambda: self.calculate())
 
-            if entry is self.fov_entry:
-                layout.addWidget(self.fov_source_label)
-
-        self.show_fov_source()
+        self.fov_entry.set_value(self.config["fov"])
 
         self.map_label = label("", "small")
 
@@ -1047,75 +1027,10 @@ class MainWindow(QMainWindow):
 
         self.map_label.setText(text)
 
-    def fov_from_game(self):
-        """Whether the game's settings file gives the FOV, so the marks are
-        laid for the FOV the game renders with and not for a guess."""
-        return self.game_settings is not None and self.game_settings.fov is not None
-
     def active_fov(self):
-        """The FOV (degrees) every mark is laid for: the game's own while its
-        settings give one, else the one typed in the app."""
-        if self.fov_from_game():
-            return self.game_settings.fov
-
+        """The FOV (degrees) every mark is laid for: the one typed in the
+        app, which must equal the game's FOV setting."""
         return self.config["fov"]
-
-    def load_game_settings(self):
-        """Read the game's settings file again, remembering which file state
-        (path and modification time) it was read from. None when the game's
-        settings are not found."""
-        path = find_game_settings()
-
-        try:
-            stamp = (path, os.stat(path).st_mtime_ns) if path else None
-        except OSError:
-            path = stamp = None
-
-        self.game_settings_stamp = stamp
-        self.game_settings = read_game_settings(path) if path else None
-
-    def watch_game_settings(self):
-        """Follow the game's settings file: when it appeared, went or was
-        rewritten, read it and lay the marks for the new FOV."""
-        old = self.game_settings_stamp
-
-        path = find_game_settings()
-
-        try:
-            stamp = (path, os.stat(path).st_mtime_ns) if path else None
-        except OSError:
-            stamp = None
-
-        if stamp == old:
-            return
-
-        self.load_game_settings()
-
-        self.show_fov_source()
-
-        self.recalculate_if_ready()
-
-    def show_fov_source(self):
-        """Show where the FOV comes from. Taken from the game, the field
-        shows it and cannot be edited; otherwise it holds the typed FOV and
-        the text says it is not the game's."""
-        from_game = self.fov_from_game()
-
-        self.fov_entry.setEnabled(not from_game)
-
-        if from_game:
-            self.fov_entry.set_value(self.game_settings.fov)
-
-            self.fov_source_label.setText(tr("fov_from_game", fov=f"{self.game_settings.fov:g}"))
-        else:
-            self.fov_entry.set_value(self.config["fov"])
-
-            self.fov_source_label.setText(tr("fov_not_from_game"))
-
-        self.fov_source_label.setProperty("state", "" if from_game else "error")
-
-        self.fov_source_label.style().unpolish(self.fov_source_label)
-        self.fov_source_label.style().polish(self.fov_source_label)
 
     def check_screen_ratio(self):
         """Warn while the area the overlay covers (the game's window, or the
@@ -1262,7 +1177,7 @@ class MainWindow(QMainWindow):
         # The FOV applies without a distance too: the range ladder follows it.
         fov = self.fov_entry.value()
 
-        if self.fov_entry.isEnabled() and fov is not None \
+        if fov is not None \
                 and RANGES["fov"][0] <= fov <= RANGES["fov"][1] \
                 and self.config["fov"] != fov:
             self.config["fov"] = fov
@@ -1758,9 +1673,9 @@ class MainWindow(QMainWindow):
 
     def fov_notes(self):
         """The notes about the FOV that go on the overlay's info line of the
-        selected weapon: that the FOV is a guess (not read from the game),
-        and, for a sight with a printed reticle at a FOV other than 90, to
-        aim with the app's mark. Nothing for weapons laid by elevation."""
+        selected weapon: for a sight with a printed reticle at a FOV other
+        than 90, to aim with the app's mark. Nothing for weapons laid by
+        elevation."""
         weapon = self.current_weapon()
 
         if weapon is None or weapon.aim != "overlay":
@@ -1768,9 +1683,6 @@ class MainWindow(QMainWindow):
 
         fov = self.active_fov()
         notes = []
-
-        if not self.fov_from_game():
-            notes.append(tr("info_fov_assumed", fov=f"{fov:g}"))
 
         if fov != PRINTED_RETICLE_FOV and has_printed_reticle(weapon):
             notes.append(tr("info_printed_reticle"))
@@ -3158,7 +3070,7 @@ class MainWindow(QMainWindow):
         self.apply_lay_rates()
 
         # rebuild() keeps the typed inputs; the FOV is a setting.
-        self.show_fov_source()
+        self.fov_entry.set_value(self.config["fov"])
 
         self.update_ladder()
 

@@ -1,3 +1,10 @@
+## Squad Ballistics 1.7.1
+
+Изменения с версии 1.7.0. / Changes since 1.7.0.
+
+### Изменено / Changed
+- **FOV вводится вручную:** поле FOV всегда доступно для ввода, введённый FOV сохраняется в настройках (по умолчанию 120), и все метки считаются для него. Он должен совпадать с FOV игры (ползунок FOV в настройках игры). Программа больше не читает `GameUserSettings.ini`, не проверяет файл каждые 2 секунды, не блокирует поле и не пишет «FOV assumed» в окне и на оверлее. Настройки, записанные версией 1.7.0, открываются как раньше и сохраняют свой FOV. Остальное из 1.7.0 осталось: метка идёт за окном игры, высота выстрела у каждой машины, Focus и подсказка целиться меткой программы при FOV не 90 (теперь по введённому FOV). / **The FOV is entered by hand:** the FOV field is always editable, the FOV typed there is saved in the settings (default 120) and every mark is laid for it. It must equal the game's FOV (the FOV slider in the game's settings). SB no longer reads `GameUserSettings.ini`, no longer checks the file every 2 seconds, no longer locks the field and no longer writes "FOV assumed" in the window and on the overlay. Settings written by 1.7.0 open as before and keep their FOV. Everything else from 1.7.0 stays: the mark follows the game's window, a launch height for every vehicle, Focus, and the advice to aim with SB's mark at a FOV other than 90 (now worked out from the typed FOV).
+
 ## Squad Ballistics 1.7.0
 
 Изменения с версии 1.6.4. / Changes since 1.6.4.

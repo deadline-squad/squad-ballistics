@@ -1,7 +1,7 @@
 """The game's window on the X server (gamewindow.py): the lookup against a
 fake X layer, the watch, and the real thing against an Xvfb server with
 stand-in windows (xclient.py). How the overlay follows the window is in
-test_overlay.py and test_game_fov.py."""
+test_overlay.py."""
 
 import json
 import os

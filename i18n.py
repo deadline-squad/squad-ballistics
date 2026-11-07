@@ -23,13 +23,6 @@ STRINGS = {
     "height_hint": "target higher +, lower −",
     "fov": "FOV",
     "fov_hint": "horizontal FOV",
-    "fov_from_game": "FOV {fov}, from the game",
-    "fov_not_from_game": (
-        "FOV assumed: the game's settings file or the FOV in it was not "
-        "found. Type the FOV you play with; the marks are only as exact as "
-        "it is."
-    ),
-    "info_fov_assumed": "FOV {fov} assumed",
     "info_printed_reticle": (
         "Put this mark on the target, not the game's printed range marks "
         "(they fit only at FOV 90)"
