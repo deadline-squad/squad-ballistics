@@ -2,7 +2,10 @@
 
 The overlay mark depends on the FOV the game renders with, and a wrong one
 puts a shot hundreds of metres off, so the app reads it from the game
-instead of asking the player to keep a copy of it right.
+instead of asking the player to keep a copy of it right. (The picture the
+mark is laid on is the game's window, found on the X server, see
+gamewindow.py; the resolution and the window mode in this file are not
+needed.)
 
 The game runs through Steam Proton on Linux, so its settings live in the
 Wine prefix of Steam app 393380 inside any Steam library:
@@ -13,10 +16,9 @@ Wine prefix of Steam app 393380 inside any Steam library:
 Unreal Engine writes a config property as a `Name=value` line in the section
 of its class. The FOV is `SQGameUserSettings::FOV` (read by the vehicle
 weapons through `GetSquadGameUserSettings()->FOV`), so it is expected as a
-`FOV=<number>` line in a section whose name holds `GameUserSettings`; the
-resolution and the window mode are the engine's `ResolutionSizeX`,
-`ResolutionSizeY` and `FullscreenMode`. The layout was checked against
-documentation and a synthetic file, not against a real file of the game.
+`FOV=<number>` line in a section whose name holds `GameUserSettings`. The
+layout was checked against documentation and a synthetic file, not against a
+real file of the game.
 """
 
 import glob
@@ -47,26 +49,14 @@ STEAM_ROOTS = (
 # a number far outside is a damaged file, not a setting.
 GAME_FOV_RANGE = (60.0, 120.0)
 
-# Unreal's EWindowMode values of `FullscreenMode`.
-FULLSCREEN = 0
-WINDOWED_FULLSCREEN = 1
-WINDOWED = 2
-
 
 @dataclass(frozen=True)
 class GameSettings:
-    """What the game's settings file says; a value it does not hold, or
-    holds in a form that cannot be used, is None.
-
-    `fov` is the horizontal FOV in degrees, `width` and `height` the game's
-    resolution in pixels and `window_mode` the engine's EWindowMode number
-    (`FULLSCREEN`, `WINDOWED_FULLSCREEN`, `WINDOWED`).
-    """
+    """What the game's settings file says; `fov` is the horizontal FOV in
+    degrees, None when the file does not hold one or holds it in a form that
+    cannot be used."""
 
     fov: float | None = None
-    width: int | None = None
-    height: int | None = None
-    window_mode: int | None = None
 
 
 def steam_roots():
@@ -138,21 +128,14 @@ def _number(text):
     return value if math.isfinite(value) else None
 
 
-def _whole(text):
-    """`text` as a whole number, or None."""
-    value = _number(text)
-
-    return int(value) if value is not None and value == int(value) else None
-
-
 def read_game_settings(path):
     """The `GameSettings` in the ini file `path`, or None when it cannot be
     read.
 
     Keys are matched case-insensitively in every section whose name holds
     `GameUserSettings`; when a key repeats, the last line wins, as in the
-    engine. A malformed value, or a FOV outside `GAME_FOV_RANGE`, leaves that
-    field None and the rest usable.
+    engine. A malformed value, or a FOV outside `GAME_FOV_RANGE`, leaves the
+    FOV None.
     """
     try:
         with open(path, encoding="utf-8-sig", errors="replace") as f:
@@ -177,33 +160,4 @@ def read_game_settings(path):
     if fov is not None and not GAME_FOV_RANGE[0] <= fov <= GAME_FOV_RANGE[1]:
         fov = None
 
-    width = _whole(values.get("resolutionsizex", ""))
-    height = _whole(values.get("resolutionsizey", ""))
-
-    if width is None or height is None or width <= 0 or height <= 0:
-        width = height = None
-
-    window_mode = _whole(values.get("fullscreenmode", ""))
-
-    if window_mode not in (FULLSCREEN, WINDOWED_FULLSCREEN, WINDOWED):
-        window_mode = None
-
-    return GameSettings(fov, width, height, window_mode)
-
-
-def screen_mismatch(settings, width, height):
-    """Whether the game does not fill a `width` x `height` screen, so the
-    mark (laid on the screen's size) lands off: the game runs in a window,
-    or at another resolution than the screen's. Windowed fullscreen always
-    fills the screen, whatever resolution is saved. False when the settings
-    say nothing about it."""
-    if settings.window_mode == WINDOWED_FULLSCREEN:
-        return False
-
-    if settings.window_mode == WINDOWED:
-        return True
-
-    if settings.width is None:
-        return False
-
-    return (settings.width, settings.height) != (width, height)
+    return GameSettings(fov)

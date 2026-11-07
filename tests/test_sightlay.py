@@ -1049,6 +1049,9 @@ class AlignedOverlay:
     def screen(self):
         return self.shown
 
+    def origin_on_screen(self):
+        return 0, 0
+
 
 @pytest.mark.parametrize("dx, dy", [(0, 0), (0, 40), (0, 60), (0, 100), (0, -100), (100, 0)])
 def test_the_mortar_scale_is_grabbed_at_the_screen_centre_not_the_crosshair(qapp, dx, dy):

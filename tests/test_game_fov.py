@@ -1,5 +1,5 @@
-"""The FOV and the screen the marks are laid for come from the game's own
-settings file when it can be found; the window says where the FOV is from.
+"""The FOV the marks are laid for comes from the game's own settings file
+when it can be found; the window and the overlay say where the FOV is from.
 The settings files here are synthetic (see tests/test_gamesettings.py)."""
 
 import os
@@ -12,6 +12,7 @@ import config
 import gamesettings
 from ballistics import load_weapons, mark_offset
 from conftest import ROOT
+from crosshair import has_printed_reticle
 from i18n import tr
 
 WEAPON = "QLZ87 · optic (RMB ×3)"
@@ -57,7 +58,6 @@ def make_window(qapp, tmp_path, monkeypatch):
 
         win = MainWindow(load_weapons(os.path.join(ROOT, "weapons.json")))
         win.overlay.setGeometry(0, 0, 1920, 1080)
-        win.show_game_screen()
         windows.append(win)
 
         return win
@@ -233,48 +233,109 @@ def test_resetting_the_settings_keeps_the_fov_of_the_game(steam, make_window, mo
     assert window.active_fov() == 101
 
 
-# ---------- the game does not fill the screen ----------
+# ---------- a FOV that is only assumed does not look exact ----------
 
-def test_a_game_in_a_window_gets_a_warning(steam, make_window):
-    write_game_settings(steam, "FOV=100\nFullscreenMode=2\nResolutionSizeX=1920\nResolutionSizeY=1080")
+def shoot(window, name, distance="500"):
+    window.select_weapon(name)
+    window.distance_entry.setText(distance)
+    window.calculate()
 
+    return window.overlay.info_text
+
+
+def test_a_fov_that_is_not_the_games_is_marked_assumed_in_the_window_and_on_the_overlay(steam, make_window):
     window = make_window()
 
-    assert not window.game_screen_label.isHidden()
-    assert window.game_screen_label.text() == tr("game_windowed")
+    info = shoot(window, WEAPON)
+
+    assert tr("info_fov_assumed", fov="120") in info
+    assert window.fov_source_label.text() == tr("fov_not_from_game")
+    assert window.fov_source_label.text().startswith("FOV assumed")
 
 
-def test_a_game_at_another_resolution_gets_a_warning_naming_both_sizes(steam, make_window):
-    write_game_settings(steam, "FullscreenMode=0\nResolutionSizeX=1280\nResolutionSizeY=720")
-
+def test_the_fov_of_the_game_carries_no_assumed_sign(steam, make_window):
+    write_game_settings(steam, "FOV=100")
     window = make_window()
 
-    assert window.game_screen_label.text() == tr(
-        "game_resolution", game="1280x720", screen="1920x1080"
+    info = shoot(window, WEAPON)
+
+    assert tr("info_fov_assumed", fov="100") not in info
+    assert "assumed" not in info
+    assert "assumed" not in window.fov_source_label.text()
+
+
+def test_the_assumed_sign_names_the_fov_typed_in_the_field(steam, make_window):
+    window = make_window()
+    window.fov_entry.set_value(105)
+    window.config["fov"] = 105
+
+    assert tr("info_fov_assumed", fov="105") in shoot(window, WEAPON)
+
+
+def test_the_assumed_sign_goes_when_the_game_settings_appear(steam, make_window):
+    window = make_window()
+    assert tr("info_fov_assumed", fov="120") in shoot(window, WEAPON)
+
+    write_game_settings(steam, "FOV=110")
+    window.watch_game_settings()
+
+    assert "assumed" not in window.overlay.info_text
+
+
+def test_a_weapon_laid_by_elevation_has_no_fov_to_assume(steam, make_window):
+    window = make_window()
+    mortar = next(name for name, weapon in window.weapons.items() if weapon.aim == "elevation")
+
+    assert "assumed" not in shoot(window, mortar)
+
+
+# ---------- what to aim with when the FOV is not 90 ----------
+
+def test_a_printed_reticle_at_fov_120_says_to_aim_with_the_apps_mark(steam, make_window):
+    write_game_settings(steam, "FOV=120")
+    window = make_window()
+
+    assert tr("info_printed_reticle") in shoot(window, WEAPON)
+
+
+def test_a_printed_reticle_at_fov_90_says_nothing(steam, make_window):
+    write_game_settings(steam, "FOV=90")
+    window = make_window()
+
+    assert tr("info_printed_reticle") not in shoot(window, WEAPON)
+
+
+def test_a_sight_without_a_printed_reticle_says_nothing_at_fov_120(steam, make_window):
+    write_game_settings(steam, "FOV=120")
+    window = make_window()
+    plain = next(
+        name for name, weapon in window.weapons.items()
+        if weapon.aim == "overlay" and not has_printed_reticle(weapon)
     )
 
+    assert tr("info_printed_reticle") not in shoot(window, plain)
 
-def test_a_game_that_fills_the_screen_gets_no_warning(steam, make_window):
-    write_game_settings(steam, "FullscreenMode=1\nResolutionSizeX=1920\nResolutionSizeY=1080")
 
+def test_the_sentence_also_goes_with_a_fov_typed_in_the_field(steam, make_window):
     window = make_window()
+    window.fov_entry.set_value(100)
+    window.config["fov"] = 100
 
-    assert window.game_screen_label.isHidden()
-
-
-def test_without_the_game_settings_there_is_no_screen_warning(steam, make_window):
-    assert make_window().game_screen_label.isHidden()
+    assert tr("info_printed_reticle") in shoot(window, WEAPON)
 
 
-def test_the_warning_follows_the_file_and_the_screen(steam, make_window):
-    write_game_settings(steam, "FullscreenMode=0\nResolutionSizeX=2560\nResolutionSizeY=1440", mtime=1000)
-    window = make_window()
-    assert not window.game_screen_label.isHidden()
+@pytest.mark.parametrize("name, printed", [
+    ("QLZ87 · optic (RMB ×3)", True),
+    ("SPG-9 · HEAT · scope · optic (RMB ×4)", True),
+    ("AGS-17 · emplacement · optic (RMB ×2.5)", True),
+    ("Tank AP · T-72 (2A46) · gunner sight ×12", True),
+    ("RPG-7 · PG-7V HEAT / OG-7V", True),
+    ("M72A7 LAW / RPG-26", True),
+    ("MK19 · M1151 open turret", False),
+    ("AGS-17 · Technical", False),
+    ("M203 / M320 / GP-25 / HK79 / SL40", False),
+])
+def test_which_weapons_have_a_printed_reticle(name, printed):
+    weapons = load_weapons(os.path.join(ROOT, "weapons.json"))
 
-    window.overlay.setGeometry(0, 0, 2560, 1440)
-    window.show_game_screen()
-    assert window.game_screen_label.isHidden()
-
-    write_game_settings(steam, "FullscreenMode=2", mtime=2000)
-    window.watch_game_settings()
-    assert window.game_screen_label.text() == tr("game_windowed")
+    assert has_printed_reticle(weapons[name]) is printed

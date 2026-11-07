@@ -15,6 +15,7 @@ import config
 import overlay
 from ballistics import load_weapons, mark_offset, range_ladder
 from conftest import ROOT
+from i18n import tr
 from overlay import Overlay
 
 
@@ -344,3 +345,133 @@ def test_an_infinite_aim_points_off_the_screen(screens, value, top):
     # number for the info line's position.
     assert widget.offset == (-600 if top else 600)
     widget.close()
+
+
+# ---------- the overlay follows the game's window ----------
+
+def test_the_overlay_covers_a_game_window_and_leaves_the_monitor_setting_alone(screens):
+    widget = make_overlay(monitor=0)
+    moved = []
+    widget.screen_changed.connect(lambda: moved.append(widget.geometry()))
+
+    widget.follow_game_window((320, 180, 1280, 720))
+
+    assert widget.geometry() == QRect(320, 180, 1280, 720)
+    assert widget.screen_width() == 1280
+    assert widget.center_x == 640
+    assert widget.config["monitor"] == 0
+    assert moved == [QRect(320, 180, 1280, 720)]
+    widget.close()
+
+
+def test_a_game_window_that_fills_its_screen_gives_that_screens_width(screens):
+    screens.append(FakeScreen(1920, 0, 2560, 1440, "DP-2"))
+    widget = make_overlay(monitor=0)
+
+    widget.follow_game_window((1920, 0, 2560, 1440))
+
+    assert widget.geometry() == screens[1].geometry()
+    assert widget.screen_width() == 2560
+    widget.close()
+
+
+def test_a_game_window_on_the_second_monitor_is_covered_whatever_monitor_is_configured(screens):
+    screens.append(FakeScreen(1920, 0, 2560, 1440, "DP-2"))
+    widget = make_overlay(monitor=0)
+
+    widget.follow_game_window((2240, 360, 1920, 1080))
+
+    assert widget.geometry() == QRect(2240, 360, 1920, 1080)
+    assert widget.config["monitor"] == 0
+    widget.close()
+
+
+def test_a_closed_game_window_puts_the_overlay_back_over_the_configured_monitor(screens):
+    screens.append(FakeScreen(1920, 0, 2560, 1440, "DP-2"))
+    widget = make_overlay(monitor=1)
+    moved = []
+    widget.screen_changed.connect(lambda: moved.append(widget.geometry()))
+
+    widget.follow_game_window((100, 100, 1280, 720))
+    widget.follow_game_window(None)
+
+    assert widget.geometry() == QRect(1920, 0, 2560, 1440)
+    assert moved == [QRect(100, 100, 1280, 720), QRect(1920, 0, 2560, 1440)]
+    widget.close()
+
+
+def test_a_moved_and_resized_game_window_is_followed(screens):
+    widget = make_overlay()
+
+    widget.follow_game_window((0, 0, 1280, 720))
+    widget.follow_game_window((200, 100, 1280, 720))
+    assert widget.geometry() == QRect(200, 100, 1280, 720)
+
+    widget.follow_game_window((200, 100, 1920, 1080))
+    assert widget.geometry() == QRect(200, 100, 1920, 1080)
+    assert widget.screen_width() == 1920
+    widget.close()
+
+
+def test_a_screen_change_leaves_the_overlay_on_the_game_window(screens):
+    widget = make_overlay()
+    widget.follow_game_window((200, 100, 1280, 720))
+
+    screens[0].resize(2560, 1440)
+    settle()
+
+    assert widget.geometry() == QRect(200, 100, 1280, 720)
+    widget.close()
+
+
+def test_the_origin_on_the_screen_is_the_overlays_corner_from_the_screens(screens):
+    widget = make_overlay()
+
+    widget.follow_game_window((320, 180, 1280, 720))
+
+    assert widget.origin_on_screen() == (320 - widget.screen().geometry().x(), 180 - widget.screen().geometry().y())
+    widget.close()
+
+
+def test_a_game_window_narrower_than_the_screen_lays_the_mark_for_its_width(window, screens):
+    """The overlay at 2560 against a 1920-wide game sent a 1000 m shot to
+    1282 m: the mark must be laid for the width of the game's picture."""
+    screens[0].resize(2560, 1440)
+    settle()
+    window.select_weapon("SPG-9 · HEAT")
+    window.distance_entry.setText("1000")
+    window.calculate()
+    weapon = window.current_weapon()
+    sight_angle = window.last_solution.sight_angle
+    fov = window.active_fov()
+    scale = window.config["offset_scale"] / 100
+    assert window.overlay.offset == pytest.approx(mark_offset(weapon, sight_angle, fov, 2560, scale))
+
+    window.overlay.follow_game_window((320, 180, 1920, 1080))
+
+    assert window.overlay.offset == pytest.approx(mark_offset(weapon, sight_angle, fov, 1920, scale))
+    assert window.overlay.offset != pytest.approx(mark_offset(weapon, sight_angle, fov, 2560, scale))
+    first, spacing, reach = window.overlay.ladder_bounds()
+    assert window.overlay.ladder == range_ladder(weapon, fov, 1920, first, spacing, reach, scale)
+
+    window.overlay.follow_game_window(None)
+
+    assert window.overlay.offset == pytest.approx(mark_offset(weapon, sight_angle, fov, 2560, scale))
+
+
+def test_a_game_window_that_is_not_16_9_is_warned_about_and_a_16_9_one_is_not(window):
+    window.overlay.follow_game_window((0, 0, 1280, 1024))
+
+    assert window.screen_ratio_text == tr("screen_not_16_9", size="1280x1024")
+    assert not window.screen_ratio_label.isHidden()
+
+    window.overlay.follow_game_window((0, 0, 1280, 720))
+
+    assert window.screen_ratio_text == ""
+    assert window.screen_ratio_label.isHidden()
+
+
+def test_a_game_window_that_is_16_9_raises_no_screen_warning(window):
+    window.overlay.follow_game_window((100, 100, 1600, 900))
+
+    assert window.screen_ratio_label.isHidden()
