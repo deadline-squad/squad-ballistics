@@ -45,8 +45,8 @@ NOT_ROUND = {
     "MK19 · emplacement / C16 / L134A1": (329.1, SOCKET),
     "AGS-17 · emplacement · optic (RMB ×2.5)": (57.6, SOCKET + "; confirmed by the hold fit (85 + 0.85)"),
     "AGS-17 · emplacement · no optic": (57.6, SOCKET),
-    "QLZ87 · Lynx / CSK131 · optic (RMB ×3)": (109.3, SOCKET),
-    "QLZ87 · Lynx / CSK131 · no optic": (109.3, SOCKET),
+    "QLZ87 · Lynx · optic (RMB ×3)": (109.3, SOCKET),
+    "QLZ87 · Lynx · no optic": (109.3, SOCKET),
     "2A70 100mm (BMP-3 / BMD-4 / ZBD04A) · FRAG": (130.2, SOCKET),
     "2A70 100mm (ZBD-04A) · FRAG": (213.2, SOCKET),
     "2A70 100mm (BMD-4M) · FRAG": (127.9, SOCKET),
@@ -60,6 +60,29 @@ NOT_ROUND = {
     "Tank HEAT/HE · M1A1 / M1A2 (M256)": (367.8, CLAMP),
     "Tank HEAT/HE · ZTZ-99 (ZPT-98)": (140.8, CLAMP),
     "Tank HEAT/HE · T-64BM2 (KBA3)": (385.6, CLAMP),
+    # The other zoom levels and vehicles of a gun share its bore, so its zero.
+    "MK19 · PARS III RWS · gunner sight ×3": (181.4, SOCKET),
+    "MK19 · PARS III RWS · gunner sight ×9": (181.4, SOCKET),
+    "QLZ87 · CSK131 / WZ551 · optic (RMB ×3)": (109.3, SOCKET),
+    "QLZ87 · CSK131 / WZ551 · no optic": (109.3, SOCKET),
+    "QLZ87 · ZBL08 · optic (RMB ×3)": (109.3, SOCKET),
+    "QLZ87 · ZBL08 · no optic": (109.3, SOCKET),
+    "2A28 Grom (BMD-1M) · HEAT · gunner sight ×6": (515.6, CLAMP),
+    "2A28 Grom (BMP-1) · FRAG · gunner sight ×6": (264.0, CLAMP),
+    "2A70 100mm (BMP-3) · FRAG · gunner sight ×4": (129.0, SOCKET),
+    "2A70 100mm (ZBD-04A) · FRAG · gunner sight ×4": (213.2, SOCKET),
+    "2A70 100mm (ZBD-04A) · FRAG · gunner sight ×14": (213.2, SOCKET),
+    "2A70 100mm (BMD-4M) · FRAG · gunner sight ×5": (129.0, SOCKET),
+    "2A70 100mm (BMP-3 / BMD-4M) · FRAG · gunner sight ×14": (129.0, SOCKET),
+    "Tank AP · T-72 / T-90 (2A46) · gunner sight ×12": (674.2, SOCKET),
+    "Tank AP · T-62 (2A20) · gunner sight ×7": (120.4, SOCKET),
+    "Tank HEAT/HE · Sprut-SDM1 (2A45) · gunner sight ×4": (385.6, CLAMP),
+    "Tank HEAT/HE · Sprut-SDM1 (2A45) · gunner sight ×12": (385.6, CLAMP),
+    "Tank HEAT/HE · T-72 / T-90 (2A46) · gunner sight ×12": (372.8, CLAMP),
+    "Tank HEAT/HE · M1A1 / M1A2 (M256) · gunner sight ×6": (367.8, CLAMP),
+    "Tank HEAT/HE · M1A1 / M1A2 (M256) · gunner sight ×12": (367.8, CLAMP),
+    "Tank HEAT/HE · ZTZ-99 (ZPT-98) · gunner sight ×12": (140.8, CLAMP),
+    "Tank HEAT/HE · T-64BM2 (KBA3) · gunner sight ×12": (385.6, CLAMP),
 }
 
 # Direct-fire entries (agl, guns, tanks) with no bore, and why. Everything
@@ -73,7 +96,10 @@ NO_BORE = {
     "MK19 · M113 open turret · no sights": "normal view: camera on the gun axis",
     "MK19 · M1151 open turret · no sights": "normal view: camera on the gun axis",
     "MK19 · MATV open turret · no sights": "normal view: camera on the gun axis",
+    "MK19 · RHIB open turret · no sights": "normal view: camera on the gun axis",
     "MK19 · emplacement / C16 / L134A1 · no sights": "normal view: camera on the gun axis",
+    "MK19 · M1117 · gunner sight ×4.5": "M1117 gunner's sight aligned with the barrel at its second zoom level",
+    "MK19 · AAVP-7A1 · gunner sight ×4.5": "gunner's sight aligned with the barrel at its second zoom level",
 }
 
 DIRECT_FIRE_CATEGORIES = ("agl", "guns", "tanks")

@@ -36,6 +36,8 @@ KEY_W = 17
 KEY_A = 30
 KEY_S = 31
 KEY_D = 32
+# The game's default Focus key (IA_Focus in Content/Input/IMC_Turret, IMC_GroundVehicle).
+KEY_LEFTSHIFT = 42
 BTN_SIDE = 0x113
 BTN_EXTRA = 0x114
 

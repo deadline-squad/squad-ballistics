@@ -85,7 +85,7 @@ from i18n import tr
 
 from keyinject import AutoHold, system_key_injector
 
-from keystate import KEY_A, KEY_D, KEY_S, KEY_W, system_key_reader
+from keystate import KEY_A, KEY_D, KEY_LEFTSHIFT, KEY_S, KEY_W, system_key_reader
 
 from overlay import Overlay
 
@@ -133,6 +133,10 @@ SIGHT_WATCH_MS = 300
 
 # How often the game's settings file is checked for a change.
 GAME_SETTINGS_WATCH_MS = 2000
+
+# How often the Focus key is read while a weapon whose view Focus narrows is
+# selected (ms): short enough that the mark follows a press at once.
+FOCUS_WATCH_MS = 30
 SIGHT_GRAB_FILE = "sight-grab.png"
 
 # The hotkey hint under the inputs: no-break spaces keep a "key — action"
@@ -274,6 +278,14 @@ class MainWindow(QMainWindow):
         self.key_reader = system_key_reader()
 
         self.hold_timer = HoldTimer(self.key_reader, self)
+
+        # Whether the Focus key is down (read while the selected weapon's
+        # view is one Focus narrows, see watch_focus).
+        self.focus_held = False
+
+        self.focus_timer = QTimer(self)
+        self.focus_timer.setInterval(FOCUS_WATCH_MS)
+        self.focus_timer.timeout.connect(self.watch_focus)
 
         self.game_settings_timer = QTimer(self)
         self.game_settings_timer.setInterval(GAME_SETTINGS_WATCH_MS)
@@ -1422,6 +1434,9 @@ class MainWindow(QMainWindow):
         if weapon.view:
             info = self.view_tag(weapon) + "  ·  " + info
 
+        if weapon.focus_narrows_view:
+            info += "  ·  " + self.focus_note()
+
         if direct is not None:
             info += "  ·  " + tr("direct_short", angle=direct_text)
 
@@ -1637,12 +1652,13 @@ class MainWindow(QMainWindow):
 
         scale = self.config["offset_scale"] / 100
         width = self.overlay.screen_width()
+        focus = self.focus_on(weapon)
 
         if self.overlay.is_offscreen(offset):
             top, bottom = self.overlay.mark_bounds()
             nearest, farthest = mark_visible_range(
                 weapon, solution.height_diff, fov, width, top, bottom,
-                scale, arc, lift
+                scale, arc, lift, focus
             )
 
             where = ""
@@ -1658,7 +1674,7 @@ class MainWindow(QMainWindow):
         measure = mark_height_resolution if direct else mark_resolution
         metres = measure(
             weapon, solution.distance, solution.height_diff, fov, width,
-            scale, arc, lift
+            scale, arc, lift, focus
         )
 
         if metres is None:
@@ -1678,7 +1694,7 @@ class MainWindow(QMainWindow):
 
         limit = MARK_HEIGHT_LIMIT if direct else MARK_PIXEL_LIMIT
 
-        if metres > limit and weapon.sight_view(fov)[0] < fov:
+        if metres > limit and weapon.sight_view(fov, focus)[0] < fov:
             notes.append(tr("info_pixel_coarse"))
 
         return notes, ""
@@ -1758,6 +1774,50 @@ class MainWindow(QMainWindow):
 
         self.overlay.set_info("  ·  ".join(part for part in parts if part))
 
+    def focus_readable(self):
+        """Whether the Focus key can be read, so the mark can follow it."""
+        return self.hold_timer.available
+
+    def focus_on(self, weapon):
+        """Whether the mark of `weapon` is laid for a Focus that is held: the
+        key is down and the weapon's view is one Focus narrows."""
+        return self.focus_held and weapon is not None and weapon.focus_narrows_view
+
+    def update_focus_watch(self):
+        """Read the Focus key only while the selected weapon's view is one
+        Focus narrows and the keys can be read; a key held across the change
+        of weapon is forgotten, the next read finds it again."""
+        weapon = self.current_weapon()
+
+        watch = weapon is not None and weapon.focus_narrows_view and self.focus_readable()
+
+        if watch == self.focus_timer.isActive():
+            return
+
+        self.focus_held = False
+
+        if watch:
+            self.focus_timer.start()
+        else:
+            self.focus_timer.stop()
+
+    def watch_focus(self):
+        """Lay the mark and the ladder again when the Focus key goes down or
+        up. The game's FOV lerp takes time; the mark switches at once."""
+        held = bool(self.key_reader(KEY_LEFTSHIFT))
+
+        if held == self.focus_held:
+            return
+
+        self.focus_held = held
+
+        self.recalculate_if_ready()
+
+    def focus_note(self):
+        """The overlay's info line about Focus for a weapon whose view it narrows:
+        whether the mark follows the key or assumes it is not held."""
+        return tr("info_focus_follows" if self.focus_readable() else "info_focus_assumed")
+
     def update_hold_watch(self):
         """Watch S/W only while a hold weapon is selected."""
         weapon = self.current_weapon()
@@ -1767,6 +1827,8 @@ class MainWindow(QMainWindow):
         )
 
         self.hold_timer.set_active(weapon is not None and weapon.has_hold)
+
+        self.update_focus_watch()
 
         self.update_sight_watch()
 
@@ -2414,7 +2476,8 @@ class MainWindow(QMainWindow):
             solution.sight_angle,
             self.active_fov(),
             self.overlay.screen_width(),
-            self.config["offset_scale"] / 100
+            self.config["offset_scale"] / 100,
+            self.focus_on(weapon)
         )
 
     def how_overlay_view(self, weapon, fov):
@@ -2459,7 +2522,8 @@ class MainWindow(QMainWindow):
             first,
             spacing,
             reach,
-            self.config["offset_scale"] / 100
+            self.config["offset_scale"] / 100,
+            self.focus_on(weapon)
         ))
 
     def reset_offset(self):
@@ -3283,6 +3347,8 @@ class MainWindow(QMainWindow):
         self.hold_timer.set_active(False)
 
         self.sight_timer.stop()
+
+        self.focus_timer.stop()
 
         if self.map_page is not None:
             self.map_page.shutdown()

@@ -107,7 +107,7 @@ def document(request):
 
 
 def test_the_scope_is_the_emplaced_and_vehicle_weapons():
-    assert len(IN_SCOPE) == 78
+    assert len(IN_SCOPE) == 133
     assert set(IN_SCOPE) <= set(WEAPONS)
     assert all(WEAPONS[name].category in ("agl", "guns", "tanks", "indirect") for name in IN_SCOPE)
 
@@ -225,8 +225,8 @@ def test_a_farther_target_is_marked_where_the_oracle_and_the_zoom_put_it(name):
 @pytest.mark.parametrize("name, wrong, check", [
     ("AGS-17 \u00b7 Technical", {"bore": 4.6}, "zero"),
     ("AGS-17 \u00b7 Technical", {"muzzle_up": 0.6}, "zero"),
-    ("QLZ87 \u00b7 Lynx / CSK131 \u00b7 optic (RMB \u00d73)", {"zoom": 1.0}, "far"),
-    ("QLZ87 \u00b7 Lynx / CSK131 \u00b7 optic (RMB \u00d73)", {"bore": 0.95}, "zero"),
+    ("QLZ87 \u00b7 Lynx \u00b7 optic (RMB \u00d73)", {"zoom": 1.0}, "far"),
+    ("QLZ87 \u00b7 Lynx \u00b7 optic (RMB \u00d73)", {"bore": 0.95}, "zero"),
     ("Tank AP \u00b7 T-62 (2A20)", {"zoom": 7.0}, "far"),
 ])
 def test_a_bore_zoom_or_launch_point_applied_wrongly_takes_the_mark_off_the_oracle(name, wrong, check):
@@ -250,5 +250,5 @@ def test_the_sight_below_the_camera_has_no_zero():
     bore): every flat-ground target is marked below the centre."""
     negative = [name for name in IN_SCOPE if WEAPONS[name].bore < 0]
 
-    assert negative == ["QLZ87 \u00b7 no optic"]
+    assert negative == ["QLZ87 \u00b7 no optic", "QLZ87 \u00b7 bunker tripod \u00b7 no optic"]
     assert all(app_pixels(WEAPONS[name], distance) > 0 for name in negative for distance in (50, 300, 800))

@@ -34,8 +34,14 @@ Which emplaced (tripod, open turret) and vehicle (closed turret, hull gun, vehic
 | AGS-17 · BTR-D | 4.5 | - | 2.2635 / 0.87 / 0.068 |
 | QLZ87 · optic (RMB ×3) | 0.774 | 3 | - |
 | QLZ87 · no optic | -0.9 | - | - |
-| QLZ87 · Lynx / CSK131 · optic (RMB ×3) | 0.85 | 3 | - |
-| QLZ87 · Lynx / CSK131 · no optic | 0.85 | - | - |
+| QLZ87 · Lynx · optic (RMB ×3) | 0.85 | 3 | - |
+| QLZ87 · Lynx · no optic | 0.85 | - | - |
+| QLZ87 · CSK131 / WZ551 · optic (RMB ×3) | 0.85 | 3 | - |
+| QLZ87 · CSK131 / WZ551 · no optic | 0.85 | - | - |
+| QLZ87 · ZBL08 · optic (RMB ×3) | 0.85 | 3 | - |
+| QLZ87 · ZBL08 · no optic | 0.85 | - | - |
+| QLZ87 · bunker tripod · optic (RMB ×3) | 0.774 | 3 | - |
+| QLZ87 · bunker tripod · no optic | -0.9 | - | - |
 | AGS-30 / BTR-4 AGS | 1.6 | 3 | - |
 | AGS-30 (BMP-1TS) | 1.55 | 3 | - |
 | AGS-30 (BMP-2M) | 1.55 | 1.5 | - |
@@ -82,6 +88,55 @@ Which emplaced (tripod, open turret) and vehicle (closed turret, hull gun, vehic
 | Tank HESH · L30A1 (Challenger 2) | 0.31 | 1.5 | - |
 | ZPL-98A 105mm (ZTD-05) · AP | 0.02 | 3.5 | - |
 | ZPL-98A 105mm (ZTD-05) · HEAT / HE | 0.02 | 3.5 | - |
+| MK19 · AAVP-7A1 · gunner sight ×4.5 | - | 4.5 | 3.2232 / 1.0868 / 0.0748 |
+| MK19 · PARS III RWS · gunner sight ×3 | 0.95 | 3 | 2.6617 / 0.4161 / 0.0257 |
+| MK19 · PARS III RWS · gunner sight ×9 | 0.95 | 9 | 2.6617 / 0.4161 / 0.0257 |
+| MK19 · TAPV C16 RWS · gunner sight ×5 | 1.55 | 5 | 3.093 / 0.6256 / -0.0155 |
+| MK19 · TAPV C16 RWS · gunner sight ×12 | 1.55 | 12 | 3.093 / 0.6256 / -0.0155 |
+| MK19 · RHIB open turret · no sights | - | - | - |
+| Tank AP · M1A1 / M1A2 (M256) · gunner sight ×6 | 0.31 | 6 | - |
+| Tank AP · M1A1 / M1A2 (M256) · gunner sight ×12 | 0.31 | 12 | - |
+| Tank HEAT/HE · M1A1 / M1A2 (M256) · gunner sight ×6 | 0.31 | 6 | - |
+| Tank HEAT/HE · M1A1 / M1A2 (M256) · gunner sight ×12 | 0.31 | 12 | - |
+| 2A28 Grom (BMD-1M) · HEAT · gunner sight ×6 | 1.57 | 6 | - |
+| 2A28 Grom (BMD-1M) · FRAG · gunner sight ×6 | 1.57 | 6 | - |
+| 2A70 100mm (BMD-4M) · FRAG · gunner sight ×5 | 0.575 | 5 | - |
+| 2A70 100mm (BMP-3 / BMD-4M) · FRAG · gunner sight ×14 | 0.575 | 14 | - |
+| 2A28 Grom (BMP-1) · HEAT · gunner sight ×6 | 1.4 | 6 | - |
+| 2A28 Grom (BMP-1) · FRAG · gunner sight ×6 | 1.4 | 6 | - |
+| AGS-30 (BMP-2M) · gunner sight ×6 | 1.55 | 6 | - |
+| 2A70 100mm (BMP-3) · FRAG · gunner sight ×4 | 0.575 | 4 | - |
+| AGS-30 (BMP-1TS) · gunner sight ×9 | 1.55 | 9 | - |
+| AGS-30 / BTR-4 AGS · gunner sight ×9 | 1.6 | 9 | - |
+| Tank AP · Challenger 2 (L30A1) · gunner sight ×4 | 0.31 | 4 | - |
+| Tank AP · Challenger 2 (L30A1) · gunner sight ×10 | 0.31 | 10 | - |
+| Tank HESH · Challenger 2 (L30A1) · gunner sight ×4 | 0.31 | 4 | - |
+| Tank HESH · Challenger 2 (L30A1) · gunner sight ×10 | 0.31 | 10 | - |
+| Tank AP · Leopard 2A6 (Rh120) · gunner sight ×12 | 0.25 | 12 | - |
+| Tank HEAT/HE · Leopard 2A6 (Rh120) · gunner sight ×12 | 0.25 | 12 | - |
+| MK19 · M1117 · gunner sight ×4.5 | - | 4.5 | - |
+| Tank AP · M1128 MGS (M68A2) · gunner sight ×8 | 0.6 | 8 | - |
+| Tank HEAT/HE · M1128 MGS (M68A2) · gunner sight ×8 | 0.6 | 8 | - |
+| Tank AP · M60T (MG253) · gunner sight ×3 | 0.5 | 3 | - |
+| Tank AP · M60T (MG253) · gunner sight ×8 | 0.5 | 8 | - |
+| Tank HEAT/HE · M60T (MG253) · gunner sight ×3 | 0.5 | 3 | - |
+| Tank HEAT/HE · M60T (MG253) · gunner sight ×8 | 0.5 | 8 | - |
+| Tank AP · Sprut-SDM1 (2A45) · gunner sight ×4 | 0.29 | 4 | - |
+| Tank AP · Sprut-SDM1 (2A45) · gunner sight ×12 | 0.29 | 12 | - |
+| Tank HEAT/HE · Sprut-SDM1 (2A45) · gunner sight ×4 | 0.29 | 4 | - |
+| Tank HEAT/HE · Sprut-SDM1 (2A45) · gunner sight ×12 | 0.29 | 12 | - |
+| Tank AP · T-62 (2A20) · gunner sight ×7 | 0.05 | 7 | - |
+| Tank HEAT/HE · T-62 (2A20) · gunner sight ×7 | 0.05 | 7 | - |
+| Tank AP · T-64BM2 (KBA3) · gunner sight ×12 | 0.29 | 12 | - |
+| Tank HEAT/HE · T-64BM2 (KBA3) · gunner sight ×12 | 0.29 | 12 | - |
+| Tank AP · T-72 / T-90 (2A46) · gunner sight ×12 | 0.28 | 12 | - |
+| Tank HEAT/HE · T-72 / T-90 (2A46) · gunner sight ×12 | 0.28 | 12 | - |
+| 2A70 100mm (ZBD-04A) · FRAG · gunner sight ×4 | 0.95 | 4 | - |
+| 2A70 100mm (ZBD-04A) · FRAG · gunner sight ×14 | 0.95 | 14 | - |
+| ZPL-98A 105mm (ZTD-05) · AP · gunner sight ×7 | 0.02 | 7 | - |
+| ZPL-98A 105mm (ZTD-05) · HEAT / HE · gunner sight ×7 | 0.02 | 7 | - |
+| Tank AP · ZTZ-99 (ZPT-98) · gunner sight ×12 | 0.1 | 12 | - |
+| Tank HEAT/HE · ZTZ-99 (ZPT-98) · gunner sight ×12 | 0.1 | 12 | - |
 | Mortar (M252 / 2B14 / L16 / Type 63) | - | - | 0.0245 / 1.569 / 0.002 |
 | Technical Mortar | - | - | 1.1789 / 1.6137 / 0.0388 |
 | M1064 M121 (120mm) | - | - | 0.8174 / 3.4618 / 0.0035 |
@@ -129,9 +184,18 @@ Which emplaced (tripod, open turret) and vehicle (closed turret, hull gun, vehic
 | QLZ87 · optic (RMB ×3) | launch | a tripod has no vehicle seat in the game files, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
 | QLZ87 · no optic | zoom | the view does not magnify (game files: zoom x1, the game's FOV is kept) |
 | QLZ87 · no optic | launch | a tripod has no vehicle seat in the game files, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
-| QLZ87 · Lynx / CSK131 · optic (RMB ×3) | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
-| QLZ87 · Lynx / CSK131 · no optic | zoom | the view does not magnify (game files: zoom x1, the game's FOV is kept) |
-| QLZ87 · Lynx / CSK131 · no optic | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| QLZ87 · Lynx · optic (RMB ×3) | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| QLZ87 · Lynx · no optic | zoom | the view does not magnify (game files: zoom x1, the game's FOV is kept) |
+| QLZ87 · Lynx · no optic | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| QLZ87 · CSK131 / WZ551 · optic (RMB ×3) | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| QLZ87 · CSK131 / WZ551 · no optic | zoom | the view does not magnify (game files: zoom x1, the game's FOV is kept) |
+| QLZ87 · CSK131 / WZ551 · no optic | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| QLZ87 · ZBL08 · optic (RMB ×3) | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| QLZ87 · ZBL08 · no optic | zoom | the view does not magnify (game files: zoom x1, the game's FOV is kept) |
+| QLZ87 · ZBL08 · no optic | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| QLZ87 · bunker tripod · optic (RMB ×3) | launch | a tripod has no vehicle seat in the game files, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| QLZ87 · bunker tripod · no optic | zoom | the view does not magnify (game files: zoom x1, the game's FOV is kept) |
+| QLZ87 · bunker tripod · no optic | launch | a tripod has no vehicle seat in the game files, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
 | AGS-30 / BTR-4 AGS | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
 | AGS-30 (BMP-1TS) | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
 | AGS-30 (BMP-2M) | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
@@ -181,6 +245,54 @@ Which emplaced (tripod, open turret) and vehicle (closed turret, hull gun, vehic
 | Tank HESH · L30A1 (Challenger 2) | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
 | ZPL-98A 105mm (ZTD-05) · AP | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
 | ZPL-98A 105mm (ZTD-05) · HEAT / HE | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| MK19 · AAVP-7A1 · gunner sight ×4.5 | bore | the gunner's sight is aligned with the barrel (game files: bore 0.0), so there is nothing to apply |
+| MK19 · RHIB open turret · no sights | bore | normal view: the camera is on the gun axis (game files: bore 0.0), so the shot leaves along the view centre |
+| MK19 · RHIB open turret · no sights | zoom | the view does not magnify (game files: zoom x1, the game's FOV is kept) |
+| MK19 · RHIB open turret · no sights | launch | a boat has no wheels and floats on pontoons, so the files give no ground height (deadline-squad/squad-ballistics#12) |
+| Tank AP · M1A1 / M1A2 (M256) · gunner sight ×6 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| Tank AP · M1A1 / M1A2 (M256) · gunner sight ×12 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| Tank HEAT/HE · M1A1 / M1A2 (M256) · gunner sight ×6 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| Tank HEAT/HE · M1A1 / M1A2 (M256) · gunner sight ×12 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| 2A28 Grom (BMD-1M) · HEAT · gunner sight ×6 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| 2A28 Grom (BMD-1M) · FRAG · gunner sight ×6 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| 2A70 100mm (BMD-4M) · FRAG · gunner sight ×5 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| 2A70 100mm (BMP-3 / BMD-4M) · FRAG · gunner sight ×14 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| 2A28 Grom (BMP-1) · HEAT · gunner sight ×6 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| 2A28 Grom (BMP-1) · FRAG · gunner sight ×6 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| AGS-30 (BMP-2M) · gunner sight ×6 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| 2A70 100mm (BMP-3) · FRAG · gunner sight ×4 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| AGS-30 (BMP-1TS) · gunner sight ×9 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| AGS-30 / BTR-4 AGS · gunner sight ×9 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| Tank AP · Challenger 2 (L30A1) · gunner sight ×4 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| Tank AP · Challenger 2 (L30A1) · gunner sight ×10 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| Tank HESH · Challenger 2 (L30A1) · gunner sight ×4 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| Tank HESH · Challenger 2 (L30A1) · gunner sight ×10 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| Tank AP · Leopard 2A6 (Rh120) · gunner sight ×12 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| Tank HEAT/HE · Leopard 2A6 (Rh120) · gunner sight ×12 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| MK19 · M1117 · gunner sight ×4.5 | bore | the gunner's sight is aligned with the barrel (game files: bore 0.0), so there is nothing to apply |
+| MK19 · M1117 · gunner sight ×4.5 | launch | the files hang the turret on a socket 1.2 m below the hull's turret bone while the sight mesh is at 2.6 m, so the pivot is ambiguous and not extracted (tools/game_weapons.py) |
+| Tank AP · M1128 MGS (M68A2) · gunner sight ×8 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| Tank HEAT/HE · M1128 MGS (M68A2) · gunner sight ×8 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| Tank AP · M60T (MG253) · gunner sight ×3 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| Tank AP · M60T (MG253) · gunner sight ×8 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| Tank HEAT/HE · M60T (MG253) · gunner sight ×3 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| Tank HEAT/HE · M60T (MG253) · gunner sight ×8 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| Tank AP · Sprut-SDM1 (2A45) · gunner sight ×4 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| Tank AP · Sprut-SDM1 (2A45) · gunner sight ×12 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| Tank HEAT/HE · Sprut-SDM1 (2A45) · gunner sight ×4 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| Tank HEAT/HE · Sprut-SDM1 (2A45) · gunner sight ×12 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| Tank AP · T-62 (2A20) · gunner sight ×7 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| Tank HEAT/HE · T-62 (2A20) · gunner sight ×7 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| Tank AP · T-64BM2 (KBA3) · gunner sight ×12 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| Tank HEAT/HE · T-64BM2 (KBA3) · gunner sight ×12 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| Tank AP · T-72 / T-90 (2A46) · gunner sight ×12 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| Tank HEAT/HE · T-72 / T-90 (2A46) · gunner sight ×12 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| 2A70 100mm (ZBD-04A) · FRAG · gunner sight ×4 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| 2A70 100mm (ZBD-04A) · FRAG · gunner sight ×14 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| ZPL-98A 105mm (ZTD-05) · AP · gunner sight ×7 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| ZPL-98A 105mm (ZTD-05) · HEAT / HE · gunner sight ×7 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| Tank AP · ZTZ-99 (ZPT-98) · gunner sight ×12 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
+| Tank HEAT/HE · ZTZ-99 (ZPT-98) · gunner sight ×12 | launch | a closed turret or hull gun has no vehicle seat entry, so tools/game_weapons.py derives no launch point; the shot starts at the ground (launch_height 0) |
 | Mortar (M252 / 2B14 / L16 / Type 63) | bore | aimed by its own elevation readout, not through a view: the game files give no bore |
 | Mortar (M252 / 2B14 / L16 / Type 63) | zoom | aimed by its own elevation readout, not through a view: the game files give no zoom |
 | Technical Mortar | bore | aimed by its own elevation readout, not through a view: the game files give no bore |

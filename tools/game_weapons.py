@@ -7,7 +7,7 @@ against itself.
 
 Usage::
 
-    python3 -I tools/game_weapons.py --build 26005357 --date 2026-10-30 \\
+    python3 -I tools/game_weapons.py --build 26234431 --date 2026-11-06 \\
         --out tests/data/game_weapons.json \\
         [--root DIR ...] [--resolved resolved.json] [--compare weapons.json]
 
@@ -25,8 +25,9 @@ that differs from that ``weapons.json`` (velocity, gravity, acceleration and its
 time, max_speed, lifespan, rotation_follows_velocity, bore, zoom, elevation limits). The output depends only on the dumps and the
 arguments; ``--date`` and ``--build`` are recorded in ``_source``.
 
-Sources and rules (Squad build 26005357; units in the files are cm, the snapshot is
-in m, m/s and degrees):
+Sources and rules (Squad client build 26234431, which gives the same values as the server build
+26005357 the first snapshot was read from; units in the files are cm, the snapshot is in m, m/s and
+degrees):
 
 * Blueprint values are the deepest override along the class chain (a CDO and its
   components store only what differs from the parent), merged struct by struct.
@@ -52,10 +53,19 @@ in m, m/s and degrees):
   ``AdsCamera1pPositionComponent`` (RMB). Weapons aimed by elevation or mils
   (mortars, UB-32, BM-21, Hell Cannon, the technical's mortar and UB-32, M1064) get
   ``bore`` and ``zoom`` null.
-* zoom (FOV divisor, 1 = the game's FOV): a closed turret's gunner sight is its first
-  ``ZoomLevels`` entry; an RMB sight is the divisor of the ``SetFieldOfView(FOV / k)``
+* zoom (FOV divisor, 1 = the game's FOV): a closed turret's gunner sight is one of its
+  ``ZoomLevels`` entries (the first for the base entry of a vehicle, a later one for its
+  ``gunner sight ×N`` entries, see ``gunner_sights``; the snapshot keeps the turret's list as
+  ``zoom_levels``); an RMB sight is the divisor of the ``SetFieldOfView(FOV / k)``
   call in the weapon's ``BlueprintOnZoom`` graph (the most derived class that defines
   ``BlueprintOnZoom``; none = 1); the ZiS-3's RMB sight is its ``ZoomLevels[1]``.
+* focus_narrows_view (bool, plain views of open turrets and tripods only): holding the Focus key
+  (``IA_Focus``) lerps the camera to ``focus_view_factor`` (``_source``: the ``Multiply(0.666, FOV)``
+  of both generic Blueprints' ubergraphs) times the FOV when the mount allows it: ``AllowFocus`` of an
+  open turret (true on ``BP_GenericVehicleOpenTurret``), ``bAllowFocus`` of a tripod (the generic
+  tripod does not set it, so a tripod that does not set it true does not narrow). Every mount of an
+  entry must agree, so a turret that differs gets an entry of its own. That the rendered camera is
+  the component the lerp moves is not in the files.
 * elevation_limits ([min, max] degrees of the shot): the mount's pitch limits
   (``RotationConstraints.PitchInterval``, or, when the turret has
   ``ParentYawToMinPitch`` / ``ParentYawToMaxPitch`` curves, their widest values over
@@ -119,22 +129,19 @@ import re
 import sys
 
 DEFAULT_ROOTS = (
-    # SquadExtract dumpall with provider.ReadScriptData = true: every Blueprint
-    # '^SquadGame/Content/(Vehicles/.*/BP_[^/]*|Vehicles/BP_[^/]*|Blueprints/Items/
-    # (GrenadeLaunchers|RocketLaunchers)/.*BP_[^/]*|Blueprints/Items/BP_[^/]*)\.uasset$'
-    # (bytecode for the RMB divisors), then the weapon meshes, skeletons and
-    # yaw-to-pitch curves the other roots lack.
-    "/tmp/sb-flight-data/sdump",
-    "/tmp/sb-flight-data/mdump",
-    # Every Blueprint under Blueprints/ and Vehicles/ (tools/game_ballistics/README.md).
-    "~/data/squad-weapons/dump",
-    # Vehicle and turret Blueprints, meshes and skeletons.
-    "/tmp/mech/vdump2",
-    "/tmp/mech/dump",
-    "/tmp/mech/vdump",
-    "/tmp/mech/dump2",
-    "/tmp/mech/dump3",
-    "/tmp/mech/dump4",
+    # SquadExtract dumps of the client paks (build 26234431): the Blueprints dumped with Kismet
+    # bytecode (the RMB divisors and the Focus factor), the meshes, skeletons and yaw-to-pitch curves.
+    "~/data/squad-client-extract/vdump",
+    "~/data/squad-client-extract/dump",
+    "~/data/squad-client-extract/vdump2",
+    "~/data/squad-client-extract/vdump3",
+    "~/data/squad-client-extract/vdump4",
+    "~/data/squad-client-extract/vdump6",
+    "~/data/squad-client-extract/vdump7",
+    "~/data/squad-client-extract/vdump10",
+    "~/data/squad-client-extract/vdump20",
+    "~/data/squad-client-extract/vdump21",
+    "~/data/squad-client-extract/vdump22",
 )
 
 GENERATOR = "tools/game_weapons.py"
@@ -168,6 +175,14 @@ CLOSED_SIGHT = "FirstPersonCamera"
 OPEN_PLAIN = "Camera1pPositionComponent"
 TRIPOD_PLAIN = "FirstPersonVehicleCam"
 ADS = "AdsCamera1pPositionComponent"
+
+# Holding the Focus key (IA_Focus) lerps the camera of a plain view of an open turret or a tripod to
+# 0.666 x the FOV setting, when the mount allows it: the open turret's `AllowFocus` (the
+# generic open turret sets it true) or the tripod's `bAllowFocus` (the generic tripod leaves it
+# false, so a tripod that does not set it true has no Focus). The factor is the constant of
+# `Multiply(0.666, FOV)` in the ubergraph of both generic Blueprints.
+FOCUS_FLAGS = {OPEN_PLAIN: "AllowFocus", TRIPOD_PLAIN: "bAllowFocus"}
+FOCUS_BLUEPRINTS = ("Vehicles/BP_GenericVehicleOpenTurret", "Vehicles/BP_GenericDeployableTripodVehicle")
 
 HANDHELD = (
     "handheld: the shot leaves along the barrel socket (native ASQWeapon::GetAimDirection and "
@@ -213,12 +228,14 @@ MK19_TRIPOD = view(V + "Emplaced_Mk19/BP_EmplacedMk19_Tripod", ADS, ("rmb",), al
     (V + "Emplaced_Mk19/BP_EmplacedC16_Tripod", V + "Emplaced_Mk19/BP_Weapon_C16"),
     (V + "Emplaced_Mk19/BP_EmplacedL134A1_Tripod", V + "Emplaced_Mk19/BP_Weapon_L134A1"),
 ))
-QLZ_TURRETS = (
-    (V + "CSK131/Weapons/BP_QLZ87_CSK_OpenTop_Turret", V + "CSK131/Weapons/BP_QLZ87_OpenTurret_Weapon"),
-    (V + "WZ551/Turrets/QLZ87/BP_QLZ87_WZ551_OpenTop_Turret", V + "WZ551/Turrets/QLZ87/BP_QLZ87_Weapon_WZ551"),
-    (V + "ZBL08/Turrets/Cupola_QLZ87/BP_QLZ87_ZBL08_OpenTop_Turret", V + "ZBL08/Turrets/Cupola_QLZ87/BP_QLZ87_Weapon_ZBL08"),
-)
-QLZ_CLASSES = [V + "Lynx_8x8/Weapons/BP_QLZ87_Weapon_Lynx8x8"] + [w for _, w in QLZ_TURRETS]
+QLZ_LYNX = V + "Lynx_8x8/Weapons/BP_QLZ87_Lynx8x8_OpenTop_Turret"
+QLZ_LYNX_WEAPON = V + "Lynx_8x8/Weapons/BP_QLZ87_Weapon_Lynx8x8"
+QLZ_CSK = V + "CSK131/Weapons/BP_QLZ87_CSK_OpenTop_Turret"
+QLZ_CSK_WEAPON = V + "CSK131/Weapons/BP_QLZ87_OpenTurret_Weapon"
+QLZ_WZ551 = (V + "WZ551/Turrets/QLZ87/BP_QLZ87_WZ551_OpenTop_Turret", V + "WZ551/Turrets/QLZ87/BP_QLZ87_Weapon_WZ551")
+QLZ_ZBL08 = V + "ZBL08/Turrets/Cupola_QLZ87/BP_QLZ87_ZBL08_OpenTop_Turret"
+QLZ_ZBL08_WEAPON = V + "ZBL08/Turrets/Cupola_QLZ87/BP_QLZ87_Weapon_ZBL08"
+QLZ_BUNKER_TRIPOD = V + "Emplaced_QLZ87/BP_EmplacedQLZ87_Tripod_Bunker"
 T72_FAMILY = (  # (turret, AP, HEAT, Frag): the T-72A / T-72S / T-90A / Sprut beside the T-72B3
     (V + "T72A/Turrets/BP_T72A_IMF_Turret", V + "T72A/Weapons/BP_2A46_T72A_AP", V + "T72A/Weapons/BP_2A46_T72A_HEAT", V + "T72A/Weapons/BP_2A46_T72A_Frag"),
     (V + "T72AV/Turrets/BP_T72S_GFI_Turret", V + "T72AV/Weapons/BP_2A46_T72S_AP", V + "T72AV/Weapons/BP_2A46_T72S_HEAT", V + "T72AV/Weapons/BP_2A46_T72S_Frag"),
@@ -248,9 +265,20 @@ QLZ_TRIPOD = V + "Emplaced_QLZ87/BP_EmplacedQLZ87_Tripod"
 ZIS3 = V + "Emplaced_ZiS3_Cannon/BP_ZiS3_Base"
 
 
-def tank(turret, also=(), seat=None):
-    """The gunner's sight of a closed turret at its first zoom level."""
-    return view(turret, CLOSED_SIGHT, ("levels", 0), also, seat)
+def tank(turret, also=(), seat=None, level=0):
+    """The gunner's sight of a closed turret at `ZoomLevels[level]` (the first one by default)."""
+    return view(turret, CLOSED_SIGHT, ("levels", level), also, seat)
+
+
+def gunner_sights(level, mounts):
+    """(weapon classes, view) of a gunner's sight at `ZoomLevels[level]` on several turrets.
+
+    `mounts` holds (turret, weapon class) paths under `Vehicles/`. The first pair is the entry's
+    reference; the others must show the same view (checked). The classes are the distinct weapons.
+    """
+    classes = list(dict.fromkeys(V + weapon for _, weapon in mounts))
+    (turret, _), *others = mounts
+    return classes, tank(V + turret, level=level, also=tuple((V + mount, V + weapon) for mount, weapon in others))
 
 
 MK19_OPEN = V + "Emplaced_Mk19/BP_Mk19_OpenTurret_Weapon"
@@ -304,6 +332,27 @@ def SPG9_VIEW(camera, zoom, vehicle, also=()):
     return view(SPG9_TECHNICAL, camera, zoom, also, seat=seat(vehicle, "socket_turret"))
 
 
+def AAVP7A1_MK19_SIGHT(level):
+    """The AAVP-7A1's MK19 gunner sight at `ZoomLevels[level]` (the plain and the Woodland turret)."""
+    return tank(V + "AAVP7A1/Turrets/BP_AAVP7A1_Turret", level=level, also=(
+        (V + "AAVP7A1/Turrets/BP_AAVP7A1_Turret_Woodland", V + "AAVP7A1/Weapons/BP_AAVP7A1_MK19_Woodland", seat(V + "AAVP7A1/BP_AAVP7A1_Woodland", "bone_turret")),),
+        seat=seat(V + "AAVP7A1/BP_AAVP7A1", "bone_turret"))
+
+
+def PARS3_MK19_SIGHT(level):
+    """The PARS III's MK19 remote weapon station sight at `ZoomLevels[level]` (the plain and the Desert turret)."""
+    return tank(V + "PARS_III/Sancak_RWS/BP_SancakRWS_MK19_Turret", level=level, also=(
+        (V + "PARS_III/Sancak_RWS/BP_SancakRWS_MK19_Turret_Desert", V + "PARS_III/Sancak_RWS/Weapons/BP_SancakRWS_MK19_Desert", seat(V + "PARS_III/BP_PARS3_MK19_Desert", "bone_RWSSocket")),),
+        seat=seat(V + "PARS_III/BP_PARS3_MK19", "bone_RWSSocket"))
+
+
+def C16_MK19_SIGHT(level):
+    """The TAPV's C16 MK19 remote weapon station sight at `ZoomLevels[level]` (the plain and the Desert turret)."""
+    return tank(V + "TAPV/Protector_C16/BP_C16_Turret", level=level, also=(
+        (V + "TAPV/Protector_C16/BP_C16_Turret_Desert", V + "TAPV/Protector_C16/BP_C16_MK19_Desert", seat(V + "TAPV/BP_TAPV_C16_Desert", "bone_turretSocket")),),
+        seat=seat(V + "TAPV/BP_TAPV_C16", "bone_turretSocket"))
+
+
 ENTRIES = {
     # Under-barrel and handheld grenade launchers and rockets: no mount.
     "M203 / M320 / GP-25 / HK79 / SL40": ([GL + "M4M203_UGL/BP_M4M203_UGL_Parent", GL + "M320/BP_M320_Parent", GL + "AK74GP25_UGL/BP_AK74GP25_UGL_Parent", GL + "G3A3HK79_UGL/BP_G3A3HK79_UGL_HE", GL + "EF88SL40_UGL/BP_EF88_SL40_UGL_Parent"], None),
@@ -315,18 +364,9 @@ ENTRIES = {
     # turret on a socket 1.2 m below the hull's turret bone, the CROWS mesh is at 2.6 m (#NN).
     "MK19": ([V + "M1117/Weapons/BP_M1117_MK19", V + "RHIB/Weapons/BP_Mk19_RHIB_Weapon", V + "Emplaced_Mk19/BP_Mk19_OpenTurret_Weapon"],
              tank(V + "M1117/Turrets/BP_M1117_Turret")),
-    "MK19 · AAVP-7A1": ([V + "AAVP7A1/Weapons/BP_AAVP7A1_MK19", V + "AAVP7A1/Weapons/BP_AAVP7A1_MK19_Woodland"],
-                        tank(V + "AAVP7A1/Turrets/BP_AAVP7A1_Turret", also=((V + "AAVP7A1/Turrets/BP_AAVP7A1_Turret_Woodland", V + "AAVP7A1/Weapons/BP_AAVP7A1_MK19_Woodland",
-                                                                          seat(V + "AAVP7A1/BP_AAVP7A1_Woodland", "bone_turret")),),
-                             seat=seat(V + "AAVP7A1/BP_AAVP7A1", "bone_turret"))),
-    "MK19 · PARS III RWS": ([V + "PARS_III/Sancak_RWS/Weapons/BP_SancakRWS_MK19"],
-                            tank(V + "PARS_III/Sancak_RWS/BP_SancakRWS_MK19_Turret", also=((V + "PARS_III/Sancak_RWS/BP_SancakRWS_MK19_Turret_Desert", V + "PARS_III/Sancak_RWS/Weapons/BP_SancakRWS_MK19_Desert",
-                                                                                           seat(V + "PARS_III/BP_PARS3_MK19_Desert", "bone_RWSSocket")),),
-                                 seat=seat(V + "PARS_III/BP_PARS3_MK19", "bone_RWSSocket"))),
-    "MK19 · TAPV C16 RWS": ([V + "TAPV/Protector_C16/BP_C16_MK19"],
-                            tank(V + "TAPV/Protector_C16/BP_C16_Turret", also=((V + "TAPV/Protector_C16/BP_C16_Turret_Desert", V + "TAPV/Protector_C16/BP_C16_MK19_Desert",
-                                                                               seat(V + "TAPV/BP_TAPV_C16_Desert", "bone_turretSocket")),),
-                                 seat=seat(V + "TAPV/BP_TAPV_C16", "bone_turretSocket"))),
+    "MK19 · AAVP-7A1": ([V + "AAVP7A1/Weapons/BP_AAVP7A1_MK19", V + "AAVP7A1/Weapons/BP_AAVP7A1_MK19_Woodland"], AAVP7A1_MK19_SIGHT(0)),
+    "MK19 · PARS III RWS": ([V + "PARS_III/Sancak_RWS/Weapons/BP_SancakRWS_MK19"], PARS3_MK19_SIGHT(0)),
+    "MK19 · TAPV C16 RWS": ([V + "TAPV/Protector_C16/BP_C16_MK19"], C16_MK19_SIGHT(0)),
     # Open turrets aimed through the sights (RMB moves the camera to the ADS position, no zoom) or
     # from the normal view (the camera is on the barrel's axis).
     "MK19 · M113 open turret": ([MK19_OPEN], M113_MK19_VIEW(ADS, ("rmb",))),
@@ -361,10 +401,16 @@ ENTRIES = {
                        AGS17_VIEW(V + "BTR-D/Turrets/BP_BTR-D_AGS17_Turret", V + "BTR-D/BP_BTR-D_AGS17", "bone_turret_Kord", also=(
                            (V + "BTR-D/Turrets/BP_BTR-D_AGS17_Turret", AGS17 + "Turrets/BP_AGS-17_OpenTurret_Weapon", seat(V + "BTR-D/BP_BTR-D_AGS17_Desert", "bone_turret_Kord")),))),
     # QLZ87 tripod and the open turrets of the Lynx, CSK131, WZ551 and ZBL-08.
-    "QLZ87 · optic (RMB ×3)": ([V + "Emplaced_QLZ87/BP_QLZ87_Weapon", GL + "QLZ-87/BP_QLZ-87_AGL_Parent", V + "CSK131/Weapons/BP_QLZ87_OpenTurret_Weapon"], view(QLZ_TRIPOD, ADS, ("rmb",))),
+    "QLZ87 · optic (RMB ×3)": ([V + "Emplaced_QLZ87/BP_QLZ87_Weapon", GL + "QLZ-87/BP_QLZ-87_AGL_Parent", QLZ_CSK_WEAPON], view(QLZ_TRIPOD, ADS, ("rmb",))),
     "QLZ87 · no optic": ([V + "Emplaced_QLZ87/BP_QLZ87_Weapon"], view(QLZ_TRIPOD, TRIPOD_PLAIN, ("plain",))),
-    "QLZ87 · Lynx / CSK131 · optic (RMB ×3)": (QLZ_CLASSES, view(V + "Lynx_8x8/Weapons/BP_QLZ87_Lynx8x8_OpenTop_Turret", ADS, ("rmb",), also=QLZ_TURRETS)),
-    "QLZ87 · Lynx / CSK131 · no optic": (QLZ_CLASSES, view(V + "Lynx_8x8/Weapons/BP_QLZ87_Lynx8x8_OpenTop_Turret", OPEN_PLAIN, ("plain",), also=QLZ_TURRETS)),
+    "QLZ87 · Lynx · optic (RMB ×3)": ([QLZ_LYNX_WEAPON], view(QLZ_LYNX, ADS, ("rmb",))),
+    "QLZ87 · Lynx · no optic": ([QLZ_LYNX_WEAPON], view(QLZ_LYNX, OPEN_PLAIN, ("plain",))),
+    "QLZ87 · CSK131 / WZ551 · optic (RMB ×3)": ([QLZ_CSK_WEAPON, QLZ_WZ551[1]], view(QLZ_CSK, ADS, ("rmb",), also=(QLZ_WZ551,))),
+    "QLZ87 · CSK131 / WZ551 · no optic": ([QLZ_CSK_WEAPON, QLZ_WZ551[1]], view(QLZ_CSK, OPEN_PLAIN, ("plain",), also=(QLZ_WZ551,))),
+    "QLZ87 · ZBL08 · optic (RMB ×3)": ([QLZ_ZBL08_WEAPON], view(QLZ_ZBL08, ADS, ("rmb",))),
+    "QLZ87 · ZBL08 · no optic": ([QLZ_ZBL08_WEAPON], view(QLZ_ZBL08, OPEN_PLAIN, ("plain",))),
+    "QLZ87 · bunker tripod · optic (RMB ×3)": ([V + "Emplaced_QLZ87/BP_QLZ87_Weapon"], view(QLZ_BUNKER_TRIPOD, ADS, ("rmb",))),
+    "QLZ87 · bunker tripod · no optic": ([V + "Emplaced_QLZ87/BP_QLZ87_Weapon"], view(QLZ_BUNKER_TRIPOD, TRIPOD_PLAIN, ("plain",))),
     # AGS-30 / KBA-117 gunner's sights (socket BarrelStart_AGS).
     "AGS-30 / BTR-4 AGS": ([V + "BTR4/Weapons/BP_BTR4_KBA117"], tank(V + "BTR4/Turrets/BP_BTR4_Turret")),
     "AGS-30 (BMP-1TS)": ([V + "BMP1TS_AFU/Weapons/BP_BMP1TS_KBA117"], tank(V + "BMP1TS_AFU/Turrets/BP_BMP1TS_Turret")),
@@ -453,6 +499,247 @@ ENTRIES = {
     "Tank HESH · L30A1 (Challenger 2)": ([V + "FV4034/Weapons/BP_L30A1_HESH", V + "FV4034/Weapons/BP_L30A1_Smoke"], tank(FV4034)),
     "ZPL-98A 105mm (ZTD-05) · AP": ([V + "ZTD05/Weapons/BP_ZTD05_ZPL-98A_AP"], tank(ZTD05, also=((ZTD05_WOODLAND, V + "ZTD05/Weapons/BP_ZTD05_ZPL-98A_AP"),))),
     "ZPL-98A 105mm (ZTD-05) · HEAT / HE": ([V + "ZTD05/Weapons/BP_ZTD05_ZPL-98A_HEAT", V + "ZTD05/Weapons/BP_ZTD05_ZPL-98A_Frag"], tank(ZTD05, also=((ZTD05_WOODLAND, V + "ZTD05/Weapons/BP_ZTD05_ZPL-98A_HEAT"),))),
+    # MK19 gunner sights at their higher zoom levels (the M1117 has ZoomLevels [1, 4.5]), and the RHIB's normal view.
+    "MK19 · AAVP-7A1 · gunner sight ×4.5": ([V + "AAVP7A1/Weapons/BP_AAVP7A1_MK19", V + "AAVP7A1/Weapons/BP_AAVP7A1_MK19_Woodland"], AAVP7A1_MK19_SIGHT(1)),
+    "MK19 · PARS III RWS · gunner sight ×3": ([V + "PARS_III/Sancak_RWS/Weapons/BP_SancakRWS_MK19"], PARS3_MK19_SIGHT(1)),
+    "MK19 · PARS III RWS · gunner sight ×9": ([V + "PARS_III/Sancak_RWS/Weapons/BP_SancakRWS_MK19"], PARS3_MK19_SIGHT(2)),
+    "MK19 · TAPV C16 RWS · gunner sight ×5": ([V + "TAPV/Protector_C16/BP_C16_MK19"], C16_MK19_SIGHT(1)),
+    "MK19 · TAPV C16 RWS · gunner sight ×12": ([V + "TAPV/Protector_C16/BP_C16_MK19"], C16_MK19_SIGHT(2)),
+    "MK19 · RHIB open turret · no sights": ([V + "RHIB/Weapons/BP_Mk19_RHIB_Weapon"], view(V + "RHIB/Turrets/BP_RHIB_Turret_Mk19", OPEN_PLAIN, ("plain",))),
+    # Gunner sights at the zoom levels after the first (ZoomLevels[1:]), one entry per vehicle family and level.
+    "Tank AP · M1A1 / M1A2 (M256) · gunner sight ×6": gunner_sights(1, (
+        ("AUS_M1A1/Turrets/BP_AUS_M1A1_Turret", "AUS_M1A1/Weapons/BP_M256A1_AP_ADF"),
+        ("M1A1_USMC/Turrets/BP_M1A1_USMC_Turret", "M1A2/Weapons/BP_M256A1_AP"),
+        ("M1A1_USMC/Turrets/BP_M1A1_USMC_Turret_Woodland", "M1A2/Weapons/BP_M256A1_AP"),
+        ("M1A2/Turrets/BP_M1A2_Turret", "M1A2/Weapons/BP_M256A1_AP"),
+        ("M1A2/Turrets/BP_M1A2_Turret_Woodland", "M1A2/Weapons/BP_M256A1_AP"),
+    )),
+    "Tank AP · M1A1 / M1A2 (M256) · gunner sight ×12": gunner_sights(2, (
+        ("AUS_M1A1/Turrets/BP_AUS_M1A1_Turret", "AUS_M1A1/Weapons/BP_M256A1_AP_ADF"),
+        ("M1A1_USMC/Turrets/BP_M1A1_USMC_Turret", "M1A2/Weapons/BP_M256A1_AP"),
+        ("M1A1_USMC/Turrets/BP_M1A1_USMC_Turret_Woodland", "M1A2/Weapons/BP_M256A1_AP"),
+        ("M1A2/Turrets/BP_M1A2_Turret", "M1A2/Weapons/BP_M256A1_AP"),
+        ("M1A2/Turrets/BP_M1A2_Turret_Woodland", "M1A2/Weapons/BP_M256A1_AP"),
+    )),
+    "Tank HEAT/HE · M1A1 / M1A2 (M256) · gunner sight ×6": gunner_sights(1, (
+        ("AUS_M1A1/Turrets/BP_AUS_M1A1_Turret", "M1A2/Weapons/BP_M256A1_HEAT"),
+        ("M1A2/Turrets/BP_M1A2_Turret", "M1A2/Weapons/BP_M256A1_HEAT"),
+        ("M1A1_USMC/Turrets/BP_M1A1_USMC_Turret", "M1A2/Weapons/BP_M256A1_HEAT"),
+        ("M1A1_USMC/Turrets/BP_M1A1_USMC_Turret_Woodland", "M1A2/Weapons/BP_M256A1_HEAT"),
+        ("M1A2/Turrets/BP_M1A2_Turret_Woodland", "M1A2/Weapons/BP_M256A1_HEAT"),
+    )),
+    "Tank HEAT/HE · M1A1 / M1A2 (M256) · gunner sight ×12": gunner_sights(2, (
+        ("AUS_M1A1/Turrets/BP_AUS_M1A1_Turret", "M1A2/Weapons/BP_M256A1_HEAT"),
+        ("M1A2/Turrets/BP_M1A2_Turret", "M1A2/Weapons/BP_M256A1_HEAT"),
+        ("M1A1_USMC/Turrets/BP_M1A1_USMC_Turret", "M1A2/Weapons/BP_M256A1_HEAT"),
+        ("M1A1_USMC/Turrets/BP_M1A1_USMC_Turret_Woodland", "M1A2/Weapons/BP_M256A1_HEAT"),
+        ("M1A2/Turrets/BP_M1A2_Turret_Woodland", "M1A2/Weapons/BP_M256A1_HEAT"),
+    )),
+    "2A28 Grom (BMD-1M) · HEAT · gunner sight ×6": gunner_sights(1, (
+        ("BMD-1M/Turrets/BP_BMD1M_Turret", "BMD-1M/Weapons/BP_BMD1M_2A28_HEAT"),
+        ("BMD-1M/Turrets/BP_BMD1M_Turret_Desert", "BMD-1M/Weapons/BP_BMD1M_2A28_HEAT"),
+    )),
+    "2A28 Grom (BMD-1M) · FRAG · gunner sight ×6": gunner_sights(1, (
+        ("BMD-1M/Turrets/BP_BMD1M_Turret", "BMD-1M/Weapons/BP_BMD1M_2A28_Frag"),
+        ("BMD-1M/Turrets/BP_BMD1M_Turret_Desert", "BMD-1M/Weapons/BP_BMD1M_2A28_Frag"),
+    )),
+    "2A70 100mm (BMD-4M) · FRAG · gunner sight ×5": gunner_sights(1, (
+        ("BMD-4M/Turrets/BP_BMD4M_Turret", "BMD-4M/Weapons/BP_BMD4M_2A70_HEFrag"),
+        ("BMD-4M/Turrets/BP_BMD4M_Turret_Desert", "BMD-4M/Weapons/BP_BMD4M_2A70_HEFrag"),
+    )),
+    "2A70 100mm (BMP-3 / BMD-4M) · FRAG · gunner sight ×14": gunner_sights(2, (
+        ("BMD-4M/Turrets/BP_BMD4M_Turret", "BMD-4M/Weapons/BP_BMD4M_2A70_HEFrag"),
+        ("BMD-4M/Turrets/BP_BMD4M_Turret_Desert", "BMD-4M/Weapons/BP_BMD4M_2A70_HEFrag"),
+        ("BMP-3M/Turrets/BP_BMP3M_Turret", "BMP-3M/Weapons/BP_BMP3M_2A70_HEFrag"),
+        ("BMP-3M/Turrets/BP_BMP3M_Turret_Desert", "BMP-3M/Weapons/BP_BMP3M_2A70_HEFrag"),
+    )),
+    "2A28 Grom (BMP-1) · HEAT · gunner sight ×6": gunner_sights(1, (
+        ("BMP-1/Turrets/BP_BMP1_Turret_GFI", "BMP-1/Weapons/BP_BMP1_2A28_HEAT"),
+        ("BMP-1/Turrets/BP_BMP1_Turret_IMF", "BMP-1/Weapons/BP_BMP1_2A28_HEAT"),
+        ("BMP-1/Turrets/BP_BMP1_Turret_MEI", "BMP-1/Weapons/BP_BMP1_2A28_HEAT"),
+        ("BMP1_AFU/Turrets/BP_BMP1_Turret_AFU", "BMP-1/Weapons/BP_BMP1_2A28_HEAT"),
+        ("Technical2Seater/Turrets/BP_BMP1_Turret_Technical", "Technical2Seater/Weapons/BP_Technical_BMP1_2A28_HEAT"),
+    )),
+    "2A28 Grom (BMP-1) · FRAG · gunner sight ×6": gunner_sights(1, (
+        ("BMP-1/Turrets/BP_BMP1_Turret_GFI", "BMP-1/Weapons/BP_BMP1_2A28_Frag"),
+        ("BMP-1/Turrets/BP_BMP1_Turret_IMF", "BMP-1/Weapons/BP_BMP1_2A28_Frag"),
+        ("BMP-1/Turrets/BP_BMP1_Turret_MEI", "BMP-1/Weapons/BP_BMP1_2A28_Frag"),
+        ("BMP1_AFU/Turrets/BP_BMP1_Turret_AFU", "BMP-1/Weapons/BP_BMP1_2A28_Frag"),
+        ("Technical2Seater/Turrets/BP_BMP1_Turret_Technical", "Technical2Seater/Weapons/BP_Technical_BMP1_2A28_Frag"),
+    )),
+    "AGS-30 (BMP-2M) · gunner sight ×6": gunner_sights(1, (
+        ("BMP-2M/Turrets/BP_BMP2M_Turret", "BMP-2M/Weapons/Woodland/BP_BMP2M_AGS30"),
+        ("BMP-2M/Turrets/BP_BMP2M_Turret_Desert", "BMP-2M/Weapons/Desert/BP_BMP2M_AGS30_Desert"),
+    )),
+    "2A70 100mm (BMP-3) · FRAG · gunner sight ×4": gunner_sights(1, (
+        ("BMP-3M/Turrets/BP_BMP3M_Turret", "BMP-3M/Weapons/BP_BMP3M_2A70_HEFrag"),
+        ("BMP-3M/Turrets/BP_BMP3M_Turret_Desert", "BMP-3M/Weapons/BP_BMP3M_2A70_HEFrag"),
+    )),
+    "AGS-30 (BMP-1TS) · gunner sight ×9": gunner_sights(1, (
+        ("BMP1TS_AFU/Turrets/BP_BMP1TS_Turret", "BMP1TS_AFU/Weapons/BP_BMP1TS_KBA117"),
+    )),
+    "AGS-30 / BTR-4 AGS · gunner sight ×9": gunner_sights(1, (
+        ("BTR4/Turrets/BP_BTR4_Turret", "BTR4/Weapons/BP_BTR4_KBA117"),
+    )),
+    "Tank AP · Challenger 2 (L30A1) · gunner sight ×4": gunner_sights(1, (
+        ("FV4034/Turrets/BP_FV4034_Turret", "FV4034/Weapons/BP_L30A1_AP"),
+        ("FV4034/Turrets/BP_FV4034_Turret_Woodland", "FV4034/Weapons/BP_L30A1_AP"),
+    )),
+    "Tank AP · Challenger 2 (L30A1) · gunner sight ×10": gunner_sights(2, (
+        ("FV4034/Turrets/BP_FV4034_Turret", "FV4034/Weapons/BP_L30A1_AP"),
+        ("FV4034/Turrets/BP_FV4034_Turret_Woodland", "FV4034/Weapons/BP_L30A1_AP"),
+    )),
+    "Tank HESH · Challenger 2 (L30A1) · gunner sight ×4": gunner_sights(1, (
+        ("FV4034/Turrets/BP_FV4034_Turret", "FV4034/Weapons/BP_L30A1_HESH"),
+        ("FV4034/Turrets/BP_FV4034_Turret", "FV4034/Weapons/BP_L30A1_Smoke"),
+        ("FV4034/Turrets/BP_FV4034_Turret_Woodland", "FV4034/Weapons/BP_L30A1_HESH"),
+        ("FV4034/Turrets/BP_FV4034_Turret_Woodland", "FV4034/Weapons/BP_L30A1_Smoke"),
+    )),
+    "Tank HESH · Challenger 2 (L30A1) · gunner sight ×10": gunner_sights(2, (
+        ("FV4034/Turrets/BP_FV4034_Turret", "FV4034/Weapons/BP_L30A1_HESH"),
+        ("FV4034/Turrets/BP_FV4034_Turret", "FV4034/Weapons/BP_L30A1_Smoke"),
+        ("FV4034/Turrets/BP_FV4034_Turret_Woodland", "FV4034/Weapons/BP_L30A1_HESH"),
+        ("FV4034/Turrets/BP_FV4034_Turret_Woodland", "FV4034/Weapons/BP_L30A1_Smoke"),
+    )),
+    "Tank AP · Leopard 2A6 (Rh120) · gunner sight ×12": gunner_sights(1, (
+        ("Leopard2/Turrets/BP_2A6_Turret_Woodland", "Leopard2/Weapons/BP_L55_AP"),
+        ("Leopard2/Turrets/BP_2A6_Turret_Desert", "Leopard2/Weapons/BP_L55_AP"),
+        ("Leopard2/Turrets/BP_2A6_Turret_Desert_Cage", "Leopard2/Weapons/BP_L55_AP"),
+        ("Leopard2/Turrets/BP_2A6_Turret_Woodland_Cage", "Leopard2/Weapons/BP_L55_AP"),
+    )),
+    "Tank HEAT/HE · Leopard 2A6 (Rh120) · gunner sight ×12": gunner_sights(1, (
+        ("Leopard2/Turrets/BP_2A6_Turret_Woodland", "Leopard2/Weapons/BP_L55_HEAT"),
+        ("Leopard2/Turrets/BP_2A6_Turret_Desert", "Leopard2/Weapons/BP_L55_HEAT"),
+        ("Leopard2/Turrets/BP_2A6_Turret_Desert_Cage", "Leopard2/Weapons/BP_L55_HEAT"),
+        ("Leopard2/Turrets/BP_2A6_Turret_Woodland_Cage", "Leopard2/Weapons/BP_L55_HEAT"),
+    )),
+    "MK19 · M1117 · gunner sight ×4.5": gunner_sights(1, (
+        ("M1117/Turrets/BP_M1117_Turret", "M1117/Weapons/BP_M1117_MK19"),
+    )),
+    "Tank AP · M1128 MGS (M68A2) · gunner sight ×8": gunner_sights(1, (
+        ("M1128_MGS/Turrets/BP_M1128_Turret", "M1128_MGS/Weapons/BP_M68A2_AP"),
+        ("M1128_MGS/Turrets/BP_M1128_Turret_Woodland", "M1128_MGS/Weapons/BP_M68A2_AP"),
+    )),
+    "Tank HEAT/HE · M1128 MGS (M68A2) · gunner sight ×8": gunner_sights(1, (
+        ("M1128_MGS/Turrets/BP_M1128_Turret", "M1128_MGS/Weapons/BP_M68A2_HEAT"),
+        ("M1128_MGS/Turrets/BP_M1128_Turret_Woodland", "M1128_MGS/Weapons/BP_M68A2_HEAT"),
+    )),
+    "Tank AP · M60T (MG253) · gunner sight ×3": gunner_sights(1, (
+        ("M60T/Turrets/BP_M60T_Turret", "M60T/Weapons/BP_MG253_AP"),
+        ("M60T_WPMC/Turrets/BP_M60T_Turret_WPMC", "M60T_WPMC/Weapons/BP_MG253_AP_WPMC"),
+        ("M60T/Turrets/BP_M60T_Turret_Desert", "M60T/Weapons/BP_MG253_AP"),
+    )),
+    "Tank AP · M60T (MG253) · gunner sight ×8": gunner_sights(2, (
+        ("M60T/Turrets/BP_M60T_Turret", "M60T/Weapons/BP_MG253_AP"),
+        ("M60T_WPMC/Turrets/BP_M60T_Turret_WPMC", "M60T_WPMC/Weapons/BP_MG253_AP_WPMC"),
+        ("M60T/Turrets/BP_M60T_Turret_Desert", "M60T/Weapons/BP_MG253_AP"),
+    )),
+    "Tank HEAT/HE · M60T (MG253) · gunner sight ×3": gunner_sights(1, (
+        ("M60T/Turrets/BP_M60T_Turret", "M60T/Weapons/BP_MG253_Frag"),
+        ("M60T_WPMC/Turrets/BP_M60T_Turret_WPMC", "M60T_WPMC/Weapons/BP_MG253_Frag_WPMC"),
+        ("M60T/Turrets/BP_M60T_Turret_Desert", "M60T/Weapons/BP_MG253_Frag"),
+    )),
+    "Tank HEAT/HE · M60T (MG253) · gunner sight ×8": gunner_sights(2, (
+        ("M60T/Turrets/BP_M60T_Turret", "M60T/Weapons/BP_MG253_Frag"),
+        ("M60T_WPMC/Turrets/BP_M60T_Turret_WPMC", "M60T_WPMC/Weapons/BP_MG253_Frag_WPMC"),
+        ("M60T/Turrets/BP_M60T_Turret_Desert", "M60T/Weapons/BP_MG253_Frag"),
+    )),
+    "Tank AP · Sprut-SDM1 (2A45) · gunner sight ×4": gunner_sights(0, (
+        ("Sprut-SDM1/Turrets/BP_Sprut_Turret", "Sprut-SDM1/Weapons/BP_2A45_AP"),
+        ("Sprut-SDM1/Turrets/BP_Sprut_Turret_Desert", "Sprut-SDM1/Weapons/BP_2A45_AP"),
+    )),
+    "Tank AP · Sprut-SDM1 (2A45) · gunner sight ×12": gunner_sights(1, (
+        ("Sprut-SDM1/Turrets/BP_Sprut_Turret", "Sprut-SDM1/Weapons/BP_2A45_AP"),
+        ("Sprut-SDM1/Turrets/BP_Sprut_Turret_Desert", "Sprut-SDM1/Weapons/BP_2A45_AP"),
+    )),
+    "Tank HEAT/HE · Sprut-SDM1 (2A45) · gunner sight ×4": gunner_sights(0, (
+        ("Sprut-SDM1/Turrets/BP_Sprut_Turret", "Sprut-SDM1/Weapons/BP_2A45_HEAT"),
+        ("Sprut-SDM1/Turrets/BP_Sprut_Turret", "Sprut-SDM1/Weapons/BP_2A45_Frag"),
+        ("Sprut-SDM1/Turrets/BP_Sprut_Turret_Desert", "Sprut-SDM1/Weapons/BP_2A45_HEAT"),
+        ("Sprut-SDM1/Turrets/BP_Sprut_Turret_Desert", "Sprut-SDM1/Weapons/BP_2A45_Frag"),
+    )),
+    "Tank HEAT/HE · Sprut-SDM1 (2A45) · gunner sight ×12": gunner_sights(1, (
+        ("Sprut-SDM1/Turrets/BP_Sprut_Turret", "Sprut-SDM1/Weapons/BP_2A45_HEAT"),
+        ("Sprut-SDM1/Turrets/BP_Sprut_Turret", "Sprut-SDM1/Weapons/BP_2A45_Frag"),
+        ("Sprut-SDM1/Turrets/BP_Sprut_Turret_Desert", "Sprut-SDM1/Weapons/BP_2A45_HEAT"),
+        ("Sprut-SDM1/Turrets/BP_Sprut_Turret_Desert", "Sprut-SDM1/Weapons/BP_2A45_Frag"),
+    )),
+    "Tank AP · T-62 (2A20) · gunner sight ×7": gunner_sights(1, (
+        ("T62/Turrets/BP_T62_Turret", "T62/Weapons/BP_2A20_AP"),
+        ("T62/Turrets/BP_T62_IMF_Turret", "T62/Weapons/BP_2A20_AP"),
+        ("T62/Turrets/BP_T62_Turret_GFI", "T62/Weapons/BP_2A20_AP"),
+    )),
+    "Tank HEAT/HE · T-62 (2A20) · gunner sight ×7": gunner_sights(1, (
+        ("T62/Turrets/BP_T62_Turret", "T62/Weapons/BP_2A20_HEAT"),
+        ("T62/Turrets/BP_T62_Turret", "T62/Weapons/BP_2A20_Frag"),
+        ("T62/Turrets/BP_T62_IMF_Turret", "T62/Weapons/BP_2A20_HEAT"),
+        ("T62/Turrets/BP_T62_IMF_Turret", "T62/Weapons/BP_2A20_Frag"),
+        ("T62/Turrets/BP_T62_Turret_GFI", "T62/Weapons/BP_2A20_HEAT"),
+        ("T62/Turrets/BP_T62_Turret_GFI", "T62/Weapons/BP_2A20_Frag"),
+    )),
+    "Tank AP · T-64BM2 (KBA3) · gunner sight ×12": gunner_sights(1, (
+        ("T64_BM2/Turrets/BP_T64BM2_Turret", "T64_BM2/Weapons/BP_KBA3_AP"),
+        ("T64_BM2/Turrets/BP_T64BM2_Turret_Cage", "T64_BM2/Weapons/BP_KBA3_AP"),
+    )),
+    "Tank HEAT/HE · T-64BM2 (KBA3) · gunner sight ×12": gunner_sights(1, (
+        ("T64_BM2/Turrets/BP_T64BM2_Turret", "T64_BM2/Weapons/BP_KBA3_HEAT"),
+        ("T64_BM2/Turrets/BP_T64BM2_Turret", "T64_BM2/Weapons/BP_KBA3_Frag"),
+        ("T64_BM2/Turrets/BP_T64BM2_Turret_Cage", "T64_BM2/Weapons/BP_KBA3_HEAT"),
+        ("T64_BM2/Turrets/BP_T64BM2_Turret_Cage", "T64_BM2/Weapons/BP_KBA3_Frag"),
+    )),
+    "Tank AP · T-72 / T-90 (2A46) · gunner sight ×12": gunner_sights(1, (
+        ("T72A/Turrets/BP_T72A_IMF_Turret", "T72A/Weapons/BP_2A46_T72A_AP"),
+        ("T72AV/Turrets/BP_T72S_GFI_Turret", "T72AV/Weapons/BP_2A46_T72S_AP"),
+        ("T72B3/Turrets/BP_T72B3_Turret", "T72B3/Weapons/BP_2A46_AP"),
+        ("T72B3/Turrets/BP_T72B3_Turret_Desert", "T72B3/Weapons/BP_2A46_AP"),
+        ("T90A/Turrets/BP_T90A_Turret", "T90A/Weapons/BP_2A46M_AP"),
+        ("T90A/Turrets/BP_T90A_Turret_Desert", "T90A/Weapons/BP_2A46M_AP"),
+    )),
+    "Tank HEAT/HE · T-72 / T-90 (2A46) · gunner sight ×12": gunner_sights(1, (
+        ("T72A/Turrets/BP_T72A_IMF_Turret", "T72A/Weapons/BP_2A46_T72A_HEAT"),
+        ("T72A/Turrets/BP_T72A_IMF_Turret", "T72A/Weapons/BP_2A46_T72A_Frag"),
+        ("T72AV/Turrets/BP_T72S_GFI_Turret", "T72AV/Weapons/BP_2A46_T72S_HEAT"),
+        ("T72AV/Turrets/BP_T72S_GFI_Turret", "T72AV/Weapons/BP_2A46_T72S_Frag"),
+        ("T72B3/Turrets/BP_T72B3_Turret", "T72B3/Weapons/BP_2A46_HEAT"),
+        ("T72B3/Turrets/BP_T72B3_Turret", "T72B3/Weapons/BP_2A46_Frag"),
+        ("T72B3/Turrets/BP_T72B3_Turret_Desert", "T72B3/Weapons/BP_2A46_HEAT"),
+        ("T72B3/Turrets/BP_T72B3_Turret_Desert", "T72B3/Weapons/BP_2A46_Frag"),
+        ("T90A/Turrets/BP_T90A_Turret", "T90A/Weapons/BP_2A46M_HEAT"),
+        ("T90A/Turrets/BP_T90A_Turret", "T90A/Weapons/BP_2A46M_Frag"),
+        ("T90A/Turrets/BP_T90A_Turret_Desert", "T90A/Weapons/BP_2A46M_HEAT"),
+        ("T90A/Turrets/BP_T90A_Turret_Desert", "T90A/Weapons/BP_2A46M_Frag"),
+    )),
+    "2A70 100mm (ZBD-04A) · FRAG · gunner sight ×4": gunner_sights(1, (
+        ("ZBD04A/Turrets/BP_ZBD04A_Turret", "ZBD04A/Weapons/BP_ZBD04A_2A70_HEFrag"),
+        ("ZBD04A/Turrets/BP_ZBD04A_Turret_Desert", "ZBD04A/Weapons/BP_ZBD04A_2A70_HEFrag"),
+    )),
+    "2A70 100mm (ZBD-04A) · FRAG · gunner sight ×14": gunner_sights(2, (
+        ("ZBD04A/Turrets/BP_ZBD04A_Turret", "ZBD04A/Weapons/BP_ZBD04A_2A70_HEFrag"),
+        ("ZBD04A/Turrets/BP_ZBD04A_Turret_Desert", "ZBD04A/Weapons/BP_ZBD04A_2A70_HEFrag"),
+    )),
+    "ZPL-98A 105mm (ZTD-05) · AP · gunner sight ×7": gunner_sights(1, (
+        ("ZTD05/Turrets/BP_ZTD05_Turret", "ZTD05/Weapons/BP_ZTD05_ZPL-98A_AP"),
+        ("ZTD05/Turrets/BP_ZTD05_Turret_WoodLand", "ZTD05/Weapons/BP_ZTD05_ZPL-98A_AP"),
+    )),
+    "ZPL-98A 105mm (ZTD-05) · HEAT / HE · gunner sight ×7": gunner_sights(1, (
+        ("ZTD05/Turrets/BP_ZTD05_Turret", "ZTD05/Weapons/BP_ZTD05_ZPL-98A_HEAT"),
+        ("ZTD05/Turrets/BP_ZTD05_Turret", "ZTD05/Weapons/BP_ZTD05_ZPL-98A_Frag"),
+        ("ZTD05/Turrets/BP_ZTD05_Turret_WoodLand", "ZTD05/Weapons/BP_ZTD05_ZPL-98A_HEAT"),
+        ("ZTD05/Turrets/BP_ZTD05_Turret_WoodLand", "ZTD05/Weapons/BP_ZTD05_ZPL-98A_Frag"),
+    )),
+    "Tank AP · ZTZ-99 (ZPT-98) · gunner sight ×12": gunner_sights(1, (
+        ("ZTZ99/Turrets/BP_ZTZ99_Turret", "ZTZ99/Weapons/BP_ZPT-98_AP"),
+        ("ZTZ99/Turrets/BP_ZTZ99_Turret_Cage", "ZTZ99/Weapons/BP_ZPT-98_AP"),
+        ("ZTZ99/Turrets/BP_ZTZ99_Turret_Cage_Desert", "ZTZ99/Weapons/BP_ZPT-98_AP"),
+    )),
+    "Tank HEAT/HE · ZTZ-99 (ZPT-98) · gunner sight ×12": gunner_sights(1, (
+        ("ZTZ99/Turrets/BP_ZTZ99_Turret", "ZTZ99/Weapons/BP_ZPT-98_HEAT"),
+        ("ZTZ99/Turrets/BP_ZTZ99_Turret", "ZTZ99/Weapons/BP_ZPT-98_HE"),
+        ("ZTZ99/Turrets/BP_ZTZ99_Turret_Cage", "ZTZ99/Weapons/BP_ZPT-98_HEAT"),
+        ("ZTZ99/Turrets/BP_ZTZ99_Turret_Cage", "ZTZ99/Weapons/BP_ZPT-98_HE"),
+        ("ZTZ99/Turrets/BP_ZTZ99_Turret_Cage_Desert", "ZTZ99/Weapons/BP_ZPT-98_HEAT"),
+        ("ZTZ99/Turrets/BP_ZTZ99_Turret_Cage_Desert", "ZTZ99/Weapons/BP_ZPT-98_HE"),
+    )),
     # Aimed by elevation or mils: (weapon classes, INDIRECT, mount for the raw pitch limits).
     "Mortar (M252 / 2B14 / L16 / Type 63)": ([V + "BP_GenericMortarWeapon", V + "Emplaced_M252mortar/BP_M252mortar", V + "Emplaced_2b14podnosmortar/BP_2b14podnosmortar", V + "Emplaced_M252mortar/BP_L16mortar",
                                               V + "Emplaced_PP87Mortar/BP_PP87Mortar", V + "Emplaced_M1937mortar/BP_M1937mortar", V + "Emplaced_81mmMortar_CAF/BP_81mmMortar"],
@@ -1020,6 +1307,20 @@ def fov_divisors(node):
     return found
 
 
+def focus_multipliers(node):
+    """Constant operands of every Multiply_DoubleDouble call in a bytecode tree."""
+    found = []
+    if isinstance(node, dict):
+        if node.get("Token") == "EX_CallMath" and "Multiply_DoubleDouble" in json.dumps(node.get("Function")):
+            found += [float(p["Value"]) for p in node.get("Parameters") or [] if p.get("Token") in ("EX_DoubleConst", "EX_FloatConst")]
+        for value in node.values():
+            found += focus_multipliers(value)
+    elif isinstance(node, list):
+        for value in node:
+            found += focus_multipliers(value)
+    return found
+
+
 def curve_values(assets, reference):
     """Key values of a CurveFloat asset (linear or constant between keys, so its
     extremes are among them) and its value at time 0."""
@@ -1071,6 +1372,31 @@ class Snapshot:
         if path not in self.blueprints:
             self.blueprints[path] = Blueprint(self.assets, path)
         return self.blueprints[path]
+
+    def allow_focus(self, mount_path, camera):
+        """Whether holding Focus narrows the view of `camera` on this mount: only the plain views
+        of an open turret or a tripod have a Focus lerp, and only when the mount allows it."""
+        flag = FOCUS_FLAGS.get(camera)
+        return bool(flag and self.blueprint(mount_path).cdo.get(flag))
+
+    def focus_factor(self):
+        """The FOV factor both generic Blueprints lerp to while Focus is held, read from their
+        bytecode (the factor must be the same constant in both)."""
+        factors = set()
+        for path in FOCUS_BLUEPRINTS:
+            blueprint = self.blueprint(path)
+            found = set()
+            for package in blueprint.chain:
+                for statements in blueprint.functions(package).values():
+                    text = json.dumps(statements)
+                    if "SetFieldOfView" in text and "GetSquadGameUserSettings" in text:
+                        found.update(v for v in focus_multipliers(statements) if 0 < v < 1)
+            if len(found) != 1:
+                raise GameDataError(f"{path}: expected one Focus factor in the bytecode, found {sorted(found)}")
+            factors |= found
+        if len(factors) != 1:
+            raise GameDataError(f"the generic Blueprints lerp to different factors {sorted(factors)}")
+        return round_to(factors.pop(), 3)
 
     def view_of(self, weapon, mount_path, camera, zoom):
         """(bore, zoom, socket pitch on the mount, sources) of one weapon on one mount."""
@@ -1191,6 +1517,14 @@ class Snapshot:
             result.update(bore=bore, zoom=zoom,
                           elevation_limits=[round_to(limits[0] + socket_pitch), round_to(limits[1] + socket_pitch)] if limits else None)
             sources.update(view_sources)
+            if spec["zoom"][0] == "levels":
+                result["zoom_levels"] = self.blueprint(spec["mount"]).cdo["ZoomLevels"]
+            mounts = [spec["mount"]] + [other[0] for other in spec["also"]]
+            focus = {mount: self.allow_focus(mount, spec["camera"]) for mount in mounts}
+            if len(set(focus.values())) > 1:
+                raise GameDataError(f"{classes[0]}: Focus narrows the view on {sorted(m for m in mounts if focus[m])} "
+                                    f"but not on {sorted(m for m in mounts if not focus[m])}: split the entry")
+            result["focus_narrows_view"] = focus[spec["mount"]]
             sources["elevation"] = (limits[2] + " + socket pitch") if limits else "no mount limit"
             if spec["seat"]:
                 result["launch"], launch_limits, launch_sources = self.launch(reference, spec["mount"], spec["seat"], limits)
@@ -1334,6 +1668,10 @@ def main(argv=None):
         "date": args.date,
         "units": "m, m/s, s, degrees; bore and zoom null = aimed by elevation; elevation_limits null = no mount or not derived",
     }}
+    try:
+        out["_source"]["focus_view_factor"] = snapshot.focus_factor()
+    except GameDataError as error:
+        raise SystemExit(f"focus factor: {error}") from error
     for name, (classes, spec) in ENTRIES.items():
         try:
             out[name] = snapshot.entry(classes, spec)

@@ -19,7 +19,7 @@ PLAIN = "ZiS-3 · no optic"
 
 
 def test_weapons_json_has_optic_twins():
-    assert len(OPTICS) == len(PLAINS) == 10
+    assert len(OPTICS) == len(PLAINS) == 13
 
 
 @pytest.mark.parametrize("optic", OPTICS)

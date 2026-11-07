@@ -280,7 +280,7 @@ def test_range_ladder_starts_past_the_minimum_distance():
 # build 26005357): there the mark is on the screen centre.
 @pytest.mark.parametrize("name, zero", [
     ("QLZ87 · optic (RMB ×3)", 100),
-    ("QLZ87 · Lynx / CSK131 · optic (RMB ×3)", 110),
+    ("QLZ87 · Lynx · optic (RMB ×3)", 110),
 ])
 def test_views_are_zeroed_where_the_game_puts_them(name, zero):
     weapon = WEAPONS[name]
@@ -377,7 +377,10 @@ RMB_SIGHTS = [name for name, weapon in WEAPONS.items() if weapon.zoom > 1 and ai
 def test_the_rmb_sights_are_the_known_ones():
     assert sorted(RMB_SIGHTS) == sorted([
         "QLZ87 · optic (RMB ×3)",
-        "QLZ87 · Lynx / CSK131 · optic (RMB ×3)",
+        "QLZ87 · bunker tripod · optic (RMB ×3)",
+        "QLZ87 · Lynx · optic (RMB ×3)",
+        "QLZ87 · CSK131 / WZ551 · optic (RMB ×3)",
+        "QLZ87 · ZBL08 · optic (RMB ×3)",
         "AGS-17 · emplacement · optic (RMB ×2.5)",
         "SPG-9 · HEAT · scope · optic (RMB ×4)",
         "SPG-9 · FRAG · scope · optic (RMB ×4)",
@@ -394,9 +397,9 @@ def test_every_zoomed_entry_names_its_view(name):
     """A zoomed entry's mark is only right in that view: the note says it is
     aimed through the RMB sight or the gunner's sight, at its zoom."""
     weapon = WEAPONS[name]
-    gunner = f"the gunner's sight at its first zoom level, ×{weapon.zoom:g}"
+    gunner = re.compile(rf"the gunner's sight at its \w+ zoom level, ×{weapon.zoom:g};")
 
-    assert aimed_through_rmb(weapon) or gunner in weapon.note
+    assert aimed_through_rmb(weapon) or gunner.search(weapon.note)
 
 
 @pytest.mark.parametrize("name", RMB_SIGHTS)
@@ -429,7 +432,7 @@ def test_every_rmb_sight_has_a_no_optic_twin(name):
     assert twin.zoom == 0
     assert twin.sight_view(120) == (120, twin.bore)
 
-    same_gun = {"name", "bore", "zoom", "note", "view", "twin"}
+    same_gun = {"name", "bore", "zoom", "note", "view", "twin", "focus_narrows_view"}
     for field in optic.__dataclass_fields__:
         if field not in same_gun:
             assert getattr(twin, field) == getattr(optic, field), field
@@ -480,7 +483,7 @@ def test_a_twin_must_exist_and_be_the_plain_view():
 # a view elsewhere would not land on one. Not here: the open-sight SPG-9
 # (0.13 degrees, zero 47 m HEAT / 27 m FRAG) and the AGS-17 optic (0.85
 # degrees, 58 m) have no round zero; the AGS-17 optic is confirmed instead
-# by the hold fit, whose top 85.87 is the mount's 85 + 0.85. Nor the SPG-9's
+# by the hold fit, whose top 85.85 is the mount's 85 + 0.85. Nor the SPG-9's
 # PGO-9 scope: its 2.34 degrees zero the HEAT shell at 765 m and the FRAG
 # shell at 440 m, because MaxSpeed slows them to 330 and 250 m/s at launch;
 # at the full muzzle velocity they would be 1313 and 688 m, close to round
@@ -806,6 +809,9 @@ AGS17_HOLD_TABLE = [
 
 AGS17 = WEAPONS["AGS-17 · emplacement · optic (RMB ×2.5)"]
 
+# The distance of the lob from the top of the mount, the first point of the table.
+AGS17_TOP_DISTANCE = 280
+
 # The game files put the tripod's pivot 0.347 m above its foot (#13); the
 # entries keep `launch_height` 1 because the hold fit was made with it. With
 # the fitted rate and top unchanged, 0.347 fits the 67 measurements worse
@@ -821,6 +827,13 @@ def test_ags17_hold_time_matches_in_game_measurements():
 
     for held, distance in AGS17_HOLD_TABLE:
         solution = solve(AGS17, distance, 0, "high")
+
+        if distance == AGS17_TOP_DISTANCE:
+            # The first point is the lob from the very top of the mount: it needs 85.8523 degrees, the
+            # game's limit (mount 85 + socket 0.85, which replaced the fitted 85.87) is 85.85.
+            assert solution.reason_code == "elevation_limit"
+            assert solution.raw_angle == pytest.approx(AGS17.elevation_limits[1], abs=0.01)
+            continue
 
         assert solution.reachable, distance
         errors.append(solution.hold_time - held)
@@ -843,6 +856,7 @@ def test_ags17_keeps_the_launch_height_the_hold_fit_was_made_with():
     worst = max(
         abs(solve(game_height, distance, 0, "high").hold_time - held)
         for held, distance in AGS17_HOLD_TABLE
+        if distance != AGS17_TOP_DISTANCE
     )
 
     assert worst > 0.07
@@ -879,7 +893,7 @@ def test_ags17_arcs_and_limits():
     direct = solve(AGS17, 1000, 0, "low")
 
     assert lob.hold_time == pytest.approx(
-        (85.87 - lob.angle) / 9.08
+        (85.85 - lob.angle) / 9.08
     )
     assert direct.reachable
     assert math.isnan(direct.hold_time)
@@ -901,7 +915,7 @@ def test_ags17_arcs_and_limits():
     assert "high" not in direct_edge.alternatives
     assert "high" in solve(AGS17, 1000, 0, "low").alternatives
 
-    assert AGS17.max_hold_time() == pytest.approx((85.87 - 47.81) / 9.08)
+    assert AGS17.max_hold_time() == pytest.approx((85.85 - 47.81) / 9.08)
     assert math.isnan(AGS17.hold_time(90))
     # Weapons without a hold model have no hold time
     assert math.isnan(WEAPONS["Hell Cannon"].hold_time(60))

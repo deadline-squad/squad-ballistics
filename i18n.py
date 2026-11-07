@@ -188,6 +188,8 @@ STRINGS = {
     "view_plain": "Aim without the optic: do not press RMB",
     "info_view_optic": "optic ×{zoom} (RMB)",
     "info_view_plain": "no optic",
+    "info_focus_follows": "The mark follows Focus (Left Shift).",
+    "info_focus_assumed": "The mark assumes Focus (Left Shift) is not held.",
 
     # Categories
     "cat_grenade_launchers": "Grenade launchers",
