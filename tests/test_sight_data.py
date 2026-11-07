@@ -107,7 +107,7 @@ def document(request):
 
 
 def test_the_scope_is_the_emplaced_and_vehicle_weapons():
-    assert len(IN_SCOPE) == 133
+    assert len(IN_SCOPE) == 141
     assert set(IN_SCOPE) <= set(WEAPONS)
     assert all(WEAPONS[name].category in ("agl", "guns", "tanks", "indirect") for name in IN_SCOPE)
 
@@ -155,6 +155,24 @@ def pivot_height(name):
     return float((GAME[name].get("launch") or RAW[name]).get("launch_height", 0.0))
 
 
+def height_over_target(name, distance):
+    """Height (m) of the oracle's shot over a ground target `distance` m away that the player has
+    centred in the sight (the view axis points at it from the pivot, the barrel is `bore` above)."""
+    bore = math.radians(flight.view(GAME[name])[1])
+    flown = flight.fly_to(shot(name), bore - math.atan2(pivot_height(name), distance), distance)
+
+    return -math.inf if flown is None else flown[0]
+
+
+def first_distance_above_target(name):
+    """The nearest distance on a 1.5 x grid, from 1 m past the muzzle, at which the oracle's shot
+    passes above the centred ground target; None when it never does (a muzzle under the sight line
+    and a bore too small to make up for it)."""
+    first = max(1.0, shot(name).muzzle_forward + 1.0)
+
+    return next((d for d in (first * 1.5 ** k for k in range(40)) if height_over_target(name, d) > 0), None)
+
+
 def oracle_zero(name):
     """The range (m) at which a ground target centred in the sight is hit,
     for the bore and the launch point the game snapshot gives.
@@ -163,23 +181,17 @@ def oracle_zero(name):
     pivot, `atan(pivot / distance)` below the horizon, and the barrel is
     `bore` above the axis. The oracle flies that shot and the zero is where
     it comes down on the ground, found by bisection on the height it has
-    there."""
-    bore = math.radians(flight.view(GAME[name])[1])
-    pivot = pivot_height(name)
+    there, starting where the shot first passes above the ground target:
+    a gun whose muzzle sits under the sight line (a tank's) crosses it
+    twice, and the zero is the farther crossing."""
+    near, far = first_distance_above_target(name), MAX_ZERO
 
-    def height_at(distance):
-        flown = flight.fly_to(shot(name), bore - math.atan2(pivot, distance), distance)
-
-        return -math.inf if flown is None else flown[0]
-
-    near, far = 1.0, MAX_ZERO
-
-    assert height_at(near) > 0 > height_at(far), name
+    assert near is not None and height_over_target(name, far) < 0, name
 
     for _ in range(60):
         middle = (near + far) / 2
 
-        if height_at(middle) > 0:
+        if height_over_target(name, middle) > 0:
             near = middle
         else:
             far = middle
@@ -203,7 +215,19 @@ def app_pixels(weapon, distance):
     return mark_offset(weapon, solve(weapon, distance, 0.0, "low").sight_angle, FOV, WIDTH)
 
 
-WITH_ZERO = [name for name in IN_SCOPE if WEAPONS[name].bore > 0]
+# The ZTD-05's sights leave 0.02 degrees above the centre from a muzzle 1 cm under the sight line: the
+# shot never rises above a centred ground target, so there is no zero to test the mark at.
+NO_ZERO = [name for name in IN_SCOPE if WEAPONS[name].bore > 0 and first_distance_above_target(name) is None]
+
+WITH_ZERO = [name for name in IN_SCOPE if WEAPONS[name].bore > 0 and name not in NO_ZERO]
+
+
+def test_only_the_ztd05_sights_never_rise_above_a_centred_ground_target():
+    assert NO_ZERO == [
+        "ZPL-98A 105mm (ZTD-05) \u00b7 AP", "ZPL-98A 105mm (ZTD-05) \u00b7 HEAT / HE",
+        "ZPL-98A 105mm (ZTD-05) \u00b7 AP \u00b7 gunner sight \u00d77", "ZPL-98A 105mm (ZTD-05) \u00b7 HEAT / HE \u00b7 gunner sight \u00d77",
+    ]
+
 
 
 @pytest.mark.parametrize("name", WITH_ZERO)

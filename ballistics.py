@@ -97,7 +97,13 @@ RENAMED_WEAPONS = {
     "BTR-4 AGS": "AGS-30 / BTR-4 AGS",
     "Carl Gustav / M3 MAAWS · HEAT": "M3 MAAWS · HEAT / Smoke",
     "Carl Gustav / M3 MAAWS · Tandem": "M3 MAAWS · Tandem",
-    "Tank AP · 2A46 / ZPT98 / 2A20 / M68A2": "Tank AP · 2A46 / ZPT98 / 2A20 / 2A45 / KBA3",
+    "Tank AP · 2A46 / ZPT98 / 2A20 / M68A2": "Tank AP · T-72 (2A46)",
+    # The T-90A, the Sprut-SDM1 and the BMP-1 technical sit at other heights than the T-72 and the BMP-1:
+    # the T-72 entries kept the T-72 (and T-72A / T-72S), the others got entries of their own.
+    "Tank AP · 2A46 / ZPT98 / 2A20 / 2A45 / KBA3": "Tank AP · T-72 (2A46)",
+    "Tank HEAT/HE · M256 / Rh120 / 2A46 / ZPT98 / 2A20 / M68A2": "Tank HEAT/HE · T-72 (2A46)",
+    "Tank AP · T-72 / T-90 (2A46) · gunner sight ×12": "Tank AP · T-72 (2A46) · gunner sight ×12",
+    "Tank HEAT/HE · T-72 / T-90 (2A46) · gunner sight ×12": "Tank HEAT/HE · T-72 (2A46) · gunner sight ×12",
     "Tank AP · L30A1 (Challenger 2)": "Tank AP · L30A1 (Challenger 2) / M68A2",
     # The RMB sights that have a normal-view twin: the plain name used to be
     # the optic's, so it stays the optic's (a saved weapon keeps its meaning).
@@ -285,8 +291,6 @@ class Weapon:
         muzzle_up = number("muzzle_up", 0.0)
         if launch_height < 0:
             raise WeaponDataError(f"{name}: 'launch_height' must be >= 0")
-        if muzzle_forward < 0:
-            raise WeaponDataError(f"{name}: 'muzzle_forward' must be >= 0")
 
         arc = data.get("arc", "low")
         if arc not in ARCS:
@@ -1700,7 +1704,10 @@ def range_ladder(weapon, fov, screen_width, first, spacing, reach, scale=1.0,
     of LADDER_STEPS that grows with the range (a quarter of it at most),
     so every label is a round number. The ladder ends where the weapon
     cannot reach (also where the projectile's `lifespan` ends), at `reach`
-    pixels, after LADDER_MAX_TICKS or at LADDER_MAX_DISTANCE.
+    pixels, after LADDER_MAX_TICKS or at LADDER_MAX_DISTANCE. Ranges inside
+    the weapon's `min_distance`, not past its muzzle (a tank's is 5 m ahead
+    of its pivot) or too close for the barrel to depress onto the ground
+    from its launch height get no tick.
     The offsets are those of the overlay mark (`mark_offset` of the
     low-arc `Solution.sight_angle`); ranges
     above the centre (inside the sight's zero) get no tick. Empty for
@@ -1720,7 +1727,7 @@ def range_ladder(weapon, fov, screen_width, first, spacing, reach, scale=1.0,
         angle = math.degrees(rad) - weapon.angle_offset
 
         if not low_limit <= angle <= high_limit or weapon.outlives(rad, distance):
-            return None
+            return -math.inf if angle < low_limit else None
 
         rise = -weapon.launch_height
         sight_angle = angle - math.degrees(math.atan2(rise, distance))
@@ -1743,7 +1750,7 @@ def range_ladder(weapon, fov, screen_width, first, spacing, reach, scale=1.0,
             if distance > LADDER_MAX_DISTANCE:
                 return ticks
 
-            if distance < weapon.min_distance:
+            if distance < weapon.min_distance or distance <= weapon.muzzle_forward:
                 continue
 
             offset = offset_at(distance)

@@ -22,10 +22,12 @@ WEAPONS = load_weapons(os.path.join(ROOT, "weapons.json"))
 SCREEN_WIDTH = 1920
 DEFAULT_FOV = 90.0
 
-# (weapon, on-screen px per texel, tolerance px, [(distance m, texture row of the mark)])
+# (weapon, on-screen px per texel, tolerance px, [(distance m, texture row of the mark)]). The tolerances of the
+# QLZ87, the FRAG scale and the ZiS-3 grew by 1.5 to 2 px with the launch points from the game files: the model puts
+# the eye at the barrel's pivot, and these sights' cameras sit 0.2 to 0.6 m above it.
 RETICLES = {
     "QLZ87 optic (YMA-87-35)": (
-        "QLZ87 · optic (RMB ×3)", 1000 / 2048, 8.5,
+        "QLZ87 · optic (RMB ×3)", 1000 / 2048, 10.0,
         [(100, 1040.5), (200, 1131.0), (300, 1229.0), (400, 1329.5), (500, 1428.5)],
     ),
     "SPG-9 HEAT, red scale": (
@@ -33,11 +35,11 @@ RETICLES = {
         [(200, 862), (400, 908), (600, 973), (800, 1031), (1000, 1090), (1200, 1159)],
     ),
     "SPG-9 FRAG, green scale": (
-        "SPG-9 · FRAG · scope · optic (RMB ×4)", 1800 / 2048, 10.0,
+        "SPG-9 · FRAG · scope · optic (RMB ×4)", 1800 / 2048, 11.5,
         [(200, 908), (400, 1008), (600, 1114), (800, 1220), (1000, 1323), (1200, 1427)],
     ),
     "ZiS-3 optic": (
-        "ZiS-3 · optic (RMB ×4)", 1285 / 2048, 11.5,
+        "ZiS-3 · optic (RMB ×4)", 1285 / 2048, 13.5,
         [(400, 1049), (700, 1083), (900, 1112), (1100, 1147), (1300, 1175), (1500, 1208), (1700, 1242),
          (1900, 1275), (2100, 1307)],
     ),

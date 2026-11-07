@@ -1,6 +1,6 @@
 # Данные прицела стационарного и машинного оружия
 
-У каких стационарных (станок, открытая башня) и машинных (закрытая башня, орудие корпуса, установка на машине) оружий из `weapons.json` есть три данные прицела, от которых зависит метка оверлея, и почему у остальных их нет. Ручные гранатомёты и подствольники (26 записей) вне списка: файлы игры не дают их прицел, угол 0 и кратность 1 у них допущение (`bore_assumed`, `zoom_assumed` в `tests/data/game_weapons.json`). В списке 78 оружий, все остальные записи; `tests/test_sight_data.py` проверяет, что обе таблицы совпадают с `weapons.json` и что у каждого недостающего есть причина.
+У каких стационарных (станок, открытая башня) и машинных (закрытая башня, орудие корпуса, установка на машине) оружий из `weapons.json` есть три данные прицела, от которых зависит метка оверлея, и почему у остальных их нет. Ручные гранатомёты и подствольники (26 записей) вне списка: файлы игры не дают их прицел, угол 0 и кратность 1 у них допущение (`bore_assumed`, `zoom_assumed` в `tests/data/game_weapons.json`). В списке 141 оружий, все остальные записи; `tests/test_sight_data.py` проверяет, что обе таблицы совпадают с `weapons.json` и что у каждого недостающего есть причина.
 
 - **Угол канала** (градусы): на сколько выстрел уходит выше центра вида. `-` значит 0: применять нечего.
 - **Кратность**: делитель FOV игры в прицеле. `-` значит, вид сохраняет FOV игры.
@@ -12,9 +12,15 @@
 | Оружие | Угол, град | Кратность | Точка вылета, м |
 |---|---|---|---|
 | MK19 | - | - | - |
+| MK19 · M1117 · gunner sight ×4.5 | - | 4.5 | - |
 | MK19 · AAVP-7A1 | - | - | 3.2232 / 1.0868 / 0.0748 |
+| MK19 · AAVP-7A1 · gunner sight ×4.5 | - | 4.5 | 3.2232 / 1.0868 / 0.0748 |
 | MK19 · PARS III RWS | 0.95 | - | 2.6617 / 0.4161 / 0.0257 |
+| MK19 · PARS III RWS · gunner sight ×3 | 0.95 | 3 | 2.6617 / 0.4161 / 0.0257 |
+| MK19 · PARS III RWS · gunner sight ×9 | 0.95 | 9 | 2.6617 / 0.4161 / 0.0257 |
 | MK19 · TAPV C16 RWS | 1.55 | - | 3.093 / 0.6256 / -0.0155 |
+| MK19 · TAPV C16 RWS · gunner sight ×5 | 1.55 | 5 | 3.093 / 0.6256 / -0.0155 |
+| MK19 · TAPV C16 RWS · gunner sight ×12 | 1.55 | 12 | 3.093 / 0.6256 / -0.0155 |
 | MK19 · M113 open turret | 1.6 | - | 2.6316 / 0.6951 / -0.0087 |
 | MK19 · M113 open turret · no sights | - | - | 2.6316 / 0.6951 / -0.0087 |
 | MK19 · M1151 open turret | 1.7211 | - | 2.3056 / 0.6951 / -0.0087 |
@@ -22,8 +28,9 @@
 | MK19 · MATV open turret | 1.7211 | - | 3.0282 / 0.6951 / -0.0087 |
 | MK19 · MATV open turret · no sights | - | - | 3.0282 / 0.6951 / -0.0087 |
 | MK19 · RHIB open turret | 1.7286 | - | - |
-| MK19 · emplacement / C16 / L134A1 | 1.674 | - | - |
-| MK19 · emplacement / C16 / L134A1 · no sights | - | - | - |
+| MK19 · RHIB open turret · no sights | - | - | - |
+| MK19 · emplacement / C16 / L134A1 | 1.674 | - | 0.4345 / 0.6951 / -0.0087 |
+| MK19 · emplacement / C16 / L134A1 · no sights | - | - | 0.4345 / 0.6951 / -0.0087 |
 | AGS-17 · emplacement · optic (RMB ×2.5) | 0.85 | 2.5 | 1 / 0 / 0 |
 | AGS-17 · emplacement · no optic | 0.85 | - | 1 / 0 / 0 |
 | AGS-17 · iron sights emplacement | 4.5 | - | 1 / 0 / 0 |
@@ -32,25 +39,28 @@
 | AGS-17 · Safir | 4.5 | - | 1.7967 / 0.87 / 0.068 |
 | AGS-17 · M1151 | 4.5 | - | 2.2891 / 0.87 / 0.068 |
 | AGS-17 · BTR-D | 4.5 | - | 2.2635 / 0.87 / 0.068 |
-| QLZ87 · optic (RMB ×3) | 0.774 | 3 | - |
-| QLZ87 · no optic | -0.9 | - | - |
-| QLZ87 · Lynx · optic (RMB ×3) | 0.85 | 3 | - |
-| QLZ87 · Lynx · no optic | 0.85 | - | - |
-| QLZ87 · CSK131 / WZ551 · optic (RMB ×3) | 0.85 | 3 | - |
-| QLZ87 · CSK131 / WZ551 · no optic | 0.85 | - | - |
-| QLZ87 · ZBL08 · optic (RMB ×3) | 0.85 | 3 | - |
-| QLZ87 · ZBL08 · no optic | 0.85 | - | - |
-| QLZ87 · bunker tripod · optic (RMB ×3) | 0.774 | 3 | - |
-| QLZ87 · bunker tripod · no optic | -0.9 | - | - |
-| AGS-30 / BTR-4 AGS | 1.6 | 3 | - |
-| AGS-30 (BMP-1TS) | 1.55 | 3 | - |
-| AGS-30 (BMP-2M) | 1.55 | 1.5 | - |
-| SPG-9 · HEAT | 0.13 | - | - |
-| SPG-9 · HEAT · scope · optic (RMB ×4) | 2.34 | 4 | - |
-| SPG-9 · HEAT · scope · no optic | 2.34 | - | - |
-| SPG-9 · FRAG | 0.13 | - | - |
-| SPG-9 · FRAG · scope · optic (RMB ×4) | 2.34 | 4 | - |
-| SPG-9 · FRAG · scope · no optic | 2.34 | - | - |
+| QLZ87 · optic (RMB ×3) | 0.774 | 3 | 0.446 / 0.7554 / 0.0292 |
+| QLZ87 · no optic | -0.9 | - | 0.446 / 0.7554 / 0.0292 |
+| QLZ87 · bunker tripod · optic (RMB ×3) | 0.774 | 3 | 0.446 / 0.7554 / 0.0292 |
+| QLZ87 · bunker tripod · no optic | -0.9 | - | 0.446 / 0.7554 / 0.0292 |
+| QLZ87 · CSK131 / WZ551 · optic (RMB ×3) | 0.85 | 3 | 2.3182 / 0.7265 / 0.1727 |
+| QLZ87 · CSK131 / WZ551 · no optic | 0.85 | - | 2.3182 / 0.7265 / 0.1727 |
+| QLZ87 · Lynx · optic (RMB ×3) | 0.85 | 3 | 1.901 / 0.7265 / 0.1727 |
+| QLZ87 · Lynx · no optic | 0.85 | - | 1.901 / 0.7265 / 0.1727 |
+| QLZ87 · ZBL08 · optic (RMB ×3) | 0.85 | 3 | 2.5044 / 0.7265 / 0.1727 |
+| QLZ87 · ZBL08 · no optic | 0.85 | - | 2.5044 / 0.7265 / 0.1727 |
+| AGS-30 / BTR-4 AGS | 1.6 | 3 | 2.6264 / 0.437 / 0.0444 |
+| AGS-30 / BTR-4 AGS · gunner sight ×9 | 1.6 | 9 | 2.6264 / 0.437 / 0.0444 |
+| AGS-30 (BMP-1TS) | 1.55 | 3 | 2.1921 / 0.4369 / 0.0448 |
+| AGS-30 (BMP-1TS) · gunner sight ×9 | 1.55 | 9 | 2.1921 / 0.4369 / 0.0448 |
+| AGS-30 (BMP-2M) | 1.55 | 1.5 | 2.15 / -0.5983 / 0.3476 |
+| AGS-30 (BMP-2M) · gunner sight ×6 | 1.55 | 6 | 2.15 / -0.5983 / 0.3476 |
+| SPG-9 · HEAT | 0.13 | - | 0.6443 / 1.7739 / 0.1231 |
+| SPG-9 · HEAT · scope · optic (RMB ×4) | 2.34 | 4 | 0.6443 / 1.7773 / 0.0546 |
+| SPG-9 · HEAT · scope · no optic | 2.34 | - | 0.6443 / 1.7773 / 0.0546 |
+| SPG-9 · FRAG | 0.13 | - | 0.6443 / 1.7739 / 0.1231 |
+| SPG-9 · FRAG · scope · optic (RMB ×4) | 2.34 | 4 | 0.6443 / 1.7773 / 0.0546 |
+| SPG-9 · FRAG · scope · no optic | 2.34 | - | 0.6443 / 1.7773 / 0.0546 |
 | SPG-9 · HEAT · technical · optic (RMB ×4) | 2.34 | 4 | 2.4725 / 1.7773 / 0.0546 |
 | SPG-9 · HEAT · technical · no optic | 2.34 | - | 2.4725 / 1.7773 / 0.0546 |
 | SPG-9 · FRAG · technical · optic (RMB ×4) | 2.34 | 4 | 2.4725 / 1.7773 / 0.0546 |
@@ -59,84 +69,82 @@
 | SPG-9 · HEAT · INS armoured technical · no optic | 2.34 | - | 2.3252 / 1.7773 / 0.0546 |
 | SPG-9 · FRAG · INS armoured technical · optic (RMB ×4) | 2.34 | 4 | 2.3252 / 1.7773 / 0.0546 |
 | SPG-9 · FRAG · INS armoured technical · no optic | 2.34 | - | 2.3252 / 1.7773 / 0.0546 |
-| 2A28 Grom (BMP-1 / BMD-1) · HEAT | 1.4 | 1.5 | - |
-| 2A28 Grom (BMD-1M) · HEAT | 1.57 | 1.5 | - |
-| 2A28 Grom (BMP-1 / BMD-1) · FRAG | 1.4 | 1.5 | - |
-| 2A28 Grom (BMD-1M) · FRAG | 1.57 | 1.5 | - |
-| 2A70 100mm (BMP-3 / BMD-4 / ZBD04A) · FRAG | 0.58 | 2.5 | - |
-| 2A70 100mm (ZBD-04A) · FRAG | 0.95 | 2.5 | - |
-| 2A70 100mm (BMD-4M) · FRAG | 0.57 | 2.5 | - |
-| ZiS-3 · optic (RMB ×4) | 0.4 | 4 | - |
-| ZiS-3 · no optic | 0.4 | - | - |
-| Tank AP · 2A46 / ZPT98 / 2A20 / 2A45 / KBA3 | 0.28 | 4 | - |
-| Tank AP · T-62 (2A20) | 0.05 | 3.5 | - |
-| Tank AP · T-64BM2 (KBA3) | 0.29 | 2.7 | - |
-| Tank AP · ZTZ-99 (ZPT-98) | 0.1 | 4 | - |
-| Tank AP · M256 / Rh120 | 0.31 | 3 | - |
-| Tank AP · Leopard 2A6 (Rh120) | 0.25 | 3 | - |
-| Tank AP · M60T (MG253) | 0.5 | - | - |
-| Tank AP · L30A1 (Challenger 2) / M68A2 | 0.31 | 1.5 | - |
-| Tank AP · M1128 MGS (M68A2) | 0.6 | 3 | - |
-| Tank HEAT/HE · M256 / Rh120 / 2A46 / ZPT98 / 2A20 / M68A2 | 0.28 | 4 | - |
-| Tank HEAT/HE · M1A1 / M1A2 (M256) | 0.31 | 3 | - |
-| Tank HEAT/HE · Leopard 2A6 (Rh120) | 0.25 | 3 | - |
-| Tank HEAT/HE · M1128 MGS (M68A2) | 0.6 | 3 | - |
-| Tank HEAT/HE · M60T (MG253) | 0.5 | - | - |
-| Tank HEAT/HE · ZTZ-99 (ZPT-98) | 0.1 | 4 | - |
-| Tank HEAT/HE · T-62 (2A20) | 0.05 | 3.5 | - |
-| Tank HEAT/HE · T-64BM2 (KBA3) | 0.29 | 2.7 | - |
-| Tank HESH · L30A1 (Challenger 2) | 0.31 | 1.5 | - |
-| ZPL-98A 105mm (ZTD-05) · AP | 0.02 | 3.5 | - |
-| ZPL-98A 105mm (ZTD-05) · HEAT / HE | 0.02 | 3.5 | - |
-| MK19 · AAVP-7A1 · gunner sight ×4.5 | - | 4.5 | 3.2232 / 1.0868 / 0.0748 |
-| MK19 · PARS III RWS · gunner sight ×3 | 0.95 | 3 | 2.6617 / 0.4161 / 0.0257 |
-| MK19 · PARS III RWS · gunner sight ×9 | 0.95 | 9 | 2.6617 / 0.4161 / 0.0257 |
-| MK19 · TAPV C16 RWS · gunner sight ×5 | 1.55 | 5 | 3.093 / 0.6256 / -0.0155 |
-| MK19 · TAPV C16 RWS · gunner sight ×12 | 1.55 | 12 | 3.093 / 0.6256 / -0.0155 |
-| MK19 · RHIB open turret · no sights | - | - | - |
-| Tank AP · M1A1 / M1A2 (M256) · gunner sight ×6 | 0.31 | 6 | - |
-| Tank AP · M1A1 / M1A2 (M256) · gunner sight ×12 | 0.31 | 12 | - |
-| Tank HEAT/HE · M1A1 / M1A2 (M256) · gunner sight ×6 | 0.31 | 6 | - |
-| Tank HEAT/HE · M1A1 / M1A2 (M256) · gunner sight ×12 | 0.31 | 12 | - |
-| 2A28 Grom (BMD-1M) · HEAT · gunner sight ×6 | 1.57 | 6 | - |
-| 2A28 Grom (BMD-1M) · FRAG · gunner sight ×6 | 1.57 | 6 | - |
-| 2A70 100mm (BMD-4M) · FRAG · gunner sight ×5 | 0.575 | 5 | - |
-| 2A70 100mm (BMP-3 / BMD-4M) · FRAG · gunner sight ×14 | 0.575 | 14 | - |
-| 2A28 Grom (BMP-1) · HEAT · gunner sight ×6 | 1.4 | 6 | - |
-| 2A28 Grom (BMP-1) · FRAG · gunner sight ×6 | 1.4 | 6 | - |
-| AGS-30 (BMP-2M) · gunner sight ×6 | 1.55 | 6 | - |
-| 2A70 100mm (BMP-3) · FRAG · gunner sight ×4 | 0.575 | 4 | - |
-| AGS-30 (BMP-1TS) · gunner sight ×9 | 1.55 | 9 | - |
-| AGS-30 / BTR-4 AGS · gunner sight ×9 | 1.6 | 9 | - |
-| Tank AP · Challenger 2 (L30A1) · gunner sight ×4 | 0.31 | 4 | - |
-| Tank AP · Challenger 2 (L30A1) · gunner sight ×10 | 0.31 | 10 | - |
-| Tank HESH · Challenger 2 (L30A1) · gunner sight ×4 | 0.31 | 4 | - |
-| Tank HESH · Challenger 2 (L30A1) · gunner sight ×10 | 0.31 | 10 | - |
-| Tank AP · Leopard 2A6 (Rh120) · gunner sight ×12 | 0.25 | 12 | - |
-| Tank HEAT/HE · Leopard 2A6 (Rh120) · gunner sight ×12 | 0.25 | 12 | - |
-| MK19 · M1117 · gunner sight ×4.5 | - | 4.5 | - |
-| Tank AP · M1128 MGS (M68A2) · gunner sight ×8 | 0.6 | 8 | - |
-| Tank HEAT/HE · M1128 MGS (M68A2) · gunner sight ×8 | 0.6 | 8 | - |
-| Tank AP · M60T (MG253) · gunner sight ×3 | 0.5 | 3 | - |
-| Tank AP · M60T (MG253) · gunner sight ×8 | 0.5 | 8 | - |
-| Tank HEAT/HE · M60T (MG253) · gunner sight ×3 | 0.5 | 3 | - |
-| Tank HEAT/HE · M60T (MG253) · gunner sight ×8 | 0.5 | 8 | - |
-| Tank AP · Sprut-SDM1 (2A45) · gunner sight ×4 | 0.29 | 4 | - |
-| Tank AP · Sprut-SDM1 (2A45) · gunner sight ×12 | 0.29 | 12 | - |
-| Tank HEAT/HE · Sprut-SDM1 (2A45) · gunner sight ×4 | 0.29 | 4 | - |
-| Tank HEAT/HE · Sprut-SDM1 (2A45) · gunner sight ×12 | 0.29 | 12 | - |
-| Tank AP · T-62 (2A20) · gunner sight ×7 | 0.05 | 7 | - |
-| Tank HEAT/HE · T-62 (2A20) · gunner sight ×7 | 0.05 | 7 | - |
-| Tank AP · T-64BM2 (KBA3) · gunner sight ×12 | 0.29 | 12 | - |
-| Tank HEAT/HE · T-64BM2 (KBA3) · gunner sight ×12 | 0.29 | 12 | - |
-| Tank AP · T-72 / T-90 (2A46) · gunner sight ×12 | 0.28 | 12 | - |
-| Tank HEAT/HE · T-72 / T-90 (2A46) · gunner sight ×12 | 0.28 | 12 | - |
-| 2A70 100mm (ZBD-04A) · FRAG · gunner sight ×4 | 0.95 | 4 | - |
-| 2A70 100mm (ZBD-04A) · FRAG · gunner sight ×14 | 0.95 | 14 | - |
-| ZPL-98A 105mm (ZTD-05) · AP · gunner sight ×7 | 0.02 | 7 | - |
-| ZPL-98A 105mm (ZTD-05) · HEAT / HE · gunner sight ×7 | 0.02 | 7 | - |
-| Tank AP · ZTZ-99 (ZPT-98) · gunner sight ×12 | 0.1 | 12 | - |
-| Tank HEAT/HE · ZTZ-99 (ZPT-98) · gunner sight ×12 | 0.1 | 12 | - |
+| 2A28 Grom (BMP-1 / BMD-1) · HEAT | 1.4 | 1.5 | 1.9452 / 1.761 / -0.0464 |
+| 2A28 Grom (BMP-1) · HEAT · gunner sight ×6 | 1.4 | 6 | 1.9452 / 1.761 / -0.0464 |
+| 2A28 Grom (BMP-1 technical) · HEAT · gunner sight ×6 | 1.4 | 6 | 2.3249 / 1.761 / -0.0464 |
+| 2A28 Grom (BMD-1M) · HEAT | 1.57 | 1.5 | 1.7853 / 1.5748 / -0.0462 |
+| 2A28 Grom (BMP-1 technical) · HEAT | 1.4 | 1.5 | 2.3249 / 1.761 / -0.0464 |
+| 2A28 Grom (BMD-1M) · HEAT · gunner sight ×6 | 1.57 | 6 | 1.7853 / 1.5748 / -0.0462 |
+| 2A28 Grom (BMP-1 / BMD-1) · FRAG | 1.4 | 1.5 | 1.9452 / 1.761 / -0.0464 |
+| 2A28 Grom (BMP-1) · FRAG · gunner sight ×6 | 1.4 | 6 | 1.9452 / 1.761 / -0.0464 |
+| 2A28 Grom (BMP-1 technical) · FRAG · gunner sight ×6 | 1.4 | 6 | 2.3249 / 1.761 / -0.0464 |
+| 2A28 Grom (BMD-1M) · FRAG | 1.57 | 1.5 | 1.7853 / 1.5748 / -0.0462 |
+| 2A28 Grom (BMP-1 technical) · FRAG | 1.4 | 1.5 | 2.3249 / 1.761 / -0.0464 |
+| 2A28 Grom (BMD-1M) · FRAG · gunner sight ×6 | 1.57 | 6 | 1.7853 / 1.5748 / -0.0462 |
+| 2A70 100mm (BMP-3 / BMD-4 / ZBD04A) · FRAG | 0.58 | 2.5 | 2.2419 / 2.8225 / -0.0417 |
+| 2A70 100mm (BMP-3) · FRAG · gunner sight ×4 | 0.575 | 4 | 2.2419 / 2.8225 / -0.0417 |
+| 2A70 100mm (ZBD-04A) · FRAG | 0.95 | 2.5 | 2.1755 / 2.6772 / -0.0436 |
+| 2A70 100mm (ZBD-04A) · FRAG · gunner sight ×4 | 0.95 | 4 | 2.1755 / 2.6772 / -0.0436 |
+| 2A70 100mm (ZBD-04A) · FRAG · gunner sight ×14 | 0.95 | 14 | 2.1755 / 2.6772 / -0.0436 |
+| 2A70 100mm (BMD-4M) · FRAG | 0.57 | 2.5 | 2.2868 / 2.942 / -0.0347 |
+| 2A70 100mm (BMD-4M) · FRAG · gunner sight ×5 | 0.575 | 5 | 2.2868 / 2.942 / -0.0347 |
+| 2A70 100mm (BMP-3 / BMD-4M) · FRAG · gunner sight ×14 | 0.575 | 14 | 2.2643 / 2.8822 / -0.0382 |
+| ZiS-3 · optic (RMB ×4) | 0.4 | 4 | 0.5519 / 2.976 / 0.1652 |
+| ZiS-3 · no optic | 0.4 | - | 0.5519 / 2.976 / 0.1652 |
+| Tank AP · T-72 (2A46) | 0.28 | 4 | 1.5746 / 5.3227 / 0.1189 |
+| Tank AP · T-90A (2A46M) | 0.28 | 4 | 1.8279 / 5.0319 / -0.0396 |
+| Tank AP · Sprut-SDM1 (2A45) · gunner sight ×4 | 0.29 | 4 | 2.1443 / 5.3216 / -0.0362 |
+| Tank AP · Sprut-SDM1 (2A45) · gunner sight ×12 | 0.29 | 12 | 2.1443 / 5.3216 / -0.0362 |
+| Tank AP · T-72 (2A46) · gunner sight ×12 | 0.28 | 12 | 1.5746 / 5.3227 / 0.1189 |
+| Tank AP · T-90A (2A46M) · gunner sight ×12 | 0.28 | 12 | 1.8279 / 5.0319 / -0.0396 |
+| Tank AP · T-62 (2A20) | 0.05 | 3.5 | 1.8356 / 5.1178 / -0.0127 |
+| Tank AP · T-62 (2A20) · gunner sight ×7 | 0.05 | 7 | 1.8356 / 5.1178 / -0.0127 |
+| Tank AP · T-64BM2 (KBA3) | 0.29 | 2.7 | 1.8422 / 5.3217 / -0.0277 |
+| Tank AP · T-64BM2 (KBA3) · gunner sight ×12 | 0.29 | 12 | 1.8422 / 5.3217 / -0.0277 |
+| Tank AP · ZTZ-99 (ZPT-98) | 0.1 | 4 | 1.8791 / 5.0718 / -0.0173 |
+| Tank AP · ZTZ-99 (ZPT-98) · gunner sight ×12 | 0.1 | 12 | 1.8791 / 5.0718 / -0.0173 |
+| Tank AP · M256 / Rh120 | 0.31 | 3 | 2.447 / 4.2328 / -0.0304 |
+| Tank AP · M1A1 / M1A2 (M256) · gunner sight ×6 | 0.31 | 6 | 2.447 / 4.2328 / -0.0304 |
+| Tank AP · M1A1 / M1A2 (M256) · gunner sight ×12 | 0.31 | 12 | 2.447 / 4.2328 / -0.0304 |
+| Tank AP · Leopard 2A6 (Rh120) | 0.25 | 3 | 2.0665 / 5.2936 / -0.0323 |
+| Tank AP · Leopard 2A6 (Rh120) · gunner sight ×12 | 0.25 | 12 | 2.0665 / 5.2936 / -0.0323 |
+| Tank AP · M60T (MG253) | 0.5 | - | 2.2123 / 4.2327 / -0.0444 |
+| Tank AP · M60T (MG253) · gunner sight ×3 | 0.5 | 3 | 2.2123 / 4.2327 / -0.0444 |
+| Tank AP · M60T (MG253) · gunner sight ×8 | 0.5 | 8 | 2.2123 / 4.2327 / -0.0444 |
+| Tank AP · L30A1 (Challenger 2) / M68A2 | 0.31 | 1.5 | 2.1982 / 5.019 / -0.041 |
+| Tank AP · Challenger 2 (L30A1) · gunner sight ×4 | 0.31 | 4 | 2.1982 / 5.019 / -0.041 |
+| Tank AP · Challenger 2 (L30A1) · gunner sight ×10 | 0.31 | 10 | 2.1982 / 5.019 / -0.041 |
+| Tank AP · M1128 MGS (M68A2) | 0.6 | 3 | 2.6656 / 4.8496 / -0.0594 |
+| Tank AP · M1128 MGS (M68A2) · gunner sight ×8 | 0.6 | 8 | 2.6656 / 4.8496 / -0.0594 |
+| Tank HEAT/HE · T-72 (2A46) | 0.28 | 4 | 1.5746 / 5.3227 / 0.1189 |
+| Tank HEAT/HE · T-90A (2A46M) | 0.28 | 4 | 1.8279 / 5.0319 / -0.0396 |
+| Tank HEAT/HE · Sprut-SDM1 (2A45) · gunner sight ×4 | 0.29 | 4 | 2.1443 / 5.3216 / -0.0362 |
+| Tank HEAT/HE · Sprut-SDM1 (2A45) · gunner sight ×12 | 0.29 | 12 | 2.1443 / 5.3216 / -0.0362 |
+| Tank HEAT/HE · T-72 (2A46) · gunner sight ×12 | 0.28 | 12 | 1.5746 / 5.3227 / 0.1189 |
+| Tank HEAT/HE · T-90A (2A46M) · gunner sight ×12 | 0.28 | 12 | 1.8279 / 5.0319 / -0.0396 |
+| Tank HEAT/HE · M1A1 / M1A2 (M256) | 0.31 | 3 | 2.447 / 4.2328 / -0.0304 |
+| Tank HEAT/HE · M1A1 / M1A2 (M256) · gunner sight ×6 | 0.31 | 6 | 2.447 / 4.2328 / -0.0304 |
+| Tank HEAT/HE · M1A1 / M1A2 (M256) · gunner sight ×12 | 0.31 | 12 | 2.447 / 4.2328 / -0.0304 |
+| Tank HEAT/HE · Leopard 2A6 (Rh120) | 0.25 | 3 | 2.0665 / 5.2936 / -0.0323 |
+| Tank HEAT/HE · Leopard 2A6 (Rh120) · gunner sight ×12 | 0.25 | 12 | 2.0665 / 5.2936 / -0.0323 |
+| Tank HEAT/HE · M1128 MGS (M68A2) | 0.6 | 3 | 2.6656 / 4.8496 / -0.0594 |
+| Tank HEAT/HE · M1128 MGS (M68A2) · gunner sight ×8 | 0.6 | 8 | 2.6656 / 4.8496 / -0.0594 |
+| Tank HEAT/HE · M60T (MG253) | 0.5 | - | 2.2123 / 4.2327 / -0.0444 |
+| Tank HEAT/HE · M60T (MG253) · gunner sight ×3 | 0.5 | 3 | 2.2123 / 4.2327 / -0.0444 |
+| Tank HEAT/HE · M60T (MG253) · gunner sight ×8 | 0.5 | 8 | 2.2123 / 4.2327 / -0.0444 |
+| Tank HEAT/HE · ZTZ-99 (ZPT-98) | 0.1 | 4 | 1.8791 / 5.0718 / -0.0173 |
+| Tank HEAT/HE · ZTZ-99 (ZPT-98) · gunner sight ×12 | 0.1 | 12 | 1.8791 / 5.0718 / -0.0173 |
+| Tank HEAT/HE · T-62 (2A20) | 0.05 | 3.5 | 1.8356 / 5.1178 / -0.0127 |
+| Tank HEAT/HE · T-62 (2A20) · gunner sight ×7 | 0.05 | 7 | 1.8356 / 5.1178 / -0.0127 |
+| Tank HEAT/HE · T-64BM2 (KBA3) | 0.29 | 2.7 | 1.8422 / 5.3217 / -0.0277 |
+| Tank HEAT/HE · T-64BM2 (KBA3) · gunner sight ×12 | 0.29 | 12 | 1.8422 / 5.3217 / -0.0277 |
+| Tank HESH · L30A1 (Challenger 2) | 0.31 | 1.5 | 2.1982 / 5.019 / -0.041 |
+| Tank HESH · Challenger 2 (L30A1) · gunner sight ×4 | 0.31 | 4 | 2.1982 / 5.019 / -0.041 |
+| Tank HESH · Challenger 2 (L30A1) · gunner sight ×10 | 0.31 | 10 | 2.1982 / 5.019 / -0.041 |
+| ZPL-98A 105mm (ZTD-05) · AP | 0.02 | 3.5 | 2.7708 / 5.5512 / -0.0109 |
+| ZPL-98A 105mm (ZTD-05) · AP · gunner sight ×7 | 0.02 | 7 | 2.7708 / 5.5512 / -0.0109 |
+| ZPL-98A 105mm (ZTD-05) · HEAT / HE | 0.02 | 3.5 | 2.7708 / 5.5512 / -0.0109 |
+| ZPL-98A 105mm (ZTD-05) · HEAT / HE · gunner sight ×7 | 0.02 | 7 | 2.7708 / 5.5512 / -0.0109 |
 | Mortar (M252 / 2B14 / L16 / Type 63) | - | - | 0.0245 / 1.569 / 0.002 |
 | Technical Mortar | - | - | 1.1789 / 1.6137 / 0.0388 |
 | M1064 M121 (120mm) | - | - | 0.8174 / 3.4618 / 0.0035 |
@@ -153,9 +161,12 @@
 |---|---|---|
 | MK19 | bore | прицел наводчика выровнен со стволом (файлы игры: угол 0,0), применять нечего |
 | MK19 | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
-| MK19 | launch | по файлам башня висит на гнезде на 1,2 м ниже башенной кости корпуса, а меш прицела на 2,6 м: ось поворота неоднозначна и не извлечена (tools/game_weapons.py) |
+| MK19 | launch | башня M1117 висит на гнезде в 0.71 м над землёй, а гнездо CROWS корпуса на 2.63 м выше земли: файлы не решают, откуда идёт выстрел, и точка вылета не берётся (tools/game_weapons.py не включает M1117 в CARRIERS); выстрел идёт от земли (launch_height 0) |
+| MK19 · M1117 · gunner sight ×4.5 | bore | прицел наводчика выровнен со стволом (файлы игры: угол 0,0), применять нечего |
+| MK19 · M1117 · gunner sight ×4.5 | launch | башня M1117 висит на гнезде в 0.71 м над землёй, а гнездо CROWS корпуса на 2.63 м выше земли: файлы не решают, откуда идёт выстрел, и точка вылета не берётся (tools/game_weapons.py не включает M1117 в CARRIERS); выстрел идёт от земли (launch_height 0) |
 | MK19 · AAVP-7A1 | bore | прицел наводчика выровнен со стволом (файлы игры: угол 0,0), применять нечего |
 | MK19 · AAVP-7A1 | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
+| MK19 · AAVP-7A1 · gunner sight ×4.5 | bore | прицел наводчика выровнен со стволом (файлы игры: угол 0,0), применять нечего |
 | MK19 · PARS III RWS | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
 | MK19 · TAPV C16 RWS | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
 | MK19 · M113 open turret | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
@@ -168,12 +179,13 @@
 | MK19 · MATV open turret · no sights | bore | обычный вид: камера на оси оружия (файлы игры: угол 0,0), выстрел идёт по центру вида |
 | MK19 · MATV open turret · no sights | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
 | MK19 · RHIB open turret | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
-| MK19 · RHIB open turret | launch | у катера нет колёс, он стоит на понтонах, и высоту над землёй файлы не дают (deadline-squad/squad-ballistics#12) |
+| MK19 · RHIB open turret | launch | у катера нет колёс, он стоит на понтонах, и высоту над землёй файлы не дают (tools/game_weapons.py); выстрел идёт от земли (launch_height 0) |
+| MK19 · RHIB open turret · no sights | bore | обычный вид: камера на оси оружия (файлы игры: угол 0,0), выстрел идёт по центру вида |
+| MK19 · RHIB open turret · no sights | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
+| MK19 · RHIB open turret · no sights | launch | у катера нет колёс, он стоит на понтонах, и высоту над землёй файлы не дают (tools/game_weapons.py); выстрел идёт от земли (launch_height 0) |
 | MK19 · emplacement / C16 / L134A1 | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
-| MK19 · emplacement / C16 / L134A1 | launch | у станка нет гнезда на машине в файлах игры, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
 | MK19 · emplacement / C16 / L134A1 · no sights | bore | обычный вид: камера на оси оружия (файлы игры: угол 0,0), выстрел идёт по центру вида |
 | MK19 · emplacement / C16 / L134A1 · no sights | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
-| MK19 · emplacement / C16 / L134A1 · no sights | launch | у станка нет гнезда на машине в файлах игры, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
 | AGS-17 · emplacement · no optic | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
 | AGS-17 · iron sights emplacement | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
 | AGS-17 · Technical | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
@@ -181,118 +193,22 @@
 | AGS-17 · Safir | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
 | AGS-17 · M1151 | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
 | AGS-17 · BTR-D | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
-| QLZ87 · optic (RMB ×3) | launch | у станка нет гнезда на машине в файлах игры, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
 | QLZ87 · no optic | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
-| QLZ87 · no optic | launch | у станка нет гнезда на машине в файлах игры, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| QLZ87 · Lynx · optic (RMB ×3) | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| QLZ87 · Lynx · no optic | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
-| QLZ87 · Lynx · no optic | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| QLZ87 · CSK131 / WZ551 · optic (RMB ×3) | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| QLZ87 · CSK131 / WZ551 · no optic | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
-| QLZ87 · CSK131 / WZ551 · no optic | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| QLZ87 · ZBL08 · optic (RMB ×3) | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| QLZ87 · ZBL08 · no optic | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
-| QLZ87 · ZBL08 · no optic | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| QLZ87 · bunker tripod · optic (RMB ×3) | launch | у станка нет гнезда на машине в файлах игры, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
 | QLZ87 · bunker tripod · no optic | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
-| QLZ87 · bunker tripod · no optic | launch | у станка нет гнезда на машине в файлах игры, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| AGS-30 / BTR-4 AGS | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| AGS-30 (BMP-1TS) | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| AGS-30 (BMP-2M) | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
+| QLZ87 · CSK131 / WZ551 · no optic | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
+| QLZ87 · Lynx · no optic | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
+| QLZ87 · ZBL08 · no optic | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
 | SPG-9 · HEAT | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
-| SPG-9 · HEAT | launch | у станка нет гнезда на машине в файлах игры, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| SPG-9 · HEAT · scope · optic (RMB ×4) | launch | у станка нет гнезда на машине в файлах игры, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
 | SPG-9 · HEAT · scope · no optic | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
-| SPG-9 · HEAT · scope · no optic | launch | у станка нет гнезда на машине в файлах игры, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
 | SPG-9 · FRAG | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
-| SPG-9 · FRAG | launch | у станка нет гнезда на машине в файлах игры, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| SPG-9 · FRAG · scope · optic (RMB ×4) | launch | у станка нет гнезда на машине в файлах игры, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
 | SPG-9 · FRAG · scope · no optic | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
-| SPG-9 · FRAG · scope · no optic | launch | у станка нет гнезда на машине в файлах игры, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
 | SPG-9 · HEAT · technical · no optic | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
 | SPG-9 · FRAG · technical · no optic | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
 | SPG-9 · HEAT · INS armoured technical · no optic | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
 | SPG-9 · FRAG · INS armoured technical · no optic | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
-| 2A28 Grom (BMP-1 / BMD-1) · HEAT | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| 2A28 Grom (BMD-1M) · HEAT | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| 2A28 Grom (BMP-1 / BMD-1) · FRAG | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| 2A28 Grom (BMD-1M) · FRAG | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| 2A70 100mm (BMP-3 / BMD-4 / ZBD04A) · FRAG | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| 2A70 100mm (ZBD-04A) · FRAG | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| 2A70 100mm (BMD-4M) · FRAG | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| ZiS-3 · optic (RMB ×4) | launch | у станка нет гнезда на машине в файлах игры, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
 | ZiS-3 · no optic | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
-| ZiS-3 · no optic | launch | у станка нет гнезда на машине в файлах игры, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank AP · 2A46 / ZPT98 / 2A20 / 2A45 / KBA3 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank AP · T-62 (2A20) | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank AP · T-64BM2 (KBA3) | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank AP · ZTZ-99 (ZPT-98) | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank AP · M256 / Rh120 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank AP · Leopard 2A6 (Rh120) | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
 | Tank AP · M60T (MG253) | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
-| Tank AP · M60T (MG253) | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank AP · L30A1 (Challenger 2) / M68A2 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank AP · M1128 MGS (M68A2) | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank HEAT/HE · M256 / Rh120 / 2A46 / ZPT98 / 2A20 / M68A2 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank HEAT/HE · M1A1 / M1A2 (M256) | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank HEAT/HE · Leopard 2A6 (Rh120) | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank HEAT/HE · M1128 MGS (M68A2) | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
 | Tank HEAT/HE · M60T (MG253) | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
-| Tank HEAT/HE · M60T (MG253) | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank HEAT/HE · ZTZ-99 (ZPT-98) | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank HEAT/HE · T-62 (2A20) | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank HEAT/HE · T-64BM2 (KBA3) | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank HESH · L30A1 (Challenger 2) | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| ZPL-98A 105mm (ZTD-05) · AP | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| ZPL-98A 105mm (ZTD-05) · HEAT / HE | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| MK19 · AAVP-7A1 · gunner sight ×4.5 | bore | прицел наводчика выровнен со стволом (файлы игры: угол 0,0), применять нечего |
-| MK19 · RHIB open turret · no sights | bore | обычный вид: камера на оси оружия (файлы игры: угол 0,0), выстрел идёт по центру вида |
-| MK19 · RHIB open turret · no sights | zoom | вид не увеличивает (файлы игры: кратность x1, остаётся FOV игры) |
-| MK19 · RHIB open turret · no sights | launch | у катера нет колёс, он стоит на понтонах, и высоту над землёй файлы не дают (deadline-squad/squad-ballistics#12) |
-| Tank AP · M1A1 / M1A2 (M256) · gunner sight ×6 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank AP · M1A1 / M1A2 (M256) · gunner sight ×12 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank HEAT/HE · M1A1 / M1A2 (M256) · gunner sight ×6 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank HEAT/HE · M1A1 / M1A2 (M256) · gunner sight ×12 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| 2A28 Grom (BMD-1M) · HEAT · gunner sight ×6 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| 2A28 Grom (BMD-1M) · FRAG · gunner sight ×6 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| 2A70 100mm (BMD-4M) · FRAG · gunner sight ×5 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| 2A70 100mm (BMP-3 / BMD-4M) · FRAG · gunner sight ×14 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| 2A28 Grom (BMP-1) · HEAT · gunner sight ×6 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| 2A28 Grom (BMP-1) · FRAG · gunner sight ×6 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| AGS-30 (BMP-2M) · gunner sight ×6 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| 2A70 100mm (BMP-3) · FRAG · gunner sight ×4 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| AGS-30 (BMP-1TS) · gunner sight ×9 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| AGS-30 / BTR-4 AGS · gunner sight ×9 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank AP · Challenger 2 (L30A1) · gunner sight ×4 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank AP · Challenger 2 (L30A1) · gunner sight ×10 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank HESH · Challenger 2 (L30A1) · gunner sight ×4 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank HESH · Challenger 2 (L30A1) · gunner sight ×10 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank AP · Leopard 2A6 (Rh120) · gunner sight ×12 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank HEAT/HE · Leopard 2A6 (Rh120) · gunner sight ×12 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| MK19 · M1117 · gunner sight ×4.5 | bore | прицел наводчика выровнен со стволом (файлы игры: угол 0,0), применять нечего |
-| MK19 · M1117 · gunner sight ×4.5 | launch | по файлам башня висит на гнезде на 1,2 м ниже башенной кости корпуса, а меш прицела на 2,6 м: ось поворота неоднозначна и не извлечена (tools/game_weapons.py) |
-| Tank AP · M1128 MGS (M68A2) · gunner sight ×8 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank HEAT/HE · M1128 MGS (M68A2) · gunner sight ×8 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank AP · M60T (MG253) · gunner sight ×3 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank AP · M60T (MG253) · gunner sight ×8 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank HEAT/HE · M60T (MG253) · gunner sight ×3 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank HEAT/HE · M60T (MG253) · gunner sight ×8 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank AP · Sprut-SDM1 (2A45) · gunner sight ×4 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank AP · Sprut-SDM1 (2A45) · gunner sight ×12 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank HEAT/HE · Sprut-SDM1 (2A45) · gunner sight ×4 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank HEAT/HE · Sprut-SDM1 (2A45) · gunner sight ×12 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank AP · T-62 (2A20) · gunner sight ×7 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank HEAT/HE · T-62 (2A20) · gunner sight ×7 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank AP · T-64BM2 (KBA3) · gunner sight ×12 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank HEAT/HE · T-64BM2 (KBA3) · gunner sight ×12 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank AP · T-72 / T-90 (2A46) · gunner sight ×12 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank HEAT/HE · T-72 / T-90 (2A46) · gunner sight ×12 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| 2A70 100mm (ZBD-04A) · FRAG · gunner sight ×4 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| 2A70 100mm (ZBD-04A) · FRAG · gunner sight ×14 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| ZPL-98A 105mm (ZTD-05) · AP · gunner sight ×7 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| ZPL-98A 105mm (ZTD-05) · HEAT / HE · gunner sight ×7 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank AP · ZTZ-99 (ZPT-98) · gunner sight ×12 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
-| Tank HEAT/HE · ZTZ-99 (ZPT-98) · gunner sight ×12 | launch | у закрытой башни или орудия корпуса нет записи гнезда на машине, tools/game_weapons.py не выводит точку вылета; выстрел идёт от земли (launch_height 0) |
 | Mortar (M252 / 2B14 / L16 / Type 63) | bore | наводится собственной шкалой возвышения, а не через вид: в файлах игры угла канала нет |
 | Mortar (M252 / 2B14 / L16 / Type 63) | zoom | наводится собственной шкалой возвышения, а не через вид: в файлах игры кратности нет |
 | Technical Mortar | bore | наводится собственной шкалой возвышения, а не через вид: в файлах игры угла канала нет |
@@ -308,7 +224,18 @@
 | BM-21 Grad | bore | наводится собственной шкалой возвышения, а не через вид: в файлах игры угла канала нет |
 | BM-21 Grad | zoom | наводится собственной шкалой возвышения, а не через вид: в файлах игры кратности нет |
 
-Итого: угол канала есть у 65 из 78 оружий, кратность у 38, точка вылета у 32; без угла 13, без кратности 40, без точки вылета 46.
+Итого: угол канала есть у 125 из 141 оружия, кратность у 97, точка вылета у 137; без угла 16, без кратности 44, без точки вылета 4.
+
+## Высота вылета у каждой машины
+
+Запись машины теперь начинает выстрел у орудия, а не с земли. `tools/game_weapons.py` выводит точку вылета из файлов игры для каждой машины с башней (`CARRIERS`, найдены в настройках мест Blueprint машин): гнездо места на меше машины, гнездо крепления меша башни и крепление орудия, над землёй. Земля: нижняя кость колеса минус `WheelRadius` (толщины гусеницы в файлах нет, поэтому гусеничная машина может стоять на несколько сантиметров выше); станок и ЗиС-3 стоят на нижней точке границ своего меша. Зачем: при стволе на 2 м QLZ87, наведённый на 100 / 300 / 1000 м, попадал в 181 / 343 / 1014 м.
+
+- **Случай владельца, QLZ87 на ZSL (WZ551).** `QLZ87 · CSK131 / WZ551` покрывает CSK131 (2,2899 м), WZ551B (2,5169 м, пустынный Blueprint тоже) и ZSD-89 (2,1196 м). Запись берёт середину, 2,3182 м; три машины расходятся не более чем на 8 м на 300 м, поэтому записи не разделены. Lynx: 1,901 м, ZBL-08: 2,5044 м.
+- **Записи, разделённые по высоте** (больше 10 м на 300 м): T-72 / T-72A / T-72S (1,5746 м) и T-90A (1,8279 м; у Sprut-SDM1, 2,1443 м, свои записи уже были); БМП-1 (1,9452 м) и техничка БМП-1 (2,3249 м). Старые названия записей T-72 работают (`RENAMED_WEAPONS`).
+- **Разброс внутри одной записи** (меньше 1 м на 300 м): БМП-3 и БМД-4М на ×14 (2,2419 и 2,2868 м).
+- **Предположено, не прочитано:** меш башни ZSD-89 (на WZ551 и ZSD-89) и башня и орудие ZBD-04A нарисованы в пространстве машины, корневая кость стоит там, где место. Инструмент принимает этот корень за точку крепления, поэтому на WZ551 башня стоит на собственном гнезде корпуса (2,17 м над началом корпуса). Корень орудия ZBD-04A лежит ровно в выведенной оси, это подтверждает правило; для WZ551 оно выведено. Дульный срез АГС-30 БМП-2М на 0,6 м позади оси (`muzzle_forward` отрицателен).
+- **Подтверждение по прицелам.** С высотой вылета открытый прицел СПГ-9 на станке обнуляется на 80 м, бронебойный T-72 на 708 м: круглые числа, которые выбирает разработчик; без неё было 47 и 674 м.
+- **Остаётся 0 и почему:** M1117 (башня висит на гнезде в 0,71 м над землёй, гнездо CROWS корпуса на 2,63 м выше земли: файлы не говорят, где дульный срез) и RHIB (катер стоит на понтонах). У АГС-17 на станке остаётся 1 м, значение, по которому подогнана модель удержания.
 
 ## Метки сеток прицелов игры
 
@@ -318,32 +245,32 @@
 
 | Сетка (вид оружия) | Метка | Строка текстуры | Смещение игры, px | Смещение оверлея, px | Игра - оверлей, px | Разность по дальности, м |
 |---|---|---|---|---|---|---|
-| QLZ87 optic | 100 м (подпись 1) | 1040.5 | +8.1 | +0.2 | +7.8 | +16 |
-| QLZ87 optic | 200 м (подпись 2) | 1131 | +52.2 | +48.9 | +3.3 | +7 |
-| QLZ87 optic | 300 м (подпись 3) | 1229 | +100.1 | +97.7 | +2.4 | +5 |
-| QLZ87 optic | 400 м (подпись 4) | 1329.5 | +149.2 | +146.6 | +2.6 | +5 |
-| QLZ87 optic | 500 м (подпись 5) | 1428.5 | +197.5 | +195.7 | +1.8 | +4 |
-| SPG-9 HEAT, red scale | 200 м (подпись 2) | 862 | -142.4 | -146.7 | +4.3 | +17 |
-| SPG-9 HEAT, red scale | 400 м (подпись 4) | 908 | -102.0 | -94.9 | -7.1 | -27 |
-| SPG-9 HEAT, red scale | 600 м (подпись 6) | 973 | -44.8 | -42.9 | -1.9 | -7 |
-| SPG-9 HEAT, red scale | 800 м (подпись 8) | 1031 | +6.2 | +9.1 | -3.0 | -11 |
-| SPG-9 HEAT, red scale | 1000 м (подпись 10) | 1090 | +58.0 | +61.2 | -3.2 | -12 |
-| SPG-9 HEAT, red scale | 1200 м (подпись 12) | 1159 | +118.7 | +113.3 | +5.3 | +20 |
-| SPG-9 FRAG, green scale | 200 м (подпись 2) | 908 | -102.0 | -108.5 | +6.6 | +15 |
-| SPG-9 FRAG, green scale | 400 м (подпись 4) | 1008 | -14.1 | -18.3 | +4.2 | +9 |
-| SPG-9 FRAG, green scale | 600 м (подпись 6) | 1114 | +79.1 | +72.3 | +6.8 | +15 |
-| SPG-9 FRAG, green scale | 800 м (подпись 8) | 1220 | +172.3 | +163.1 | +9.2 | +20 |
-| SPG-9 FRAG, green scale | 1000 м (подпись 10) | 1323 | +262.8 | +254.2 | +8.6 | +19 |
-| SPG-9 FRAG, green scale | 1200 м (подпись 12) | 1427 | +354.2 | +345.8 | +8.4 | +18 |
-| ZiS-3 optic | 400 м (подпись 4) | 1049 | +15.7 | +4.9 | +10.8 | +112 |
-| ZiS-3 optic | 700 м (подпись 7) | 1083 | +37.0 | +33.9 | +3.1 | +32 |
-| ZiS-3 optic | 900 м (подпись 9) | 1112 | +55.2 | +53.2 | +2.0 | +21 |
-| ZiS-3 optic | 1100 м (подпись 11) | 1147 | +77.2 | +72.5 | +4.7 | +48 |
-| ZiS-3 optic | 1300 м (подпись 13) | 1175 | +94.7 | +91.9 | +2.9 | +30 |
-| ZiS-3 optic | 1500 м (подпись 15) | 1208 | +115.4 | +111.2 | +4.2 | +44 |
-| ZiS-3 optic | 1700 м (подпись 17) | 1242 | +136.8 | +130.6 | +6.2 | +64 |
-| ZiS-3 optic | 1900 м (подпись 19) | 1275 | +157.5 | +149.9 | +7.6 | +78 |
-| ZiS-3 optic | 2100 м (подпись 21) | 1307 | +177.6 | +169.3 | +8.2 | +85 |
+| QLZ87 optic | 100 м (подпись 1) | 1040.5 | +8.1 | -1.5 | +9.6 | +19 |
+| QLZ87 optic | 200 м (подпись 2) | 1131 | +52.2 | +47.6 | +4.6 | +9 |
+| QLZ87 optic | 300 м (подпись 3) | 1229 | +100.1 | +96.6 | +3.5 | +7 |
+| QLZ87 optic | 400 м (подпись 4) | 1329.5 | +149.2 | +145.6 | +3.6 | +7 |
+| QLZ87 optic | 500 м (подпись 5) | 1428.5 | +197.5 | +194.7 | +2.8 | +6 |
+| SPG-9 HEAT, red scale | 200 м (подпись 2) | 862 | -142.4 | -148.9 | +6.5 | +25 |
+| SPG-9 HEAT, red scale | 400 м (подпись 4) | 908 | -102.0 | -96.4 | -5.5 | -21 |
+| SPG-9 HEAT, red scale | 600 м (подпись 6) | 973 | -44.8 | -44.3 | -0.6 | -2 |
+| SPG-9 HEAT, red scale | 800 м (подпись 8) | 1031 | +6.2 | +7.9 | -1.7 | -7 |
+| SPG-9 HEAT, red scale | 1000 м (подпись 10) | 1090 | +58.0 | +60.0 | -2.0 | -8 |
+| SPG-9 HEAT, red scale | 1200 м (подпись 12) | 1159 | +118.7 | +112.2 | +6.4 | +25 |
+| SPG-9 FRAG, green scale | 200 м (подпись 2) | 908 | -102.0 | -111.4 | +9.5 | +21 |
+| SPG-9 FRAG, green scale | 400 м (подпись 4) | 1008 | -14.1 | -20.5 | +6.5 | +14 |
+| SPG-9 FRAG, green scale | 600 м (подпись 6) | 1114 | +79.1 | +70.3 | +8.8 | +19 |
+| SPG-9 FRAG, green scale | 800 м (подпись 8) | 1220 | +172.3 | +161.2 | +11.1 | +24 |
+| SPG-9 FRAG, green scale | 1000 м (подпись 10) | 1323 | +262.8 | +252.3 | +10.4 | +23 |
+| SPG-9 FRAG, green scale | 1200 м (подпись 12) | 1427 | +354.2 | +344.0 | +10.2 | +22 |
+| ZiS-3 optic | 400 м (подпись 4) | 1049 | +15.7 | +2.4 | +13.3 | +133 |
+| ZiS-3 optic | 700 м (подпись 7) | 1083 | +37.0 | +32.2 | +4.8 | +49 |
+| ZiS-3 optic | 900 м (подпись 9) | 1112 | +55.2 | +51.7 | +3.5 | +36 |
+| ZiS-3 optic | 1100 м (подпись 11) | 1147 | +77.2 | +71.2 | +6.0 | +61 |
+| ZiS-3 optic | 1300 м (подпись 13) | 1175 | +94.7 | +90.7 | +4.1 | +42 |
+| ZiS-3 optic | 1500 м (подпись 15) | 1208 | +115.4 | +110.1 | +5.4 | +55 |
+| ZiS-3 optic | 1700 м (подпись 17) | 1242 | +136.8 | +129.5 | +7.3 | +75 |
+| ZiS-3 optic | 1900 м (подпись 19) | 1275 | +157.5 | +148.9 | +8.6 | +88 |
+| ZiS-3 optic | 2100 м (подпись 21) | 1307 | +177.6 | +168.4 | +9.2 | +95 |
 | AGS-17 PAG-17 optic | 100 м (подпись 1) | 1106 | +42.9 | +32.3 | +10.6 | +14 |
 | AGS-17 PAG-17 optic | 200 м (подпись 2) | 1219 | +102.0 | +108.7 | -6.7 | -9 |
 | AGS-17 PAG-17 optic | 300 м (подпись 3) | 1349 | +170.1 | +185.7 | -15.6 | -20 |

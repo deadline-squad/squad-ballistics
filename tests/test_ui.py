@@ -1409,7 +1409,7 @@ def test_mortar_calibration_reads_the_sight(window, monkeypatch, tmp_path):
     assert window.config["lay_rates"][MORTAR] == pytest.approx(8.5, abs=0.01)
 
 
-LONGEST_NAME = "Tank HEAT/HE · M256 / Rh120 / 2A46 / ZPT98 / 2A20 / M68A2"
+LONGEST_NAME = "SPG-9 · HEAT · INS armoured technical · optic (RMB ×4)"
 
 
 def show_at(window, width, height):
