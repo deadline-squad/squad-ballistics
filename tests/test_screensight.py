@@ -105,3 +105,51 @@ def test_nothing_is_grabbed_without_a_screen_or_region(qapp, monkeypatch):
     assert sightlay.ScreenSight(empty).grab_image() is None
     assert sightlay.ScreenSight(empty).grab() is None
     assert sightlay.ScreenSight(empty).grab_compass() is None
+
+
+class GameWindowOverlay(AlignedOverlay):
+    """An overlay over a game window of `size` whose corner is `corner` px
+    from the corner of the screen."""
+
+    def __init__(self, screen, size, corner):
+        super().__init__(screen, 0, 0)
+        self.window_size = size
+        self.corner = corner
+
+    def width(self):
+        return self.window_size[0]
+
+    def height(self):
+        return self.window_size[1]
+
+    def origin_on_screen(self):
+        return self.corner
+
+
+class RecordingScreen(ImageScreen):
+    """A screen that remembers what was grabbed from it."""
+
+    def __init__(self, image):
+        super().__init__(image)
+        self.grabs = []
+
+    def grabWindow(self, window, x, y, width, height):
+        self.grabs.append((x, y, width, height))
+        return super().grabWindow(window, x, y, width, height)
+
+
+def test_a_game_window_is_grabbed_where_it_is_on_the_screen(qapp):
+    """The regions count from the window's corner; the screen is grabbed
+    from its own corner."""
+    screen = RecordingScreen(draw_sight(1000.0, 1920, 1080))
+    sight = sightlay.ScreenSight(GameWindowOverlay(screen, (1280, 720), (320, 180)))
+    left, top, right, bottom = sight.region()
+
+    sight.grab_image()
+    sight.grab_compass()
+    compass_left, compass_top, compass_right, compass_bottom = sight.compass_region()
+
+    assert screen.grabs == [
+        (320 + left, 180 + top, right - left, bottom - top),
+        (320 + compass_left, 180 + compass_top, compass_right - compass_left, compass_bottom - compass_top),
+    ]

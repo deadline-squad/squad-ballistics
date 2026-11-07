@@ -140,11 +140,15 @@ def test_the_vehicles_that_carry_the_ags17_mk19_and_spg9_have_entries():
         "MK19 · AAVP-7A1", "MK19 · PARS III RWS", "MK19 · TAPV C16 RWS", "MK19 · M113 open turret",
         "MK19 · M113 open turret · no sights", "MK19 · M1151 open turret", "MK19 · M1151 open turret · no sights",
         "MK19 · MATV open turret", "MK19 · MATV open turret · no sights",
+        "MK19 · emplacement / C16 / L134A1", "MK19 · emplacement / C16 / L134A1 · no sights",
         "MK19 · AAVP-7A1 · gunner sight ×4.5", "MK19 · PARS III RWS · gunner sight ×3", "MK19 · PARS III RWS · gunner sight ×9",
         "MK19 · TAPV C16 RWS · gunner sight ×5", "MK19 · TAPV C16 RWS · gunner sight ×12"}
     assert {n for n in VEHICLE_MOUNTS if n.startswith("SPG-9 · ")} == {
         f"SPG-9 · {shell} · {mount} · {view}" for shell in ("HEAT", "FRAG") for mount in ("technical", "INS armoured technical")
-        for view in ("optic (RMB ×4)", "no optic")}
+        for view in ("optic (RMB ×4)", "no optic")
+    } | {
+        f"SPG-9 · {shell}{view}" for shell in ("HEAT", "FRAG")
+        for view in ("", " · scope · optic (RMB ×4)", " · scope · no optic")}
 
 
 @pytest.mark.parametrize("name", VEHICLE_MOUNTS)
@@ -160,7 +164,7 @@ def test_a_vehicle_mount_launches_above_its_barrel_pivot(name):
     launch, weapon = GAME[name]["launch"], WEAPONS[name]
 
     assert weapon.launch_height == pytest.approx(launch["launch_height"], abs=5e-5)
-    assert weapon.launch_height > 1.5
+    assert weapon.launch_height > 0.3
     assert weapon.muzzle_forward == pytest.approx(launch["muzzle_forward"], abs=5e-5)
     assert weapon.muzzle_up == pytest.approx(launch["muzzle_up"], abs=5e-5)
 

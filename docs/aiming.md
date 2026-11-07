@@ -83,14 +83,14 @@ The sight's zoom divides the FOV (`Weapon.sight_view`, `B`), the shot leaves `bo
 | 2A70 100mm (BMP-3 / BMD-4 / ZBD04A / BMD-4M) · FRAG | 48° | 6.0 / 6.0 / 5.9 / 5.9 | 4.5 / 4.5 / 4.4 / 4.4 | 3050 m |
 | ZiS-3 · optic (RMB ×4) | 30° | 14 / 14 / 14 / 14 | 10 / 10 / 10 / 10 | – |
 | ZiS-3 · no optic | 120° | 90 / 90 / 90 / 90 | 68 / 68 / 68 / 68 | – |
-| Tank AP · 2A46 / ZPT98 / 2A20 / 2A45 / KBA3, ZTZ-99 | 30° | 39 / 39 / 39 / 39 | 29 / 29 / 29 / 29 | – |
+| Tank AP · T-72 (2A46), ZTZ-99 | 30° | 39 / 39 / 39 / 39 | 29 / 29 / 29 / 29 | – |
 | Tank AP · T-62 (2A20) | 34.3° | 44 / 44 / 44 / 44 | 33 / 33 / 33 / 33 | – |
 | Tank AP · T-64BM2 (KBA3) | 44.4° | 59 / 59 / 59 / 59 | 44 / 44 / 44 / 44 | – |
 | Tank AP · M256 / Rh120, Leopard 2A6 | 40° | 45 / 45 / 45 / 45 | 33 / 33 / 33 / 33 | – |
 | Tank AP · M1128 MGS (M68A2) | 40° | 70 / 70 / 70 / 70 | 52 / 52 / 52 / 52 | – |
 | Tank AP · L30A1 (Challenger 2) / M68A2 | 80° | 161 / 161 / 161 / 161 | 120 / 120 / 120 / 120 | – |
 | Tank AP · M60T (MG253) | 120° | 212 / 212 / 212 / 212 | 159 / 159 / 159 / 159 | – |
-| Tank HEAT/HE · M256 / Rh120 / 2A46 / ZPT98 / 2A20 / M68A2, ZTZ-99 | 30° | 21 / 21 / 21 / 21 | 16 / 15 / 15 / 15 | – |
+| Tank HEAT/HE · T-72 (2A46), ZTZ-99 | 30° | 21 / 21 / 21 / 21 | 16 / 15 / 15 / 15 | – |
 | Tank HEAT/HE · M1A1 / M1A2 / Leopard 2A6 / M1128 MGS | 40° | 25 / 25 / 25 / 25 | 19 / 19 / 19 / 19 | – |
 | Tank HEAT/HE · T-62 (2A20) | 34.3° | 24 / 24 / 24 / 24 | 18 / 18 / 18 / 18 | – |
 | Tank HEAT/HE · T-64BM2 (KBA3) | 44.4° | 32 / 31 / 31 / 31 | 24 / 24 / 24 / 24 | – |
@@ -179,6 +179,8 @@ That the picture the player aims in is the component the lerp moves is a **hypot
 ## 4. Procedures (question 3)
 
 Common preparation (once per session): Linux compositor on, game borderless or fullscreen at 16:9, the **game FOV read by SB from the game's settings file** (the window says "from the game"; under Focus the mark is not valid on handheld launchers, and follows the key on the entries marked for it, section 3.5), weapon entry matching the view (RMB held = `· optic`, not held = `· no optic`; Mouse4 switches it), overlay on (F8). The Calculator page's "How to fire" steps and the info line say the same for the weapon you chose (`Cr`).
+
+**Nothing to set up for the screen.** SB finds the game's own window on the X server (the `WM_CLASS` `steam_app_393380` that Proton gives it, or the title `SquadGame`) and lays the mark for the width of that window: windowed, borderless, fullscreen, on any monitor, or at a lower game mode that the compositor scales to the screen. The overlay follows the window when it is moved or resized, and covers the configured monitor again once the game is closed or not found. The only window that still draws a warning is one that is not 16:9. If SB cannot read the FOV from the game's settings file, the FOV field says "FOV assumed" and so does the overlay's info line: the mark is then only as exact as the FOV you typed. At a FOV other than 90 the game's printed range marks on a sight reticle (optics, gunner sights, launchers) no longer agree with the mark (at FOV 120 the QLZ87 optic's printed 500 m mark lands near 650 m, about 30 % further; see "Reticle marks of the game sights" in `sight-data.md`), so the info line says to put SB's mark on the target and not the printed marks. `V` (code and tests; the window class and title are `A`: not checked against a live Proton window)
 
 ### 4.1 (a) Marker-aided direct fire
 

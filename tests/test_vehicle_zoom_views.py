@@ -95,7 +95,7 @@ def test_the_names_of_the_gunner_sights_are_the_vehicles_players_know():
     ("Tank AP · Sprut-SDM1 (2A45) · gunner sight ×12", 0.29, (-5.61, 14.39)),
     ("Tank HEAT/HE · Sprut-SDM1 (2A45) · gunner sight ×4", 0.29, (-5.61, 14.39)),
     ("Tank HEAT/HE · Sprut-SDM1 (2A45) · gunner sight ×12", 0.29, (-5.61, 14.39)),
-    ("Tank AP · 2A46 / ZPT98 / 2A20 / 2A45 / KBA3", 0.28, (-5.62, 14.38)),
+    ("Tank AP · T-72 (2A46)", 0.28, (-5.62, 14.38)),
     ("QLZ87 · ZBL08 · optic (RMB ×3)", 0.85, (-11.65, 68.35)),
     ("QLZ87 · ZBL08 · no optic", 0.85, (-11.65, 68.35)),
     ("QLZ87 · Lynx · no optic", 0.85, (-13.15, 55.85)),

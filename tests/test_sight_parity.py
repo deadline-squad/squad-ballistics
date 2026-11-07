@@ -37,52 +37,71 @@ SOCKET = (
     "no round zero is evidenced in the files and the 2-decimal rounding does not reach one"
 )
 
+LAUNCH = (
+    "the launch point from the game files is in the model and the sight camera's own offset from the barrel "
+    "(parallax) is not, which moves the zero by metres; no round zero is evidenced in the files"
+)
+NO_RISE = (
+    "the muzzle sits 1 cm under the sight line and the bore is 0.02 degrees: the shot never rises above a "
+    "centred ground target, so the model has no zero (the search stops at its 1 m lower bound)"
+)
+
 NOT_ROUND = {
     "MK19 · PARS III RWS": (181.4, SOCKET),
+    "MK19 · PARS III RWS · gunner sight ×3": (181.4, SOCKET),
+    "MK19 · PARS III RWS · gunner sight ×9": (181.4, SOCKET),
     "MK19 · M1151 open turret": (325.3, SOCKET),
     "MK19 · MATV open turret": (325.3, SOCKET),
     "MK19 · RHIB open turret": (325.5, SOCKET),
-    "MK19 · emplacement / C16 / L134A1": (329.1, SOCKET),
+    "MK19 · emplacement / C16 / L134A1": (330.2, SOCKET),
     "AGS-17 · emplacement · optic (RMB ×2.5)": (57.6, SOCKET + "; confirmed by the hold fit (85 + 0.85)"),
     "AGS-17 · emplacement · no optic": (57.6, SOCKET),
-    "QLZ87 · Lynx · optic (RMB ×3)": (109.3, SOCKET),
-    "QLZ87 · Lynx · no optic": (109.3, SOCKET),
-    "2A70 100mm (BMP-3 / BMD-4 / ZBD04A) · FRAG": (130.2, SOCKET),
-    "2A70 100mm (ZBD-04A) · FRAG": (213.2, SOCKET),
-    "2A70 100mm (BMD-4M) · FRAG": (127.9, SOCKET),
-    "Tank AP · 2A46 / ZPT98 / 2A20 / 2A45 / KBA3": (674.2, SOCKET),
-    "Tank AP · T-62 (2A20)": (120.4, SOCKET),
-    "SPG-9 · HEAT": (47.3, CLAMP),
-    "SPG-9 · FRAG": (27.2, CLAMP),
-    "2A28 Grom (BMD-1M) · HEAT": (515.6, CLAMP),
-    "2A28 Grom (BMP-1 / BMD-1) · FRAG": (264.0, CLAMP),
-    "Tank HEAT/HE · M256 / Rh120 / 2A46 / ZPT98 / 2A20 / M68A2": (372.8, CLAMP),
-    "Tank HEAT/HE · M1A1 / M1A2 (M256)": (367.8, CLAMP),
-    "Tank HEAT/HE · ZTZ-99 (ZPT-98)": (140.8, CLAMP),
-    "Tank HEAT/HE · T-64BM2 (KBA3)": (385.6, CLAMP),
-    # The other zoom levels and vehicles of a gun share its bore, so its zero.
-    "MK19 · PARS III RWS · gunner sight ×3": (181.4, SOCKET),
-    "MK19 · PARS III RWS · gunner sight ×9": (181.4, SOCKET),
-    "QLZ87 · CSK131 / WZ551 · optic (RMB ×3)": (109.3, SOCKET),
-    "QLZ87 · CSK131 / WZ551 · no optic": (109.3, SOCKET),
-    "QLZ87 · ZBL08 · optic (RMB ×3)": (109.3, SOCKET),
-    "QLZ87 · ZBL08 · no optic": (109.3, SOCKET),
-    "2A28 Grom (BMD-1M) · HEAT · gunner sight ×6": (515.6, CLAMP),
-    "2A28 Grom (BMP-1) · FRAG · gunner sight ×6": (264.0, CLAMP),
-    "2A70 100mm (BMP-3) · FRAG · gunner sight ×4": (129.0, SOCKET),
-    "2A70 100mm (ZBD-04A) · FRAG · gunner sight ×4": (213.2, SOCKET),
-    "2A70 100mm (ZBD-04A) · FRAG · gunner sight ×14": (213.2, SOCKET),
-    "2A70 100mm (BMD-4M) · FRAG · gunner sight ×5": (129.0, SOCKET),
-    "2A70 100mm (BMP-3 / BMD-4M) · FRAG · gunner sight ×14": (129.0, SOCKET),
-    "Tank AP · T-72 / T-90 (2A46) · gunner sight ×12": (674.2, SOCKET),
-    "Tank AP · T-62 (2A20) · gunner sight ×7": (120.4, SOCKET),
-    "Tank HEAT/HE · Sprut-SDM1 (2A45) · gunner sight ×4": (385.6, CLAMP),
-    "Tank HEAT/HE · Sprut-SDM1 (2A45) · gunner sight ×12": (385.6, CLAMP),
-    "Tank HEAT/HE · T-72 / T-90 (2A46) · gunner sight ×12": (372.8, CLAMP),
-    "Tank HEAT/HE · M1A1 / M1A2 (M256) · gunner sight ×6": (367.8, CLAMP),
-    "Tank HEAT/HE · M1A1 / M1A2 (M256) · gunner sight ×12": (367.8, CLAMP),
-    "Tank HEAT/HE · ZTZ-99 (ZPT-98) · gunner sight ×12": (140.8, CLAMP),
-    "Tank HEAT/HE · T-64BM2 (KBA3) · gunner sight ×12": (385.6, CLAMP),
+    "QLZ87 · optic (RMB ×3)": (103.1, LAUNCH),
+    "QLZ87 · bunker tripod · optic (RMB ×3)": (103.1, LAUNCH),
+    "QLZ87 · CSK131 / WZ551 · optic (RMB ×3)": (121.3, SOCKET),
+    "QLZ87 · CSK131 / WZ551 · no optic": (121.3, SOCKET),
+    "QLZ87 · Lynx · optic (RMB ×3)": (121.2, SOCKET),
+    "QLZ87 · Lynx · no optic": (121.2, SOCKET),
+    "QLZ87 · ZBL08 · optic (RMB ×3)": (121.3, SOCKET),
+    "QLZ87 · ZBL08 · no optic": (121.3, SOCKET),
+    "AGS-30 / BTR-4 AGS": (208.1, LAUNCH),
+    "AGS-30 / BTR-4 AGS · gunner sight ×9": (208.1, LAUNCH),
+    "AGS-30 (BMP-2M)": (210.2, LAUNCH),
+    "AGS-30 (BMP-2M) · gunner sight ×6": (210.2, LAUNCH),
+    "SPG-9 · FRAG": (54.9, CLAMP),
+    "2A28 Grom (BMD-1M) · HEAT": (517.0, CLAMP),
+    "2A28 Grom (BMD-1M) · HEAT · gunner sight ×6": (517.0, CLAMP),
+    "2A28 Grom (BMP-1 / BMD-1) · FRAG": (265.6, CLAMP),
+    "2A28 Grom (BMP-1) · FRAG · gunner sight ×6": (265.6, CLAMP),
+    "2A28 Grom (BMP-1 technical) · FRAG · gunner sight ×6": (265.6, LAUNCH),
+    "2A28 Grom (BMP-1 technical) · FRAG": (265.6, LAUNCH),
+    "2A70 100mm (BMP-3 / BMD-4 / ZBD04A) · FRAG": (131.7, SOCKET),
+    "2A70 100mm (BMP-3) · FRAG · gunner sight ×4": (130.5, SOCKET),
+    "2A70 100mm (ZBD-04A) · FRAG": (215.9, SOCKET),
+    "2A70 100mm (ZBD-04A) · FRAG · gunner sight ×4": (215.9, SOCKET),
+    "2A70 100mm (ZBD-04A) · FRAG · gunner sight ×14": (215.9, SOCKET),
+    "2A70 100mm (BMD-4M) · FRAG": (130.3, SOCKET),
+    "2A70 100mm (BMD-4M) · FRAG · gunner sight ×5": (131.5, SOCKET),
+    "2A70 100mm (BMP-3 / BMD-4M) · FRAG · gunner sight ×14": (131.0, SOCKET),
+    "ZiS-3 · optic (RMB ×4)": (376.9, LAUNCH),
+    "ZiS-3 · no optic": (376.9, LAUNCH),
+    "Tank AP · T-90A (2A46M)": (676.1, LAUNCH),
+    "Tank AP · T-90A (2A46M) · gunner sight ×12": (676.1, LAUNCH),
+    "Tank AP · T-62 (2A20)": (115.2, SOCKET),
+    "Tank AP · T-62 (2A20) · gunner sight ×7": (115.2, SOCKET),
+    "Tank AP · Leopard 2A6 (Rh120)": (516.1, LAUNCH),
+    "Tank AP · Leopard 2A6 (Rh120) · gunner sight ×12": (516.1, LAUNCH),
+    "Tank HEAT/HE · T-90A (2A46M)": (374.8, LAUNCH),
+    "Tank HEAT/HE · T-90A (2A46M) · gunner sight ×12": (374.8, LAUNCH),
+    "Tank HEAT/HE · M1A1 / M1A2 (M256)": (370.7, CLAMP),
+    "Tank HEAT/HE · M1A1 / M1A2 (M256) · gunner sight ×6": (370.7, CLAMP),
+    "Tank HEAT/HE · M1A1 / M1A2 (M256) · gunner sight ×12": (370.7, CLAMP),
+    "Tank HEAT/HE · ZTZ-99 (ZPT-98)": (141.2, CLAMP),
+    "Tank HEAT/HE · ZTZ-99 (ZPT-98) · gunner sight ×12": (141.2, CLAMP),
+    "ZPL-98A 105mm (ZTD-05) · AP": (1.0, NO_RISE),
+    "ZPL-98A 105mm (ZTD-05) · AP · gunner sight ×7": (1.0, NO_RISE),
+    "ZPL-98A 105mm (ZTD-05) · HEAT / HE": (1.0, NO_RISE),
+    "ZPL-98A 105mm (ZTD-05) · HEAT / HE · gunner sight ×7": (1.0, NO_RISE),
 }
 
 # Direct-fire entries (agl, guns, tanks) with no bore, and why. Everything
@@ -150,10 +169,10 @@ def test_every_listed_exception_is_a_weapon_with_a_bore():
 
 
 def test_a_bore_that_puts_the_zero_off_a_round_range_is_caught():
-    """Mutation check of the rule itself: 0.1 degree more bore on the QLZ87
-    optic (zero 100 m) moves the zero to 162 m, which is neither round nor
+    """Mutation check of the rule itself: 0.1 degree more bore on the tripod
+    AGS-17 (zero 304 m) moves the zero to 310 m, which is neither round nor
     explained by the rounding."""
-    weapon = WEAPONS["QLZ87 · optic (RMB ×3)"]
+    weapon = WEAPONS["AGS-17 · iron sights emplacement"]
     shifted = dataclasses.replace(weapon, bore=weapon.bore + 0.1)
 
     assert is_round(weapon, zero_range(weapon, weapon.bore))
@@ -163,11 +182,11 @@ def test_a_bore_that_puts_the_zero_off_a_round_range_is_caught():
 def test_the_negative_bore_has_no_zero():
     """The tripod QLZ87 without its optic fires 0.9 degrees below the camera:
     even a 1 m shot is above it, so the search finds no zero (it returns its
-    lower bound)."""
+    lower bound, 1 m, which the launch point's muzzle offset moves to under 2 m)."""
     weapon = WEAPONS["QLZ87 · no optic"]
 
     assert weapon.bore < 0
-    assert zero_range(weapon, weapon.bore) == 1.0
+    assert zero_range(weapon, weapon.bore) < 2.0
 
 
 def test_direct_fire_entries_without_a_bore_are_the_documented_ones():

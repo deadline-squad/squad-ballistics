@@ -8,13 +8,9 @@ import pytest
 
 import gamesettings
 from gamesettings import (
-    FULLSCREEN,
-    WINDOWED,
-    WINDOWED_FULLSCREEN,
     GameSettings,
     find_game_settings,
     read_game_settings,
-    screen_mismatch,
     steam_libraries,
 )
 
@@ -43,19 +39,13 @@ def prefix_settings_path(library, platform="WindowsNoEditor"):
 # ---------- reading the file ----------
 
 def test_values_are_read_from_a_game_user_settings_section(tmp_path):
-    settings = settings_in(
-        tmp_path,
-        "FOV=105.000000\nResolutionSizeX=2560\nResolutionSizeY=1440\nFullscreenMode=1"
-    )
+    settings = settings_in(tmp_path, "FOV=105.000000\nResolutionSizeX=2560\nFullscreenMode=1")
 
-    assert settings == GameSettings(105.0, 2560, 1440, WINDOWED_FULLSCREEN)
+    assert settings == GameSettings(105.0)
 
 
 def test_keys_match_in_any_case_and_around_spaces(tmp_path):
-    settings = settings_in(tmp_path, "  fov = 100 \nRESOLUTIONSIZEX=1920\nresolutionsizey=1080\n")
-
-    assert settings.fov == 100.0
-    assert (settings.width, settings.height) == (1920, 1080)
+    assert settings_in(tmp_path, "  fov = 100 \n").fov == 100.0
 
 
 def test_the_section_name_only_has_to_hold_game_user_settings(tmp_path):
@@ -70,7 +60,7 @@ def test_a_fov_in_another_section_is_ignored(tmp_path):
 def test_a_fov_after_another_section_starts_is_not_taken_from_the_first(tmp_path):
     path = write_ini(
         tmp_path / "GameUserSettings.ini",
-        f"{SECTION}\nResolutionSizeX=1920\n[/Script/Squad.Other]\nFOV=70\n"
+        f"{SECTION}\nBrightness=1\n[/Script/Squad.Other]\nFOV=70\n"
     )
 
     assert read_game_settings(path).fov is None
@@ -94,11 +84,8 @@ def test_a_byte_order_mark_does_not_hide_the_first_section(tmp_path):
 
 
 @pytest.mark.parametrize("value", ["", "abc", "nan", "inf", "-inf", "1e999x", "90,5"])
-def test_a_malformed_fov_is_not_found_and_the_rest_is_kept(tmp_path, value):
-    settings = settings_in(tmp_path, f"FOV={value}\nResolutionSizeX=1920\nResolutionSizeY=1080")
-
-    assert settings.fov is None
-    assert settings.width == 1920
+def test_a_malformed_fov_is_not_found(tmp_path, value):
+    assert settings_in(tmp_path, f"FOV={value}").fov is None
 
 
 @pytest.mark.parametrize("value", ["0", "-90", "30", "59.9", "120.1", "360", "1e9"])
@@ -109,24 +96,6 @@ def test_a_fov_outside_the_games_range_is_not_found(tmp_path, value):
 @pytest.mark.parametrize("value", ["60", "90", "120"])
 def test_the_ends_of_the_games_fov_range_are_accepted(tmp_path, value):
     assert settings_in(tmp_path, f"FOV={value}").fov == float(value)
-
-
-@pytest.mark.parametrize("body", [
-    "ResolutionSizeX=1920",
-    "ResolutionSizeX=1920\nResolutionSizeY=0",
-    "ResolutionSizeX=-1920\nResolutionSizeY=1080",
-    "ResolutionSizeX=wide\nResolutionSizeY=1080",
-    "ResolutionSizeX=1920.5\nResolutionSizeY=1080",
-])
-def test_a_resolution_needs_two_positive_whole_numbers(tmp_path, body):
-    settings = settings_in(tmp_path, body)
-
-    assert settings.width is None and settings.height is None
-
-
-@pytest.mark.parametrize("value", ["3", "-1", "x", ""])
-def test_an_unknown_window_mode_is_not_found(tmp_path, value):
-    assert settings_in(tmp_path, f"FullscreenMode={value}").window_mode is None
 
 
 def test_a_file_without_the_values_gives_an_empty_result(tmp_path):
@@ -219,29 +188,3 @@ def test_a_steam_folder_reached_by_a_symlink_is_listed_once(tmp_path, monkeypatc
     monkeypatch.setattr(gamesettings, "STEAM_ROOTS", ("~/.local/share/Steam", "~/.steam/steam"))
 
     assert gamesettings.steam_roots() == [str(real)]
-
-
-# ---------- the game does not fill the screen ----------
-
-def test_windowed_fullscreen_fills_the_screen_whatever_resolution_is_saved():
-    settings = GameSettings(120.0, 1280, 720, WINDOWED_FULLSCREEN)
-
-    assert not screen_mismatch(settings, 1920, 1080)
-
-
-def test_a_windowed_game_does_not_fill_the_screen():
-    assert screen_mismatch(GameSettings(120.0, 1920, 1080, WINDOWED), 1920, 1080)
-
-
-def test_a_fullscreen_game_at_another_resolution_does_not_fill_the_screen():
-    assert screen_mismatch(GameSettings(120.0, 1280, 720, FULLSCREEN), 1920, 1080)
-    assert not screen_mismatch(GameSettings(120.0, 1920, 1080, FULLSCREEN), 1920, 1080)
-
-
-def test_without_a_window_mode_only_the_resolution_decides():
-    assert screen_mismatch(GameSettings(120.0, 1280, 720, None), 1920, 1080)
-    assert not screen_mismatch(GameSettings(120.0, 1920, 1080, None), 1920, 1080)
-
-
-def test_a_file_without_resolution_or_mode_raises_no_warning():
-    assert not screen_mismatch(GameSettings(120.0), 1920, 1080)

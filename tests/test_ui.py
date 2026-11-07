@@ -1409,7 +1409,7 @@ def test_mortar_calibration_reads_the_sight(window, monkeypatch, tmp_path):
     assert window.config["lay_rates"][MORTAR] == pytest.approx(8.5, abs=0.01)
 
 
-LONGEST_NAME = "Tank HEAT/HE · M256 / Rh120 / 2A46 / ZPT98 / 2A20 / M68A2"
+LONGEST_NAME = "SPG-9 · HEAT · INS armoured technical · optic (RMB ×4)"
 
 
 def show_at(window, width, height):
@@ -2416,14 +2416,12 @@ def test_other_screens_are_not_16_9(width, height):
     assert not is_16_9(width, height)
 
 
-def test_a_non_16_9_screen_is_reported_once(window, caplog):
+def test_a_non_16_9_screen_is_reported_once_per_size(window, caplog):
     window.screen_ratio_text = ""
     window.overlay.setGeometry(0, 0, 1920, 1200)
 
     with caplog.at_level("WARNING", logger="squad_ballistics"):
         window.check_screen_ratio()
-        window.check_screen_ratio()
-        window.overlay.setGeometry(0, 0, 2560, 1080)
         window.check_screen_ratio()
 
     assert window.screen_ratio_text == tr("screen_not_16_9", size="1920x1200")
@@ -2431,6 +2429,22 @@ def test_a_non_16_9_screen_is_reported_once(window, caplog):
     assert window.screen_ratio_label.text() == window.screen_ratio_text
     assert not window.screen_ratio_label.isHidden()
     assert [r.getMessage() for r in caplog.records] == [window.screen_ratio_text]
+
+
+def test_the_message_follows_the_size_of_the_area_the_overlay_covers(window):
+    window.screen_ratio_text = ""
+    window.overlay.setGeometry(0, 0, 1920, 1200)
+    window.check_screen_ratio()
+
+    window.overlay.setGeometry(0, 0, 2560, 1080)
+    window.check_screen_ratio()
+    assert window.screen_ratio_text == tr("screen_not_16_9", size="2560x1080")
+    assert window.screen_ratio_label.text() == window.screen_ratio_text
+
+    window.overlay.setGeometry(0, 0, 1920, 1080)
+    window.check_screen_ratio()
+    assert window.screen_ratio_text == ""
+    assert window.screen_ratio_label.isHidden()
 
 
 def test_a_16_9_screen_shows_no_message(window, caplog):

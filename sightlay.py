@@ -209,15 +209,15 @@ class Sight:
 
 
 class ScreenSight:
-    """Grabs the scale region of the overlay's screen around the screen
-    centre (not the aligned crosshair)."""
+    """Grabs the scale region of the picture the overlay covers (the game's
+    window, or the screen) around its centre (not the aligned crosshair)."""
 
     def __init__(self, overlay):
         self.overlay = overlay
 
     def region(self):
-        """(left, top, right, bottom) of the grab in the screen's logical
-        pixels, or None.
+        """(left, top, right, bottom) of the grab in the logical pixels of the
+        overlay (the game's window or the screen), or None.
 
         The game draws the sight at the screen's centre, wherever the
         overlay's crosshair has been aligned (`center_offset_x`/`_y` move
@@ -246,7 +246,10 @@ class ScreenSight:
             return None
 
         left, top, right, bottom = region
-        image = screen.grabWindow(0, left, top, right - left, bottom - top).toImage()
+        origin_x, origin_y = self.overlay.origin_on_screen()
+        image = screen.grabWindow(
+            0, origin_x + left, origin_y + top, right - left, bottom - top
+        ).toImage()
 
         if image.isNull() or image.width() == 0:
             return None
@@ -301,7 +304,10 @@ class ScreenSight:
             return None
 
         left, top, right, bottom = region
-        image = screen.grabWindow(0, left, top, right - left, bottom - top).toImage()
+        origin_x, origin_y = self.overlay.origin_on_screen()
+        image = screen.grabWindow(
+            0, origin_x + left, origin_y + top, right - left, bottom - top
+        ).toImage()
 
         if image.isNull() or image.width() == 0:
             return None

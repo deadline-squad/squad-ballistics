@@ -25,16 +25,14 @@ STRINGS = {
     "fov_hint": "horizontal FOV",
     "fov_from_game": "FOV {fov}, from the game",
     "fov_not_from_game": (
-        "Not from the game: its settings file or the FOV in it was not found. "
-        "Type the FOV you play with."
+        "FOV assumed: the game's settings file or the FOV in it was not "
+        "found. Type the FOV you play with; the marks are only as exact as "
+        "it is."
     ),
-    "game_windowed": (
-        "The game runs in a window, so the marks land off. Play in full "
-        "screen or windowed fullscreen."
-    ),
-    "game_resolution": (
-        "The game resolution {game} differs from the screen {screen}, so the "
-        "marks land off. Set the game to the screen's resolution."
+    "info_fov_assumed": "FOV {fov} assumed",
+    "info_printed_reticle": (
+        "Put this mark on the target, not the game's printed range marks "
+        "(they fit only at FOV 90)"
     ),
     "info_lift": "aim {lift} m",
     "info_pixel": "1 px = {m} m",
@@ -369,9 +367,9 @@ STRINGS = {
     "web_open": "Open in browser",
 
     "screen_not_16_9": (
-        "Screen {size} is not 16:9. Reading the mortar sight and the compass "
-        "off the screen works on 16:9 screens only (1920x1080, 2560x1440); "
-        "it may fail here."
+        "The game's screen or window {size} is not 16:9. Reading the mortar "
+        "sight and the compass off the screen works on 16:9 only (1920x1080, "
+        "2560x1440); it may fail here."
     ),
 }
 

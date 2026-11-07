@@ -1,6 +1,10 @@
-"""The overlay: a transparent full-screen window over the game that draws
-the aim mark, the range ladder and an info line, and lets every click
-through.
+"""The overlay: a transparent window over the game that draws the aim mark,
+the range ladder and an info line, and lets every click through.
+
+It covers the game's own window while one is found (`gamewindow`): the mark
+is laid for the width of the picture the game draws, and the overlay follows
+the window when it moves or is resized. Without one it covers the configured
+monitor.
 
 It needs translucent windows. On X11 those are blended only by a
 compositing manager; without one the window is opaque black, so the overlay
@@ -9,8 +13,8 @@ stop while the overlay is up (KWin suspends it for a fullscreen game that
 asks to block it), so `X11CompositorWatch` follows it: the overlay hides
 when it stops and comes back when it starts again. It follows the screen
 it is on: a resolution change or a monitor plugged in or out puts it back
-over the configured monitor and emits `screen_changed`, so the mark and the
-ladder can be recomputed for the new size.
+over the game's window or the configured monitor and emits `screen_changed`,
+so the mark and the ladder can be recomputed for the new size.
 """
 
 import ctypes
@@ -22,6 +26,7 @@ from PyQt6.QtCore import (
     Qt,
     QObject,
     QPointF,
+    QRect,
     QRectF,
     QSocketNotifier,
     QTimer,
@@ -41,6 +46,7 @@ from PyQt6.QtGui import (
 
 from PyQt6.QtWidgets import QMessageBox, QWidget
 
+from gamewindow import GameWindowWatch
 from i18n import tr
 
 
@@ -317,14 +323,16 @@ def compositor_advice(environ=None):
 
 
 class Overlay(QWidget):
-    """The full-screen overlay window over the configured monitor.
+    """The overlay window over the game's window, or over the configured
+    monitor while the game's window is not found.
 
     `config` is the app's settings dict, kept by reference: the mark's
     style, colour, size and alignment and the monitor are read from it on
     every paint.
     """
 
-    # The overlay moved to another screen or its screen changed size.
+    # The overlay moved to another screen or its screen changed size, or
+    # the game's window it covers appeared, moved, was resized or closed.
     screen_changed = pyqtSignal()
 
     def __init__(self, config):
@@ -347,6 +355,18 @@ class Overlay(QWidget):
 
         if self.compositor_watch is not None:
             self.compositor_watch.changed.connect(self.compositing_changed)
+
+        # The game's window as a QRect (None while it is not found), from the
+        # X11 watch below.
+        self.game_rect = None
+
+        self.game_window_watch = None
+
+        if QGuiApplication.platformName() == "xcb":
+            self.game_window_watch = GameWindowWatch.start(self)
+
+        if self.game_window_watch is not None:
+            self.game_window_watch.changed.connect(self.follow_game_window)
 
         # Screen changes arrive as several signals at once (a monitor
         # unplugged also resizes the virtual desktop); they are handled
@@ -395,6 +415,9 @@ class Overlay(QWidget):
             self.watch_screen(screen)
 
         self.move_to_screen()
+
+        if self.game_window_watch is not None:
+            self.game_window_watch.poll()
 
         self.show()
 
@@ -448,12 +471,15 @@ class Overlay(QWidget):
     def closeEvent(self, event):
         """Close the compositor warning with the overlay: a window left
         open would keep the app running after the main window closed. The
-        compositor is no longer watched."""
+        compositor and the game's window are no longer watched."""
         if self.compositor_warning is not None:
             self.compositor_warning.close()
 
         if self.compositor_watch is not None:
             self.compositor_watch.stop()
+
+        if self.game_window_watch is not None:
+            self.game_window_watch.stop()
 
         super().closeEvent(event)
 
@@ -466,11 +492,21 @@ class Overlay(QWidget):
         self.screen_timer.start()
 
     def follow_screens(self):
-        """Put the overlay back over the configured monitor and tell the
-        owner, who recomputes the mark and the ladder for the new size."""
+        """Put the overlay back over the game's window or the configured
+        monitor and tell the owner, who recomputes the mark and the ladder
+        for the new size."""
         self.move_to_screen()
 
         self.screen_changed.emit()
+
+    def follow_game_window(self, rect):
+        """Cover the game's window `rect` ((x, y, width, height) in screen
+        coordinates, as `GameWindowWatch` reports it) from now on; None when
+        the window is gone, which puts the overlay back over the configured
+        monitor. The monitor setting is not changed."""
+        self.game_rect = None if rect is None else QRect(*rect)
+
+        self.follow_screens()
 
     def target_screen(self):
         """The screen of the configured monitor index; the primary screen
@@ -485,10 +521,18 @@ class Overlay(QWidget):
         return QGuiApplication.primaryScreen()
 
     def move_to_screen(self):
-        """Cover the configured monitor (see `target_screen`)."""
-        self.setGeometry(self.target_screen().geometry())
+        """Cover the game's window, or the configured monitor (see
+        `target_screen`) while there is none."""
+        self.setGeometry(self.game_rect or self.target_screen().geometry())
 
         self.update()
+
+    def origin_on_screen(self):
+        """(x, y) of the overlay's top left corner from the top left corner
+        of the screen it is on, the origin `QScreen.grabWindow` counts from."""
+        corner = self.geometry().topLeft() - self.screen().geometry().topLeft()
+
+        return corner.x(), corner.y()
 
     @property
     def center_x(self):
@@ -504,7 +548,8 @@ class Overlay(QWidget):
     EDGE_MARGIN = 20
 
     def screen_width(self):
-        """Width of the covered screen in pixels, which the FOV spans."""
+        """Width in pixels of the picture the overlay covers (the game's
+        window, or the monitor), which the FOV spans."""
         return self.width()
 
     def is_offscreen(self, offset):

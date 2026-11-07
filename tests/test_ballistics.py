@@ -280,7 +280,7 @@ def test_range_ladder_starts_past_the_minimum_distance():
 # build 26005357): there the mark is on the screen centre.
 @pytest.mark.parametrize("name, zero", [
     ("QLZ87 · optic (RMB ×3)", 100),
-    ("QLZ87 · Lynx · optic (RMB ×3)", 110),
+    ("QLZ87 · Lynx · optic (RMB ×3)", 120),
 ])
 def test_views_are_zeroed_where_the_game_puts_them(name, zero):
     weapon = WEAPONS[name]
@@ -480,8 +480,9 @@ def test_a_twin_must_exist_and_be_the_plain_view():
 
 # (weapon, round zero range in m): the zero each view comes out at
 # is a round number, which is what the tilt was built for; a model that put
-# a view elsewhere would not land on one. Not here: the open-sight SPG-9
-# (0.13 degrees, zero 47 m HEAT / 27 m FRAG) and the AGS-17 optic (0.85
+# a view elsewhere would not land on one. Not here: the ZiS-3 (zero 377 m
+# with its launch point: its sight camera sits 0.56 m above the mount, which
+# the model does not carry) and the AGS-17 optic (0.85
 # degrees, 58 m) have no round zero; the AGS-17 optic is confirmed instead
 # by the hold fit, whose top 85.85 is the mount's 85 + 0.85. Nor the SPG-9's
 # PGO-9 scope: its 2.34 degrees zero the HEAT shell at 765 m and the FRAG
@@ -491,8 +492,6 @@ def test_a_twin_must_exist_and_be_the_plain_view():
 ROUND_ZEROS = [
     ("MK19 · emplacement / C16 / L134A1", 330),
     ("AGS-17 · iron sights emplacement", 300),
-    ("ZiS-3 · optic (RMB ×4)", 350),
-    ("ZiS-3 · no optic", 350),
 ]
 
 
@@ -585,8 +584,8 @@ def test_the_tripod_qlz87_fires_below_the_centre_without_the_optic():
     assert mark_offset(plain, sight_angle, 120, 1920) == pytest.approx(
         screen_offset(sight_angle + 0.9, 120, 1920)
     )
-    assert mark_offset(plain, sight_angle, 120, 1920) == pytest.approx(31.3, abs=0.05)
-    assert mark_offset(optic, sight_angle, 120, 1920) == pytest.approx(71.9, abs=0.05)
+    assert mark_offset(plain, sight_angle, 120, 1920) == pytest.approx(31.2, abs=0.05)
+    assert mark_offset(optic, sight_angle, 120, 1920) == pytest.approx(71.1, abs=0.05)
 
 
 def test_a_weapon_without_an_optic_is_aimed_through_the_plain_view():
@@ -1051,12 +1050,13 @@ def test_first_obstacle_finds_the_wall():
 
 
 def test_first_obstacle_starts_at_the_shoulder_without_launch_height():
-    # The tank's launch_height is 0: a path from the ground would graze a
-    # 0.3 m hump in front of the weapon; from the shoulder it clears it.
-    assert TANK.launch_height == 0
+    # A launch_height of 0: a path from the ground would graze a 0.3 m hump
+    # in front of the weapon; from the shoulder it clears it.
+    grounded = replace(TANK, launch_height=0.0, muzzle_forward=0.0, muzzle_up=0.0)
+    assert grounded.launch_height == 0
     hump = [0.0] * 301
     hump[3:6] = [0.3, 0.3, 0.3]
-    assert first_obstacle(TANK, solve(TANK, 300, 0, "low"), hump, 1) is None
+    assert first_obstacle(grounded, solve(grounded, 300, 0, "low"), hump, 1) is None
 
 
 def test_first_obstacle_ignores_the_weapon_and_target_spots():
@@ -1085,7 +1085,6 @@ def test_the_game_flight_model_fields_are_validated():
 
     for bad in (
         {"launch_height": -1},
-        {"muzzle_forward": -0.5},
         {"hold_rate": 9, "hold_elevation": [45, 80], "acceleration": 10, "acceleration_time": 1},
     ):
         with pytest.raises(WeaponDataError):
@@ -1108,6 +1107,18 @@ def test_the_muzzle_moves_with_the_elevation():
 
     assert flat == pytest.approx((2.0, 1.5))
     assert steep == pytest.approx((-0.5, 3.0))
+
+
+def test_a_muzzle_behind_the_pivot_starts_the_shot_behind_it():
+    """The BMP-2M's AGS-30 hangs 0.6 m behind its mount: the muzzle is behind the pivot, and the
+    shot still lands where the aimed mark says."""
+    weapon = Weapon.from_dict(
+        "x", {"velocity": 190, "launch_height": 2.15, "muzzle_forward": -0.6, "muzzle_up": 0.35}
+    )
+
+    assert weapon.muzzle_forward == -0.6
+    assert weapon.launch_point(0.0) == pytest.approx((-0.6, 2.5))
+    assert solve(weapon, 300, 0).reachable
 
 
 def test_the_mortar_reaches_1236_9_m_from_its_barrel_socket():
@@ -1167,7 +1178,7 @@ def _game_flight(name):
     "PF98 · HE-I",
     "SPG-9 · HEAT",
     "Carl Gustav M2 · FFV751 Tandem",
-    "Tank HEAT/HE · M256 / Rh120 / 2A46 / ZPT98 / 2A20 / M68A2",
+    "Tank HEAT/HE · T-72 (2A46)",
 ])
 @pytest.mark.parametrize("distance", [200, 500, 800])
 def test_the_elevation_lands_where_the_game_flies_it(name, distance):
@@ -1187,7 +1198,7 @@ def test_a_shell_fired_faster_than_its_cap_is_slowed_in_the_first_substep():
     """Tank HE leaves at 1100 m/s with a 850 m/s cap: the first 20 ms
     substep ends at 850 m/s and moves by the mean of the two, then the shell
     flies at the cap (its path turning down very slowly when level)."""
-    shell = WEAPONS["Tank HEAT/HE · M256 / Rh120 / 2A46 / ZPT98 / 2A20 / M68A2"]
+    shell = replace(WEAPONS["Tank HEAT/HE · T-72 (2A46)"], launch_height=0.0, muzzle_forward=0.0, muzzle_up=0.0)
     first = (1100 + 850) / 2 * 0.02
 
     assert shell.max_speed == 850

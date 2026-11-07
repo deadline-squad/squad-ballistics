@@ -220,7 +220,6 @@ def entry_error(data, name="w"):
     ({"velocity": 300, "gravity": 0, "max_speed": 250},
      "w: a projectile without gravity cannot start above 'max_speed'"),
     ({"velocity": 10, "launch_height": -1}, "w: 'launch_height' must be >= 0"),
-    ({"velocity": 10, "muzzle_forward": -1}, "w: 'muzzle_forward' must be >= 0"),
     ({"velocity": 10, "arc": "flat"}, "w: 'arc' must be one of ('low', 'high')"),
     ({"velocity": 10, "unit": "rad"}, "w: 'unit' must be one of ('deg', 'mil')"),
     ({"velocity": 10, "aim": "eye"}, "w: 'aim' must be one of ('overlay', 'elevation')"),

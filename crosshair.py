@@ -69,7 +69,7 @@ from config import (
     save_config,
 )
 
-from gamesettings import WINDOWED, find_game_settings, read_game_settings, screen_mismatch
+from gamesettings import find_game_settings, read_game_settings
 
 from holdtimer import HoldTimer
 
@@ -146,6 +146,24 @@ HINT_SEPARATOR = NBSP * 3 + "·   "
 
 # The settings that align the mark with the in-game sight.
 ALIGNMENT_KEYS = ("center_offset_x", "center_offset_y", "offset_scale")
+
+# The FOV (degrees) the game's printed sight reticles are drawn for: they are
+# fixed-size pictures, so they agree with the overlay's marks only there
+# (docs/sight-data.md, "Reticle marks of the game sights").
+PRINTED_RETICLE_FOV = 90.0
+
+# weapons.json categories whose sights print a reticle without a zoom entry:
+# the handheld launchers and the tank guns.
+PRINTED_RETICLE_CATEGORIES = frozenset({"launchers", "tanks"})
+
+
+def has_printed_reticle(weapon):
+    """Whether the game prints a range reticle on the sight `weapon` is
+    aimed through: a zoomed sight or scope (the optics of the emplaced and
+    vehicle weapons, the gunner sights) and the launchers and tank guns
+    with their own. weapons.json holds no flag for it, so it is judged by
+    the view and the category."""
+    return bool(weapon.zoom) or weapon.category in PRINTED_RETICLE_CATEGORIES
 
 
 def scrolled(widget, width=None):
@@ -228,13 +246,13 @@ class MainWindow(QMainWindow):
             self.config
         )
 
-        # A resolution change or a monitor plugged in or out moves the
-        # overlay: the mark and the ladder follow the new screen size.
+        # A resolution change, a monitor plugged in or out, or the game's
+        # window moved or resized moves the overlay: the mark and the ladder
+        # follow the new size.
         self.overlay.screen_changed.connect(self.recalculate_if_ready)
         self.overlay.screen_changed.connect(self.check_screen_ratio)
-        self.overlay.screen_changed.connect(self.show_game_screen)
 
-        # Set once per session when the screen is not 16:9 (see
+        # Set while the area the overlay covers is not 16:9 (see
         # `check_screen_ratio`); shown on the calculator page.
         self.screen_ratio_text = ""
 
@@ -638,12 +656,6 @@ class MainWindow(QMainWindow):
 
         self.fov_source_label.setWordWrap(True)
 
-        self.game_screen_label = label("", "small")
-
-        self.game_screen_label.setWordWrap(True)
-
-        self.game_screen_label.setProperty("state", "error")
-
         for caption, entry in (
             (tr("distance"), self.distance_entry),
             (tr("height"), self.height_entry),
@@ -665,11 +677,7 @@ class MainWindow(QMainWindow):
             if entry is self.fov_entry:
                 layout.addWidget(self.fov_source_label)
 
-        layout.addWidget(self.game_screen_label)
-
         self.show_fov_source()
-
-        self.show_game_screen()
 
         self.map_label = label("", "small")
 
@@ -1039,10 +1047,15 @@ class MainWindow(QMainWindow):
 
         self.map_label.setText(text)
 
+    def fov_from_game(self):
+        """Whether the game's settings file gives the FOV, so the marks are
+        laid for the FOV the game renders with and not for a guess."""
+        return self.game_settings is not None and self.game_settings.fov is not None
+
     def active_fov(self):
         """The FOV (degrees) every mark is laid for: the game's own while its
         settings give one, else the one typed in the app."""
-        if self.game_settings is not None and self.game_settings.fov is not None:
+        if self.fov_from_game():
             return self.game_settings.fov
 
         return self.config["fov"]
@@ -1063,7 +1076,7 @@ class MainWindow(QMainWindow):
 
     def watch_game_settings(self):
         """Follow the game's settings file: when it appeared, went or was
-        rewritten, read it and lay the marks for the new FOV and screen."""
+        rewritten, read it and lay the marks for the new FOV."""
         old = self.game_settings_stamp
 
         path = find_game_settings()
@@ -1080,15 +1093,13 @@ class MainWindow(QMainWindow):
 
         self.show_fov_source()
 
-        self.show_game_screen()
-
         self.recalculate_if_ready()
 
     def show_fov_source(self):
         """Show where the FOV comes from. Taken from the game, the field
         shows it and cannot be edited; otherwise it holds the typed FOV and
         the text says it is not the game's."""
-        from_game = self.game_settings is not None and self.game_settings.fov is not None
+        from_game = self.fov_from_game()
 
         self.fov_entry.setEnabled(not from_game)
 
@@ -1106,49 +1117,27 @@ class MainWindow(QMainWindow):
         self.fov_source_label.style().unpolish(self.fov_source_label)
         self.fov_source_label.style().polish(self.fov_source_label)
 
-    def show_game_screen(self):
-        """Warn when the game does not fill the overlay's screen, which
-        puts every mark off (gamesettings.screen_mismatch)."""
-        settings = self.game_settings
-        width, height = self.overlay.width(), self.overlay.height()
-
-        if settings is None or not screen_mismatch(settings, width, height):
-            self.game_screen_label.setVisible(False)
-            return
-
-        if settings.window_mode == WINDOWED:
-            text = tr("game_windowed")
-        else:
-            text = tr(
-                "game_resolution",
-                game=f"{settings.width}x{settings.height}",
-                screen=f"{width}x{height}"
-            )
-
-        self.game_screen_label.setText(text)
-
-        self.game_screen_label.setVisible(True)
-
     def check_screen_ratio(self):
-        """Tell once per session that the overlay's screen is not 16:9: the
-        calculator page shows the text and the log gets a warning line. The
-        check runs at the start and when the screen changes; after the first
-        warning it does nothing."""
-        if self.screen_ratio_text:
-            return
-
+        """Warn while the area the overlay covers (the game's window, or the
+        monitor) is not 16:9: the calculator page shows the text and the log
+        gets a warning line, once for each size. The check runs at the start
+        and whenever the overlay's area changes; the text goes when the area
+        is 16:9 again."""
         width, height = self.overlay.width(), self.overlay.height()
 
-        if is_16_9(width, height):
+        text = "" if is_16_9(width, height) else tr("screen_not_16_9", size=f"{width}x{height}")
+
+        if text == self.screen_ratio_text:
             return
 
-        self.screen_ratio_text = tr("screen_not_16_9", size=f"{width}x{height}")
+        self.screen_ratio_text = text
 
-        LOG.warning(self.screen_ratio_text)
+        if text:
+            LOG.warning(text)
 
-        self.screen_ratio_label.setText(self.screen_ratio_text)
+        self.screen_ratio_label.setText(text)
 
-        self.screen_ratio_label.setVisible(True)
+        self.screen_ratio_label.setVisible(bool(text))
 
     def recalculate_if_ready(self):
         """Solve again after the weapon, the FOV, the calibration or the
@@ -1767,10 +1756,34 @@ class MainWindow(QMainWindow):
 
         self.show_overlay_info()
 
+    def fov_notes(self):
+        """The notes about the FOV that go on the overlay's info line of the
+        selected weapon: that the FOV is a guess (not read from the game),
+        and, for a sight with a printed reticle at a FOV other than 90, to
+        aim with the app's mark. Nothing for weapons laid by elevation."""
+        weapon = self.current_weapon()
+
+        if weapon is None or weapon.aim != "overlay":
+            return []
+
+        fov = self.active_fov()
+        notes = []
+
+        if not self.fov_from_game():
+            notes.append(tr("info_fov_assumed", fov=f"{fov:g}"))
+
+        if fov != PRINTED_RETICLE_FOV and has_printed_reticle(weapon):
+            notes.append(tr("info_printed_reticle"))
+
+        return notes
+
     def show_overlay_info(self):
-        """The overlay label: the solution, the bearing, the sight, and why
-        the auto-lay did not run or stopped short."""
-        parts = (self.info_base, self.bearing_info, self.sight_info, self.lay_info)
+        """The overlay label: the solution, the notes about the FOV, the
+        bearing, the sight, and why the auto-lay did not run or stopped
+        short. Without a solution there is nothing to label."""
+        fov_notes = self.fov_notes() if self.info_base else []
+
+        parts = [self.info_base, *fov_notes, self.bearing_info, self.sight_info, self.lay_info]
 
         self.overlay.set_info("  ·  ".join(part for part in parts if part))
 

@@ -85,10 +85,19 @@ degrees):
   relative transform. The socket is the weapon's ``BarrelSocketName`` on the weapon mesh,
   which sits at the mount's origin. The ground is where the vehicle's wheels touch it in the
   reference pose: the lowest ``wheel_<side><n>`` bone minus the ``WheelRadius`` of that wheel in
-  the vehicle config (the vehicle's suspension at rest and a track's thickness are not in the files).
-  A turret whose mesh has its root bone away from its origin (the Kozak-2M1's AGS-17) and a boat
-  (no wheels, floats on pontoons) are refused: their launch point is not in the files
-  (deadline-squad/squad-ballistics#12). A muzzle up to 35 cm beside the barrel's vertical plane
+  the vehicle config (the vehicle's suspension at rest and a track's thickness are not in the files);
+  a config may name its physics wheels ``simwheel_<side><n>`` after the mesh's ``wheel_<side><n>``.
+  An emplacement (tripod, the ZiS-3) is its own vehicle: its ground is the lowest point of the
+  ``ImportedBounds`` of its mesh. A turret or weapon mesh authored in vehicle space (its root bone
+  more than 50 cm from its origin: the ZSD-89 turret on the WZ551 and the ZSD-89, the ZBD-04A's
+  turret and gun) takes its root bone as its attachment, so the seat socket and the mount are
+  the socket plus the mount's place relative to the root; that is inferred from the authored place
+  (the ZBD-04A gun's root is exactly at the pivot), not read from a file. A boat (no wheels, floats on
+  pontoons) is refused: its launch point is not in the files. The M1117 has no entry in ``CARRIERS``
+  because its turret socket (0.71 m above the ground) and the hull's CROWS socket (2.63 m) disagree.
+  Where the vehicles of one entry stand at different heights the entry takes the middle of the
+  lowest and the highest (``launch.spread`` keeps the range) and tests/test_game_weapons_tool.py
+  fails when that moves a shot more than 10 m at 300 m: such an entry is split. A muzzle up to 40 cm beside the barrel's vertical plane
   and a mount leaning up to 2 degrees in the vehicle's reference pose (the M113's) are accepted and
   noted in ``sources.launch``; the pitch limits stay the mount's. ``elevation_limits`` of
   these weapons are the mount's pitch limits plus the socket's pitch (the barrel's pitch), or,
@@ -236,13 +245,13 @@ QLZ_WZ551 = (V + "WZ551/Turrets/QLZ87/BP_QLZ87_WZ551_OpenTop_Turret", V + "WZ551
 QLZ_ZBL08 = V + "ZBL08/Turrets/Cupola_QLZ87/BP_QLZ87_ZBL08_OpenTop_Turret"
 QLZ_ZBL08_WEAPON = V + "ZBL08/Turrets/Cupola_QLZ87/BP_QLZ87_Weapon_ZBL08"
 QLZ_BUNKER_TRIPOD = V + "Emplaced_QLZ87/BP_EmplacedQLZ87_Tripod_Bunker"
-T72_FAMILY = (  # (turret, AP, HEAT, Frag): the T-72A / T-72S / T-90A / Sprut beside the T-72B3
+T72_FAMILY = (  # (turret, AP, HEAT, Frag): the T-72A and T-72S beside the T-72B3, which share its launch point
     (V + "T72A/Turrets/BP_T72A_IMF_Turret", V + "T72A/Weapons/BP_2A46_T72A_AP", V + "T72A/Weapons/BP_2A46_T72A_HEAT", V + "T72A/Weapons/BP_2A46_T72A_Frag"),
     (V + "T72AV/Turrets/BP_T72S_GFI_Turret", V + "T72AV/Weapons/BP_2A46_T72S_AP", V + "T72AV/Weapons/BP_2A46_T72S_HEAT", V + "T72AV/Weapons/BP_2A46_T72S_Frag"),
-    (V + "T90A/Turrets/BP_T90A_Turret", V + "T90A/Weapons/BP_2A46M_AP", V + "T90A/Weapons/BP_2A46M_HEAT", V + "T90A/Weapons/BP_2A46M_Frag"),
-    (V + "Sprut-SDM1/Turrets/BP_Sprut_Turret", V + "Sprut-SDM1/Weapons/BP_2A45_AP", V + "Sprut-SDM1/Weapons/BP_2A45_HEAT", V + "Sprut-SDM1/Weapons/BP_2A45_Frag"),
 )
 T72B3 = V + "T72B3/Turrets/BP_T72B3_Turret"
+T90A = V + "T90A/Turrets/BP_T90A_Turret"
+T90A_DESERT = V + "T90A/Turrets/BP_T90A_Turret_Desert"
 M1A2 = V + "M1A2/Turrets/BP_M1A2_Turret"
 AUS_M1A1 = V + "AUS_M1A1/Turrets/BP_AUS_M1A1_Turret"
 LEOPARD = V + "Leopard2/Turrets/BP_2A6_Turret_Woodland"
@@ -353,6 +362,80 @@ def C16_MK19_SIGHT(level):
         seat=seat(V + "TAPV/BP_TAPV_C16", "bone_turretSocket"))
 
 
+# The vehicles that carry a turret (or the emplacement that is its own vehicle), for the entries whose
+# view does not name its : every vehicle Blueprint of the build whose seat config hangs the turret
+# on a socket of its mesh (SeatPawn + SeatAttachSocket), found in the dumps. The turrets a Blueprint of
+# several vehicles shares (the M1151's MK19, the Technical's SPG-9 and AGS-17) are not here: their
+# entries name the vehicles they cover. No entry for the M1117 (its turret socket and its sight mesh
+# disagree by 1.7 m), the RHIB (a boat) and the AGS-17 emplacements (the hold fit keeps their 1 m).
+CARRIERS = {
+    V + "AUS_M1A1/Turrets/BP_AUS_M1A1_Turret": (seat(V + "AUS_M1A1/BP_AUS_M1A1", "bone_turret"),),
+    V + "BMD-1M/Turrets/BP_BMD1M_Turret": (seat(V + "BMD-1M/BP_BMD1M", "bone_turret"),),
+    V + "BMD-1M/Turrets/BP_BMD1M_Turret_Desert": (seat(V + "BMD-1M/BP_BMD1M_Desert", "bone_turret"),),
+    V + "BMD-4M/Turrets/BP_BMD4M_Turret": (seat(V + "BMD-4M/BP_BMD4M", "bone_turretSocket"),),
+    V + "BMD-4M/Turrets/BP_BMD4M_Turret_Desert": (seat(V + "BMD-4M/BP_BMD4M_Desert", "bone_turretSocket"),),
+    V + "BMP-1/Turrets/BP_BMP1_Turret_GFI": (seat(V + "BMP-1/BP_BMP1_GFI", "bone_turret"),),
+    V + "BMP-1/Turrets/BP_BMP1_Turret_IMF": (seat(V + "BMP-1/BP_BMP1_MIL", "bone_turret"),),
+    V + "BMP-1/Turrets/BP_BMP1_Turret_MEI": (seat(V + "BMP-1/BP_BMP1_INS", "bone_turret"),),
+    V + "BMP-2M/Turrets/BP_BMP2M_Turret": (seat(V + "BMP-2M/BP_BMP2M", "bone_turret_bmp2"),),
+    V + "BMP-2M/Turrets/BP_BMP2M_Turret_Desert": (seat(V + "BMP-2M/BP_BMP2M_Desert", "bone_turret_bmp2"),),
+    V + "BMP-3M/Turrets/BP_BMP3M_Turret": (seat(V + "BMP-3M/BP_BMP3M", "bone_turret"),),
+    V + "BMP-3M/Turrets/BP_BMP3M_Turret_Desert": (seat(V + "BMP-3M/BP_BMP3M_Desert", "bone_turret"),),
+    V + "BMP1TS_AFU/Turrets/BP_BMP1TS_Turret": (seat(V + "BMP1TS_AFU/BP_BMP1TS_AFU", "bone_turret"),),
+    V + "BMP1_AFU/Turrets/BP_BMP1_Turret_AFU": (seat(V + "BMP1_AFU/BP_BMP1_AFU", "bone_turret"),),
+    V + "BTR4/Turrets/BP_BTR4_Turret": (seat(V + "BTR4/BP_BTR4_AFU", "bone_turret"),),
+    V + "CSK131/Weapons/BP_QLZ87_CSK_OpenTop_Turret": (seat(V + "CSK131/BP_CSK131_QLZ87", "bone_turret"),),
+    V + "FV4034/Turrets/BP_FV4034_Turret": (seat(V + "FV4034/BP_FV4034", "bone_turret"),),
+    V + "FV4034/Turrets/BP_FV4034_Turret_Woodland": (seat(V + "FV4034/BP_FV4034_Woodland", "bone_turret"),),
+    V + "Leopard2/Turrets/BP_2A6_Turret_Desert": (seat(V + "Leopard2/BP_2A6_Desert", "bone_turret"),),
+    V + "Leopard2/Turrets/BP_2A6_Turret_Desert_Cage": (seat(V + "Leopard2/BP_2A6_Desert_Cage", "bone_turret"),),
+    V + "Leopard2/Turrets/BP_2A6_Turret_Woodland": (seat(V + "Leopard2/BP_2A6_Woodland", "bone_turret"),),
+    V + "Leopard2/Turrets/BP_2A6_Turret_Woodland_Cage": (seat(V + "Leopard2/BP_2A6_Woodland_Cage", "bone_turret"),),
+    V + "Lynx_8x8/Weapons/BP_QLZ87_Lynx8x8_OpenTop_Turret": (seat(V + "Lynx_8x8/BP_LynxATV_Rollcage_QLZ87", "socket_turret"),),
+    V + "M1128_MGS/Turrets/BP_M1128_Turret": (seat(V + "M1128_MGS/BP_M1128", "socket_turret_mgs"),),
+    V + "M1128_MGS/Turrets/BP_M1128_Turret_Woodland": (seat(V + "M1128_MGS/BP_M1128_Woodland", "socket_turret_mgs"),),
+    V + "M1A1_USMC/Turrets/BP_M1A1_USMC_Turret": (seat(V + "M1A1_USMC/BP_M1A1_USMC", "bone_turret"),),
+    V + "M1A1_USMC/Turrets/BP_M1A1_USMC_Turret_Woodland": (seat(V + "M1A1_USMC/BP_M1A1_USMC_Woodland", "bone_turret"),),
+    V + "M1A2/Turrets/BP_M1A2_Turret": (seat(V + "M1A2/BP_M1A2", "bone_turret"),),
+    V + "M1A2/Turrets/BP_M1A2_Turret_Woodland": (seat(V + "M1A2/BP_M1A2_Woodland", "bone_turret"),),
+    V + "M60T/Turrets/BP_M60T_Turret": (seat(V + "M60T/BP_M60T", "bone_turret"),),
+    V + "M60T/Turrets/BP_M60T_Turret_Desert": (seat(V + "M60T/BP_M60T_Desert", "bone_turret"),),
+    V + "M60T_WPMC/Turrets/BP_M60T_Turret_WPMC": (seat(V + "M60T_WPMC/BP_M60T_WPMC", "bone_turret"),),
+    V + "Sprut-SDM1/Turrets/BP_Sprut_Turret": (seat(V + "Sprut-SDM1/BP_Sprut", "bone_turret"),),
+    V + "Sprut-SDM1/Turrets/BP_Sprut_Turret_Desert": (seat(V + "Sprut-SDM1/BP_Sprut_Desert", "bone_turret"),),
+    V + "T62/Turrets/BP_T62_IMF_Turret": (seat(V + "T62/BP_T62_MIL", "bone_turret"),),
+    V + "T62/Turrets/BP_T62_Turret": (seat(V + "T62/BP_T62", "bone_turret"),),
+    V + "T62/Turrets/BP_T62_Turret_GFI": (seat(V + "T62/BP_T62_GFI", "bone_turret"),),
+    V + "T64_BM2/Turrets/BP_T64BM2_Turret": (seat(V + "T64_BM2/BP_T64BM2", "bone_turret"),),
+    V + "T64_BM2/Turrets/BP_T64BM2_Turret_Cage": (seat(V + "T64_BM2/BP_T64BM2_Cage", "bone_turret"),),
+    V + "T72A/Turrets/BP_T72A_IMF_Turret": (seat(V + "T72A/BP_T72A_IMF", "bone_turret"),),
+    V + "T72AV/Turrets/BP_T72S_GFI_Turret": (seat(V + "T72AV/BP_T72S_GFI", "bone_turret"),),
+    V + "T72B3/Turrets/BP_T72B3_Turret": (seat(V + "T72B3/BP_T72B3", "bone_turret"),),
+    V + "T72B3/Turrets/BP_T72B3_Turret_Desert": (seat(V + "T72B3/BP_T72B3_Desert", "bone_turret"),),
+    V + "T90A/Turrets/BP_T90A_Turret": (seat(V + "T90A/BP_T90A", "bone_turret"),),
+    V + "T90A/Turrets/BP_T90A_Turret_Desert": (seat(V + "T90A/BP_T90A_Desert", "bone_turret"),),
+    V + "Technical2Seater/Turrets/BP_BMP1_Turret_Technical": (seat(V + "Technical2Seater/BP_Technical2Seater_White_BMP1", "socket_turret_bmp1"),),
+    V + "WZ551/Turrets/QLZ87/BP_QLZ87_WZ551_OpenTop_Turret": (seat(V + "WZ551/BP_WZ551B_QLZ-87", "bone_turret_openSocket"), seat(V + "WZ551/BP_WZ551B_QLZ-87_Desert", "bone_turret_openSocket"), seat(V + "ZSD89/BP_ZSD89_QLZ-87", "bone_turret"),),
+    V + "ZBD04A/Turrets/BP_ZBD04A_Turret": (seat(V + "ZBD04A/BP_ZBD04A", "bone_turret"),),
+    V + "ZBD04A/Turrets/BP_ZBD04A_Turret_Desert": (seat(V + "ZBD04A/BP_ZBD04A_Desert", "bone_turret"),),
+    V + "ZBL08/Turrets/Cupola_QLZ87/BP_QLZ87_ZBL08_OpenTop_Turret": (seat(V + "ZBL08/BP_ZSL10_QLZ-87", "bone_turret"),),
+    V + "ZTD05/Turrets/BP_ZTD05_Turret": (seat(V + "ZTD05/BP_ZTD05", "bone_turret"),),
+    V + "ZTD05/Turrets/BP_ZTD05_Turret_WoodLand": (seat(V + "ZTD05/BP_ZTD05_WoodLand", "bone_turret"),),
+    V + "ZTZ99/Turrets/BP_ZTZ99_Turret": (seat(V + "ZTZ99/BP_ZTZ99", "bone_turret"),),
+    V + "ZTZ99/Turrets/BP_ZTZ99_Turret_Cage": (seat(V + "ZTZ99/BP_ZTZ99_wCage", "bone_turret"),),
+    V + "ZTZ99/Turrets/BP_ZTZ99_Turret_Cage_Desert": (seat(V + "ZTZ99/BP_ZTZ99_Desert_wCage", "bone_turret"),),
+    # Emplacements stand on their own mesh: the mount is the vehicle, the ground the mesh's lowest point.
+    V + "Emplaced_Mk19/BP_EmplacedMk19_Tripod": (seat(V + "Emplaced_Mk19/BP_EmplacedMk19_Tripod", None),),
+    V + "Emplaced_Mk19/BP_EmplacedC16_Tripod": (seat(V + "Emplaced_Mk19/BP_EmplacedC16_Tripod", None),),
+    V + "Emplaced_Mk19/BP_EmplacedL134A1_Tripod": (seat(V + "Emplaced_Mk19/BP_EmplacedL134A1_Tripod", None),),
+    V + "Emplaced_QLZ87/BP_EmplacedQLZ87_Tripod": (seat(V + "Emplaced_QLZ87/BP_EmplacedQLZ87_Tripod", None),),
+    V + "Emplaced_QLZ87/BP_EmplacedQLZ87_Tripod_Bunker": (seat(V + "Emplaced_QLZ87/BP_EmplacedQLZ87_Tripod_Bunker", None),),
+    V + "Emplaced_SPG9/BP_EmplacedSPG9_Tripod": (seat(V + "Emplaced_SPG9/BP_EmplacedSPG9_Tripod", None),),
+    V + "Emplaced_SPG9/BP_EmplacedSPG9_TripodScope": (seat(V + "Emplaced_SPG9/BP_EmplacedSPG9_TripodScope", None),),
+    V + "Emplaced_ZiS3_Cannon/BP_ZiS3_Base": (seat(V + "Emplaced_ZiS3_Cannon/BP_ZiS3_Base", None),),
+}
+
+
 ENTRIES = {
     # Under-barrel and handheld grenade launchers and rockets: no mount.
     "M203 / M320 / GP-25 / HK79 / SL40": ([GL + "M4M203_UGL/BP_M4M203_UGL_Parent", GL + "M320/BP_M320_Parent", GL + "AK74GP25_UGL/BP_AK74GP25_UGL_Parent", GL + "G3A3HK79_UGL/BP_G3A3HK79_UGL_HE", GL + "EF88SL40_UGL/BP_EF88_SL40_UGL_Parent"], None),
@@ -361,7 +444,8 @@ ENTRIES = {
     "QLG10": ([GL + "QBZ-95-1_QLG-10_UGL/BP_QBZ95-1_QLG-10_UGL_Parent"], None),
     "Rifle grenade": ([GL + "FNFAL_GL/BP_FNFAL_GL_Frag", GL + "FNFAL_GL/BP_FNFAL_GL_HEAT"], None),
     # MK19 of the M1117's gunner sight (ZoomLevels [1, 4.5]); no launch point: the files hang its
-    # turret on a socket 1.2 m below the hull's turret bone, the CROWS mesh is at 2.6 m (#NN).
+    # turret on a socket 1.2 m below the hull's turret bone (0.71 m above the ground), the hull's
+    # CROWS socket is 2.63 m up.
     "MK19": ([V + "M1117/Weapons/BP_M1117_MK19", V + "RHIB/Weapons/BP_Mk19_RHIB_Weapon", V + "Emplaced_Mk19/BP_Mk19_OpenTurret_Weapon"],
              tank(V + "M1117/Turrets/BP_M1117_Turret")),
     "MK19 · AAVP-7A1": ([V + "AAVP7A1/Weapons/BP_AAVP7A1_MK19", V + "AAVP7A1/Weapons/BP_AAVP7A1_MK19_Woodland"], AAVP7A1_MK19_SIGHT(0)),
@@ -384,7 +468,7 @@ ENTRIES = {
     "AGS-17 · emplacement · no optic": ([V + "Emplaced_AGS-17/BP_AGS-17_Weapon_Optic"], view(AGS17_OPTIC_TRIPOD, TRIPOD_PLAIN, ("plain",))),
     "AGS-17 · iron sights emplacement": ([V + "Emplaced_AGS-17/BP_AGS-17_Weapon"], view(AGS17_TRIPOD, TRIPOD_PLAIN, ("plain",))),
     # AGS-17 on vehicles: the open-sight gun (socket 4.5 degrees up), the mount's pitch limits -13..85.
-    # The Kozak-2M1's and the RHIB's launch points are not in the files (#NN), so they have no entry.
+    # The Kozak-2M1's and the RHIB's launch points are not in the files, so they have no entry.
     "AGS-17 · Technical": ([AGS17 + "Weapons/AGS-17/BP_AGS-17_Technical_Weapon"],
                            AGS17_VIEW(V + "Technical/Turrets/BP_Technical_Turret_AGS17", V + "Technical2Seater/BP_Technical2Seater_White_AGS17", "socket_turret", also=(
                                (V + "Technical/Turrets/BP_Technical_Turret_AGS17", AGS17 + "Weapons/AGS-17/BP_AGS-17_Technical_Weapon", seat(V + "Technical2Seater/BP_Technical2Seater_Camo_AGS17", "socket_turret")),
@@ -457,13 +541,15 @@ ENTRIES = {
     "SPG-9 · HEAT · INS armoured technical · no optic": ([V + "Technical/Weapons/BP_SPG9"], SPG9_VIEW(OPEN_PLAIN, ("plain",), V + "Technical_Armoured/BP_Technical_SPG9_INS_Armoured")),
     "SPG-9 · FRAG · INS armoured technical · optic (RMB ×4)": ([V + "Technical/Weapons/BP_SPG9_Frag"], SPG9_VIEW(ADS, ("rmb",), V + "Technical_Armoured/BP_Technical_SPG9_INS_Armoured")),
     "SPG-9 · FRAG · INS armoured technical · no optic": ([V + "Technical/Weapons/BP_SPG9_Frag"], SPG9_VIEW(OPEN_PLAIN, ("plain",), V + "Technical_Armoured/BP_Technical_SPG9_INS_Armoured")),
-    # 2A28 Grom: BMP-1 (and the BMP-1 technical), BMD-1M.
-    "2A28 Grom (BMP-1 / BMD-1) · HEAT": ([V + "BMP-1/Weapons/BP_BMP1_2A28_HEAT", V + "BMD-1M/Weapons/BP_BMD1M_2A28_HEAT", V + "Technical2Seater/Weapons/BP_Technical_BMP1_2A28_HEAT"],
-                                         tank(V + "BMP-1/Turrets/BP_BMP1_Turret_MEI", also=((V + "Technical2Seater/Turrets/BP_BMP1_Turret_Technical", V + "Technical2Seater/Weapons/BP_Technical_BMP1_2A28_HEAT"),))),
+    # 2A28 Grom: BMP-1, the BMP-1 technical (its own launch point), BMD-1M.
+    "2A28 Grom (BMP-1 / BMD-1) · HEAT": ([V + "BMP-1/Weapons/BP_BMP1_2A28_HEAT", V + "BMD-1M/Weapons/BP_BMD1M_2A28_HEAT"],
+                                         tank(V + "BMP-1/Turrets/BP_BMP1_Turret_MEI")),
     "2A28 Grom (BMD-1M) · HEAT": ([V + "BMD-1M/Weapons/BP_BMD1M_2A28_HEAT"], tank(V + "BMD-1M/Turrets/BP_BMD1M_Turret")),
-    "2A28 Grom (BMP-1 / BMD-1) · FRAG": ([V + "BMP-1/Weapons/BP_BMP1_2A28_Frag", V + "BMD-1M/Weapons/BP_BMD1M_2A28_Frag", V + "Technical2Seater/Weapons/BP_Technical_BMP1_2A28_Frag"],
-                                         tank(V + "BMP-1/Turrets/BP_BMP1_Turret_MEI", also=((V + "Technical2Seater/Turrets/BP_BMP1_Turret_Technical", V + "Technical2Seater/Weapons/BP_Technical_BMP1_2A28_Frag"),))),
+    "2A28 Grom (BMP-1 / BMD-1) · FRAG": ([V + "BMP-1/Weapons/BP_BMP1_2A28_Frag", V + "BMD-1M/Weapons/BP_BMD1M_2A28_Frag"],
+                                         tank(V + "BMP-1/Turrets/BP_BMP1_Turret_MEI")),
     "2A28 Grom (BMD-1M) · FRAG": ([V + "BMD-1M/Weapons/BP_BMD1M_2A28_Frag"], tank(V + "BMD-1M/Turrets/BP_BMD1M_Turret")),
+    "2A28 Grom (BMP-1 technical) · HEAT": ([V + "Technical2Seater/Weapons/BP_Technical_BMP1_2A28_HEAT"], tank(V + "Technical2Seater/Turrets/BP_BMP1_Turret_Technical")),
+    "2A28 Grom (BMP-1 technical) · FRAG": ([V + "Technical2Seater/Weapons/BP_Technical_BMP1_2A28_Frag"], tank(V + "Technical2Seater/Turrets/BP_BMP1_Turret_Technical")),
     # 2A70 100mm: BMP-3M, ZBD-04A, BMD-4M.
     "2A70 100mm (BMP-3 / BMD-4 / ZBD04A) · FRAG": ([V + "BMP-3M/Weapons/BP_BMP3M_2A70_HEFrag", V + "BMD-4M/Weapons/BP_BMD4M_2A70_HEFrag", V + "ZBD04A/Weapons/BP_ZBD04A_2A70_HEFrag"], tank(V + "BMP-3M/Turrets/BP_BMP3M_Turret")),
     "2A70 100mm (ZBD-04A) · FRAG": ([V + "ZBD04A/Weapons/BP_ZBD04A_2A70_HEFrag"], tank(V + "ZBD04A/Turrets/BP_ZBD04A_Turret")),
@@ -471,9 +557,10 @@ ENTRIES = {
     # ZiS-3: RMB sight = ZoomLevels[1] (x4), normal view = ZoomLevels[0] (x1).
     "ZiS-3 · optic (RMB ×4)": ([V + "Emplaced_ZiS3_Cannon/Weapons/BP_ZiS3_Weapon_HEAT", V + "Emplaced_ZiS3_Cannon/Weapons/BP_ZiS3_Weapon_Frag"], view(ZIS3, ADS, ("levels", 1))),
     "ZiS-3 · no optic": ([V + "Emplaced_ZiS3_Cannon/Weapons/BP_ZiS3_Weapon_HEAT", V + "Emplaced_ZiS3_Cannon/Weapons/BP_ZiS3_Weapon_Frag"], view(ZIS3, TRIPOD_PLAIN, ("levels", 0))),
-    # Tanks, AP: the T-72B3 view also covers the T-72A, T-72S, T-90A and Sprut-SDM1.
-    "Tank AP · 2A46 / ZPT98 / 2A20 / 2A45 / KBA3": ([V + "T72B3/Weapons/BP_2A46_AP"] + [f[1] for f in T72_FAMILY] + [V + "ZTZ99/Weapons/BP_ZPT-98_AP", V + "T62/Weapons/BP_2A20_AP", V + "T64_BM2/Weapons/BP_KBA3_AP"],
-                                                    tank(T72B3, also=tuple((f[0], f[1]) for f in T72_FAMILY))),
+    # Tanks, AP: the T-72B3 view also covers the T-72A and T-72S (same launch point); the T-90A has its own entry.
+    "Tank AP · T-72 (2A46)": ([V + "T72B3/Weapons/BP_2A46_AP"] + [f[1] for f in T72_FAMILY],
+                              tank(T72B3, also=tuple((f[0], f[1]) for f in T72_FAMILY))),
+    "Tank AP · T-90A (2A46M)": ([V + "T90A/Weapons/BP_2A46M_AP"], tank(T90A, also=((T90A_DESERT, V + "T90A/Weapons/BP_2A46M_AP"),))),
     "Tank AP · T-62 (2A20)": ([V + "T62/Weapons/BP_2A20_AP"], tank(T62)),
     "Tank AP · T-64BM2 (KBA3)": ([V + "T64_BM2/Weapons/BP_KBA3_AP"], tank(T64)),
     "Tank AP · ZTZ-99 (ZPT-98)": ([V + "ZTZ99/Weapons/BP_ZPT-98_AP"], tank(ZTZ99, also=((ZTZ99_CAGE, V + "ZTZ99/Weapons/BP_ZPT-98_AP"),))),
@@ -484,11 +571,12 @@ ENTRIES = {
     "Tank AP · L30A1 (Challenger 2) / M68A2": ([V + "FV4034/Weapons/BP_L30A1_AP", V + "M1128_MGS/Weapons/BP_M68A2_AP"], tank(FV4034)),
     "Tank AP · M1128 MGS (M68A2)": ([V + "M1128_MGS/Weapons/BP_M68A2_AP"], tank(M1128)),
     # Tanks, HEAT and HE/Frag: the classes each view fires (the turret's inventory).
-    "Tank HEAT/HE · M256 / Rh120 / 2A46 / ZPT98 / 2A20 / M68A2": (
-        [V + "T72B3/Weapons/BP_2A46_HEAT", V + "T72B3/Weapons/BP_2A46_Frag"] + [c for f in T72_FAMILY for c in f[2:]]
-        + [V + "M1A2/Weapons/BP_M256A1_HEAT", V + "Leopard2/Weapons/BP_L55_HEAT", V + "ZTZ99/Weapons/BP_ZPT-98_HEAT", V + "ZTZ99/Weapons/BP_ZPT-98_HE",
-           V + "T62/Weapons/BP_2A20_HEAT", V + "T62/Weapons/BP_2A20_Frag", V + "M1128_MGS/Weapons/BP_M68A2_HEAT", V + "M60T/Weapons/BP_MG253_Frag"],
+    "Tank HEAT/HE · T-72 (2A46)": (
+        [V + "T72B3/Weapons/BP_2A46_HEAT", V + "T72B3/Weapons/BP_2A46_Frag"] + [c for f in T72_FAMILY for c in f[2:]],
         tank(T72B3, also=tuple((f[0], f[2]) for f in T72_FAMILY))),
+    "Tank HEAT/HE · T-90A (2A46M)": (
+        [V + "T90A/Weapons/BP_2A46M_HEAT", V + "T90A/Weapons/BP_2A46M_Frag"],
+        tank(T90A, also=((T90A_DESERT, V + "T90A/Weapons/BP_2A46M_HEAT"),))),
     "Tank HEAT/HE · M1A1 / M1A2 (M256)": ([V + "M1A2/Weapons/BP_M256A1_HEAT"], tank(M1A2, also=((AUS_M1A1, V + "M1A2/Weapons/BP_M256A1_HEAT"),))),
     "Tank HEAT/HE · Leopard 2A6 (Rh120)": ([V + "Leopard2/Weapons/BP_L55_HEAT"], tank(LEOPARD)),
     "Tank HEAT/HE · M1128 MGS (M68A2)": ([V + "M1128_MGS/Weapons/BP_M68A2_HEAT"], tank(M1128)),
@@ -558,6 +646,8 @@ ENTRIES = {
         ("BMP-1/Turrets/BP_BMP1_Turret_IMF", "BMP-1/Weapons/BP_BMP1_2A28_HEAT"),
         ("BMP-1/Turrets/BP_BMP1_Turret_MEI", "BMP-1/Weapons/BP_BMP1_2A28_HEAT"),
         ("BMP1_AFU/Turrets/BP_BMP1_Turret_AFU", "BMP-1/Weapons/BP_BMP1_2A28_HEAT"),
+    )),
+    "2A28 Grom (BMP-1 technical) · HEAT · gunner sight ×6": gunner_sights(1, (
         ("Technical2Seater/Turrets/BP_BMP1_Turret_Technical", "Technical2Seater/Weapons/BP_Technical_BMP1_2A28_HEAT"),
     )),
     "2A28 Grom (BMP-1) · FRAG · gunner sight ×6": gunner_sights(1, (
@@ -565,6 +655,8 @@ ENTRIES = {
         ("BMP-1/Turrets/BP_BMP1_Turret_IMF", "BMP-1/Weapons/BP_BMP1_2A28_Frag"),
         ("BMP-1/Turrets/BP_BMP1_Turret_MEI", "BMP-1/Weapons/BP_BMP1_2A28_Frag"),
         ("BMP1_AFU/Turrets/BP_BMP1_Turret_AFU", "BMP-1/Weapons/BP_BMP1_2A28_Frag"),
+    )),
+    "2A28 Grom (BMP-1 technical) · FRAG · gunner sight ×6": gunner_sights(1, (
         ("Technical2Seater/Turrets/BP_BMP1_Turret_Technical", "Technical2Seater/Weapons/BP_Technical_BMP1_2A28_Frag"),
     )),
     "AGS-30 (BMP-2M) · gunner sight ×6": gunner_sights(1, (
@@ -687,15 +779,13 @@ ENTRIES = {
         ("T64_BM2/Turrets/BP_T64BM2_Turret_Cage", "T64_BM2/Weapons/BP_KBA3_HEAT"),
         ("T64_BM2/Turrets/BP_T64BM2_Turret_Cage", "T64_BM2/Weapons/BP_KBA3_Frag"),
     )),
-    "Tank AP · T-72 / T-90 (2A46) · gunner sight ×12": gunner_sights(1, (
+    "Tank AP · T-72 (2A46) · gunner sight ×12": gunner_sights(1, (
         ("T72A/Turrets/BP_T72A_IMF_Turret", "T72A/Weapons/BP_2A46_T72A_AP"),
         ("T72AV/Turrets/BP_T72S_GFI_Turret", "T72AV/Weapons/BP_2A46_T72S_AP"),
         ("T72B3/Turrets/BP_T72B3_Turret", "T72B3/Weapons/BP_2A46_AP"),
         ("T72B3/Turrets/BP_T72B3_Turret_Desert", "T72B3/Weapons/BP_2A46_AP"),
-        ("T90A/Turrets/BP_T90A_Turret", "T90A/Weapons/BP_2A46M_AP"),
-        ("T90A/Turrets/BP_T90A_Turret_Desert", "T90A/Weapons/BP_2A46M_AP"),
     )),
-    "Tank HEAT/HE · T-72 / T-90 (2A46) · gunner sight ×12": gunner_sights(1, (
+    "Tank HEAT/HE · T-72 (2A46) · gunner sight ×12": gunner_sights(1, (
         ("T72A/Turrets/BP_T72A_IMF_Turret", "T72A/Weapons/BP_2A46_T72A_HEAT"),
         ("T72A/Turrets/BP_T72A_IMF_Turret", "T72A/Weapons/BP_2A46_T72A_Frag"),
         ("T72AV/Turrets/BP_T72S_GFI_Turret", "T72AV/Weapons/BP_2A46_T72S_HEAT"),
@@ -704,6 +794,12 @@ ENTRIES = {
         ("T72B3/Turrets/BP_T72B3_Turret", "T72B3/Weapons/BP_2A46_Frag"),
         ("T72B3/Turrets/BP_T72B3_Turret_Desert", "T72B3/Weapons/BP_2A46_HEAT"),
         ("T72B3/Turrets/BP_T72B3_Turret_Desert", "T72B3/Weapons/BP_2A46_Frag"),
+    )),
+    "Tank AP · T-90A (2A46M) · gunner sight ×12": gunner_sights(1, (
+        ("T90A/Turrets/BP_T90A_Turret", "T90A/Weapons/BP_2A46M_AP"),
+        ("T90A/Turrets/BP_T90A_Turret_Desert", "T90A/Weapons/BP_2A46M_AP"),
+    )),
+    "Tank HEAT/HE · T-90A (2A46M) · gunner sight ×12": gunner_sights(1, (
         ("T90A/Turrets/BP_T90A_Turret", "T90A/Weapons/BP_2A46M_HEAT"),
         ("T90A/Turrets/BP_T90A_Turret", "T90A/Weapons/BP_2A46M_Frag"),
         ("T90A/Turrets/BP_T90A_Turret_Desert", "T90A/Weapons/BP_2A46M_HEAT"),
@@ -1116,7 +1212,8 @@ def wheel_contact(assets, vehicle):
     """(height of the wheels' lowest contact above the vehicle mesh's origin in cm, description):
     the lowest ``wheel_<side><n>`` bone of the vehicle mesh in the reference pose minus that
     wheel's ``WheelRadius`` in the vehicle's config asset (a tracked vehicle's wheels differ in
-    radius; the track's own thickness is not in the files and not counted)."""
+    radius, and a config may name the physics wheel ``simwheel_<side><n>`` of the mesh's
+    ``wheel_<side><n>``; the track's own thickness is not in the files and not counted)."""
     movement = next((props for name, props in vehicle.components.items() if "VehicleConfigAsset" in props), None)
     if movement is None:
         raise GameDataError(f"{short(vehicle.chain[-1])}: no VehicleConfigAsset")
@@ -1130,7 +1227,7 @@ def wheel_contact(assets, vehicle):
     for name, _, _ in bones:
         if not re.fullmatch(r"wheel_[LR]\d+", name):
             continue
-        radius = radii.get(name.lower(), radii.get(None))
+        radius = radii.get(name.lower(), radii.get("sim" + name.lower(), radii.get(None)))
         if radius is None:
             raise GameDataError(f"{short(config)}: no WheelRadius for {name}")
         bottoms.append((bone_transform(bones, name).translation[2] - radius, name, radius))
@@ -1138,6 +1235,16 @@ def wheel_contact(assets, vehicle):
         raise GameDataError(f"{short(vehicle.chain[-1])}: no wheel bones")
     lowest, name, radius = min(bottoms)
     return lowest, f"lowest wheel bone {round_to(lowest + radius, 1)} cm - WheelRadius {radius:g} cm ({short(config)})"
+
+
+def standing_contact(assets, vehicle):
+    """(height of the lowest point of the vehicle mesh above the mesh's origin in cm, description)
+    for an emplacement that stands on its own feet or wheels: the bottom of the mesh's
+    ``ImportedBounds`` (a tripod's feet; the ZiS-3's wheels)."""
+    mesh = package_of(vehicle.components["Vehicle Mesh"].get("SkeletalMesh"))
+    bounds = next(e for e in assets.require(mesh) if e.get("Type") == "SkeletalMesh")["ImportedBounds"]
+    bottom = bounds["Origin"]["Z"] - bounds["BoxExtent"]["Z"]
+    return bottom, f"lowest point of the imported bounds of {short(mesh)}"
 
 
 # The Technical mortar's HUD shows the mount's world pitch plus this many degrees
@@ -1179,25 +1286,35 @@ def mount_component(turret):
 # turret mount may lean this many degrees against the vehicle's reference pose: the flat shot
 # is computed in that plane and with the mount's pitch limits, so both are reported in
 # `sources` when they are not zero. A turret mesh whose root bone is more than MAX_ROOT_OFFSET
-# cm from its origin is refused (see `turret_root_offset`).
-MAX_MUZZLE_LATERAL = 35.0
+# cm from its origin is authored in vehicle space (see `turret_root_offset`).
+MAX_MUZZLE_LATERAL = 40.0
 MAX_MOUNT_TILT = 2.0
 MAX_ROOT_OFFSET = 50.0
 
 
 def turret_root_offset(assets, turret, mount):
-    """Refuse a turret whose skeletal mesh has its root bone away from the mesh origin: such a
-    mesh (the Kozak-2M1's AGS-17 turret, root bone at the vehicle's seat socket) is authored in
-    vehicle space, and hanging it on the seat socket would count the seat height twice."""
+    """The offset (cm) of the root bone from the origin of the skeletal mesh the mount hangs on,
+    or None when it is within MAX_ROOT_OFFSET.
+
+    Such a mesh (the ZSD-89 turret on the WZ551 and the ZSD-89, the ZBD-04A's) is authored in
+    vehicle space: its root bone is where the seat is. The vehicle's seat socket is then taken
+    as the root bone's place, so the mount is the socket plus the mount's place relative to the
+    root bone. Where the vehicle's socket and the mesh's root bone coincide (the ZSD-89, the
+    ZBD-04A) that is the authored place; on the WZ551, whose hull has its own socket for this
+    turret, it is the hull's socket. That the engine attaches it so is inferred from the
+    authored place, not read from a file.
+    """
     name = mount
     while name:
         if turret.types.get(name) == "SkeletalMeshComponent" and turret.components[name].get("SkeletalMesh"):
             _, _, bones = skeleton_of(assets, package_of(turret.components[name]["SkeletalMesh"]))
-            root = bones[0][2].translation
-            if max(abs(v) for v in root) > MAX_ROOT_OFFSET:
-                raise GameDataError(f"{short(turret.chain[-1])}: the root bone of {name} is at {[round_to(v, 1) for v in root]} cm, "
-                                    "the mesh is authored in vehicle space and its attachment is not in the files")
+            root = bones[0][2]
+            if max(abs(v) for v in root.translation) > MAX_ROOT_OFFSET:
+                if max(abs(a - b) for a, b in zip(root.rotation, IDENTITY)) > 1e-6:
+                    raise GameDataError(f"{short(turret.chain[-1])}: the root bone of {name} is rotated")
+                return tuple(root.translation)
         name = turret.parents.get(name)
+    return None
 
 
 def round_to(value, digits=4):
@@ -1438,14 +1555,22 @@ class Snapshot:
         if vehicle.components[mesh_component_name].get("RelativeLocation") or vehicle.components[mesh_component_name].get("RelativeRotation"):
             raise GameDataError(f"{short(seat_spec['vehicle'])}: the vehicle mesh is not at the actor's origin")
         mount = mount_component(turret)
-        turret_root_offset(self.assets, turret, mount)
-        pivot = attach_transform(self.assets, vehicle_mesh, seat_spec["seat"]) * component_transform(self.assets, turret, mount)
+        standing = seat_spec["seat"] is None
+        root_offset = None if standing else turret_root_offset(self.assets, turret, mount)
+        placement = Transform() if standing else attach_transform(self.assets, vehicle_mesh, seat_spec["seat"])
+        if root_offset:
+            placement = placement * Transform(IDENTITY, tuple(-v for v in root_offset))
+        pivot = placement * component_transform(self.assets, turret, mount)
         upright = rotate(pivot.rotation, (0.0, 0.0, 1.0))
         tilt = math.degrees(math.acos(max(-1.0, min(1.0, upright[2]))))
         if tilt > MAX_MOUNT_TILT:
             raise GameDataError(f"{short(turret_path)}: the mount is tilted {round_to(tilt, 2)} degrees in the vehicle")
         mesh, socket, _ = weapon.barrel()
         muzzle = component_transform(self.assets, weapon.blueprint, "WeaponMesh1P") * attach_transform(self.assets, mesh, socket)
+        _, _, weapon_bones = skeleton_of(self.assets, mesh)
+        weapon_root = weapon_bones[0][2].translation
+        if max(abs(v) for v in weapon_root) > MAX_ROOT_OFFSET:
+            muzzle = Transform(muzzle.rotation, tuple(a - b for a, b in zip(muzzle.translation, weapon_root)))
         direction = rotate(muzzle.rotation, (1.0, 0.0, 0.0))
         horizontal = math.hypot(direction[0], direction[1])
         elevation = math.atan2(direction[2], horizontal)
@@ -1456,7 +1581,7 @@ class Snapshot:
             raise GameDataError(f"{short(mesh)}:{socket} is {round_to(abs(sideways), 1)} cm off the pitch plane")
         forward = reach * math.cos(elevation) + muzzle.translation[2] * math.sin(elevation)
         up = -reach * math.sin(elevation) + muzzle.translation[2] * math.cos(elevation)
-        contact, contact_text = wheel_contact(self.assets, vehicle)
+        contact, contact_text = (standing_contact if standing else wheel_contact)(self.assets, vehicle)
         barrel_pitch = math.degrees(elevation)
         launch = {
             "launch_height": round_to((pivot.translation[2] - contact) / 100, 4),
@@ -1465,10 +1590,14 @@ class Snapshot:
             "barrel_pitch": round_to(barrel_pitch, 3),
         }
         sources = {
-            "launch": (f"{short(seat_spec['vehicle'])}: {seat_spec['seat']} of {short(vehicle_mesh)} -> "
-                       f"{mount} of {short(turret_path)} = pivot {round_to(pivot.translation[2], 2)} cm above the mesh origin; "
+            "launch": (f"{short(seat_spec['vehicle'])} {launch['launch_height']}: "
+                       + (f"{seat_spec['seat']} of {short(vehicle_mesh)} -> " if not standing else "")
+                       + (f"the root bone of the turret mesh ({[round_to(v, 1) for v in root_offset]} cm) taken as the socket -> " if root_offset else "")
+                       + f"{mount} of {short(turret_path)} = pivot {round_to(pivot.translation[2], 2)} cm above the mesh origin; "
                        f"ground {round_to(contact, 2)} cm ({contact_text}); socket {socket} of {short(mesh)} at "
-                       f"{[round_to(v, 2) for v in muzzle.translation]} cm on the mount, pitch {round_to(barrel_pitch, 3)}"
+                       f"{[round_to(v, 2) for v in muzzle.translation]} cm on the mount"
+                       + (f" (the weapon mesh's root bone at {[round_to(v, 1) for v in weapon_root]} cm taken as its origin)" if max(abs(v) for v in weapon_root) > MAX_ROOT_OFFSET else "")
+                       + f", pitch {round_to(barrel_pitch, 3)}"
                        + (f"; the muzzle is {round_to(abs(sideways), 1)} cm beside the pitch plane (not modelled)" if abs(sideways) > 1.0 else "")
                        + (f"; the mount is tilted {round_to(tilt, 2)} degrees in the vehicle (pitch limits are the mount's)" if tilt > 1e-3 else "")),
         }
@@ -1484,6 +1613,46 @@ class Snapshot:
             raise GameDataError(f"{short(turret_path)}: no pitch limits")
         sources["elevation"] = limits[2] + " + barrel socket pitch"
         return launch, [round_to(limits[0] + barrel_pitch), round_to(limits[1] + barrel_pitch)], sources
+
+    def view_launches(self, reference, spec, limits, elevation_limits):
+        """[(vehicle, launch, sources)] of every vehicle that carries the view's mount or one of its
+        `also` mounts: the vehicles `spec["seat"]` and the `also` seats name, else `CARRIERS`.
+        Empty when the view's mount has none (no launch point is derived for it)."""
+        primary = (spec["seat"],) if spec["seat"] else CARRIERS.get(spec["mount"], ())
+        if not primary:
+            return []
+        found = []
+        mounts = [(spec["mount"], reference, primary)]
+        for mount, weapon_path, *explicit in spec["also"]:
+            seats = tuple(explicit) if explicit else CARRIERS.get(mount, ())
+            mounts.append((mount, self.weapon(weapon_path), seats))
+        for mount, weapon, seats in mounts:
+            mount_limits_ = limits if mount == spec["mount"] else mount_limits(self.assets, self.blueprint(mount))
+            for seat_spec in seats:
+                launch, launch_limits, launch_sources = self.launch(weapon, mount, seat_spec, mount_limits_)
+                if mount == spec["mount"] and seat_spec is primary[0] and launch_limits != elevation_limits:
+                    raise GameDataError(f"{spec['mount']}: the launch's limits {launch_limits} are not the view's {elevation_limits}")
+                found.append((seat_spec["vehicle"], launch, launch_sources["launch"]))
+        return found
+
+    @staticmethod
+    def merge_launches(launches):
+        """(launch, sources text) of the vehicles' launch points: the middle of the lowest and the
+        highest value of each of `launch_height`, `muzzle_forward` and `muzzle_up`, and, when the
+        vehicles differ, `spread` with each value's [lowest, highest]; the text lists every vehicle."""
+        keys = ("launch_height", "muzzle_forward", "muzzle_up")
+        first = launches[0][1]
+        launch = dict(first)
+        spread = {}
+        for key in keys:
+            values = [item[1][key] for item in launches]
+            low, high = min(values), max(values)
+            launch[key] = round_to((low + high) / 2, 4)
+            if high - low > 1e-4:
+                spread[key] = [low, high]
+        if spread:
+            launch["spread"] = spread
+        return launch, " | ".join(text for _, _, text in launches)
 
     def entry(self, classes, spec):
         """The snapshot object of one weapons.json entry."""
@@ -1526,27 +1695,22 @@ class Snapshot:
                                     f"but not on {sorted(m for m in mounts if not focus[m])}: split the entry")
             result["focus_narrows_view"] = focus[spec["mount"]]
             sources["elevation"] = (limits[2] + " + socket pitch") if limits else "no mount limit"
-            if spec["seat"]:
-                result["launch"], launch_limits, launch_sources = self.launch(reference, spec["mount"], spec["seat"], limits)
-                if launch_limits != result["elevation_limits"]:
-                    raise GameDataError(f"{classes[0]}: the launch's limits {launch_limits} are not the view's {result['elevation_limits']}")
-                sources["launch"] = launch_sources["launch"]
+            launches = self.view_launches(reference, spec, limits, result["elevation_limits"])
             agree, differ = [], {}
-            for mount, weapon_path, *other_seat in spec["also"]:
+            for mount, weapon_path, *explicit in spec["also"]:
                 other = self.view_of(self.weapon(weapon_path), mount, spec["camera"], spec["zoom"])
                 other_limits = mount_limits(self.assets, self.blueprint(mount))
                 other_elevation = [round_to(other_limits[0] + other[2]), round_to(other_limits[1] + other[2])] if other_limits else None
                 found = {"bore": other[0], "zoom": other[1], "elevation_limits": other_elevation}
-                if spec["seat"] and other_seat:
-                    other_launch = self.launch(self.weapon(weapon_path), mount, other_seat[0], other_limits)[0]
-                    found.update({k: other_launch[k] for k in ("launch_height", "muzzle_forward", "muzzle_up")})
-                changed = {k: v for k, v in found.items() if k in ("bore", "zoom", "elevation_limits") and v != result[k]}
-                changed.update({k: v for k, v in found.items() if k in ("launch_height", "muzzle_forward", "muzzle_up") and v != result["launch"][k]})
-                label = f"{mount} on {other_seat[0]['vehicle']}" if other_seat else mount
+                changed = {k: v for k, v in found.items() if v != result[k]}
+                label = f"{mount} on {explicit[0]['vehicle']}" if explicit else mount
                 if changed:
                     differ[label] = dict(changed, barrel=other[3]["barrel"], camera=other[3]["camera"])
                 else:
                     agree.append(label)
+            if launches:
+                result["launch"], launch_sources = self.merge_launches(launches)
+                sources["launch"] = launch_sources
             if agree:
                 sources["same_view"] = agree
             if differ:
