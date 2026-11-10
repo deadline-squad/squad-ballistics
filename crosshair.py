@@ -1073,6 +1073,12 @@ class MainWindow(QMainWindow):
 
         return weapon.unit
 
+    def offers_other_arc(self, weapon):
+        """Whether the other arc of `weapon` is worth offering: for weapons
+        aimed by elevation and for hold weapons (direct fire or lob); for
+        other direct-fire weapons it is a useless near-vertical lob."""
+        return weapon.aim == "elevation" or weapon.has_hold
+
     def set_big(self, text, error=False):
         """Show `text` as the big readout, in the error colour if `error`."""
         self.big_label.setText(text)
@@ -1242,7 +1248,11 @@ class MainWindow(QMainWindow):
         self.show_solution(weapon, solution, fov)
 
     def show_unreachable(self, weapon, solution):
-        """The target cannot be hit: say why, in the weapon's angle unit."""
+        """The target cannot be hit: say why, in the weapon's angle unit.
+
+        A shot beyond the elevation limits also says to try the other arc
+        when that arc reaches the target and the weapon is offered it
+        (`offers_other_arc`)."""
         unit = self.primary_unit(weapon)
 
         self.overlay.set_offset(self.current_offset())
@@ -1275,6 +1285,12 @@ class MainWindow(QMainWindow):
                 low=format_angle(low, unit),
                 high=format_angle(high, unit)
             )
+
+            other_arc = "high" if solution.arc == "low" else "low"
+
+            if self.offers_other_arc(weapon) \
+                    and other_arc in solution.alternatives:
+                text += " " + tr("how_unreachable_other_arc")
 
         self.sub_label.setText(text)
 
@@ -1419,12 +1435,9 @@ class MainWindow(QMainWindow):
 
         other_arc = "high" if solution.arc == "low" else "low"
 
-        # The other arc only matters for weapons aimed by elevation and for
-        # hold weapons (direct fire or lob); for other direct-fire weapons
-        # it is a useless near-vertical lob.
         alt = None
 
-        if weapon.aim == "elevation" or weapon.has_hold:
+        if self.offers_other_arc(weapon):
             alt = solution.alternatives.get(other_arc)
 
             if alt is not None and abs(alt - solution.angle) < 0.01:

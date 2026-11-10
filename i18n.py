@@ -168,9 +168,9 @@ STRINGS = {
         "from {low} to {high}. Try the low arc."
     ),
     "how_unreachable_limit": (
-        "Needs {angle}, but the weapon only elevates from {low} to {high}. "
-        "Try the other arc."
+        "Needs {angle}, but the weapon only elevates from {low} to {high}."
     ),
+    "how_unreachable_other_arc": "Try the other arc.",
 
     "chip_velocity": "{v} m/s",
     "chip_gravity": "gravity ×{g}",

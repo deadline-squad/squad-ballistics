@@ -179,6 +179,73 @@ def test_a_target_beyond_the_elevation_limits_says_the_angle_and_the_limits(wind
     )
 
 
+def refusal_by_the_limits(window, name, distance, height, arc):
+    """Fire `name` on `arc` at a target the mount cannot be laid on and
+    return the solution and the refusal's text without the other-arc advice."""
+    window.config["arc"] = arc
+    fire_at(window, name, distance, height)
+    weapon = window.current_weapon()
+    solution = window.last_solution
+    unit = window.primary_unit(weapon)
+    low, high = weapon.elevation_limits
+
+    from widgets import format_angle
+
+    assert solution.reason_code == "elevation_limit"
+
+    return solution, tr(
+        "how_unreachable_limit",
+        angle=format_angle(solution.angle, unit),
+        low=format_angle(low, unit),
+        high=format_angle(high, unit),
+    )
+
+
+def test_a_refusal_by_the_limits_offers_the_other_arc_that_reaches_the_target(window):
+    # BM-21 high arc at 1500 m: above its 55° stop; the low arc is 23.4°
+    solution, limits = refusal_by_the_limits(window, BM21, 1500, "", "high")
+
+    assert "low" in solution.alternatives
+    assert window.sub_label.text() == f"{limits} {tr('how_unreachable_other_arc')}"
+
+
+def test_a_mortar_refused_by_the_limits_offers_the_high_arc(window):
+    # The mortar's low arc at 300 m is under its 45° stop; the high arc is 83°
+    solution, limits = refusal_by_the_limits(window, MORTAR, 300, "", "low")
+
+    assert "high" in solution.alternatives
+    assert window.sub_label.text() == f"{limits} {tr('how_unreachable_other_arc')}"
+
+
+@pytest.mark.parametrize("name, distance, height, arc", [
+    (BM21, 1200, "-400", "low"),
+    (BM21, 1200, "-400", "high"),
+    ("Technical UB-32", 160, "-60", "low"),
+    ("Technical UB-32", 160, "-60", "high"),
+])
+def test_a_refusal_by_the_limits_without_another_arc_offers_none(
+        window, name, distance, height, arc):
+    solution, limits = refusal_by_the_limits(window, name, distance, height, arc)
+
+    assert solution.alternatives == {}
+    assert window.sub_label.text() == limits
+    assert "other arc" not in limits
+
+
+@pytest.mark.parametrize("name, distance, height, arc", [
+    # The low arc of the MK19 reaches it, but a direct-fire weapon's other
+    # arc is never offered
+    (MK19, 5, "", "high"),
+    (T62, 300, "-60", "low"),
+])
+def test_a_direct_fire_weapon_refused_by_the_limits_offers_no_other_arc(
+        window, name, distance, height, arc):
+    _, limits = refusal_by_the_limits(window, name, distance, height, arc)
+
+    assert window.sub_label.text() == limits
+    assert "other arc" not in limits
+
+
 def test_a_target_in_the_mil_unit_is_explained_in_mils(window):
     window.config["unit_mode"] = "mil"
     weapon, solution = explain(window, MK19, 5, "high", "low")
