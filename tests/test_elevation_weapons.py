@@ -11,6 +11,7 @@ without ballistics.py, so a wrong value in weapons.json fails here.
 import json
 import math
 import os
+import re
 import statistics
 from dataclasses import replace
 
@@ -47,6 +48,43 @@ ELEVATION = VEHICLE + EMPLACED
 # fractions of the reachable distances on flat ground to try.
 MISS = 0.02
 FRACTIONS = (0.02, 0.25, 0.5, 0.75, 0.98)
+
+MORTAR = "Mortar (M252 / 2B14 / L16 / Type 63)"
+
+# Degrees the game's mortar sight adds to the pitch of the mount: UMG_MortarControl turns its
+# elevation wheel by the tube pitch + 45 (Squad build 26005357). The mount's own pitch range is
+# in the snapshot.
+MORTAR_REST = 45.0
+
+# The weapons whose mount stops short of an end of their arc (a mortar's tube below the
+# vertical, a launcher's rail above the horizontal) and the nearest target on level ground that
+# stop leaves, in metres: what the app shows as the minimum distance.
+MINIMUM = {
+    MORTAR: 51.8,
+    "Technical Mortar": 51.8,
+    "M1064 M121 (120mm)": 358.0,
+    "BM-21 Grad": 985.1,
+    "Technical UB-32": 147.1,
+}
+
+# (distance, height) of a target nearer than the minimum that the mount can still be laid on,
+# because it stands that much higher.
+UPHILL = {
+    MORTAR: (50.0, 150.0),
+    "Technical Mortar": (50.0, 150.0),
+    "M1064 M121 (120mm)": (340.0, 250.0),
+    "BM-21 Grad": (700.0, 200.0),
+    "Technical UB-32": (100.0, 30.0),
+}
+
+# Distance of a target on level ground nearer than the minimum: no arc of the mount reaches it.
+LEVEL = {
+    MORTAR: 51.0,
+    "Technical Mortar": 51.0,
+    "M1064 M121 (120mm)": 350.0,
+    "BM-21 Grad": 900.0,
+    "Technical UB-32": 120.0,
+}
 
 
 def _shot(name):
@@ -165,7 +203,6 @@ def test_the_technical_mortar_laid_at_the_huds_ends_reaches_its_table_ends():
     assert (weapon.elevation_limits[0], weapon.elevation_limits[1]) == pytest.approx((40, 83.8))
     assert far == pytest.approx(1238, abs=2)
     assert near == pytest.approx(52, abs=2)
-    assert weapon.min_distance <= near
 
 
 def test_the_bm21_has_a_nearest_distance_from_the_rail():
@@ -175,5 +212,75 @@ def test_the_bm21_has_a_nearest_distance_from_the_rail():
     solution = solve(weapon, 500.0, 0.0)
 
     assert not solution.reachable
-    assert solution.reason_code == "elevation_limit"
+    assert solution.reason_code == "too_close"
     assert flight.elevation_to(shot, 500.0, 0.0, False) < math.radians(14.2)
+
+
+def test_the_mortar_tube_stops_where_the_games_mount_does():
+    """The mount pitches the tube 0 to 43.8 degrees above its rest at 45: 45 to 88.8 degrees, 800
+    to 1578.7 mil, and not the 88.875 (1580 mil) the entry had. The auto-lay starts from that top."""
+    weapon = WEAPONS[MORTAR]
+    lowest, highest = (
+        float(v) for v in re.fullmatch(
+            r".*PitchInterval (-?[\d.]+)\.\.(-?[\d.]+)", GAME[MORTAR]["sources"]["mount_limits"]
+        ).groups()
+    )
+
+    assert (lowest, highest) == (0.0, 43.8)
+    assert weapon.elevation_limits == pytest.approx((MORTAR_REST + lowest, MORTAR_REST + highest))
+    assert weapon.elevation_limits == (45.0, 88.8)
+    assert weapon.hold_elevation == weapon.elevation_limits
+    assert weapon.hold_time(88.8) == 0
+
+
+@pytest.mark.parametrize("name", MINIMUM)
+def test_the_minimum_distance_is_the_range_on_level_ground_at_the_mounts_stop(name):
+    """The game has no number for the minimum range: it is where the shell lands when the barrel
+    is at the stop that ends the near side of the weapon's arc, in the game's flight (the figure
+    is kept to 0.1 m)."""
+    weapon = WEAPONS[name]
+    near, _ = _flat_window(name)
+
+    assert weapon.min_distance == MINIMUM[name]
+    assert weapon.min_distance == pytest.approx(near, abs=0.1)
+
+
+def test_only_the_weapons_stopped_by_their_mount_have_a_minimum_distance():
+    assert {name for name, weapon in WEAPONS.items() if weapon.min_distance} == set(MINIMUM)
+
+
+@pytest.mark.parametrize("name", MINIMUM)
+def test_a_target_uphill_is_reached_nearer_than_the_minimum_distance(name):
+    """The minimum holds on level ground only. A target that stands higher needs an elevation
+    inside the mount's limits at a shorter distance: the app solves it, and the shell laid that
+    way lands on it in the game's flight."""
+    weapon, shot = WEAPONS[name], _shot(name)
+    distance, height = UPHILL[name]
+    solution = solve(weapon, distance, height)
+    low, high = weapon.elevation_limits
+
+    assert distance < weapon.min_distance
+    assert solution.reachable, solution.reason
+    assert low <= solution.angle <= high
+    assert flight.miss(shot, math.radians(solution.raw_angle), distance, height).distance < MISS
+
+
+@pytest.mark.parametrize("name", MINIMUM)
+def test_a_target_on_level_ground_nearer_than_the_minimum_distance_is_refused(name):
+    """Neither arc can be laid on it: the mount's limits refuse it, and the app says how near
+    the weapon can fire on level ground. The game's flight agrees that the elevation it would
+    take is past the mount's stop."""
+    weapon, shot = WEAPONS[name], _shot(name)
+    distance = LEVEL[name]
+    low, high = _barrel_limits(name)
+
+    assert distance < weapon.min_distance
+    for arc in ("low", "high"):
+        solution = solve(weapon, distance, 0.0, arc)
+
+        assert not solution.reachable, arc
+        assert solution.reason_code == "too_close", arc
+        assert solution.reason == f"Too close: minimum distance on level ground is {weapon.min_distance:g} m"
+        assert solution.alternatives == {}
+    assert flight.elevation_to(shot, distance, 0.0, weapon.arc == "high", (low, high)) is None
+    assert solve(weapon, weapon.min_distance + 0.5, 0.0).reachable

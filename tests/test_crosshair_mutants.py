@@ -22,6 +22,8 @@ from sightlay import BEARING, MAX_MOVES
 M203 = "M203 / M320 / GP-25 / HK79 / SL40"
 AGS = "AGS-17 · emplacement · optic (RMB ×2.5)"
 MORTAR = "Mortar (M252 / 2B14 / L16 / Type 63)"
+BM21 = "BM-21 Grad"
+T62 = "Tank AP · T-62 (2A20)"
 
 
 @pytest.fixture
@@ -87,6 +89,30 @@ def test_a_target_too_close_says_the_minimum_distance(window):
 
     assert solution.reason_code == "too_close"
     assert window.sub_label.text() == tr("how_unreachable_close", min=f"{weapon.min_distance:g}")
+    assert window.sub_label.text() == "Too close: the minimum distance on level ground is 51.8 m."
+
+
+def test_the_minimum_distance_is_shown_and_refuses_on_level_ground_only(window):
+    fire_at(window, BM21, 900)
+
+    assert tr("chip_min", m="985.1") in window.weapon_info.text()
+    assert window.big_label.text() == tr("unreachable")
+    assert window.sub_label.text() == tr("how_unreachable_close", min="985.1")
+
+    # 200 m uphill the rail can be laid on a target at 700 m
+    fire_at(window, BM21, 700, "200")
+
+    assert window.last_solution.reachable
+    assert window.big_label.property("state") != "error"
+
+
+def test_a_target_that_is_not_past_the_muzzle_says_so(window):
+    # 3 m ahead of the gun's pivot and about level with it: the muzzle is 5.1 m ahead
+    fire_at(window, T62, 3, "2")
+
+    assert window.last_solution.reason_code == "behind_muzzle"
+    assert window.big_label.text() == tr("unreachable")
+    assert window.sub_label.text() == tr("how_unreachable_muzzle")
 
 
 def test_a_lob_the_hold_cannot_lay_says_the_angle_and_the_hold_limits(window):

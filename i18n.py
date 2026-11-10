@@ -159,7 +159,10 @@ STRINGS = {
         "The target is beyond maximum range (~{max} m). Move closer or "
         "pick another weapon."
     ),
-    "how_unreachable_close": "Too close: minimum distance is {min} m.",
+    "how_unreachable_close": (
+        "Too close: the minimum distance on level ground is {min} m."
+    ),
+    "how_unreachable_muzzle": "Too close: the target is not past the muzzle.",
     "how_unreachable_hold": (
         "The high arc needs {angle}, but holding S only moves the barrel "
         "from {low} to {high}. Try the low arc."

@@ -20,7 +20,7 @@ from ballistics import WeaponDataError, current_weapon_name, load_weapons
 from utils import resource_path
 
 APP_NAME = "SquadBallistics"
-APP_VERSION = "1.7.1"
+APP_VERSION = "1.7.2"
 
 # Versions up to 1.1.0 kept "configs/config.json" relative to the working
 # directory. It is read once from there and migrated to the per-user

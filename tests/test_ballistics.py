@@ -872,19 +872,21 @@ def test_ags17_hold_time_follows_height():
 
 
 def test_mortar_auto_lay_model():
-    # W to the top (1580 mil), S lowers 9°/s: keyboard pitch ×300 × input ×0.03 in the game files
+    # W to the top (88.8 degrees, 1578.7 mil: the mount's 43.8 above the tube's rest at 45), S lowers
+    # 9°/s: keyboard pitch ×300 × input ×0.03 in the game files
     mortar = WEAPONS["Mortar (M252 / 2B14 / L16 / Type 63)"]
     assert mortar.aim == "elevation" and mortar.has_hold
-    assert mortar.hold_time(88.875) == 0
-    assert mortar.hold_time(60) == pytest.approx((88.875 - 60) / 9.0)
-    assert mortar.max_hold_time() == pytest.approx(43.875 / 9.0)
+    assert mortar.hold_time(88.8) == 0
+    assert mortar.hold_time(60) == pytest.approx((88.8 - 60) / 9.0)
+    assert mortar.max_hold_time() == pytest.approx(43.8 / 9.0)
     assert math.isnan(mortar.hold_time(44))
+    assert math.isnan(mortar.hold_time(88.81))
 
     # Every reachable shot can be laid by the hold, across the whole range
-    for distance in (51, 300, 800, 1236):
+    for distance in (51.8, 300, 800, 1236):
         solution = solve(mortar, distance, 0, "high")
         assert solution.reachable, distance
-        assert solution.hold_time == pytest.approx((88.875 - solution.angle) / 9.0), distance
+        assert solution.hold_time == pytest.approx((88.8 - solution.angle) / 9.0), distance
 
 
 def test_ags17_arcs_and_limits():
