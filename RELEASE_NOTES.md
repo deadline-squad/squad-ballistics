@@ -1,3 +1,10 @@
+## Squad Ballistics 1.7.3
+
+Изменения с версии 1.7.2. / Changes since 1.7.2.
+
+### Исправлено / Fixed
+- **«Try the other arc.» только когда другая траектория есть:** отказ по пределам возвышения советовал другую траекторию всегда, даже когда её нет (UB-32 технички по цели в 160 м и на 60 м ниже, БМ-21 по цели в 1200 м и на 400 м ниже) и у оружия прямой наводки, которому программа другую траекторию не предлагает (MK19, T-62). Теперь совет есть, только когда другая траектория достаёт цель и оружие наводится по возвышению или удержанием клавиши (БМ-21, UB-32, миномёты, АГС-17). / **"Try the other arc." only when there is one:** a refusal by the elevation limits always said to try the other arc, also when there is none (the technical's UB-32 at a target 160 m away and 60 m lower, the BM-21 at 1200 m and 400 m lower) and on direct-fire weapons, whose other arc SB never offers (MK19, T-62). The advice is now given only when the other arc reaches the target and the weapon is laid by elevation or by holding a key (BM-21, UB-32, mortars, AGS-17).
+
 ## Squad Ballistics 1.7.2
 
 Изменения с версии 1.7.1. / Changes since 1.7.1.
