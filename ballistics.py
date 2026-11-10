@@ -175,8 +175,13 @@ class Weapon:
     so a shot that takes longer cannot hit); the launch point `launch_height`,
     `muzzle_forward` and `muzzle_up` m. The aiming fields: `arc`, `aim`
     ("overlay" mark or "elevation"), `unit`, `angle_offset` (degrees the
-    weapon's readout shows less than the barrel), `elevation_limits` and
-    `min_distance`; the view the mark is drawn for, `bore` (degrees) and
+    weapon's readout shows less than the barrel), `elevation_limits` (the
+    readout angles the mount can be laid on: `solve` refuses a shot outside
+    them) and `min_distance` (metres: the nearest target on level ground
+    those limits allow, the range at the mount's stop; it is the figure the
+    UI shows and where the range ladder starts, not a refusal of its own,
+    since a target uphill can be reachable nearer); the view the mark is
+    drawn for, `bore` (degrees) and
     `zoom`; a barrel laid by holding a key, `hold_rate` (deg/s) and
     `hold_elevation`; `category`, `warhead` ("direct" or "splash": whether the
     round's burst reaches beyond 10 m, from the game files) and `note` for the
@@ -1206,9 +1211,11 @@ class Solution:
     """A firing solution from `solve`: whether the target can be hit on the
     requested arc, the elevation and what it takes to get there (sight angle,
     mils, flight time, apex, impact angle, hold time), or why it cannot
-    (`reason_code`: "too_close", "out_of_range", "elevation_limit" or
-    "hold_limit", and a readable `reason`). `alternatives` maps the arcs that
-    can be fired to their elevation in degrees."""
+    (`reason_code`: "too_close", "out_of_range", "elevation_limit",
+    "behind_muzzle" or "hold_limit", and a readable `reason`; "too_close" is
+    a target nearer than the weapon's `min_distance` that no arc can be
+    fired at). `alternatives` maps the arcs that can be fired to their
+    elevation in degrees."""
 
     reachable: bool
     arc: str
@@ -1255,6 +1262,13 @@ def solve(weapon, distance, height_diff=0.0, arc=None, aim_lift=0.0):
                     point the player can see (the map marker sits on it), so
                     the overlay mark of a lifted aim sits lower
 
+    The mount decides what is too close: a shot is refused when its
+    elevation is outside `elevation_limits`, at any distance. `min_distance`
+    is where that happens on level ground, so a target uphill of a launcher
+    whose rail cannot go lower, or of a mortar whose tube cannot go higher,
+    is solved nearer than it. The round starts at the muzzle, so a target
+    that is not ahead of the muzzle is refused too.
+
     For hold weapons (AGS-17) the high arc is fired by holding a key, so it
     is only reachable inside `hold_elevation`; `hold_time` is then set.
     """
@@ -1271,13 +1285,6 @@ def solve(weapon, distance, height_diff=0.0, arc=None, aim_lift=0.0):
         distance=distance,
         height_diff=height_diff,
     )
-
-    if distance < weapon.min_distance:
-        result.reason_code = "too_close"
-        result.reason = (
-            f"Too close: minimum distance is {weapon.min_distance:g} m"
-        )
-        return result
 
     # The target's height above the pivot, for the line of sight.
     rise = height_diff - weapon.launch_height
@@ -1308,6 +1315,9 @@ def solve(weapon, distance, height_diff=0.0, arc=None, aim_lift=0.0):
         angle = math.degrees(rad) - weapon.angle_offset
         if not low_limit <= angle <= high_limit:
             continue
+        # The round starts at the muzzle: it passes no target short of it.
+        if distance <= weapon.launch_point(rad)[0]:
+            continue
         if weapon.outlives(rad, distance):
             continue
         # The high arc of a hold weapon can only be fired by holding the key.
@@ -1322,12 +1332,27 @@ def solve(weapon, distance, height_diff=0.0, arc=None, aim_lift=0.0):
     result.angle = angle
     result.raw_angle = math.degrees(rad)
 
+    if distance < weapon.min_distance and not result.alternatives:
+        result.reason_code = "too_close"
+        result.reason = (
+            "Too close: minimum distance on level ground is "
+            f"{weapon.min_distance:g} m"
+        )
+        return result
+
     if not low_limit <= angle <= high_limit:
         result.reason_code = "elevation_limit"
         result.reason = (
             f"{arc.capitalize()} arc needs {angle:.1f}°, weapon elevation "
             f"is limited to {low_limit:g}°..{high_limit:g}°"
         )
+        return result
+
+    start_x, start_y = weapon.launch_point(rad)
+
+    if distance <= start_x:
+        result.reason_code = "behind_muzzle"
+        result.reason = "Too close: the target is not past the muzzle"
         return result
 
     if weapon.outlives(rad, distance):
@@ -1358,7 +1383,6 @@ def solve(weapon, distance, height_diff=0.0, arc=None, aim_lift=0.0):
     result.sight_angle = angle - math.degrees(math.atan2(rise, distance))
 
     _, flight, impact = weapon.flight_at(rad, distance)
-    start_x, start_y = weapon.launch_point(rad)
 
     result.time_of_flight = flight
     # Average speed along the barrel's direction to the target.

@@ -1257,6 +1257,8 @@ class MainWindow(QMainWindow):
             text = tr("how_unreachable_range", max=f"{weapon.max_range():.0f}")
         elif solution.reason_code == "too_close":
             text = tr("how_unreachable_close", min=f"{weapon.min_distance:g}")
+        elif solution.reason_code == "behind_muzzle":
+            text = tr("how_unreachable_muzzle")
         elif solution.reason_code == "hold_limit":
             lowest, top = weapon.hold_elevation
             text = tr(

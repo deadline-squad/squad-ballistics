@@ -477,12 +477,53 @@ def test_a_target_beyond_the_range_is_refused_with_the_maximum_range():
     assert solution.reason == "Out of range (max ~1020 m on flat ground)"
 
 
-def test_a_target_closer_than_the_minimum_distance_is_refused_in_words():
-    weapon = Weapon.from_dict("w", {**SHELL, "min_distance": 35})
-    solution = solve(weapon, 20.0)
+# 100 m/s lands 349.0 m away on level ground at the 10 degrees this mount stops at
+STOPPED = {"velocity": 100, "min_distance": 349, "elevation_limits": [10, 45]}
 
-    assert (solution.reason_code, solution.reason) == ("too_close", "Too close: minimum distance is 35 m")
-    assert solve(weapon, 35.0).reachable
+
+def test_a_target_closer_than_the_minimum_distance_that_no_arc_reaches_is_refused_in_words():
+    weapon = Weapon.from_dict("w", STOPPED)
+
+    for arc in ("low", "high"):
+        solution = solve(weapon, 348.0, 0.0, arc)
+
+        assert not solution.reachable
+        assert (solution.reason_code, solution.reason) == (
+            "too_close", "Too close: minimum distance on level ground is 349 m"
+        )
+        assert solution.alternatives == {}
+    assert solve(weapon, 350.0).reachable
+
+
+def test_the_minimum_distance_refuses_nothing_the_mount_can_be_laid_on():
+    weapon = Weapon.from_dict("w", STOPPED)
+    uphill = solve(weapon, 200.0, 60.0)
+
+    assert uphill.reachable and 10 <= uphill.angle <= 45
+    assert ballistics.height_at(weapon, uphill.angle, 200.0) == pytest.approx(60.0, abs=1e-6)
+    # without limits nothing stops the barrel: the minimum is only a figure
+    assert solve(Weapon.from_dict("w", {**SHELL, "min_distance": 35}), 20.0).reachable
+
+
+def test_nearer_than_the_minimum_an_arc_that_can_be_fired_is_offered_instead_of_too_close():
+    weapon = Weapon.from_dict("w", STOPPED)
+    high = solve(weapon, 200.0, 60.0, "high")
+
+    assert not high.reachable
+    assert high.reason_code == "elevation_limit"
+    assert list(high.alternatives) == ["low"]
+
+
+def test_a_target_that_is_not_past_the_muzzle_is_refused_in_words():
+    weapon = Weapon.from_dict("w", {"velocity": 100, "muzzle_forward": 2.0, "launch_height": 1.0})
+    # the barrel that points at a target 1 m ahead and 1.5 m up has its muzzle 1.79 m ahead
+    solution = solve(weapon, 1.0, 1.5)
+
+    assert not solution.reachable
+    assert (solution.reason_code, solution.reason) == ("behind_muzzle", "Too close: the target is not past the muzzle")
+    assert "low" not in solution.alternatives
+    # no elevation puts the muzzle farther ahead than the barrel is long
+    assert solve(weapon, 2.01, 1.5).reachable
 
 
 def test_an_angle_beyond_the_elevation_limits_is_refused_in_words():

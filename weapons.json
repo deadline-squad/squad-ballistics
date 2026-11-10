@@ -1,5 +1,5 @@
 {
-    "_comment": "velocity m/s, gravity = projectile gravity scale. Optional: acceleration (m/s^2, negative = slows down) + acceleration_time (s, the game's ConstantAccelerationTimeout: the motor acts in the 20 ms flight substeps that start before it), max_speed (m/s, the projectile's MaxSpeed: the speed is capped at every substep, the first one too; omitted or 0 = no cap), lifespan (s, the projectile's InitialLifeSpan: the round is destroyed that long after launch, so a shot that takes longer is refused; omitted = the game sets none, the mortar's shell), rotation_follows_velocity (default true: the motor pushes along the path; false: along the barrel's axis at launch, the UB-32's S-5), arc low/high, aim overlay/elevation, unit deg/mil, angle_offset, min_distance, elevation_limits [min,max], bore (deg: how far above the screen centre the shot leaves in the view the weapon is aimed through; the game fires along the barrel socket Attach_Muzzle, tilted against the camera), zoom (FOV divisor of that view: a scope, an optic or the gunner's sight; omitted = ×1; a weapon whose RMB sight zooms the screen has two entries: '<base> · optic (RMB ×N)' for the sight and '<base> · no optic' for its normal view, with that camera's bore and no zoom), view ('optic' on the RMB sight, 'plain' on its normal-view twin; the app shows it next to the weapon) + twin (on an optic entry: the name of its plain twin), focus_narrows_view (true on a plain view that holding the Focus key narrows to 0.666 of the FOV: the mount allows Focus in the game files, tools/game_weapons.py; the mark follows the key), launch_height + muzzle_forward + muzzle_up (m: the barrel pivot above the ground and the barrel socket along and above the barrel), hold_rate + hold_elevation (a barrel laid by holding a key), category, warhead (direct/splash, launchers, guns and tanks: splash when the round's damaging explosion reaches beyond 10 m in the game files, tools/game_weapons.py burst_radius; the marker note judges a splash round by the ground like a grenade), note. Sources: velocity, gravity, rocket motor, speed cap, lifespan, view and the elevation limits of the direct-fire mounts read from the game files (Squad build 26234431: WeaponConfig.MuzzleVelocity; ZoomLevels of the gunner sights and the Focus flags of the mounts; the projectile's ProjectileGravityScale, ConstantAcceleration/Timeout, MaxSpeed, bRotationFollowsVelocity and InitialLifeSpan; the mount's pitch limits plus the barrel socket's pitch; snapshot tests/data/game_weapons.json, written by tools/game_weapons.py); the other elevation limits, arcs and the AGS-17 hold model from in-game measurements, the official Squad wiki (squad.fandom.com) and SquadCalc (github.com/sh4rkman/SquadCalc).",
+    "_comment": "velocity m/s, gravity = projectile gravity scale. Optional: acceleration (m/s^2, negative = slows down) + acceleration_time (s, the game's ConstantAccelerationTimeout: the motor acts in the 20 ms flight substeps that start before it), max_speed (m/s, the projectile's MaxSpeed: the speed is capped at every substep, the first one too; omitted or 0 = no cap), lifespan (s, the projectile's InitialLifeSpan: the round is destroyed that long after launch, so a shot that takes longer is refused; omitted = the game sets none, the mortar's shell), rotation_follows_velocity (default true: the motor pushes along the path; false: along the barrel's axis at launch, the UB-32's S-5), arc low/high, aim overlay/elevation, unit deg/mil, angle_offset, elevation_limits [min,max] (degrees of the weapon's readout the mount can be laid on: a shot outside them is refused), min_distance (m: the nearest target on flat ground those limits allow, the range at the mount's stop; it is the figure the app shows, the limits decide, so a target uphill can be nearer), bore (deg: how far above the screen centre the shot leaves in the view the weapon is aimed through; the game fires along the barrel socket Attach_Muzzle, tilted against the camera), zoom (FOV divisor of that view: a scope, an optic or the gunner's sight; omitted = ×1; a weapon whose RMB sight zooms the screen has two entries: '<base> · optic (RMB ×N)' for the sight and '<base> · no optic' for its normal view, with that camera's bore and no zoom), view ('optic' on the RMB sight, 'plain' on its normal-view twin; the app shows it next to the weapon) + twin (on an optic entry: the name of its plain twin), focus_narrows_view (true on a plain view that holding the Focus key narrows to 0.666 of the FOV: the mount allows Focus in the game files, tools/game_weapons.py; the mark follows the key), launch_height + muzzle_forward + muzzle_up (m: the barrel pivot above the ground and the barrel socket along and above the barrel), hold_rate + hold_elevation (a barrel laid by holding a key), category, warhead (direct/splash, launchers, guns and tanks: splash when the round's damaging explosion reaches beyond 10 m in the game files, tools/game_weapons.py burst_radius; the marker note judges a splash round by the ground like a grenade), note. Sources: velocity, gravity, rocket motor, speed cap, lifespan, view and the elevation limits of the direct-fire mounts read from the game files (Squad build 26234431: WeaponConfig.MuzzleVelocity; ZoomLevels of the gunner sights and the Focus flags of the mounts; the projectile's ProjectileGravityScale, ConstantAcceleration/Timeout, MaxSpeed, bRotationFollowsVelocity and InitialLifeSpan; the mount's pitch limits plus the barrel socket's pitch; snapshot tests/data/game_weapons.json, written by tools/game_weapons.py); the other elevation limits, arcs and the AGS-17 hold model from in-game measurements, the official Squad wiki (squad.fandom.com) and SquadCalc (github.com/sh4rkman/SquadCalc).",
     "M203 / M320 / GP-25 / HK79 / SL40": {
         "velocity": 76,
         "gravity": 1,
@@ -2712,17 +2712,17 @@
         "category": "indirect",
         "arc": "high",
         "unit": "mil",
-        "min_distance": 51,
+        "min_distance": 51.8,
         "elevation_limits": [
             45,
-            88.875
+            88.8
         ],
         "hold_rate": 9.0,
         "hold_elevation": [
             45,
-            88.875
+            88.8
         ],
-        "note": "Set the mils on the mortar sight. Range 51–1236 m. Auto-lay: W raises the barrel to its top (1580 mil), S lowers it at 9°/s (game files: keyboard pitch ×300 per second × turret input ×0.03, the same at any frame rate, sensitivity or zoom; the AGS-17's ×15 × 0.6 is also 9°/s, and its 67 measurements fit 9°/s as well as their fitted 9.08°/s)."
+        "note": "Set the mils on the mortar sight. Range 51.8–1236 m on flat ground. Auto-lay: W raises the barrel to its top (1578.7 mil), S lowers it at 9°/s (game files: keyboard pitch ×300 per second × turret input ×0.03, the same at any frame rate, sensitivity or zoom; the AGS-17's ×15 × 0.6 is also 9°/s, and its 67 measurements fit 9°/s as well as their fitted 9.08°/s)."
     },
     "Technical Mortar": {
         "velocity": 110,
@@ -2733,7 +2733,7 @@
         "category": "indirect",
         "arc": "high",
         "angle_offset": 5,
-        "min_distance": 51,
+        "min_distance": 51.8,
         "elevation_limits": [
             40,
             83.8
@@ -2748,7 +2748,7 @@
         "muzzle_up": 0.0035,
         "category": "indirect",
         "arc": "high",
-        "min_distance": 340,
+        "min_distance": 358,
         "elevation_limits": [
             50,
             85
@@ -2801,6 +2801,7 @@
         "max_speed": 300,
         "rotation_follows_velocity": false,
         "lifespan": 20,
+        "min_distance": 147.1,
         "elevation_limits": [
             0,
             50
@@ -2816,6 +2817,7 @@
         "muzzle_up": 0.6366,
         "category": "indirect",
         "aim": "elevation",
+        "min_distance": 985.1,
         "elevation_limits": [
             14.2,
             55
