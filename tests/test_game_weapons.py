@@ -64,9 +64,10 @@ def test_the_flight_is_the_games(name):
         assert weapon.acceleration_time == pytest.approx(game["acceleration_timeout"])
     else:
         # The motor never stops; the cap holds the speed from the moment it
-        # reaches it, which the entry's time must cover.
+        # reaches it, which the steps the entry's time makes the motor act on
+        # must cover (a time of exactly the cap's would lose a frame).
         to_cap = (game["max_speed"] - game["velocity"]) / game["acceleration"]
-        assert game["max_speed"] and weapon.acceleration_time >= to_cap - 1e-9
+        assert game["max_speed"] and weapon.burn_time >= to_cap - 1e-9
 
 
 @pytest.mark.parametrize("name", [n for n in GAME if GAME[n]["bore"] is not None])

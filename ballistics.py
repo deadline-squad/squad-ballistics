@@ -14,30 +14,50 @@ SquadGameServer (deadline-squad/squad-ballistics#4 has the evidence):
   the barrel. The barrel pivots `launch_height` above the ground; the muzzle
   is `muzzle_forward` along the barrel and `muzzle_up` above its axis, so the
   launch point moves with the elevation;
-* the game moves the projectile in substeps (UProjectileMovementComponent::
-  TickComponent 0x7cef0c0) of the frame time, at most 0.05 s
-  (MaxSimulationTimeStep, constructor 0x7cee8d0). The dedicated server, whose
-  projectile deals the damage, runs at 50 Hz (NetServerMaxTickRate of the
-  RedpointEOSNetDriver), so a substep is SUBSTEP = 0.02 s. Per substep, with
-  v the velocity and R the projectile's rotation:
+* the game moves the projectile once per frame, in one step of the frame's
+  length (UProjectileMovementComponent::TickComponent 0x7cef0c0, whose
+  sub-stepping limits, the stock 0.05 s and 4 iterations, a frame never
+  reaches). The dedicated server, whose projectile deals the damage, runs
+  frames of FRAME_TIME = 1/49.87 s = 20.052 ms (not 20.000 ms: the 49.87 Hz
+  is the median of 48 055 ten-second `Server Tick Rate` samples of the
+  production server over 133.5 h, 99.51 % of them at 49.5 Hz or more, the
+  Training server's median is the same; the world time of two
+  `FireProjectile()` log lines advanced 23.619521 s over 1178 frames,
+  20.0505 ms each). A server under load, 0.17 % of the samples are below
+  45 Hz, flies rockets differently: that is a limit of the model. Per step,
+  with v the velocity and R the projectile's rotation:
       move   p += v dt + (V(R_before) - v) dt / 2   (Velocity Verlet)
       then   R = direction of v when `rotation_follows_velocity`
       then   v = V(R),   V(R) = clamp(v + (A(R) + g) dt) to `max_speed`
   (ComputeMoveDelta 0x7cf09e0, ComputeVelocity 0x7cf08a0 with GetMaxSpeed
-  0x7d449c0). The move uses the rotation of the substep before: the thrust
-  follows the velocity one substep late;
+  0x7d449c0). The move uses the rotation of the step before: the thrust
+  follows the velocity one step late;
 * A(R) is the rocket motor (USQProjectileMovement::ComputeAcceleration
   0xa747770): `acceleration` along the projectile's rotation for the first
-  `acceleration_time` seconds (ConstantAccelerationTimeout; negative:
-  the UB-32's rockets slow down). Every projectile turns with its velocity
-  (the ASQProjectile constructor 0xa731b80 sets bRotationFollowsVelocity), so
-  the motor pushes along the path, unless its Blueprint turns that off
+  `acceleration_time` T seconds (ConstantAccelerationTimeout; negative: the
+  UB-32's rockets slow down). Every projectile turns with its velocity (the
+  ASQProjectile constructor 0xa731b80 sets bRotationFollowsVelocity), so the
+  motor pushes along the path, unless its Blueprint turns that off
   (`rotation_follows_velocity` false: the S-5 rocket keeps the barrel's
-  axis);
+  axis). The motor acts on N = ceil(T / dt) - 1 steps, one fewer than the
+  steps that start before T: the server's thrust runs while
+  float(CreationTime + Timeout) > World->TimeSeconds, strict (0xa747770); the
+  projectile is spawned inside the RPC handler
+  ServerFireProjectileWithId_Implementation (0xa74f290), which runs in the
+  network receive of UWorld::Tick (0x804d3a0) before the world time advances
+  (CreationTime is written in AActor::PostSpawnInitialize, 0x79ff162), so at
+  the k-th movement tick now - creation = k dt and the motor acts while
+  k dt < T. One link is inferred from stock engine behaviour and was not read
+  in the binary: the first movement tick is in the frame of the spawn (were
+  it one frame later, N would be ceil(T / dt)). The 32-bit CreationTime
+  rounds to 2 ms above a world time of 16 384 s, which can flip N for a
+  short motor late in a long server session; that is not modelled. The
+  logs, binary excerpts and the integrator that checks this model
+  independently: deadline-squad/deadline-squadcalc#49;
 * `lifespan` is the projectile's InitialLifeSpan: the actor is destroyed
   that many seconds after it spawns (0: never), so `solve` refuses a shot
   that takes longer; `max_range` stays the range of the flight without it;
-* `max_speed` (MaxSpeed) caps the speed at every substep, also on the first
+* `max_speed` (MaxSpeed) caps the speed at every step, also on the first
   one: a shell fired faster than its cap (SPG-9 HEAT 435 -> 330 m/s, tank HE
   1100 -> 800 or 850 m/s) is slowed to it at once, a motor holds a rocket at
   it, and a shell coming down faster than it is held there.
@@ -45,11 +65,11 @@ SquadGameServer (deadline-squad/squad-ballistics#4 has the evidence):
 The phases that have a closed form are computed exactly: a motor along the
 barrel's axis (two parabolas), the parabola of a coasting shell, and a shell
 coasting at its cap (speed constant, the path angle gamma turns as
-d gamma / dt = -g cos gamma / max_speed; continuous, which the 20 ms substeps
-follow to 1e-5 of the turn). A motor along the path and a capped launch have
-none: they are flown with the game's substeps above. The boost phase is
+d gamma / dt = -g cos gamma / max_speed; continuous, which the steps follow
+to 1e-5 of the turn). A motor along the path and a capped launch have none:
+they are flown with the game's steps above. The boost phase is
 tabulated over the barrel elevation (`_BoostTable`) so that the root finding
-stays fast; the game's path between two substeps is a straight segment, and so
+stays fast; the game's path between two steps is a straight segment, and so
 is the model's.
 """
 
@@ -61,13 +81,17 @@ from functools import cached_property
 # Squad's world gravity in m/s^2: DefaultGravityZ = -980 cm/s^2 in the game.
 GRAVITY = 9.80
 
-# The game's projectile substep on the dedicated server, seconds: one per
-# frame of its 50 Hz tick (see the module docstring).
-SUBSTEP = 0.02
+# The dedicated server's frame, seconds, and the projectile's step: the
+# reciprocal of the median 49.87 Hz of its `Server Tick Rate` log lines (see
+# the module docstring). The server aims at 50 Hz (NetServerMaxTickRate of the
+# RedpointEOSNetDriver) and its frames take 20.052 ms.
+FRAME_TIME = 1 / 49.87
 
 # Barrel elevations between the nodes of a boost table, radians. Four-point
-# Lagrange interpolation between them reproduces the stepped boost to 1e-6 m
-# (to 4e-4 m near the substep where the M3 MAAWS reaches its cap).
+# Lagrange interpolation between them reproduces the stepped boost to 1.2e-6 m
+# (to 3e-4 m near the step where the M3 MAAWS reaches its cap): the largest
+# error of every step point of every stepped weapon at elevations between the
+# nodes.
 BOOST_NODE_SPACING = math.radians(1.0)
 
 # Squad mortars use the 6400 mil circle.
@@ -421,17 +445,29 @@ class Weapon:
 
     @property
     def has_boost(self):
-        """A phase right after launch with a constant acceleration."""
-        return self.acceleration != 0 and self.acceleration_time > 0
+        """A motor phase right after launch: a constant acceleration that
+        acts on at least one step."""
+        return self.boost_steps > 0
 
-    @property
+    @cached_property
     def boost_steps(self):
-        """Game substeps the motor acts in: those that start before
-        `acceleration_time` (0 without boost)."""
-        if not self.has_boost:
+        """Steps the motor acts on: ceil(`acceleration_time` / FRAME_TIME) - 1
+        (see the module docstring: the server's thrust is strict, k dt < T,
+        from the first movement tick on); the 1e-9 keeps a time that is a
+        whole number of frames, up to rounding, from gaining a step. 0
+        without a motor."""
+        if self.acceleration == 0 or not self.acceleration_time > 0:
             return 0
 
-        return math.ceil(self.acceleration_time / SUBSTEP - 1e-9)
+        return max(
+            0, math.ceil(self.acceleration_time / FRAME_TIME - 1e-9) - 1
+        )
+
+    @property
+    def burn_time(self):
+        """Seconds the motor acts: its steps, not the `acceleration_time` it
+        is configured with."""
+        return self.boost_steps * FRAME_TIME
 
     @property
     def _cap_binds_on_axis(self):
@@ -442,17 +478,18 @@ class Weapon:
         if not self.max_speed:
             return False
 
-        end = abs(self.velocity + self.acceleration * self.acceleration_time)
+        burn = self.burn_time
+        end = abs(self.velocity + self.acceleration * burn)
 
         return (
             self.velocity > self.max_speed
-            or end + self.g * self.acceleration_time > self.max_speed
+            or end + self.g * burn > self.max_speed
         )
 
     @property
     def flies_boost_in_steps(self):
         """The boost has no closed form and is flown with the game's
-        substeps (`_BoostTable`): a motor that turns with the velocity, or
+        steps (`_BoostTable`): a motor that turns with the velocity, or
         one along the barrel that the cap could clamp. A flight without
         gravity is straight either way."""
         if not self.has_boost or self.g == 0:
@@ -462,7 +499,7 @@ class Weapon:
 
     @property
     def _launch_clamped(self):
-        """Fired faster than `max_speed` without a motor: the first substep
+        """Fired faster than `max_speed` without a motor: the first step
         slows the shell to its cap (tank HE)."""
         return (
             bool(self.max_speed)
@@ -473,17 +510,17 @@ class Weapon:
     @property
     def _axis_boost_time(self):
         """Seconds the closed-form motor along the barrel speeds the
-        projectile up: `acceleration_time`, ended earlier by the cap in a
-        straight flight (no gravity: the NLAW reaches its 250 m/s in 0.6 s
-        and is held there). 0 without boost."""
+        projectile up: the motor's `burn_time` (whole steps), ended earlier by
+        the cap in a straight flight (no gravity: the NLAW reaches its
+        250 m/s in 0.6 s and is held there). 0 without boost."""
         if not self.has_boost:
             return 0.0
 
         if self.g == 0 and self.max_speed and self.acceleration > 0:
             to_cap = (self.max_speed - self.velocity) / self.acceleration
-            return min(self.acceleration_time, max(0.0, to_cap))
+            return min(self.burn_time, max(0.0, to_cap))
 
-        return self.acceleration_time
+        return self.burn_time
 
     @property
     def boost_distance(self):
@@ -630,17 +667,17 @@ class Weapon:
         return table
 
     def _clamped_launch(self, cos, sin):
-        """(x, y, vx, vy) after the first substep of a shell fired above its
+        """(x, y, vx, vy) after the first step of a shell fired above its
         cap, relative to the muzzle: ComputeVelocity clamps v0 + g dt to
         `max_speed`, and the move is the average of the two velocities."""
         v0, cap = self.velocity, self.max_speed
-        vx, vy = v0 * cos, v0 * sin - self.g * SUBSTEP
+        vx, vy = v0 * cos, v0 * sin - self.g * FRAME_TIME
         scale = cap / math.hypot(vx, vy)
         vx, vy = vx * scale, vy * scale
 
         return (
-            0.5 * (v0 * cos + vx) * SUBSTEP,
-            0.5 * (v0 * sin + vy) * SUBSTEP,
+            0.5 * (v0 * cos + vx) * FRAME_TIME,
+            0.5 * (v0 * sin + vy) * FRAME_TIME,
             vx,
             vy,
         )
@@ -757,7 +794,7 @@ class Weapon:
         """(height, time, path angle) of the projectile when it is
         `distance` metres ahead of the pivot, fired at a barrel elevation of
         `rad`: metres above the ground, seconds after launch, radians above
-        the horizontal (negative: coming down). Inside a substep the path is
+        the horizontal (negative: coming down). Inside a step the path is
         the game's straight segment. Time and angle are 0 behind the muzzle;
         a point the capped coast never reaches is (-inf, inf, -pi/2).
         """
@@ -776,12 +813,12 @@ class Weapon:
                 part = (ahead - xa) / (xb - xa)
                 return (
                     start_y + ya + (yb - ya) * part,
-                    max(0.0, (step + part) * SUBSTEP),
+                    max(0.0, (step + part) * FRAME_TIME),
                     math.atan2(yb - ya, xb - xa),
                 )
 
             height, t, angle = self._coast_at(
-                x, y, vx, vy, table.steps * SUBSTEP, ahead
+                x, y, vx, vy, table.steps * FRAME_TIME, ahead
             )
             return start_y + height, t, angle
 
@@ -812,11 +849,11 @@ class Weapon:
             if ahead < x:
                 return (
                     start_y + y * ahead / x,
-                    max(0.0, SUBSTEP * ahead / x),
+                    max(0.0, FRAME_TIME * ahead / x),
                     math.atan2(y, x),
                 )
 
-            height, t, angle = self._coast_at(x, y, vx, vy, SUBSTEP, ahead)
+            height, t, angle = self._coast_at(x, y, vx, vy, FRAME_TIME, ahead)
             return start_y + height, t, angle
 
         height, t, angle = self._coast_at(
@@ -1026,10 +1063,10 @@ _GOLDEN = (math.sqrt(5) - 1) / 2
 
 def _fly_boost(weapon, rad):
     """The boost of `weapon` fired at `rad` radians, flown with the game's
-    substeps (module docstring) from the muzzle: ([(x, y)] at the start of
-    every substep and at the end, end velocity (vx, vy)), metres and m/s
+    steps (module docstring) from the muzzle: ([(x, y)] at the start of
+    every step and at the end, end velocity (vx, vy)), metres and m/s
     relative to the muzzle."""
-    dt, g, a, cap = SUBSTEP, weapon.g, weapon.acceleration, weapon.max_speed
+    dt, g, a, cap = FRAME_TIME, weapon.g, weapon.acceleration, weapon.max_speed
     cap_squared = cap * cap
     follows = weapon.rotation_follows_velocity
     cos, sin = math.cos(rad), math.sin(rad)
@@ -1040,8 +1077,8 @@ def _fly_boost(weapon, rad):
     points = [(0.0, 0.0)]
 
     for _ in range(weapon.boost_steps):
-        # Move: the velocity this substep would end with, under the
-        # rotation of the substep before.
+        # Move: the velocity this step would end with, under the
+        # rotation of the step before.
         mx, my = vx + ax * dt, vy + (ay - g) * dt
         if cap:
             speed_squared = mx * mx + my * my
@@ -1082,7 +1119,7 @@ class _BoostTable:
         self.nodes = [None] * self.count
 
     def node(self, index):
-        """(xs, ys, vx, vy) of node `index`: the substep points and the
+        """(xs, ys, vx, vy) of node `index`: the step points and the
         end velocity at elevation -90 deg + index * spacing."""
         node = self.nodes[index]
 
@@ -1124,10 +1161,10 @@ class _BoostTable:
         )
 
     def segment(self, weights, nodes, ahead):
-        """(k, start, end) of the substep whose straight segment holds the
+        """(k, start, end) of the step whose straight segment holds the
         distance `ahead` from the muzzle (the first one for a distance
         behind the muzzle, the last one at its end): binary search on the
-        interpolated x of the substep points."""
+        interpolated x of the step points."""
         w0, w1, w2, w3 = weights
         (x0, y0, _, _), (x1, y1, _, _), (x2, y2, _, _), (x3, y3, _, _) = nodes
         low, high = 0, self.steps
@@ -1148,7 +1185,7 @@ class _BoostTable:
         return low, point(low), point(low + 1)
 
     def points(self, weights, nodes):
-        """The interpolated substep points (x, y), from the muzzle on."""
+        """The interpolated step points (x, y), from the muzzle on."""
         w0, w1, w2, w3 = weights
         (x0, y0, _, _), (x1, y1, _, _), (x2, y2, _, _), (x3, y3, _, _) = nodes
 

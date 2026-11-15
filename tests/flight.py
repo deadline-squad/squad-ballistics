@@ -8,29 +8,35 @@ The flight is the game's own integration, written down from the decompiled
 server (Squad build 26005357), step by step as the game takes them, not
 solved in closed form:
 
-* the dedicated server ticks at 50 Hz (NetServerMaxTickRate of its
-  RedpointEOSNetDriver) and the projectile moves once per tick: substeps of
-  SUBSTEP = 0.02 s (UProjectileMovementComponent::TickComponent 0x7cef0c0;
-  its MaxSimulationTimeStep 0.05 s is never reached);
-* each substep (ComputeMoveDelta 0x7cf09e0, ComputeVelocity 0x7cf08a0): the
-  move is v dt + (V - v) dt / 2, V the velocity the substep ends with under
-  the projectile's rotation from the substep before; then the rotation turns
+* the dedicated server aims at 50 Hz (NetServerMaxTickRate of its
+  RedpointEOSNetDriver) but its frames take 1/49.87 s = 20.052 ms (the median
+  of 48 055 ten-second `Server Tick Rate` log samples), and the projectile
+  moves once per frame: steps of FRAME_TIME
+  (UProjectileMovementComponent::TickComponent 0x7cef0c0; its
+  MaxSimulationTimeStep 0.05 s is never reached);
+* each step (ComputeMoveDelta 0x7cf09e0, ComputeVelocity 0x7cf08a0): the
+  move is v dt + (V - v) dt / 2, V the velocity the step ends with under
+  the projectile's rotation from the step before; then the rotation turns
   to the old velocity's direction when bRotationFollowsVelocity is set
   (ASQProjectile's constructor sets it, 0xa731eb8; the UB-32's S-5 clears
   it); then the velocity becomes V under the new rotation;
-* V = v + (A + gravity) dt, clamped to MaxSpeed (every substep, the first one
+* V = v + (A + gravity) dt, clamped to MaxSpeed (every step, the first one
   too; 0 = no cap). gravity = ProjectileGravityScale * 9.80 m/s^2
   (DefaultGravityZ = -980 cm/s^2), no drag. A
   (USQProjectileMovement::ComputeAcceleration 0xa747770) is
   ConstantAcceleration along the projectile's rotation while the time since
-  spawn, counted at the start of the substep, is under
-  ConstantAccelerationTimeout (0: the whole flight); gravity is left out while
+  spawn, counted at the end of the step, is under ConstantAccelerationTimeout
+  (0: the whole flight): the thrust is strict and the projectile is spawned
+  before the world time of its frame advances, so the k-th movement tick sees
+  k frames and the motor acts on ceil(T / dt) - 1 steps (the first movement
+  tick being in the frame of the spawn is inferred, not read in the binary;
+  deadline-squad/deadline-squadcalc#49); gravity is left out while
   A acts when bIgnoreGravityDuringConstantAcceleration is set (NLAW);
 * the projectile starts at the barrel socket `Attach_Muzzle`, `muzzle_forward`
   along the barrel and `muzzle_up` above its axis, the barrel pivoting
   `launch_height` above the ground, at MuzzleVelocity along the barrel
-  (InitializeComponent 0x7ceea60 does not clamp it; the first substep does);
-  between two substeps it moves along the straight segment of the move;
+  (InitializeComponent 0x7ceea60 does not clamp it; the first step does);
+  between two steps it moves along the straight segment of the move;
 * the camera is rectilinear with the horizontal FOV, so a point `p` pixels
   below the centre of an image `W` pixels wide is
   atan(p / ((W / 2) / tan(fov / 2))) below the view axis; the shot leaves
@@ -42,7 +48,7 @@ import math
 
 GRAVITY_Z = 9.80
 
-SUBSTEP = 0.02
+FRAME_TIME = 1 / 49.87
 
 
 class Shot:
@@ -115,8 +121,8 @@ def barrel_elevation(entry, view, fov, width, pixels_below_centre, distance,
 
 
 class _Flight:
-    """A shot being flown substep by substep: position, velocity, the
-    projectile's rotation (a unit vector) and the substeps taken."""
+    """A shot being flown step by step: position, velocity, the
+    projectile's rotation (a unit vector) and the steps taken."""
 
     def __init__(self, shot, elevation):
         self.shot = shot
@@ -128,13 +134,13 @@ class _Flight:
 
     @property
     def t(self):
-        return self.steps * SUBSTEP
+        return self.steps * FRAME_TIME
 
     def _velocity_after(self, rx, ry):
-        """The velocity this substep ends with under the rotation (rx, ry)."""
+        """The velocity this step ends with under the rotation (rx, ry)."""
         shot = self.shot
         thrusting = shot.acceleration != 0 and (
-            shot.timeout <= 0 or self.steps * SUBSTEP < shot.timeout - 1e-9
+            shot.timeout <= 0 or (self.steps + 1) * FRAME_TIME < shot.timeout - 1e-9
         )
         ax = ay = 0.0
         gravity = shot.gravity
@@ -144,8 +150,8 @@ class _Flight:
             if shot.ignore_gravity:
                 gravity = 0.0
 
-        vx = self.vx + ax * SUBSTEP
-        vy = self.vy + (ay - gravity) * SUBSTEP
+        vx = self.vx + ax * FRAME_TIME
+        vy = self.vy + (ay - gravity) * FRAME_TIME
         speed = math.hypot(vx, vy)
 
         if shot.max_speed and speed > shot.max_speed:
@@ -154,10 +160,10 @@ class _Flight:
         return vx, vy
 
     def advance(self):
-        """One substep of the game."""
+        """One step of the game."""
         end_vx, end_vy = self._velocity_after(self.rx, self.ry)
-        self.x += self.vx * SUBSTEP + (end_vx - self.vx) * SUBSTEP / 2
-        self.y += self.vy * SUBSTEP + (end_vy - self.vy) * SUBSTEP / 2
+        self.x += self.vx * FRAME_TIME + (end_vx - self.vx) * FRAME_TIME / 2
+        self.y += self.vy * FRAME_TIME + (end_vy - self.vy) * FRAME_TIME / 2
 
         if self.shot.follows:
             speed = math.hypot(self.vx, self.vy)
@@ -172,7 +178,7 @@ def fly_to(shot, elevation, distance):
     `distance` m ahead of the pivot.
 
     Returns (height, slope, curvature, time): the height above the ground
-    and the time there (on the substep's straight segment), the segment's
+    and the time there (on the step's straight segment), the segment's
     dy/dx and d2y/dx2 from it and the next segment; or None when it never
     gets there (it falls 100 km or flies 600 s first).
     """
@@ -198,7 +204,7 @@ def fly_to(shot, elevation, distance):
         y0 + (y1 - y0) * part,
         slope,
         (following - slope) / ((flight.x - x0) / 2),
-        max(0.0, (step + part) * SUBSTEP),
+        max(0.0, (step + part) * FRAME_TIME),
     )
 
 

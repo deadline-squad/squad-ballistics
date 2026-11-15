@@ -37,7 +37,7 @@ degrees):
 * Launch: ``WeaponConfig.MuzzleVelocity`` of the weapon, along its barrel socket
   ``WeaponConfig.BarrelSocketName``. Flight: the projectile's ``SQProjectileMovement``
   component: ``ProjectileGravityScale`` (x 9.80 m/s^2), ``MaxSpeed`` (clamped every
-  substep, 0 = none), ``ConstantAcceleration.X`` for ``ConstantAccelerationTimeout``
+  step, 0 = none), ``ConstantAcceleration.X`` for ``ConstantAccelerationTimeout``
   seconds (0 = the whole flight), ``bRotationFollowsVelocity`` and
   ``bIgnoreGravityDuringConstantAcceleration``. A field no Blueprint sets keeps the
   native default in ``NATIVE_DEFAULTS`` and is listed under ``sources.defaults``.

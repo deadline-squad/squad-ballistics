@@ -3,7 +3,7 @@ of the mark is worth, the range where the mark leaves the screen, the aim
 point lifted above the ground, the pixel rounding and the arming line.
 
 The numbers are checked against the independent flight of tests/flight.py
-(the game's substeps, a rectilinear camera written from first principles),
+(the game's steps, a rectilinear camera written from first principles),
 not against the app's own solver.
 """
 
