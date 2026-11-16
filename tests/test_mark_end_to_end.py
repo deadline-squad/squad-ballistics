@@ -7,16 +7,16 @@ distance, height), RENDERS the overlay offscreen and finds the mark (a pure
 red cross) or the ladder ticks by pixel scan. The row of the mark is turned
 into a camera pitch with a rectilinear camera written from first principles
 (tests/flight.py), the barrel is pointed there (plus the view's bore) and the
-shot is flown substep by substep the way the game's server flies it
-(tests/flight.py: 20 ms substeps, the speed cap, a motor along the path). The
+shot is flown step by step the way the game's server flies it
+(tests/flight.py: the server's 20.05 ms steps, the speed cap, a motor along the path). The
 view (zoom, bore) and the flight (velocity, gravity, MaxSpeed, motor) come
 from tests/data/game_weapons.json, the snapshot tools/game_weapons.py writes
 from the game files, not from weapons.json. The miss is measured against flat
 ground at the target's distance and height.
 
 Tolerance. A miss up to max(0.5 m, 0.05 % of the distance) is accepted. That
-is far above the oracle's own error (its substeps are checked against hand
-computations in test_oracle_flies_the_games_substeps) and above the 8-bit
+is far above the oracle's own error (its steps are checked against hand
+computations in test_oracle_flies_the_games_steps) and above the 8-bit
 anti-aliasing of the rendered dot, whose centre is read to 0.005 px. It is also below one pixel for
 the short ranges but NOT for the long ones: a pixel is worth up to hundreds of
 metres of range for a fast shell at long range, so the player cannot place the
@@ -606,7 +606,7 @@ def test_the_optic_mark_from_the_normal_view_flies_past(rig):
 def test_the_qlz87_optic_mark_lands_on_the_target_far_out(rig, distance):
     """The owner's second report: "in the optic it is wrong beyond 400 m".
     The rendered mark of the ×3 optic, laid by the game's own rules (FOV / 3
-    horizontal, the barrel 0.774 degrees above the view axis, 20 ms substeps),
+    horizontal, the barrel 0.774 degrees above the view axis, 20.05 ms steps),
     lands on the target from 100 m to 1200 m (the mark leaves a 1080p screen at 1539 m), where a one-pixel row is worth
     0.5 m at 100 m and 3 m at 800 m: nothing in the data makes the optic's
     mark drift with range, so a shot that misses by more is not this model."""
@@ -631,14 +631,14 @@ def test_the_qlz87_optic_mark_lands_on_the_target_far_out(rig, distance):
 # The oracle itself
 # ---------------------------------------------------------------------------
 
-def test_oracle_flies_the_games_substeps():
-    """The oracle's substeps against hand computations of the game's rules,
+def test_oracle_flies_the_games_steps():
+    """The oracle's steps against hand computations of the game's rules,
     so a pass of the matrix means something."""
-    dt = flight.SUBSTEP
+    dt = flight.FRAME_TIME
 
-    # Without a motor or a cap the substeps land on the parabola (the move
+    # Without a motor or a cap the steps land on the parabola (the move
     # v dt + (V - v) dt / 2 is exact for a constant acceleration), and
-    # between two substeps the path is the straight segment.
+    # between two steps the path is the straight segment.
     plain = flight.Shot({"velocity": 100.0})
     angle = math.radians(30)
     vx, vy = 100.0 * math.cos(angle), 100.0 * math.sin(angle)
@@ -653,11 +653,11 @@ def test_oracle_flies_the_games_substeps():
     expected = 100.0 ** 2 * math.sin(2 * angle) / 9.80
     assert flight.range_at(plain, angle, 0.0) == pytest.approx(expected, abs=1e-3)
 
-    # Gravity scale 2 doubles g.
+    # Gravity scale 2 doubles g (the ground crossing is on a straight segment of the path: a few mm)
     heavy = flight.Shot({"velocity": 100.0, "gravity_scale": 2})
-    assert flight.range_at(heavy, angle, 0.0) == pytest.approx(expected / 2, abs=1e-3)
+    assert flight.range_at(heavy, angle, 0.0) == pytest.approx(expected / 2, abs=5e-3)
 
-    # A shell fired above its cap: the first substep ends at the cap and
+    # A shell fired above its cap: the first step ends at the cap and
     # moves by the mean of the two velocities; then it flies at the cap
     # (level and without gravity here, so straight).
     capped = flight.Shot({"velocity": 1100.0, "gravity_scale": 0, "max_speed": 850.0})
@@ -665,17 +665,18 @@ def test_oracle_flies_the_games_substeps():
     assert flight.fly_to(capped, 0.0, first)[3] == pytest.approx(dt, abs=1e-12)
     assert flight.fly_to(capped, 0.0, first + 850.0 * 10 * dt)[3] == pytest.approx(11 * dt, abs=1e-12)
 
-    # A motor for 0.05 s (three substeps start before it ends) along a
-    # level barrel, no gravity: v grows by a dt per substep.
-    rocket = flight.Shot({"velocity": 100.0, "gravity_scale": 0, "acceleration": 50.0, "acceleration_timeout": 0.05})
+    # A motor for 0.07 s acts on ceil(0.07 / dt) - 1 = 3 steps (the strict
+    # thrust: the k-th movement tick is k dt after the spawn) along a level
+    # barrel, no gravity: v grows by a dt per step.
+    rocket = flight.Shot({"velocity": 100.0, "gravity_scale": 0, "acceleration": 50.0, "acceleration_timeout": 0.07})
     x = sum((100.0 + 50.0 * dt * (k + 0.5)) * dt for k in range(3)) + (100.0 + 150.0 * dt) * 2 * dt
     height, _, _, t = flight.fly_to(rocket, 0.0, x)
     assert t == pytest.approx(5 * dt, abs=1e-12)
     assert height == pytest.approx(0.0, abs=1e-12)
 
-    # A motor that turns with the velocity, by hand for three substeps: each
-    # move pushes along the rotation of the substep before (the barrel's for
-    # the first two), then the rotation turns to the velocity the substep
+    # A motor that turns with the velocity, by hand for three steps: each
+    # move pushes along the rotation of the step before (the barrel's for
+    # the first two), then the rotation turns to the velocity the step
     # started with, and the velocity takes the push along it.
     g, a = 9.80, 100.0
     follows = flight.Shot({"velocity": 50.0, "acceleration": a, "acceleration_timeout": 1.0})

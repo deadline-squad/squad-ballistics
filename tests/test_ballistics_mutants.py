@@ -1,6 +1,6 @@
 """Behaviour of ballistics.py found by mutation testing (mutmut) that the other
 test files did not pin: the flight of every weapon against the game's own
-substep integration (tests/flight.py, no code of the app), the straight-flight
+step integration (tests/flight.py, no code of the app), the straight-flight
 helpers, the weapons.json checks and the mark geometry."""
 
 import json
@@ -8,6 +8,7 @@ import math
 import os
 import subprocess
 import sys
+from dataclasses import replace
 
 import pytest
 
@@ -45,8 +46,8 @@ with open(os.path.join(ROOT, "weapons.json"), encoding="utf-8") as stream:
 
 GAME_WEAPONS = [name for name in WEAPONS if name in GAME]
 
-# The closed forms and the tabulated boost follow the game's substeps to a
-# few millimetres; the path angle is compared with the slope of the substep's
+# The closed forms and the tabulated boost follow the game's steps to a
+# few millimetres; the path angle is compared with the slope of the step's
 # straight segment, which differs from the velocity's direction by up to 2 mrad.
 HEIGHT_TOLERANCE = 0.01
 TIME_TOLERANCE = 1e-4
@@ -62,7 +63,7 @@ def distances_to_check(shot, rad):
 
 
 @pytest.mark.parametrize("name", GAME_WEAPONS)
-def test_the_flight_follows_the_games_substeps(name):
+def test_the_flight_follows_the_games_steps(name):
     weapon = WEAPONS[name]
     shot = flight.Shot(GAME[name], RAW[name])
 
@@ -86,9 +87,9 @@ def test_the_flight_follows_the_games_substeps(name):
 
 
 def oracle_apex(shot, rad, distance):
-    """(top, height at `distance`, muzzle height) of the game's substep flight
+    """(top, height at `distance`, muzzle height) of the game's step flight
     up to `distance` m ahead of the pivot, `top` being the highest corner of
-    its substeps; None when it never gets there."""
+    its steps; None when it never gets there."""
     reached = flight.fly_to(shot, rad, distance)
 
     if reached is None:
@@ -106,7 +107,7 @@ def oracle_apex(shot, rad, distance):
 
 
 @pytest.mark.parametrize("name", GAME_WEAPONS)
-def test_the_apex_follows_the_games_substeps(name):
+def test_the_apex_follows_the_games_steps(name):
     """The apex is the top the flight has passed and come down from by `distance`."""
     weapon = WEAPONS[name]
     shot = flight.Shot(GAME[name], RAW[name])
@@ -163,7 +164,7 @@ def custom_game(raw):
 
 
 @pytest.mark.parametrize("name", CUSTOM_FLIGHTS)
-def test_the_flight_of_made_up_weapons_follows_the_games_substeps(name):
+def test_the_flight_of_made_up_weapons_follows_the_games_steps(name):
     raw = CUSTOM_FLIGHTS[name]
     weapon = Weapon.from_dict("w", raw)
     shot = flight.Shot(custom_game(raw), raw)
@@ -393,17 +394,19 @@ def test_a_straight_flight_covers_a_distance_in_the_time_the_motor_and_the_cruis
     assert plain.time_to(-5) == 0.0
     assert boosted.time_to(-5) == 0.0
     assert boosted.time_to(mid) == pytest.approx((-100 + math.sqrt(100 ** 2 + 2 * 50 * mid)) / 50)
-    # 300 m under the motor, then 200 m/s
-    assert boosted.boost_distance == 300.0
-    assert boosted.time_to(500.0) == pytest.approx(3.0)
-    assert boosted.cruise_velocity == 200.0
+    # The 2 s motor acts on 99 steps: 99 / 49.87 s under the motor, then its end speed
+    burn = 99 / 49.87
+    assert boosted.boost_distance == pytest.approx(100 * burn + 25 * burn ** 2)
+    assert boosted.cruise_velocity == pytest.approx(100 + 50 * burn)
+    assert boosted.time_to(500.0) == pytest.approx(burn + (500 - boosted.boost_distance) / boosted.cruise_velocity)
 
 
 def test_a_motor_that_slows_the_shell_to_a_crawl_takes_the_whole_boost_to_cover_its_distance():
     slowed = Weapon.from_dict("s", {"velocity": 10, "gravity": 0, "acceleration": -4.9, "acceleration_time": 2})
 
-    assert slowed.boost_distance == pytest.approx(10.2)
-    assert slowed.time_to(slowed.boost_distance) == pytest.approx(2.0)
+    burn = 99 / 49.87
+    assert slowed.boost_distance == pytest.approx(10 * burn - 2.45 * burn ** 2)
+    assert slowed.time_to(slowed.boost_distance) == pytest.approx(burn)
 
 
 def test_the_average_speed_of_a_straight_flight_is_distance_over_time():
@@ -416,6 +419,70 @@ def test_the_average_speed_of_a_straight_flight_is_distance_over_time():
     assert plain.velocity_at(1.0) == 100
     assert boosted.velocity_at(1.0) == pytest.approx(1.0 / boosted.time_to(1.0))
     assert boosted.velocity_at(250.0) == pytest.approx(250.0 / boosted.time_to(250.0))
+
+
+# ---------- the steps the motor acts on ----------
+
+def test_a_motor_of_a_whole_number_of_frames_up_to_1e_9_of_a_frame_does_not_gain_a_step():
+    def motor(frames, gravity=0):
+        return Weapon(
+            name="m", velocity=100, gravity=gravity, acceleration=100,
+            acceleration_time=frames * ballistics.FRAME_TIME, max_speed=1000,
+        )
+
+    assert motor(40 + 1e-10).boost_steps == 39      # a rounding above 40 frames
+    assert motor(40 - 1e-10).boost_steps == 39      # a rounding below
+    assert motor(40 + 2e-9).boost_steps == 40       # 2e-9 of a frame past 40
+    assert motor(40 + 1e-10).burn_time == 39 * ballistics.FRAME_TIME
+    assert motor(40 + 1e-10)._axis_boost_time == 39 * ballistics.FRAME_TIME
+    # a motor of one frame and a rounding never acts
+    assert not motor(1 + 1e-10, gravity=1).has_boost
+    assert motor(1 + 2e-9, gravity=1).has_boost
+    assert motor(1 + 1e-10)._axis_boost_time == 0.0
+    assert motor(1 + 2e-9)._axis_boost_time == ballistics.FRAME_TIME
+
+
+def test_the_axis_motor_ends_at_the_cap_when_it_is_reached_before_the_burn_ends():
+    nlaw = Weapon(
+        name="n", velocity=40, gravity=0, acceleration=350,
+        acceleration_time=0.65, max_speed=250,
+    )
+
+    assert nlaw.boost_steps == 32
+    assert nlaw.burn_time > 0.64                    # the burn is 0.6417 s
+    assert nlaw._axis_boost_time == pytest.approx(0.6, abs=1e-12)  # the time to the cap
+    assert replace(nlaw, max_speed=1000)._axis_boost_time == nlaw.burn_time  # a cap not reached
+    assert replace(nlaw, max_speed=0)._axis_boost_time == nlaw.burn_time     # no cap
+    assert replace(nlaw, velocity=260)._axis_boost_time == 0.0  # fired above the cap
+    # with gravity the cap does not end the motor; a motor that slows down is not ended by it
+    assert replace(nlaw, gravity=1)._axis_boost_time == nlaw.burn_time
+    slowing = replace(nlaw, acceleration=-50)
+    assert slowing._axis_boost_time == slowing.burn_time
+
+
+def test_the_cap_of_an_axis_motor_binds_on_the_speed_after_its_steps_not_after_its_time():
+    # 100 m/s and 100 m/s^2 for 49 steps (0.98255 s): 198.255 m/s, 207.88 with
+    # gravity; the 1 s of the motor's time would reach 209.8
+    motor = Weapon(
+        name="m", velocity=100, gravity=1, acceleration=100, acceleration_time=1,
+        rotation_follows_velocity=False,
+    )
+
+    def capped(**fields):
+        return replace(motor, **fields).flies_boost_in_steps
+
+    assert motor.boost_steps == 49
+    assert not capped(max_speed=209)                # the steps do not reach the cap
+    assert not capped(max_speed=207.95)             # the gravity term is that of the steps, not of the time (208.06)
+    assert capped(max_speed=207.8)                  # the steps do reach it
+    at_end = abs(motor.velocity + motor.acceleration * motor.burn_time) + motor.g * motor.burn_time
+    assert not capped(max_speed=at_end)             # a speed at the cap is not clamped
+    assert capped(max_speed=90, acceleration=1)     # fired above the cap
+    assert capped(velocity=300, acceleration=-100, max_speed=250)  # and slowed under it by the motor
+    assert not capped(max_speed=0)
+    # a motor that slows the projectile past zero: the speed at the end is the magnitude of v0 + a T
+    assert capped(velocity=10, acceleration=-200, max_speed=150)   # 186 m/s backwards
+    assert not capped(velocity=10, acceleration=-200, max_speed=250)
 
 
 # ---------- the speed cap on a parabola ----------
@@ -960,7 +1027,8 @@ def test_the_boost_table_has_a_node_per_degree_from_straight_down_to_straight_up
 
     assert table.count == 181
     assert len(table.nodes) == 181
-    assert table.steps == math.ceil(2.5 / flight.SUBSTEP - 1e-9)
+    # The 2.5 s motor acts on ceil(2.5 / dt) - 1 = 124 steps of 1/49.87 s
+    assert table.steps == 124
 
 
 @pytest.mark.parametrize("index", [0, 1, 90, 135, 180])
@@ -996,7 +1064,7 @@ def test_four_nodes_around_the_elevation_are_interpolated_and_the_ends_shift_inw
 
 
 @pytest.mark.parametrize("degrees", [-70.2, 7.3, 33.0, 88.4])
-def test_the_substep_points_are_the_weighted_sum_of_the_nodes(degrees):
+def test_the_step_points_are_the_weighted_sum_of_the_nodes(degrees):
     _, table = rocket_table()
     weights, nodes = table.stencil(math.radians(degrees))
 
@@ -1010,7 +1078,7 @@ def test_the_substep_points_are_the_weighted_sum_of_the_nodes(degrees):
 
 
 @pytest.mark.parametrize("degrees", [-30.0, 7.3, 45.0, 80.0])
-def test_the_substep_holding_a_distance_is_found_by_halving(degrees):
+def test_the_step_holding_a_distance_is_found_by_halving(degrees):
     _, table = rocket_table()
     weights, nodes = table.stencil(math.radians(degrees))
     points = list(table.points(weights, nodes))
@@ -1060,16 +1128,16 @@ ROCKET_ALONG_THE_BARREL = {**ROCKET, "rotation_follows_velocity": False}
 
 
 @pytest.mark.parametrize("raw, method, arguments, calls, expected", [
-    (ROCKET, "elevations_to", (300.0, 0.0), 89, (0.1649524986756065, 1.5157417566109017)),
-    (ROCKET, "elevations_to", (300.0, 5.0), 86, (0.18174546273161213, 1.5156827151593248)),
-    (ROCKET, "flat_low_elevation", (300.0,), 1312, 0.1649524986756065),
-    (ROCKET, "peak_elevation", (300.0,), 53, 1.4613105893855942),
+    (ROCKET, "elevations_to", (300.0, 0.0), 89, (0.16495432916330008, 1.515343942743068)),
+    (ROCKET, "elevations_to", (300.0, 5.0), 86, (0.18174746459187735, 1.5152840885980854)),
+    (ROCKET, "flat_low_elevation", (300.0,), 1312, 0.16495432916330013),
+    (ROCKET, "peak_elevation", (300.0,), 53, 1.4605315032597859),
     (CAPPED_FROM_A_TOWER, "elevations_to", (300.0, 0.0), 87, (-0.05254497560751504, 1.425945743544563)),
     (CAPPED_FROM_A_TOWER, "flat_low_elevation", (300.0,), 1258, -0.052544975608577245),
     (CAPPED_FROM_A_TOWER, "peak_elevation", (300.0,), 53, 1.284853166329401),
-    (ROCKET_ALONG_THE_BARREL, "elevations_to", (300.0, 0.0), 87, (0.11582181337127812, 1.5102972851306982)),
-    (ROCKET_ALONG_THE_BARREL, "flat_low_elevation", (300.0,), 1312, 0.11582181337127812),
-    (ROCKET_ALONG_THE_BARREL, "peak_elevation", (300.0,), 53, 1.4508037420561237),
+    (ROCKET_ALONG_THE_BARREL, "elevations_to", (300.0, 0.0), 88, (0.11587411546281558, 1.5098965217388325)),
+    (ROCKET_ALONG_THE_BARREL, "flat_low_elevation", (300.0,), 1312, 0.11587411546281559),
+    (ROCKET_ALONG_THE_BARREL, "peak_elevation", (300.0,), 53, 1.4500202751490407),
 ])
 def test_the_elevation_searches_find_their_roots_in_the_expected_number_of_flights(
     monkeypatch, raw, method, arguments, calls, expected
@@ -1306,12 +1374,12 @@ def test_a_capped_flight_within_rounding_of_the_end_of_its_reach_does_not_raise(
     rad = math.radians(20.0)
     unreachable = (-math.inf, math.inf, -math.pi / 2)
 
-    assert weapon.flight_at(rad, 5353.138623046875) == unreachable
-    assert math.isfinite(weapon.flight_at(rad, 5353.13857421875)[0])
+    assert weapon.flight_at(rad, 5353.144287109375) == unreachable
+    assert math.isfinite(weapon.flight_at(rad, 5353.1441650390625)[0])
 
     step = 2.0 ** -13
     for index in range(-2000, 2000):
-        height, _, angle = weapon.flight_at(rad, 5353.138 + index * step * 1e-3)
+        height, _, angle = weapon.flight_at(rad, 5353.1442 + index * step * 1e-3)
         assert height == -math.inf or math.isfinite(height)
         assert -math.pi / 2 <= angle < 0.0
 
@@ -1365,10 +1433,16 @@ def test_a_horizontal_boost_along_the_barrel_has_no_apex():
 
 def test_a_boost_that_peaks_exactly_when_it_ends_still_has_its_apex(monkeypatch):
     monkeypatch.setattr(ballistics, "GRAVITY", 10.0)
-    raw = {"velocity": 10, "acceleration": 5, "acceleration_time": 2.0, "rotation_follows_velocity": False}
+    # The 2 s motor acts on 99 steps; straight up, the thrust that stops the rise exactly at
+    # the end of the burn: 10 + (a - g) * burn = 0
+    burn = 99 / 49.87
+    raw = {
+        "velocity": 10, "acceleration": 10 - 10 / burn, "acceleration_time": 2.0,
+        "rotation_follows_velocity": False,
+    }
     weapon = Weapon.from_dict("w", raw)
 
-    assert weapon.apex_height(math.pi / 2, 1.0) == pytest.approx(10.0)
+    assert weapon.apex_height(math.pi / 2, 1.0) == pytest.approx(5 * burn)
 
 
 def test_the_apex_of_an_axis_boost_after_the_burn_is_the_top_of_the_parabola_it_ends_in():
@@ -1388,7 +1462,8 @@ def test_the_top_after_the_burn_is_reported_only_from_the_distance_where_the_sho
     weapon = Weapon.from_dict("w", raw)
     rad = math.radians(45.0)
     cos, sin, g = math.cos(rad), math.sin(rad), weapon.g
-    v0, a, boost = weapon.velocity, weapon.acceleration, weapon.acceleration_time
+    # The 2.5 s motor acts on 124 steps
+    v0, a, boost = weapon.velocity, weapon.acceleration, 124 / 49.87
     end_speed = v0 + a * boost
     x = cos * (v0 * boost + 0.5 * a * boost * boost)
     y = sin * (v0 * boost + 0.5 * a * boost * boost) - 0.5 * g * boost * boost

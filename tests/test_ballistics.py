@@ -665,7 +665,7 @@ def test_rocket_boost_speeds_up():
     assert weapon.velocity_at(1) == pytest.approx(117, abs=1)
     assert weapon.velocity_at(300) > 117
     assert weapon.velocity_at(5000) < weapon.cruise_velocity
-    assert weapon.cruise_velocity == pytest.approx(117 + 150 * 0.8)
+    assert weapon.cruise_velocity == pytest.approx(117 + 150 * 39 / 49.87)
 
     # Boosted rocket needs less elevation than one without the motor.
     plain = Weapon("plain", velocity=117)
@@ -1000,7 +1000,9 @@ def test_every_rmb_sight_keeps_its_old_name_as_the_optic():
 
 # Values read from the game files (Squad build 26005357): WeaponConfig.MuzzleVelocity,
 # the projectile's ProjectileGravityScale, and its ConstantAcceleration for
-# ConstantAccelerationTimeout, stopped at MaxSpeed.
+# ConstantAccelerationTimeout, stopped at MaxSpeed. The motor acts on
+# ceil(T / dt) - 1 steps of 1/49.87 s: 39 for the RPG-7's 0.8 s, 29 for the
+# Tandem's 0.6 s.
 @pytest.mark.parametrize("name, velocity, gravity, cruise", [
     ("AGS-17 · emplacement · optic (RMB ×2.5)", 185, 1.8, 185),
     ("MK19", 230, 1, 230),
@@ -1008,8 +1010,8 @@ def test_every_rmb_sight_keeps_its_old_name_as_the_optic():
     ("MGL / M32", 75, 1, 75),
     ("AK-40GL (MPT-76)", 70, 1, 70),
     ("Rifle grenade", 76, 1, 76),
-    ("RPG-7 · PG-7V HEAT / OG-7V", 117, 1, 117 + 150 * 0.8),
-    ("RPG-7 · PG-7VR Tandem", 63, 1, 63 + 45 * 0.6),
+    ("RPG-7 · PG-7V HEAT / OG-7V", 117, 1, 117 + 150 * 39 / 49.87),
+    ("RPG-7 · PG-7VR Tandem", 63, 1, 63 + 45 * 29 / 49.87),
     ("M3 MAAWS · HEAT / Smoke", 63, 1, 230),
     ("M3 MAAWS · Tandem", 63, 1, 230),
     ("Carl Gustav M2 · FFV551 HEAT", 310, 1, 310),
@@ -1135,20 +1137,26 @@ def test_the_mortar_reaches_1236_9_m_from_its_barrel_socket():
 def test_a_motor_along_the_barrel_flies_the_exact_two_phase_parabola():
     """A rocket whose rotation keeps the barrel's axis (the S-5's
     rotation_follows_velocity false): constant acceleration on each phase,
-    which the game's Velocity Verlet substeps follow exactly."""
+    which the game's Velocity Verlet steps follow exactly. The motor of 1 s
+    acts on 49 steps of 1/49.87 s."""
     rocket = Weapon.from_dict(
         "r", {"velocity": 100, "acceleration": 50, "acceleration_time": 1.0,
               "rotation_follows_velocity": False}
     )
     rad = math.radians(10)
+    burn = 49 / 49.87
+    cruise = 100 + 50 * burn
+    coast = 3 - burn
 
-    # After the boost: x = cos(a) * (100 + 25 + 150 * (t - 1)), t = 3
-    distance = math.cos(rad) * (125 + 150 * 2)
+    # After the boost: x = cos(a) * (100 burn + 25 burn^2 + cruise * (t - burn)), t = 3
+    along = 100 * burn + 25 * burn ** 2
+    distance = math.cos(rad) * (along + cruise * coast)
     height = (
-        math.sin(rad) * 125 - 0.5 * GRAVITY
-        + (math.sin(rad) * 150 - GRAVITY) * 2 - 0.5 * GRAVITY * 4
+        math.sin(rad) * along - 0.5 * GRAVITY * burn ** 2
+        + (math.sin(rad) * cruise - GRAVITY * burn) * coast
+        - 0.5 * GRAVITY * coast ** 2
     )
-    climb = math.atan2(math.sin(rad) * 150 - 3 * GRAVITY, math.cos(rad) * 150)
+    climb = math.atan2(math.sin(rad) * cruise - 3 * GRAVITY, math.cos(rad) * cruise)
 
     assert not rocket.flies_boost_in_steps
     assert rocket.flight_height(rad, distance) == pytest.approx(height)
@@ -1157,8 +1165,8 @@ def test_a_motor_along_the_barrel_flies_the_exact_two_phase_parabola():
 
 
 # The game's flight (review 1.6.0 slice 2, deadline-squad/squad-ballistics#4):
-# 20 ms substeps, MaxSpeed clamped every substep, a motor along the path. The
-# oracle is tests/flight.py, which flies the game's rules substep by substep
+# 20.05 ms steps, MaxSpeed clamped every step, a motor along the path. The
+# oracle is tests/flight.py, which flies the game's rules step by step
 # from the game snapshot tests/data/game_weapons.json, without ballistics.py.
 
 def _game_flight(name):
@@ -1196,17 +1204,17 @@ def test_the_elevation_lands_where_the_game_flies_it(name, distance):
         assert miss.distance < 0.02, (height, miss)
 
 
-def test_a_shell_fired_faster_than_its_cap_is_slowed_in_the_first_substep():
-    """Tank HE leaves at 1100 m/s with a 850 m/s cap: the first 20 ms
-    substep ends at 850 m/s and moves by the mean of the two, then the shell
+def test_a_shell_fired_faster_than_its_cap_is_slowed_in_the_first_step():
+    """Tank HE leaves at 1100 m/s with a 850 m/s cap: the first step of
+    1/49.87 s ends at 850 m/s and moves by the mean of the two, then the shell
     flies at the cap (its path turning down very slowly when level)."""
     shell = replace(WEAPONS["Tank HEAT/HE · T-72 (2A46)"], launch_height=0.0, muzzle_forward=0.0, muzzle_up=0.0)
-    first = (1100 + 850) / 2 * 0.02
+    first = (1100 + 850) / 2 / 49.87
 
     assert shell.max_speed == 850
-    assert shell.flight_time(0.0, first) == pytest.approx(0.02, rel=1e-6)
-    assert shell.flight_time(0.0, first / 2) == pytest.approx(0.01, rel=1e-6)
-    assert shell.flight_time(0.0, 1000.0) == pytest.approx(0.02 + (1000 - first) / 850, rel=1e-3)
+    assert shell.flight_time(0.0, first) == pytest.approx(1 / 49.87, rel=1e-6)
+    assert shell.flight_time(0.0, first / 2) == pytest.approx(0.5 / 49.87, rel=1e-6)
+    assert shell.flight_time(0.0, 1000.0) == pytest.approx(1 / 49.87 + (1000 - first) / 850, rel=1e-3)
     assert solve(shell, 1000.0, 0.0).time_of_flight > 1000.0 / 1100 + 0.2
 
 
